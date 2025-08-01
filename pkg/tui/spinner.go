@@ -22,7 +22,7 @@ func NewSpinnerComponent() SpinnerComponent {
 		Frame:     0,
 		StartTime: time.Now(),
 		Text:      "",
-		Style:     tcell.StyleDefault.Foreground(tcell.ColorGray),
+		Style:     StyleDimText,
 	}
 }
 

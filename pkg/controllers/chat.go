@@ -65,11 +65,25 @@ func (cc *ChatController) SendUserMessageWithContext(ctx context.Context, conten
 func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessage string) (chat.Message, error) {
 	maxIterations := 10 // prevent infinite loops
 
-	// Detect if the user message was already appended optimistically
-	lastMsg, ok := chat.GetLastMessage(cc.conversation)
-	userMessageAdded := ok && lastMsg.IsUser() && lastMsg.Content == strings.TrimSpace(userMessage)
+	// Store original conversation in case we need to rollback on error
+	originalConversation := cc.conversation
+
+	// Check if the user message was already added (e.g., by optimistic UI update)
+	needsUserMessage := true
+	if len(cc.conversation.Messages) > 0 {
+		lastMsg := cc.conversation.Messages[len(cc.conversation.Messages)-1]
+		if lastMsg.Role == chat.RoleUser && lastMsg.Content == userMessage {
+			needsUserMessage = false
+		}
+	}
+
+	// Add user message to conversation if not already present
+	if needsUserMessage {
+		cc.conversation = chat.AddMessage(cc.conversation, chat.NewUserMessage(userMessage))
+	}
 
 	for i := 0; i < maxIterations; i++ {
+
 		// Use current conversation messages
 		messages := cc.conversation.Messages
 

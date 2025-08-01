@@ -552,7 +552,7 @@ func (mv *ModelView) renderHelpText(screen tcell.Screen, area Rect) {
 	}
 
 	helpText := " n: pull new model  •  ctrl-d: delete model  •  🔧: excellent tools  •  ⚙️: good tools  •  🔩: basic tools "
-	helpStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
+	helpStyle := StyleDimText
 
 	// Center the help text
 	if len(helpText) <= area.Width {
