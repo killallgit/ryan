@@ -32,7 +32,7 @@ func NewModelView(controller *controllers.ModelsController, chatController *cont
 		chatController:    chatController,
 		modelList:         NewModelListDisplay(width, height-6),
 		modelStats:        NewModelStatsDisplay(width, 4),
-		status:            NewStatusBar(width).WithStatus("Ready"),
+		status:            NewStatusBar(width).WithStatus("Ready").WithModelViewData(0, 0),
 		layout:            NewLayout(width, height),
 		loading:           false,
 		screen:            screen,
@@ -298,6 +298,8 @@ func (mv *ModelView) HandleModelStatsUpdate(ev ModelStatsUpdateEvent) {
 		"total_size", ev.Stats.TotalSize)
 
 	mv.modelStats = mv.modelStats.WithStats(ev.Stats)
+	// Update status bar with model count and size
+	mv.status = mv.status.WithModelViewData(ev.Stats.TotalModels, ev.Stats.TotalSize)
 }
 
 func (mv *ModelView) HandleModelError(ev ModelErrorEvent) {

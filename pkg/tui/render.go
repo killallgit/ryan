@@ -199,47 +199,49 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 
 	clearArea(screen, area)
 
-	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	modelStyle := tcell.StyleDefault.Foreground(tcell.ColorGray) // Dim white for model name
-	if !status.ModelAvailable {
-		modelStyle = tcell.StyleDefault.Foreground(tcell.ColorRed).StrikeThrough(true)
-	}
-
-	// Build status text with token information (no "Model:" prefix)
-	var statusText string
-	var modelPart string
-	if status.PromptTokens > 0 || status.ResponseTokens > 0 {
-		modelPart = status.Model
-		statusText = fmt.Sprintf(" %s | Tokens: %d+%d | %s ",
-			modelPart, status.PromptTokens, status.ResponseTokens, status.Status)
-	} else {
-		modelPart = status.Model
-		statusText = fmt.Sprintf(" %s | %s ", modelPart, status.Status)
-	}
-
-	// Fill entire row with background
-	for x := area.X; x < area.X+area.Width; x++ {
-		screen.SetContent(x, area.Y, ' ', nil, statusStyle)
-	}
-
-	// Right-justify the status text
-	if len(statusText) <= area.Width {
-		startX := area.X + area.Width - len(statusText)
-		// Render text with different styles for model part
-		currentX := startX
-		for i, r := range statusText {
-			style := statusStyle
-			// Check if we're in the model part
-			if i >= 1 && i < len(modelPart)+1 {
-				style = modelStyle
+	if status.IsModelView {
+		// Simplified format for model management page
+		statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+		totalSizeGB := float64(status.TotalSize) / (1024 * 1024 * 1024)
+		statusText := fmt.Sprintf(" models: %d | size: %.1f GB ", status.TotalModels, totalSizeGB)
+		
+		// Fill entire row with background
+		for x := area.X; x < area.X+area.Width; x++ {
+			screen.SetContent(x, area.Y, ' ', nil, statusStyle)
+		}
+		
+		// Right-justify the status text
+		if len(statusText) <= area.Width {
+			startX := area.X + area.Width - len(statusText)
+			for i, r := range statusText {
+				screen.SetContent(startX+i, area.Y, r, nil, statusStyle)
 			}
-			screen.SetContent(currentX+i, area.Y, r, nil, style)
 		}
 	} else {
-		// Truncate from the left if too long - for simplicity, use standard style
-		truncated := "..." + statusText[len(statusText)-(area.Width-3):]
-		for i, r := range truncated {
-			screen.SetContent(area.X+i, area.Y, r, nil, statusStyle)
+		// Chat view format with reorganized layout
+		readyStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen).Dim(true)
+		modelStyle := tcell.StyleDefault.Foreground(tcell.ColorGray) // Dim white
+		if !status.ModelAvailable {
+			modelStyle = tcell.StyleDefault.Foreground(tcell.ColorRed).StrikeThrough(true)
+		}
+		
+		// Left-justified Ready text
+		readyText := status.Status
+		for i, r := range readyText {
+			if area.X+i < area.X+area.Width {
+				screen.SetContent(area.X+i, area.Y, r, nil, readyStyle)
+			}
+		}
+		
+		// Right-justified model name
+		modelText := status.Model
+		if len(modelText) > 0 {
+			modelStartX := area.X + area.Width - len(modelText)
+			if modelStartX > area.X + len(readyText) + 2 { // Ensure spacing
+				for i, r := range modelText {
+					screen.SetContent(modelStartX+i, area.Y, r, nil, modelStyle)
+				}
+			}
 		}
 	}
 }
@@ -282,4 +284,42 @@ func RenderAlert(screen tcell.Screen, alert AlertDisplay, area Rect) {
 
 	// Render left-justified
 	renderText(screen, area.X, area.Y, displayText, style)
+}
+
+func RenderAlertWithTokens(screen tcell.Screen, alert AlertDisplay, area Rect, promptTokens, responseTokens int) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+
+	clearArea(screen, area)
+
+	// Render spinner or error on the left
+	displayText := alert.GetDisplayText()
+	if displayText != "" {
+		// Determine style based on content type
+		var style tcell.Style
+		if alert.ErrorMessage != "" {
+			// Base16 red color for errors
+			style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
+		} else {
+			// Default gray for spinner
+			style = tcell.StyleDefault.Foreground(tcell.ColorGray)
+		}
+		// Render left-justified
+		renderText(screen, area.X, area.Y, displayText, style)
+	}
+
+	// Render token display on the right if tokens are present
+	if promptTokens > 0 || responseTokens > 0 {
+		tokenStyle := tcell.StyleDefault.Foreground(tcell.ColorGray) // Dim white
+		tokenText := fmt.Sprintf("%d/%d", promptTokens, responseTokens)
+		
+		// Right-justify the token text
+		tokenStartX := area.X + area.Width - len(tokenText)
+		if tokenStartX > area.X + len(displayText) + 2 { // Ensure spacing
+			for i, r := range tokenText {
+				screen.SetContent(tokenStartX+i, area.Y, r, nil, tokenStyle)
+			}
+		}
+	}
 }

@@ -47,7 +47,7 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 	messageArea, alertArea, inputArea, statusArea := cv.layout.CalculateAreas()
 
 	RenderMessages(screen, cv.messages, messageArea)
-	RenderAlert(screen, cv.alert, alertArea)
+	RenderAlertWithTokens(screen, cv.alert, alertArea, cv.status.PromptTokens, cv.status.ResponseTokens)
 	RenderInput(screen, cv.input, inputArea)
 	RenderStatus(screen, cv.status, statusArea)
 }
