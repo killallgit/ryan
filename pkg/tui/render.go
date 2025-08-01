@@ -36,8 +36,17 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 			parsed := ParseThinkingBlock(msg.Content)
 
 			if parsed.HasThinking && showThinking {
-				// Add thinking block lines with dimmed white styling
-				thinkingLines := WrapText(parsed.ThinkingBlock, chatArea.Width)
+				// Add "Thinking: " prefix and format thinking block
+				var thinkingText string
+				if parsed.ResponseContent != "" {
+					// Response is complete, truncate thinking to 3 lines
+					thinkingText = "Thinking: " + TruncateThinkingBlock(parsed.ThinkingBlock, 3, chatArea.Width-10)
+				} else {
+					// Response not complete, show full thinking block
+					thinkingText = "Thinking: " + parsed.ThinkingBlock
+				}
+
+				thinkingLines := WrapText(thinkingText, chatArea.Width)
 				for _, line := range thinkingLines {
 					allLines = append(allLines, MessageLine{
 						Text:       line,
@@ -211,8 +220,8 @@ func RenderInputWithSpinner(screen tcell.Screen, input InputField, area Rect, sp
 			spinnerStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Dim(true)
 			renderText(screen, prefixX, inputY, spinner.GetCurrentFrame(), spinnerStyle)
 		} else {
-			// Show dimmed orange chevron when not processing
-			chevronStyle := tcell.StyleDefault.Foreground(tcell.NewRGBColor(255, 165, 0)).Dim(true) // Orange
+			// Show dimmed yellow chevron when not processing
+			chevronStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Dim(true)
 			renderText(screen, prefixX, inputY, ">", chevronStyle)
 		}
 
@@ -372,6 +381,29 @@ func RenderAlertWithTokens(screen tcell.Screen, alert AlertDisplay, area Rect, p
 		// Right-justify the token text
 		tokenStartX := area.X + area.Width - len(tokenText)
 		if tokenStartX > area.X+len(displayText)+2 { // Ensure spacing
+			for i, r := range tokenText {
+				screen.SetContent(tokenStartX+i, area.Y, r, nil, tokenStyle)
+			}
+		}
+	}
+}
+
+func RenderTokensOnly(screen tcell.Screen, area Rect, promptTokens, responseTokens int) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+
+	clearArea(screen, area)
+
+	// Render token display on the right if tokens are present
+	totalTokens := promptTokens + responseTokens
+	if totalTokens > 0 {
+		tokenStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Dim(true) // Dim blue
+		tokenText := fmt.Sprintf("%d", totalTokens)
+
+		// Right-justify the token text
+		tokenStartX := area.X + area.Width - len(tokenText)
+		if tokenStartX >= area.X {
 			for i, r := range tokenText {
 				screen.SetContent(tokenStartX+i, area.Y, r, nil, tokenStyle)
 			}

@@ -60,7 +60,7 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 	messageArea, alertArea, inputArea, statusArea := cv.layout.CalculateAreas()
 
 	RenderMessages(screen, cv.messages, messageArea)
-	RenderAlertWithTokens(screen, cv.alert, alertArea, cv.status.PromptTokens, cv.status.ResponseTokens)
+	RenderTokensOnly(screen, alertArea, cv.status.PromptTokens, cv.status.ResponseTokens)
 
 	// Create a spinner component for the input field based on current state
 	inputSpinner := NewSpinnerComponent()
