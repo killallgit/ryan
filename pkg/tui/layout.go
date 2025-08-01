@@ -55,9 +55,17 @@ func (l Layout) CalculateAreas() (messageArea, alertArea, inputArea, statusArea 
 		messageHeight = 1
 	}
 	
-	messageArea = NewRect(0, 0, l.ScreenWidth, messageHeight)
-	alertArea = NewRect(0, messageHeight, l.ScreenWidth, alertHeight)
-	inputArea = NewRect(0, messageHeight+alertHeight, l.ScreenWidth, inputHeight)
+	// Add horizontal padding (1 character on each side)
+	padding := 1
+	availableWidth := l.ScreenWidth - (2 * padding)
+	if availableWidth < 1 {
+		availableWidth = l.ScreenWidth
+		padding = 0
+	}
+	
+	messageArea = NewRect(padding, 0, availableWidth, messageHeight)
+	alertArea = NewRect(padding, messageHeight, availableWidth, alertHeight)
+	inputArea = NewRect(padding, messageHeight+alertHeight, availableWidth, inputHeight)
 	statusArea = NewRect(0, messageHeight+alertHeight+inputHeight, l.ScreenWidth, statusHeight)
 	
 	return messageArea, alertArea, inputArea, statusArea

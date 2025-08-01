@@ -140,6 +140,11 @@ func (cv *ChatView) sendMessage() string {
 func (cv *ChatView) HandleMessageResponse(response MessageResponseEvent) {
 	cv.status = cv.status.WithStatus("Ready")
 	cv.alert = cv.alert.Clear()
+	
+	// Update token information
+	promptTokens, responseTokens := cv.controller.GetTokenUsage()
+	cv.status = cv.status.WithTokens(promptTokens, responseTokens)
+	
 	cv.updateMessages()
 	cv.scrollToBottom()
 }
@@ -155,10 +160,8 @@ func (cv *ChatView) SyncWithAppState(sending bool) {
 	
 	if sending {
 		cv.alert = cv.alert.WithSpinner(true, "Sending message...")
-		cv.status = cv.status.WithStatus("Sending...")
 	} else {
 		cv.alert = cv.alert.Clear()
-		cv.status = cv.status.WithStatus("Ready")
 	}
 }
 

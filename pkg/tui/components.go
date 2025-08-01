@@ -136,40 +136,60 @@ func (inf InputField) Clear() InputField {
 }
 
 type StatusBar struct {
-	Model  string
-	Status string
-	Width  int
+	Model           string
+	Status          string
+	Width           int
+	PromptTokens    int
+	ResponseTokens  int
 }
 
 func NewStatusBar(width int) StatusBar {
 	return StatusBar{
-		Model:  "",
-		Status: "Ready",
-		Width:  width,
+		Model:           "",
+		Status:          "Ready",
+		Width:           width,
+		PromptTokens:    0,
+		ResponseTokens:  0,
 	}
 }
 
 func (sb StatusBar) WithModel(model string) StatusBar {
 	return StatusBar{
-		Model:  model,
-		Status: sb.Status,
-		Width:  sb.Width,
+		Model:           model,
+		Status:          sb.Status,
+		Width:           sb.Width,
+		PromptTokens:    sb.PromptTokens,
+		ResponseTokens:  sb.ResponseTokens,
 	}
 }
 
 func (sb StatusBar) WithStatus(status string) StatusBar {
 	return StatusBar{
-		Model:  sb.Model,
-		Status: status,
-		Width:  sb.Width,
+		Model:           sb.Model,
+		Status:          status,
+		Width:           sb.Width,
+		PromptTokens:    sb.PromptTokens,
+		ResponseTokens:  sb.ResponseTokens,
 	}
 }
 
 func (sb StatusBar) WithWidth(width int) StatusBar {
 	return StatusBar{
-		Model:  sb.Model,
-		Status: sb.Status,
-		Width:  width,
+		Model:           sb.Model,
+		Status:          sb.Status,
+		Width:           width,
+		PromptTokens:    sb.PromptTokens,
+		ResponseTokens:  sb.ResponseTokens,
+	}
+}
+
+func (sb StatusBar) WithTokens(promptTokens, responseTokens int) StatusBar {
+	return StatusBar{
+		Model:           sb.Model,
+		Status:          sb.Status,
+		Width:           sb.Width,
+		PromptTokens:    promptTokens,
+		ResponseTokens:  responseTokens,
 	}
 }
 

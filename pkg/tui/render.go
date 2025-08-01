@@ -88,10 +88,10 @@ func RenderInput(screen tcell.Screen, input InputField, area Rect) {
 			screen.SetContent(x, area.Y, '─', nil, borderStyle)
 			screen.SetContent(x, area.Y+2, '─', nil, borderStyle)
 		}
-		screen.SetContent(area.X, area.Y, '┌', nil, borderStyle)
-		screen.SetContent(area.X+area.Width-1, area.Y, '┐', nil, borderStyle)
-		screen.SetContent(area.X, area.Y+2, '└', nil, borderStyle)
-		screen.SetContent(area.X+area.Width-1, area.Y+2, '┘', nil, borderStyle)
+		screen.SetContent(area.X, area.Y, '╭', nil, borderStyle)
+		screen.SetContent(area.X+area.Width-1, area.Y, '╮', nil, borderStyle)
+		screen.SetContent(area.X, area.Y+2, '╰', nil, borderStyle)
+		screen.SetContent(area.X+area.Width-1, area.Y+2, '╯', nil, borderStyle)
 		
 		screen.SetContent(area.X, area.Y+1, '│', nil, borderStyle)
 		screen.SetContent(area.X+area.Width-1, area.Y+1, '│', nil, borderStyle)
@@ -141,21 +141,29 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 	
 	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 	
-	statusText := fmt.Sprintf(" Model: %s | Status: %s ", status.Model, status.Status)
+	// Build status text with token information
+	var statusText string
+	if status.PromptTokens > 0 || status.ResponseTokens > 0 {
+		statusText = fmt.Sprintf(" Model: %s | Tokens: %d+%d | %s ", 
+			status.Model, status.PromptTokens, status.ResponseTokens, status.Status)
+	} else {
+		statusText = fmt.Sprintf(" Model: %s | %s ", status.Model, status.Status)
+	}
 	
+	// Fill entire row with background
 	for x := area.X; x < area.X+area.Width; x++ {
 		screen.SetContent(x, area.Y, ' ', nil, statusStyle)
 	}
 	
+	// Right-justify the status text
 	if len(statusText) <= area.Width {
+		startX := area.X + area.Width - len(statusText)
 		for i, r := range statusText {
-			if i >= area.Width {
-				break
-			}
-			screen.SetContent(area.X+i, area.Y, r, nil, statusStyle)
+			screen.SetContent(startX+i, area.Y, r, nil, statusStyle)
 		}
 	} else {
-		truncated := statusText[:area.Width-3] + "..."
+		// Truncate from the left if too long
+		truncated := "..." + statusText[len(statusText)-(area.Width-3):]
 		for i, r := range truncated {
 			screen.SetContent(area.X+i, area.Y, r, nil, statusStyle)
 		}

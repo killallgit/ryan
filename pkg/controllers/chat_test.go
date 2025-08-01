@@ -20,6 +20,11 @@ func (m *MockChatClient) SendMessage(req chat.ChatRequest) (chat.Message, error)
 	return args.Get(0).(chat.Message), args.Error(1)
 }
 
+func (m *MockChatClient) SendMessageWithResponse(req chat.ChatRequest) (chat.ChatResponse, error) {
+	args := m.Called(req)
+	return args.Get(0).(chat.ChatResponse), args.Error(1)
+}
+
 var _ = Describe("ChatController", func() {
 	var (
 		mockClient *MockChatClient
@@ -65,14 +70,21 @@ var _ = Describe("ChatController", func() {
 	Describe("SendUserMessage", func() {
 		It("should send message and update conversation", func() {
 			assistantResponse := chat.NewAssistantMessage("Hello there!")
+			chatResponse := chat.ChatResponse{
+				Message:            assistantResponse,
+				PromptEvalCount:    10,
+				EvalCount:          15,
+				Model:              "llama3.1:8b",
+				Done:               true,
+			}
 			
-			mockClient.On("SendMessage", mock.MatchedBy(func(req chat.ChatRequest) bool {
+			mockClient.On("SendMessageWithResponse", mock.MatchedBy(func(req chat.ChatRequest) bool {
 				return req.Model == "llama3.1:8b" &&
 					len(req.Messages) == 1 &&
 					req.Messages[0].Role == chat.RoleUser &&
 					req.Messages[0].Content == "Hello" &&
 					req.Stream == false
-			})).Return(assistantResponse, nil)
+			})).Return(chatResponse, nil)
 
 			response, err := controller.SendUserMessage("Hello")
 
@@ -90,6 +102,11 @@ var _ = Describe("ChatController", func() {
 			assistantMsg, found := controller.GetLastAssistantMessage()
 			Expect(found).To(BeTrue())
 			Expect(assistantMsg.Content).To(Equal("Hello there!"))
+			
+			// Verify token usage
+			promptTokens, responseTokens := controller.GetTokenUsage()
+			Expect(promptTokens).To(Equal(10))
+			Expect(responseTokens).To(Equal(15))
 		})
 
 		It("should handle empty message content", func() {
@@ -109,7 +126,7 @@ var _ = Describe("ChatController", func() {
 		})
 
 		It("should handle client errors", func() {
-			mockClient.On("SendMessage", mock.Anything).Return(chat.Message{}, errors.New("network error"))
+			mockClient.On("SendMessageWithResponse", mock.Anything).Return(chat.ChatResponse{}, errors.New("network error"))
 
 			_, err := controller.SendUserMessage("Hello")
 
@@ -125,7 +142,14 @@ var _ = Describe("ChatController", func() {
 	Describe("Conversation management", func() {
 		BeforeEach(func() {
 			assistantResponse := chat.NewAssistantMessage("Response")
-			mockClient.On("SendMessage", mock.Anything).Return(assistantResponse, nil)
+			chatResponse := chat.ChatResponse{
+				Message:            assistantResponse,
+				PromptEvalCount:    5,
+				EvalCount:          8,
+				Model:              "llama3.1:8b",
+				Done:               true,
+			}
+			mockClient.On("SendMessageWithResponse", mock.Anything).Return(chatResponse, nil)
 			
 			_, err := controller.SendUserMessage("Test message")
 			Expect(err).ToNot(HaveOccurred())
@@ -160,7 +184,14 @@ var _ = Describe("ChatController", func() {
 	Describe("Reset", func() {
 		It("should reset conversation without system message", func() {
 			assistantResponse := chat.NewAssistantMessage("Response")
-			mockClient.On("SendMessage", mock.Anything).Return(assistantResponse, nil)
+			chatResponse := chat.ChatResponse{
+				Message:            assistantResponse,
+				PromptEvalCount:    5,
+				EvalCount:          8,
+				Model:              "llama3.1:8b",
+				Done:               true,
+			}
+			mockClient.On("SendMessageWithResponse", mock.Anything).Return(chatResponse, nil)
 			
 			_, err := controller.SendUserMessage("Test")
 			Expect(err).ToNot(HaveOccurred())
@@ -178,7 +209,14 @@ var _ = Describe("ChatController", func() {
 			controller = controllers.NewChatControllerWithSystem(mockClient, "gpt-4", systemPrompt)
 			
 			assistantResponse := chat.NewAssistantMessage("Response")
-			mockClient.On("SendMessage", mock.Anything).Return(assistantResponse, nil)
+			chatResponse := chat.ChatResponse{
+				Message:            assistantResponse,
+				PromptEvalCount:    5,
+				EvalCount:          8,
+				Model:              "llama3.1:8b",
+				Done:               true,
+			}
+			mockClient.On("SendMessageWithResponse", mock.Anything).Return(chatResponse, nil)
 			
 			_, err := controller.SendUserMessage("Test")
 			Expect(err).ToNot(HaveOccurred())
@@ -204,14 +242,21 @@ var _ = Describe("ChatController", func() {
 
 		It("should include system message in requests", func() {
 			assistantResponse := chat.NewAssistantMessage("Hello!")
+			chatResponse := chat.ChatResponse{
+				Message:            assistantResponse,
+				PromptEvalCount:    12,
+				EvalCount:          6,
+				Model:              "gpt-4",
+				Done:               true,
+			}
 			
-			mockClient.On("SendMessage", mock.MatchedBy(func(req chat.ChatRequest) bool {
+			mockClient.On("SendMessageWithResponse", mock.MatchedBy(func(req chat.ChatRequest) bool {
 				return len(req.Messages) == 2 &&
 					req.Messages[0].Role == chat.RoleSystem &&
 					req.Messages[0].Content == "You are helpful" &&
 					req.Messages[1].Role == chat.RoleUser &&
 					req.Messages[1].Content == "Hi"
-			})).Return(assistantResponse, nil)
+			})).Return(chatResponse, nil)
 
 			_, err := controller.SendUserMessage("Hi")
 			

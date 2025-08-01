@@ -8,21 +8,27 @@ import (
 )
 
 type ChatController struct {
-	client       chat.ChatClient
-	conversation chat.Conversation
+	client         chat.ChatClient
+	conversation   chat.Conversation
+	lastPromptTokens    int
+	lastResponseTokens  int
 }
 
 func NewChatController(client chat.ChatClient, model string) *ChatController {
 	return &ChatController{
-		client:       client,
-		conversation: chat.NewConversation(model),
+		client:             client,
+		conversation:       chat.NewConversation(model),
+		lastPromptTokens:   0,
+		lastResponseTokens: 0,
 	}
 }
 
 func NewChatControllerWithSystem(client chat.ChatClient, model, systemPrompt string) *ChatController {
 	return &ChatController{
-		client:       client,
-		conversation: chat.NewConversationWithSystem(model, systemPrompt),
+		client:             client,
+		conversation:       chat.NewConversationWithSystem(model, systemPrompt),
+		lastPromptTokens:   0,
+		lastResponseTokens: 0,
 	}
 }
 
@@ -33,15 +39,19 @@ func (cc *ChatController) SendUserMessage(content string) (chat.Message, error) 
 
 	req := chat.CreateChatRequest(cc.conversation, content)
 	
-	assistantMessage, err := cc.client.SendMessage(req)
+	response, err := cc.client.SendMessageWithResponse(req)
 	if err != nil {
 		return chat.Message{}, fmt.Errorf("failed to send message: %w", err)
 	}
 
-	cc.conversation = chat.AddMessage(cc.conversation, chat.NewUserMessage(content))
-	cc.conversation = chat.AddMessage(cc.conversation, assistantMessage)
+	// Update token tracking
+	cc.lastPromptTokens = response.PromptEvalCount
+	cc.lastResponseTokens = response.EvalCount
 
-	return assistantMessage, nil
+	cc.conversation = chat.AddMessage(cc.conversation, chat.NewUserMessage(content))
+	cc.conversation = chat.AddMessage(cc.conversation, response.Message)
+
+	return response.Message, nil
 }
 
 func (cc *ChatController) GetHistory() []chat.Message {
@@ -86,4 +96,10 @@ func (cc *ChatController) Reset() {
 	}
 	
 	cc.conversation = chat.NewConversationWithSystem(cc.conversation.Model, systemPrompt)
+	cc.lastPromptTokens = 0
+	cc.lastResponseTokens = 0
+}
+
+func (cc *ChatController) GetTokenUsage() (promptTokens, responseTokens int) {
+	return cc.lastPromptTokens, cc.lastResponseTokens
 }
