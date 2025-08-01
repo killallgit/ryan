@@ -1,8 +1,11 @@
 
 # Chat UX
-- Some responses have a `<THINK>` block. We should show this thinking block as dimmed white text and once the final response is recieved we can truncate it to a couple of lines with "..." at the end and show the actual response text. This feature can be enabled or disabled by using the settings.yaml viper config of `show_thinking: true` if `show_thinking: false` we will only show the response text. The default for this should be true
-- Our spinner is subpar. I would like to change the color and move it. The chat input field needs a cheveron `>` as a prefix. The cheveron needs to be dimmed orange and once the text has been submitted to the chat and our spinner becomes visible, is colored dimmed blue and it should replace the cheveron while it's processing.
-
+- User inputted text should become visibe in the chat history immediately upon submitting.
+- The whole above chat live status row with the spinner and token count should have a small amount of bottom padding and remove the spinner padding
+- User text should be dim yellow
+- Token count color should be dim green
+- The cheveron in the chat input should be dim yellow
+- the solid border around the input should also be dim yellow
 
 # Settings mgmt
 - We need to keep track of a `settings.example.yaml` that contains all of the avail configuration options. We will keep this up to date as we add more, however every field / configuration should have a default.

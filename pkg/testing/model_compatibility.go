@@ -23,17 +23,17 @@ type OllamaVersion struct {
 
 // ModelTestResult represents the test results for a specific model
 type ModelTestResult struct {
-	ModelName            string
-	ToolCallSupported    bool
-	BasicToolCallPassed  bool
-	FileReadPassed       bool
-	ErrorHandlingPassed  bool
-	MultiToolPassed      bool
-	AverageResponseTime  time.Duration
-	TotalTests           int
-	PassedTests          int
-	Errors               []string
-	OllamaVersion        string
+	ModelName           string
+	ToolCallSupported   bool
+	BasicToolCallPassed bool
+	FileReadPassed      bool
+	ErrorHandlingPassed bool
+	MultiToolPassed     bool
+	AverageResponseTime time.Duration
+	TotalTests          int
+	PassedTests         int
+	Errors              []string
+	OllamaVersion       string
 }
 
 // ModelCompatibilityTester provides tools for testing model compatibility
@@ -100,7 +100,7 @@ func (mct *ModelCompatibilityTester) versionSupportsTools(version string) bool {
 	if major == 0 && minor >= 4 {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -134,7 +134,7 @@ func (mct *ModelCompatibilityTester) TestModel(modelName string) ModelTestResult
 
 	// Test 1: Basic tool call support detection
 	result.ToolCallSupported = mct.testToolCallSupport(ctx, controller, &result)
-	
+
 	if !result.ToolCallSupported {
 		result.Errors = append(result.Errors, "Model does not support tool calling")
 		return result
@@ -142,13 +142,13 @@ func (mct *ModelCompatibilityTester) TestModel(modelName string) ModelTestResult
 
 	// Test 2: Basic bash command execution
 	result.BasicToolCallPassed = mct.testBasicToolCall(ctx, controller, &result)
-	
+
 	// Test 3: File reading functionality
 	result.FileReadPassed = mct.testFileRead(ctx, controller, &result)
-	
+
 	// Test 4: Error handling
 	result.ErrorHandlingPassed = mct.testErrorHandling(ctx, controller, &result)
-	
+
 	// Test 5: Multi-tool sequence
 	result.MultiToolPassed = mct.testMultiToolSequence(ctx, controller, &result)
 
@@ -174,9 +174,9 @@ func (mct *ModelCompatibilityTester) TestModel(modelName string) ModelTestResult
 // testToolCallSupport checks if the model can make tool calls
 func (mct *ModelCompatibilityTester) testToolCallSupport(ctx context.Context, controller *controllers.ChatController, result *ModelTestResult) bool {
 	startTime := time.Now()
-	
+
 	response, err := controller.SendUserMessageWithContext(ctx, "Run the command 'echo hello world' using the execute_bash tool")
-	
+
 	duration := time.Since(startTime)
 	result.AverageResponseTime = duration
 
@@ -187,9 +187,9 @@ func (mct *ModelCompatibilityTester) testToolCallSupport(ctx context.Context, co
 
 	// Check if response mentions tool execution or contains expected output
 	responseContent := strings.ToLower(response.Content)
-	if strings.Contains(responseContent, "hello world") || 
-	   strings.Contains(responseContent, "executed") ||
-	   strings.Contains(responseContent, "command") {
+	if strings.Contains(responseContent, "hello world") ||
+		strings.Contains(responseContent, "executed") ||
+		strings.Contains(responseContent, "command") {
 		return true
 	}
 
@@ -211,9 +211,9 @@ func (mct *ModelCompatibilityTester) testToolCallSupport(ctx context.Context, co
 // testBasicToolCall tests basic bash command execution
 func (mct *ModelCompatibilityTester) testBasicToolCall(ctx context.Context, controller *controllers.ChatController, result *ModelTestResult) bool {
 	startTime := time.Now()
-	
+
 	response, err := controller.SendUserMessageWithContext(ctx, "Use the execute_bash tool to run 'pwd' and tell me the current directory")
-	
+
 	duration := time.Since(startTime)
 	if result.AverageResponseTime == 0 {
 		result.AverageResponseTime = duration
@@ -238,11 +238,11 @@ func (mct *ModelCompatibilityTester) testBasicToolCall(ctx context.Context, cont
 // testFileRead tests file reading functionality
 func (mct *ModelCompatibilityTester) testFileRead(ctx context.Context, controller *controllers.ChatController, result *ModelTestResult) bool {
 	startTime := time.Now()
-	
+
 	// Create a test file first
 	testFilePath := "/tmp/ryan_test_file.txt"
 	testContent := "This is a test file for Ryan tool testing"
-	
+
 	// Create the test file using bash tool
 	_, err := controller.SendUserMessageWithContext(ctx, fmt.Sprintf("Use execute_bash to create a test file: echo '%s' > %s", testContent, testFilePath))
 	if err != nil {
@@ -252,7 +252,7 @@ func (mct *ModelCompatibilityTester) testFileRead(ctx context.Context, controlle
 
 	// Now test file reading
 	response, err := controller.SendUserMessageWithContext(ctx, fmt.Sprintf("Use the read_file tool to read the contents of %s", testFilePath))
-	
+
 	duration := time.Since(startTime)
 	if result.AverageResponseTime == 0 {
 		result.AverageResponseTime = duration
@@ -279,9 +279,9 @@ func (mct *ModelCompatibilityTester) testFileRead(ctx context.Context, controlle
 // testErrorHandling tests how the model handles tool errors
 func (mct *ModelCompatibilityTester) testErrorHandling(ctx context.Context, controller *controllers.ChatController, result *ModelTestResult) bool {
 	startTime := time.Now()
-	
+
 	response, err := controller.SendUserMessageWithContext(ctx, "Use execute_bash to run an invalid command: 'nonexistentcommand12345'")
-	
+
 	duration := time.Since(startTime)
 	if result.AverageResponseTime == 0 {
 		result.AverageResponseTime = duration
@@ -296,10 +296,10 @@ func (mct *ModelCompatibilityTester) testErrorHandling(ctx context.Context, cont
 
 	// Check if response indicates error handling
 	responseContent := strings.ToLower(response.Content)
-	if strings.Contains(responseContent, "error") || 
-	   strings.Contains(responseContent, "failed") ||
-	   strings.Contains(responseContent, "not found") ||
-	   strings.Contains(responseContent, "command not found") {
+	if strings.Contains(responseContent, "error") ||
+		strings.Contains(responseContent, "failed") ||
+		strings.Contains(responseContent, "not found") ||
+		strings.Contains(responseContent, "command not found") {
 		return true
 	}
 
@@ -310,9 +310,9 @@ func (mct *ModelCompatibilityTester) testErrorHandling(ctx context.Context, cont
 // testMultiToolSequence tests using multiple tools in sequence
 func (mct *ModelCompatibilityTester) testMultiToolSequence(ctx context.Context, controller *controllers.ChatController, result *ModelTestResult) bool {
 	startTime := time.Now()
-	
+
 	_, err := controller.SendUserMessageWithContext(ctx, "First use execute_bash to create a file with 'echo testing > /tmp/multitest.txt', then use read_file to read it back, and finally use execute_bash to delete it")
-	
+
 	duration := time.Since(startTime)
 	if result.AverageResponseTime == 0 {
 		result.AverageResponseTime = duration
@@ -329,7 +329,7 @@ func (mct *ModelCompatibilityTester) testMultiToolSequence(ctx context.Context, 
 	history := controller.GetHistory()
 	bashCalls := 0
 	fileCalls := 0
-	
+
 	for _, msg := range history {
 		if msg.IsTool() {
 			if msg.ToolName == "execute_bash" {
@@ -352,18 +352,18 @@ func (mct *ModelCompatibilityTester) testMultiToolSequence(ctx context.Context, 
 // TestMultipleModels tests a list of models and returns results
 func (mct *ModelCompatibilityTester) TestMultipleModels(models []string) []ModelTestResult {
 	results := make([]ModelTestResult, 0, len(models))
-	
+
 	log.Printf("Starting compatibility testing for %d models", len(models))
-	
+
 	for i, model := range models {
 		log.Printf("Testing model %d/%d: %s", i+1, len(models), model)
 		result := mct.TestModel(model)
 		results = append(results, result)
-		
+
 		// Brief pause between tests to avoid overwhelming Ollama
 		time.Sleep(2 * time.Second)
 	}
-	
+
 	return results
 }
 
@@ -372,7 +372,7 @@ func (mct *ModelCompatibilityTester) PrintResults(results []ModelTestResult) {
 	fmt.Println("\n" + strings.Repeat("=", 80))
 	fmt.Println("MODEL COMPATIBILITY TEST RESULTS")
 	fmt.Println(strings.Repeat("=", 80))
-	
+
 	// Show Ollama version info if available
 	if len(results) > 0 && results[0].OllamaVersion != "" {
 		fmt.Printf("\n🔗 Ollama Server: v%s\n", results[0].OllamaVersion)
@@ -383,12 +383,12 @@ func (mct *ModelCompatibilityTester) PrintResults(results []ModelTestResult) {
 			fmt.Printf("   Tool Support: ❌ Incompatible (v0.4.0+ required, found v%s)\n", results[0].OllamaVersion)
 		}
 	}
-	
+
 	for _, result := range results {
 		fmt.Printf("\n📊 Model: %s\n", result.ModelName)
 		fmt.Printf("   Tool Support: %v\n", result.ToolCallSupported)
 		if result.ToolCallSupported {
-			fmt.Printf("   Tests Passed: %d/%d (%.1f%%)\n", result.PassedTests, result.TotalTests, 
+			fmt.Printf("   Tests Passed: %d/%d (%.1f%%)\n", result.PassedTests, result.TotalTests,
 				float64(result.PassedTests)/float64(result.TotalTests)*100)
 			fmt.Printf("   Avg Response: %v\n", result.AverageResponseTime.Round(time.Millisecond))
 			fmt.Printf("   Basic Tool:   %v\n", result.BasicToolCallPassed)
@@ -396,7 +396,7 @@ func (mct *ModelCompatibilityTester) PrintResults(results []ModelTestResult) {
 			fmt.Printf("   Error Handle: %v\n", result.ErrorHandlingPassed)
 			fmt.Printf("   Multi-tool:   %v\n", result.MultiToolPassed)
 		}
-		
+
 		if len(result.Errors) > 0 {
 			fmt.Printf("   Errors:\n")
 			for _, err := range result.Errors {
@@ -404,12 +404,12 @@ func (mct *ModelCompatibilityTester) PrintResults(results []ModelTestResult) {
 			}
 		}
 	}
-	
+
 	// Summary statistics
 	totalModels := len(results)
 	supportedModels := 0
 	totalPassRate := 0.0
-	
+
 	for _, result := range results {
 		if result.ToolCallSupported {
 			supportedModels++
@@ -418,7 +418,7 @@ func (mct *ModelCompatibilityTester) PrintResults(results []ModelTestResult) {
 			}
 		}
 	}
-	
+
 	fmt.Printf("\n" + strings.Repeat("-", 80))
 	fmt.Printf("\n📈 SUMMARY:\n")
 	fmt.Printf("   Models Tested: %d\n", totalModels)

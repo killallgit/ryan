@@ -65,7 +65,7 @@ func (cc *ChatController) SendUserMessageWithContext(ctx context.Context, conten
 func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessage string) (chat.Message, error) {
 	maxIterations := 10 // prevent infinite loops
 	userMessageAdded := false
-	
+
 	for i := 0; i < maxIterations; i++ {
 		// Prepare conversation with user message for the first iteration
 		var messages []chat.Message
@@ -76,7 +76,7 @@ func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessag
 		} else {
 			messages = cc.conversation.Messages
 		}
-		
+
 		// Prepare chat request with tools if available
 		var req chat.ChatRequest
 		if cc.toolRegistry != nil {
@@ -84,13 +84,13 @@ func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessag
 			if err != nil {
 				return chat.Message{}, fmt.Errorf("failed to get tool definitions: %w", err)
 			}
-			
+
 			// Convert tool definitions to the format expected by chat request
 			tools := make([]map[string]any, len(toolDefs))
 			for i, def := range toolDefs {
 				tools[i] = def.Definition
 			}
-			
+
 			req = chat.ChatRequest{
 				Model:    cc.conversation.Model,
 				Messages: messages,
@@ -169,7 +169,7 @@ func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat
 		if !result.Success && result.Error != "" {
 			content = result.Error
 		}
-		
+
 		toolResult := chat.NewToolResultMessage(toolCall.Function.Name, content)
 		cc.conversation = chat.AddMessage(cc.conversation, toolResult)
 	}

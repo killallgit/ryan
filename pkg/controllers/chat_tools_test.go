@@ -21,11 +21,11 @@ var _ = Describe("ChatController Tool Integration", func() {
 	BeforeEach(func() {
 		mockClient = &MockChatClient{}
 		toolRegistry = tools.NewRegistry()
-		
+
 		// Register built-in tools
 		err := toolRegistry.RegisterBuiltinTools()
 		Expect(err).ToNot(HaveOccurred())
-		
+
 		controller = controllers.NewChatController(mockClient, "test-model", toolRegistry)
 	})
 
@@ -37,7 +37,7 @@ var _ = Describe("ChatController Tool Integration", func() {
 		It("should have tool registry available", func() {
 			registry := controller.GetToolRegistry()
 			Expect(registry).ToNot(BeNil())
-			
+
 			// Check that built-in tools are registered
 			toolNames := registry.List()
 			Expect(toolNames).To(ContainElement("execute_bash"))
@@ -66,7 +66,7 @@ var _ = Describe("ChatController Tool Integration", func() {
 			_, err := controller.SendUserMessage("Hello")
 
 			Expect(err).ToNot(HaveOccurred())
-			
+
 			// Verify that tools were included in the request
 			Expect(capturedRequest.Tools).ToNot(BeEmpty())
 			Expect(len(capturedRequest.Tools)).To(Equal(2)) // bash and file read tools
@@ -117,7 +117,7 @@ var _ = Describe("ChatController Tool Integration", func() {
 			// Check that conversation includes tool execution
 			history := controller.GetHistory()
 			Expect(len(history)).To(BeNumerically(">=", 3)) // user message, assistant with tool calls, tool result, final response
-			
+
 			// Find tool result message
 			var foundToolResult bool
 			for _, msg := range history {
@@ -135,14 +135,14 @@ var _ = Describe("ChatController Tool Integration", func() {
 		It("should support setting and getting tool registry", func() {
 			newRegistry := tools.NewRegistry()
 			controller.SetToolRegistry(newRegistry)
-			
+
 			retrievedRegistry := controller.GetToolRegistry()
 			Expect(retrievedRegistry).To(Equal(newRegistry))
 		})
 
 		It("should work without tool registry", func() {
 			controllerWithoutTools := controllers.NewChatController(mockClient, "test-model", nil)
-			
+
 			mockResponse := chat.ChatResponse{
 				Model:     "test-model",
 				CreatedAt: time.Now(),
@@ -162,7 +162,7 @@ var _ = Describe("ChatController Tool Integration", func() {
 			_, err := controllerWithoutTools.SendUserMessage("Hello")
 
 			Expect(err).ToNot(HaveOccurred())
-			
+
 			// Verify that no tools were included in the request
 			Expect(capturedRequest.Tools).To(BeEmpty())
 		})

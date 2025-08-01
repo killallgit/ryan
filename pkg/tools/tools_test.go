@@ -126,11 +126,11 @@ func TestBashTool(t *testing.T) {
 	t.Run("JSONSchema", func(t *testing.T) {
 		schema := tool.JSONSchema()
 		assert.Equal(t, "object", schema["type"])
-		
+
 		properties, ok := schema["properties"].(map[string]interface{})
 		assert.True(t, ok)
 		assert.Contains(t, properties, "command")
-		
+
 		required, ok := schema["required"].([]string)
 		assert.True(t, ok)
 		assert.Contains(t, required, "command")
@@ -182,7 +182,7 @@ func TestBashTool(t *testing.T) {
 	t.Run("ExecuteWithTimeout", func(t *testing.T) {
 		// Set a very short timeout for testing
 		tool.Timeout = 100 * time.Millisecond
-		
+
 		params := map[string]interface{}{
 			"command": "sleep 1", // Sleep longer than timeout
 		}
@@ -211,11 +211,11 @@ func TestFileReadTool(t *testing.T) {
 	t.Run("JSONSchema", func(t *testing.T) {
 		schema := tool.JSONSchema()
 		assert.Equal(t, "object", schema["type"])
-		
+
 		properties, ok := schema["properties"].(map[string]interface{})
 		assert.True(t, ok)
 		assert.Contains(t, properties, "path")
-		
+
 		required, ok := schema["required"].([]string)
 		assert.True(t, ok)
 		assert.Contains(t, required, "path")
@@ -226,7 +226,7 @@ func TestFileReadTool(t *testing.T) {
 		tmpDir := t.TempDir()
 		tmpFile := filepath.Join(tmpDir, "test.txt")
 		content := "Hello, World!\nThis is a test file."
-		
+
 		err := os.WriteFile(tmpFile, []byte(content), 0644)
 		require.NoError(t, err)
 
@@ -260,7 +260,7 @@ func TestFileReadTool(t *testing.T) {
 		tmpDir := t.TempDir()
 		tmpFile := filepath.Join(tmpDir, "test.txt")
 		content := "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
-		
+
 		err := os.WriteFile(tmpFile, []byte(content), 0644)
 		require.NoError(t, err)
 
@@ -319,9 +319,9 @@ func TestProviderAdapters(t *testing.T) {
 	t.Run("ConvertToOpenAI", func(t *testing.T) {
 		definition, err := ConvertToProvider(mockTool, "openai")
 		assert.NoError(t, err)
-		
+
 		assert.Equal(t, "function", definition["type"])
-		
+
 		function, ok := definition["function"].(map[string]interface{})
 		assert.True(t, ok)
 		assert.Equal(t, "test_tool", function["name"])
@@ -332,7 +332,7 @@ func TestProviderAdapters(t *testing.T) {
 	t.Run("ConvertToAnthropic", func(t *testing.T) {
 		definition, err := ConvertToProvider(mockTool, "anthropic")
 		assert.NoError(t, err)
-		
+
 		assert.Equal(t, "test_tool", definition["name"])
 		assert.Equal(t, "A test tool", definition["description"])
 		assert.Equal(t, mockTool.schema, definition["input_schema"])
@@ -341,7 +341,7 @@ func TestProviderAdapters(t *testing.T) {
 	t.Run("ConvertToMCP", func(t *testing.T) {
 		definition, err := ConvertToProvider(mockTool, "mcp")
 		assert.NoError(t, err)
-		
+
 		assert.Equal(t, "test_tool", definition["name"])
 		assert.Equal(t, "A test tool", definition["description"])
 		assert.Equal(t, mockTool.schema, definition["inputSchema"])
@@ -440,13 +440,13 @@ func (m *MockTool) Execute(ctx context.Context, params map[string]interface{}) (
 	if m.executeErr != nil {
 		return ToolResult{}, m.executeErr
 	}
-	
+
 	if m.result.Metadata.ToolName == "" {
 		m.result.Metadata.ToolName = m.name
 		m.result.Metadata.Parameters = params
 		m.result.Metadata.StartTime = time.Now()
 		m.result.Metadata.EndTime = time.Now()
 	}
-	
+
 	return m.result, nil
 }

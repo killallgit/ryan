@@ -194,7 +194,7 @@ func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDispl
 			case models.ToolCompatibilityExcellent:
 				toolIcon = "🔧" // Excellent tool support
 			case models.ToolCompatibilityGood:
-				toolIcon = "⚙️"  // Good tool support
+				toolIcon = "⚙️" // Good tool support
 			case models.ToolCompatibilityBasic:
 				toolIcon = "🔩" // Basic tool support
 			}

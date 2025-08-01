@@ -128,7 +128,7 @@ func generateRecommendations(results []testing.ModelTestResult) {
 		fmt.Println("\n🌟 EXCELLENT for production use:")
 		for _, result := range excellent {
 			passRate := float64(result.PassedTests) / float64(result.TotalTests) * 100
-			fmt.Printf("   ✅ %s (%.0f%% pass rate, %v avg response)\n", 
+			fmt.Printf("   ✅ %s (%.0f%% pass rate, %v avg response)\n",
 				result.ModelName, passRate, result.AverageResponseTime.Round(100000000))
 		}
 	}
@@ -137,7 +137,7 @@ func generateRecommendations(results []testing.ModelTestResult) {
 		fmt.Println("\n👍 GOOD for development/testing:")
 		for _, result := range good {
 			passRate := float64(result.PassedTests) / float64(result.TotalTests) * 100
-			fmt.Printf("   ⚠️  %s (%.0f%% pass rate, %v avg response)\n", 
+			fmt.Printf("   ⚠️  %s (%.0f%% pass rate, %v avg response)\n",
 				result.ModelName, passRate, result.AverageResponseTime.Round(100000000))
 		}
 	}
@@ -147,7 +147,7 @@ func generateRecommendations(results []testing.ModelTestResult) {
 		for _, result := range problematic {
 			if result.ToolCallSupported {
 				passRate := float64(result.PassedTests) / float64(result.TotalTests) * 100
-				fmt.Printf("   ❌ %s (%.0f%% pass rate) - %s\n", 
+				fmt.Printf("   ❌ %s (%.0f%% pass rate) - %s\n",
 					result.ModelName, passRate, strings.Join(result.Errors, "; "))
 			} else {
 				fmt.Printf("   ❌ %s (No tool support)\n", result.ModelName)

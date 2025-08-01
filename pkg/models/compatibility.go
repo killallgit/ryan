@@ -37,164 +37,164 @@ func (tc ToolCompatibility) String() string {
 
 // ModelInfo contains information about a model's capabilities
 type ModelInfo struct {
-	Name              string
-	ToolCompatibility ToolCompatibility
+	Name                string
+	ToolCompatibility   ToolCompatibility
 	RecommendedForTools bool
-	Notes             string
+	Notes               string
 }
 
 // KnownModels contains our tested model compatibility data
 var KnownModels = map[string]ModelInfo{
 	// Llama models - generally excellent tool calling support
 	"llama3.1:8b": {
-		Name:              "llama3.1:8b",
-		ToolCompatibility: ToolCompatibilityExcellent,
+		Name:                "llama3.1:8b",
+		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:             "Mature tool calling implementation, reliable for production",
+		Notes:               "Mature tool calling implementation, reliable for production",
 	},
 	"llama3.1:70b": {
-		Name:              "llama3.1:70b",
-		ToolCompatibility: ToolCompatibilityExcellent,
+		Name:                "llama3.1:70b",
+		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:             "High-quality tool calling, resource intensive",
+		Notes:               "High-quality tool calling, resource intensive",
 	},
 	"llama3.2:1b": {
-		Name:              "llama3.2:1b",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "llama3.2:1b",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Lightweight option with solid tool support",
+		Notes:               "Lightweight option with solid tool support",
 	},
 	"llama3.2:3b": {
-		Name:              "llama3.2:3b",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "llama3.2:3b",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Good balance of size and tool calling capability",
+		Notes:               "Good balance of size and tool calling capability",
 	},
 	"llama3.3:70b": {
-		Name:              "llama3.3:70b",
-		ToolCompatibility: ToolCompatibilityExcellent,
+		Name:                "llama3.3:70b",
+		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:             "Latest Llama with enhanced tool calling",
+		Notes:               "Latest Llama with enhanced tool calling",
 	},
 
 	// Qwen models - excellent for coding and math tasks
 	"qwen2.5:0.5b": {
-		Name:              "qwen2.5:0.5b",
-		ToolCompatibility: ToolCompatibilityBasic,
+		Name:                "qwen2.5:0.5b",
+		ToolCompatibility:   ToolCompatibilityBasic,
 		RecommendedForTools: false,
-		Notes:             "Very lightweight, limited tool calling accuracy",
+		Notes:               "Very lightweight, limited tool calling accuracy",
 	},
 	"qwen2.5:1.5b": {
-		Name:              "qwen2.5:1.5b",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "qwen2.5:1.5b",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Compact model with reasonable tool support",
+		Notes:               "Compact model with reasonable tool support",
 	},
 	"qwen2.5:3b": {
-		Name:              "qwen2.5:3b",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "qwen2.5:3b",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Good tool calling with improved reasoning",
+		Notes:               "Good tool calling with improved reasoning",
 	},
 	"qwen2.5:7b": {
-		Name:              "qwen2.5:7b",
-		ToolCompatibility: ToolCompatibilityExcellent,
+		Name:                "qwen2.5:7b",
+		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:             "Excellent for coding tasks and tool usage",
+		Notes:               "Excellent for coding tasks and tool usage",
 	},
 	"qwen2.5:14b": {
-		Name:              "qwen2.5:14b",
-		ToolCompatibility: ToolCompatibilityExcellent,
+		Name:                "qwen2.5:14b",
+		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:             "High-quality tool calling with strong reasoning",
+		Notes:               "High-quality tool calling with strong reasoning",
 	},
 	"qwen2.5:32b": {
-		Name:              "qwen2.5:32b",
-		ToolCompatibility: ToolCompatibilityExcellent,
+		Name:                "qwen2.5:32b",
+		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:             "Top-tier tool calling performance",
+		Notes:               "Top-tier tool calling performance",
 	},
 	"qwen2.5-coder:1.5b": {
-		Name:              "qwen2.5-coder:1.5b",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "qwen2.5-coder:1.5b",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Optimized for coding tasks, good tool integration",
+		Notes:               "Optimized for coding tasks, good tool integration",
 	},
 	"qwen2.5-coder:7b": {
-		Name:              "qwen2.5-coder:7b",
-		ToolCompatibility: ToolCompatibilityExcellent,
+		Name:                "qwen2.5-coder:7b",
+		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:             "Excellent for development workflows with tools",
+		Notes:               "Excellent for development workflows with tools",
 	},
 	"qwen3:8b": {
-		Name:              "qwen3:8b",
-		ToolCompatibility: ToolCompatibilityExcellent,
+		Name:                "qwen3:8b",
+		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:             "Latest Qwen with enhanced tool calling capabilities",
+		Notes:               "Latest Qwen with enhanced tool calling capabilities",
 	},
 
 	// Mistral models - reliable tool calling
 	"mistral:7b": {
-		Name:              "mistral:7b",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "mistral:7b",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Solid tool calling implementation",
+		Notes:               "Solid tool calling implementation",
 	},
 	"mistral-nemo": {
-		Name:              "mistral-nemo",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "mistral-nemo",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Efficient model with good tool support",
+		Notes:               "Efficient model with good tool support",
 	},
 	"mistral-small": {
-		Name:              "mistral-small",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "mistral-small",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Compact with reliable tool calling",
+		Notes:               "Compact with reliable tool calling",
 	},
 
 	// DeepSeek models
 	"deepseek-r1": {
-		Name:              "deepseek-r1",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "deepseek-r1",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Reasoning-focused model with tool support",
+		Notes:               "Reasoning-focused model with tool support",
 	},
 
 	// Command-R models
 	"command-r": {
-		Name:              "command-r",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "command-r",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "Enterprise-focused with solid tool integration",
+		Notes:               "Enterprise-focused with solid tool integration",
 	},
 	"command-r-plus": {
-		Name:              "command-r-plus",
-		ToolCompatibility: ToolCompatibilityExcellent,
+		Name:                "command-r-plus",
+		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:             "Enhanced version with excellent tool calling",
+		Notes:               "Enhanced version with excellent tool calling",
 	},
 
 	// Granite models (IBM)
 	"granite3.2:8b": {
-		Name:              "granite3.2:8b",
-		ToolCompatibility: ToolCompatibilityGood,
+		Name:                "granite3.2:8b",
+		ToolCompatibility:   ToolCompatibilityGood,
 		RecommendedForTools: true,
-		Notes:             "IBM model with reliable tool support",
+		Notes:               "IBM model with reliable tool support",
 	},
 
 	// Models known to have limited or no tool support
 	"gemma:2b": {
-		Name:              "gemma:2b",
-		ToolCompatibility: ToolCompatibilityNone,
+		Name:                "gemma:2b",
+		ToolCompatibility:   ToolCompatibilityNone,
 		RecommendedForTools: false,
-		Notes:             "No native tool calling support",
+		Notes:               "No native tool calling support",
 	},
 	"gemma:7b": {
-		Name:              "gemma:7b",
-		ToolCompatibility: ToolCompatibilityNone,
+		Name:                "gemma:7b",
+		ToolCompatibility:   ToolCompatibilityNone,
 		RecommendedForTools: false,
-		Notes:             "No native tool calling support",
+		Notes:               "No native tool calling support",
 	},
 }
 
@@ -202,12 +202,12 @@ var KnownModels = map[string]ModelInfo{
 func GetModelInfo(modelName string) ModelInfo {
 	// Normalize model name (remove version tags if present)
 	normalizedName := normalizeModelName(modelName)
-	
+
 	// Check exact match first
 	if info, exists := KnownModels[normalizedName]; exists {
 		return info
 	}
-	
+
 	// Check partial matches for versioned models
 	for knownModel, info := range KnownModels {
 		if strings.HasPrefix(normalizedName, extractBaseModelName(knownModel)) {
@@ -216,7 +216,7 @@ func GetModelInfo(modelName string) ModelInfo {
 			return info
 		}
 	}
-	
+
 	// Try to infer from model family
 	return inferModelCapabilities(modelName)
 }
@@ -224,8 +224,8 @@ func GetModelInfo(modelName string) ModelInfo {
 // IsToolCompatible returns true if the model supports tool calling
 func IsToolCompatible(modelName string) bool {
 	info := GetModelInfo(modelName)
-	return info.ToolCompatibility != ToolCompatibilityNone && 
-		   info.ToolCompatibility != ToolCompatibilityUnknown
+	return info.ToolCompatibility != ToolCompatibilityNone &&
+		info.ToolCompatibility != ToolCompatibilityUnknown
 }
 
 // IsRecommendedForTools returns true if the model is recommended for tool usage
@@ -248,11 +248,11 @@ func GetRecommendedModels() []string {
 // GetModelsByCompatibility returns models grouped by compatibility level
 func GetModelsByCompatibility() map[ToolCompatibility][]string {
 	result := make(map[ToolCompatibility][]string)
-	
+
 	for modelName, info := range KnownModels {
 		result[info.ToolCompatibility] = append(result[info.ToolCompatibility], modelName)
 	}
-	
+
 	return result
 }
 
@@ -260,7 +260,7 @@ func GetModelsByCompatibility() map[ToolCompatibility][]string {
 func normalizeModelName(modelName string) string {
 	// Remove common prefixes/suffixes that don't affect tool compatibility
 	name := strings.ToLower(strings.TrimSpace(modelName))
-	
+
 	// Remove trailing version descriptors like "-base", "-instruct", etc.
 	suffixesToRemove := []string{"-base", "-instruct", "-chat"}
 	for _, suffix := range suffixesToRemove {
@@ -268,7 +268,7 @@ func normalizeModelName(modelName string) string {
 			name = strings.TrimSuffix(name, suffix)
 		}
 	}
-	
+
 	return name
 }
 
@@ -284,59 +284,59 @@ func extractBaseModelName(modelName string) string {
 // inferModelCapabilities attempts to infer tool calling capabilities from model name
 func inferModelCapabilities(modelName string) ModelInfo {
 	name := strings.ToLower(modelName)
-	
+
 	// Model families known to support tools
 	if strings.Contains(name, "llama3") {
 		return ModelInfo{
-			Name:              modelName,
-			ToolCompatibility: ToolCompatibilityGood,
+			Name:                modelName,
+			ToolCompatibility:   ToolCompatibilityGood,
 			RecommendedForTools: true,
-			Notes:             "Llama 3 family generally supports tool calling",
+			Notes:               "Llama 3 family generally supports tool calling",
 		}
 	}
-	
+
 	if strings.Contains(name, "qwen") {
 		return ModelInfo{
-			Name:              modelName,
-			ToolCompatibility: ToolCompatibilityGood,
+			Name:                modelName,
+			ToolCompatibility:   ToolCompatibilityGood,
 			RecommendedForTools: true,
-			Notes:             "Qwen family generally supports tool calling",
+			Notes:               "Qwen family generally supports tool calling",
 		}
 	}
-	
+
 	if strings.Contains(name, "mistral") {
 		return ModelInfo{
-			Name:              modelName,
-			ToolCompatibility: ToolCompatibilityGood,
+			Name:                modelName,
+			ToolCompatibility:   ToolCompatibilityGood,
 			RecommendedForTools: true,
-			Notes:             "Mistral family generally supports tool calling",
+			Notes:               "Mistral family generally supports tool calling",
 		}
 	}
-	
+
 	if strings.Contains(name, "command-r") {
 		return ModelInfo{
-			Name:              modelName,
-			ToolCompatibility: ToolCompatibilityGood,
+			Name:                modelName,
+			ToolCompatibility:   ToolCompatibilityGood,
 			RecommendedForTools: true,
-			Notes:             "Command-R family supports tool calling",
+			Notes:               "Command-R family supports tool calling",
 		}
 	}
-	
+
 	// Model families known to have limited/no support
 	if strings.Contains(name, "gemma") || strings.Contains(name, "phi") {
 		return ModelInfo{
-			Name:              modelName,
-			ToolCompatibility: ToolCompatibilityNone,
+			Name:                modelName,
+			ToolCompatibility:   ToolCompatibilityNone,
 			RecommendedForTools: false,
-			Notes:             "This model family typically lacks tool calling support",
+			Notes:               "This model family typically lacks tool calling support",
 		}
 	}
-	
+
 	// Unknown model
 	return ModelInfo{
-		Name:              modelName,
-		ToolCompatibility: ToolCompatibilityUnknown,
+		Name:                modelName,
+		ToolCompatibility:   ToolCompatibilityUnknown,
 		RecommendedForTools: false,
-		Notes:             "Tool calling compatibility unknown - test recommended",
+		Notes:               "Tool calling compatibility unknown - test recommended",
 	}
 }
