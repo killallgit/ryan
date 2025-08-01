@@ -1,5 +1,7 @@
-- when downloading is completed the modal should be removed
-- pressing <esc> should only close the modal and not the app
+
+# Chat UX
+- Some responses have a `<THINK>` block. We should show this thinking block as dimmed white text and once the final response is recieved we can truncate it to a couple of lines with "..." at the end and show the actual response text. This feature can be enabled or disabled by using the settings.yaml viper config of `show_thinking: true` if `show_thinking: false` we will only show the response text. The default for this should be true
+- Our spinner is subpar. I would like to change the color and move it. The chat input field needs a cheveron `>` as a prefix. The cheveron needs to be dimmed orange and once the text has been submitted to the chat and our spinner becomes visible, is colored dimmed blue and it should replace the cheveron while it's processing.
 
 
 # Settings mgmt
@@ -18,9 +20,6 @@
 - A simple progress bar integrated into the download modal. It will replace the input field and show a percentage by polling ollama for updates. If the user presses <esc> to leave the view, small text in the footer area should reflext that <model> is being pulled by putting a dim white text justified right saying and showing the spinner "<SPINNER> pulling: <MODEL_NAME>..."
 - The model management view should refresh periodicly based on the config `ollama.poll_interval`
 
-# Chat UX
-- Some responses have a `<THINK>` block. We should show this thinking block as dimmed white text and once the final response is recieved we can truncate it to a couple of lines with "..." at the end and show the actual response text. This feature can be enabled or disabled by using the settings.yaml viper config of `show_thinking: true` if `show_thinking: false` we will only show the response text. The default for this should be true
-- Our spinner is subpar. I would like to change the color and move it. The chat input field needs a cheveron `>` as a prefix. The cheveron needs to be dimmed orange and once the text has been submitted to the chat and our spinner becomes visible, is colored dimmed blue and it should replace the cheveron while it's processing.
 
 # BUGS
 - Error messages are reported in 2 locations. Lets only use the one at the bottom of the chat.
