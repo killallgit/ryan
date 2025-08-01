@@ -45,26 +45,12 @@ task build
 
 ## Tool System
 
-Ryan includes a universal tool system that works with all major LLM providers:
+Ryan includes a universal tool system with built-in tools for code co-pilot functionality:
 
-### Available Tools
-- **execute_bash** - Run shell commands with safety constraints
-- **read_file** - Read file contents with path validation and line range support
+- **execute_bash** - Shell command execution with safety constraints
+- **read_file** - File reading with path validation
 
-### Provider Compatibility
-- **OpenAI** - Function calling format
-- **Anthropic** - Tool use format  
-- **Ollama** - Compatible with OpenAI format
-- **MCP** - Model Context Protocol support
-
-### Example Usage
-```bash
-# Demo the tool system
-go run examples/tool_demo.go
-
-# See provider format examples
-# Tools are automatically converted to each provider's expected format
-```
+Provider compatibility: OpenAI, Anthropic, Ollama, MCP formats.
 
 ## Configuration
 
