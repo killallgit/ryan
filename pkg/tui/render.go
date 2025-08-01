@@ -36,8 +36,17 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 			parsed := ParseThinkingBlock(msg.Content)
 
 			if parsed.HasThinking && showThinking {
-				// Add thinking block lines with dimmed white styling
-				thinkingLines := WrapText(parsed.ThinkingBlock, chatArea.Width)
+				// Add "Thinking: " prefix and format thinking block
+				var thinkingText string
+				if parsed.ResponseContent != "" {
+					// Response is complete, truncate thinking to 3 lines
+					thinkingText = "Thinking: " + TruncateThinkingBlock(parsed.ThinkingBlock, 3, chatArea.Width-10)
+				} else {
+					// Response not complete, show full thinking block
+					thinkingText = "Thinking: " + parsed.ThinkingBlock
+				}
+
+				thinkingLines := WrapText(thinkingText, chatArea.Width)
 				for _, line := range thinkingLines {
 					allLines = append(allLines, MessageLine{
 						Text:       line,
@@ -211,8 +220,8 @@ func RenderInputWithSpinner(screen tcell.Screen, input InputField, area Rect, sp
 			spinnerStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Dim(true)
 			renderText(screen, prefixX, inputY, spinner.GetCurrentFrame(), spinnerStyle)
 		} else {
-			// Show dimmed orange chevron when not processing
-			chevronStyle := tcell.StyleDefault.Foreground(tcell.NewRGBColor(255, 165, 0)).Dim(true) // Orange
+			// Show dimmed yellow chevron when not processing
+			chevronStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Dim(true)
 			renderText(screen, prefixX, inputY, ">", chevronStyle)
 		}
 
