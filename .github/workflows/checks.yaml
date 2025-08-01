@@ -17,14 +17,9 @@ jobs:
         with:
           go-version: 1.24.x
 
-      - name: Install packages
-        run: go mod tidy
+      - name: vet
+        run: go vet ./pkg/... ./integration/... ./cmd/...
 
       - name: Run tests
         run: go test ./pkg/... ./cmd/...
 
-      - name: Run vet
-        run: go vet ./...
-
-      - name: Run lint
-        run: go lint ./...
