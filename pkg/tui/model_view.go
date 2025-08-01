@@ -470,8 +470,8 @@ func (mv *ModelView) showDeleteConfirmation() {
 	}
 	
 	selectedModel := mv.modelList.Models[mv.modelList.Selected]
-	title := ""
-	message := "Delete: " + selectedModel.Name + "\nPress <enter> to confirm, <esc> to cancel"
+	title := "Delete Model"
+	message := selectedModel.Name
 	mv.confirmationModal = mv.confirmationModal.Show(title, message)
 }
 
