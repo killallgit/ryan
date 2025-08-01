@@ -9,11 +9,11 @@ tasks:
     silent: true
   check:
     cmds:
-      - go vet ./...
-      - go fmt ./...
+      - go vet ./pkg/... ./integration/... ./cmd/...
+      - go fmt ./pkg/... ./integration/... ./cmd/...
       - go mod tidy
       - go mod verify
-      - task: test
+      - task: test:unit
   build:
     cmds:
     - go build -o bin/ryan main.go
@@ -23,7 +23,12 @@ tasks:
       - ./bin/ryan
   test:
     cmds:
-      - go test ./...
+      - go test ./pkg/... ./integration/... ./cmd/...
+  
+  test:unit:
+    desc: Run only unit tests (excludes integration tests)
+    cmds:
+      - go test ./pkg/... ./cmd/...
   
   test:integration:
     desc: Run integration tests against real Ollama API

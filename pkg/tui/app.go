@@ -114,8 +114,8 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 
 	// Show connectivity error modal if there was an issue
 	if connectivityError != nil {
-		app.modal = app.modal.WithError("Ollama Connection Error", 
-			fmt.Sprintf("Cannot connect to Ollama at %s\n\n%v\n\nPress any key to continue with limited functionality.", 
+		app.modal = app.modal.WithError("Ollama Connection Error",
+			fmt.Sprintf("Cannot connect to Ollama at %s\n\n%v\n\nPress any key to continue with limited functionality.",
 				ollamaURL, connectivityError))
 	}
 
@@ -207,7 +207,7 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 		log.Debug("Modal dismissed")
 		return
 	}
-	
+
 	if app.viewManager.HandleMenuKeyEvent(ev) {
 		log.Debug("Key event handled by menu")
 		return
@@ -568,7 +568,7 @@ func (app *App) render() {
 	area := Rect{X: 0, Y: 0, Width: width, Height: height}
 
 	app.viewManager.Render(app.screen, area)
-	
+
 	// Render modal on top of everything else
 	app.modal.Render(app.screen, area)
 

@@ -230,7 +230,7 @@ func (mv *ModelView) HandleModelListUpdate(ev ModelListUpdateEvent) {
 
 	mv.loading = false
 	mv.modelList = mv.modelList.WithModels(ev.Models)
-	
+
 	// Check if current model is available
 	currentModel := mv.chatController.GetModel()
 	isAvailable := false
@@ -240,7 +240,7 @@ func (mv *ModelView) HandleModelListUpdate(ev ModelListUpdateEvent) {
 			break
 		}
 	}
-	
+
 	mv.status = mv.status.WithStatus("Ready").WithModelAvailability(isAvailable)
 	log.Debug("ModelListUpdate completed", "current_model", currentModel, "available", isAvailable)
 }

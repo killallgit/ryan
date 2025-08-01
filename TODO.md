@@ -6,6 +6,7 @@
 ~~5. The view menu should also have vim sytle j/k movement.~~
 ~~~~6. We need to make sure to handle the case where ollama is not avail and show a modal that says, "Cannot connect to ollama on <configured url>"~~~~
 ~~7. When we do have a connection to ollama, we need to make sure there is a model to use. If there is only one avail in ollama we need to make sure that the text showing the default model is red-strikethrough to show unavailability. This should be the case whenever any model that is set is not avail in ollama.~~
+7. Use the system prompt from the viper configuration. Set the default to something 
 7. When we do have a connection to ollama, we need to make sure there is a model to use. If there is only one avail in ollama we need to make sure that the text showing the default model is red-strikethrough to show unavailability. This should be the case whenever any model that is set is not avail in ollama.
 8. Refactor the "view select modal" to be more of a command pallette - a little wider, ho header, a straight simple list of views and actions.
 9. On the model management view, add a keyboard command, "n" to bring up a modal text input field for entering in a model name to pull. Pressing <enter> will begin pulling this model.
