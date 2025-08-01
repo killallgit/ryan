@@ -14,8 +14,9 @@ type ParsedContent struct {
 
 // ParseThinkingBlock parses a message content to separate <THINK> blocks from regular content
 func ParseThinkingBlock(content string) ParsedContent {
-	// Match <THINK>...</THINK> blocks (case insensitive)
-	thinkRegex := regexp.MustCompile(`(?i)<THINK>(.*?)</THINK>`)
+	// Match <THINK>...</THINK> blocks (case insensitive, multiline, dot matches newlines)
+	// This handles both <THINK> and <think> and allows content to span multiple lines
+	thinkRegex := regexp.MustCompile(`(?ims)<think>(.*?)</think>`)
 	matches := thinkRegex.FindAllStringSubmatch(content, -1)
 
 	if len(matches) == 0 {
