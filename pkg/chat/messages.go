@@ -15,6 +15,7 @@ const (
 	RoleUser      = "user"
 	RoleAssistant = "assistant"
 	RoleSystem    = "system"
+	RoleError     = "error"
 )
 
 func NewUserMessage(content string) Message {
@@ -41,6 +42,14 @@ func NewSystemMessage(content string) Message {
 	}
 }
 
+func NewErrorMessage(content string) Message {
+	return Message{
+		Role:      RoleError,
+		Content:   content,
+		Timestamp: time.Now(),
+	}
+}
+
 func (m Message) IsUser() bool {
 	return m.Role == RoleUser
 }
@@ -51,6 +60,10 @@ func (m Message) IsAssistant() bool {
 
 func (m Message) IsSystem() bool {
 	return m.Role == RoleSystem
+}
+
+func (m Message) IsError() bool {
+	return m.Role == RoleError
 }
 
 func (m Message) IsEmpty() bool {
