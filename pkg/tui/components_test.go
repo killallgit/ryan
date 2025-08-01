@@ -261,7 +261,7 @@ var _ = Describe("StatusBar", func() {
 			displayText := spinner.GetDisplayText()
 
 			// Since we removed the text, display text should just be the spinner character
-			Expect(displayText).To(Equal("ｦ ")) // First character in spinnerFrames + space
+			Expect(displayText).To(Equal("ｦ")) // First character in spinnerFrames only
 		})
 	})
 })
