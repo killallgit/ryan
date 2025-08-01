@@ -134,14 +134,6 @@ func (vm *ViewManager) HandleMenuKeyEvent(ev *tcell.EventKey) bool {
 			case 'k', 'K':
 				vm.menu = vm.menu.SelectPrevious()
 				return true
-			default:
-				if ev.Rune() >= '1' && ev.Rune() <= '9' {
-					index := int(ev.Rune() - '1')
-					if viewName := vm.menu.GetOptionByIndex(index); viewName != "" {
-						vm.SetCurrentView(viewName)
-						return true
-					}
-				}
 			}
 		}
 	}
@@ -173,7 +165,7 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 		return
 	}
 
-	// Calculate optimal menu width based on content
+	// Calculate optimal menu width based on content - wider command palette style
 	maxDescLen := 0
 	for _, view := range vm.views {
 		descLen := len(view.Description())
@@ -182,21 +174,21 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 		}
 	}
 
-	// Menu width: longest description + number + spacing + padding
-	menuWidth := maxDescLen + 10 // "1. " + description + padding
-	if menuWidth < 50 {
-		menuWidth = 50 // minimum width
+	// Command palette style: wider menu with more padding
+	menuWidth := maxDescLen + 8 // description + padding
+	if menuWidth < 60 {
+		menuWidth = 60 // minimum width for command palette
 	}
-	if menuWidth > area.Width-10 {
-		menuWidth = area.Width - 10 // leave margin
+	if menuWidth > area.Width-6 {
+		menuWidth = area.Width - 6 // minimal margin
 	}
 
 	// Ensure minimum menu width
-	if menuWidth < 20 {
-		menuWidth = 20
+	if menuWidth < 30 {
+		menuWidth = 30
 	}
 
-	menuHeight := len(vm.views) + 6 // options + title + instructions + borders
+	menuHeight := len(vm.views) + 2 // options + borders only (no header/footer)
 
 	// Ensure minimum menu height
 	if menuHeight < 6 {
