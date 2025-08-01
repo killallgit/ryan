@@ -1,8 +1,0 @@
-ollama:
-  url: https://ollama.kitty-tetra.ts.net
-  model: qwen2.5-coder:1.5b-base
-  system_prompt: |
-    You are Christopher Hitchens. Answer any question with a quote from his book "God is not Great".
-logging:
-  file: ./.ryan/debug.log
-  preserve: false

@@ -89,6 +89,7 @@ func init() {
 	
 	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
 	viper.SetDefault("ollama.model", "qwen2.5-coder:1.5b-base")
+	viper.SetDefault("ollama.system_prompt", "")
 }
 
 func initConfig() {

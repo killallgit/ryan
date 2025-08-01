@@ -248,3 +248,92 @@ func (sc SpinnerComponent) GetDisplayText() string {
 	}
 	return sc.GetCurrentFrame() + " " + sc.Text
 }
+
+type AlertDisplay struct {
+	IsSpinnerVisible bool
+	SpinnerFrame     int
+	SpinnerText      string
+	ErrorMessage     string
+	Width            int
+}
+
+func NewAlertDisplay(width int) AlertDisplay {
+	return AlertDisplay{
+		IsSpinnerVisible: false,
+		SpinnerFrame:     0,
+		SpinnerText:      "Sending message...",
+		ErrorMessage:     "",
+		Width:            width,
+	}
+}
+
+func (ad AlertDisplay) WithSpinner(visible bool, text string) AlertDisplay {
+	return AlertDisplay{
+		IsSpinnerVisible: visible,
+		SpinnerFrame:     ad.SpinnerFrame,
+		SpinnerText:      text,
+		ErrorMessage:     "", // Clear error when showing spinner
+		Width:            ad.Width,
+	}
+}
+
+func (ad AlertDisplay) WithError(errorMessage string) AlertDisplay {
+	return AlertDisplay{
+		IsSpinnerVisible: false, // Hide spinner when showing error
+		SpinnerFrame:     ad.SpinnerFrame,
+		SpinnerText:      ad.SpinnerText,
+		ErrorMessage:     errorMessage,
+		Width:            ad.Width,
+	}
+}
+
+func (ad AlertDisplay) Clear() AlertDisplay {
+	return AlertDisplay{
+		IsSpinnerVisible: false,
+		SpinnerFrame:     ad.SpinnerFrame,
+		SpinnerText:      ad.SpinnerText,
+		ErrorMessage:     "",
+		Width:            ad.Width,
+	}
+}
+
+func (ad AlertDisplay) WithWidth(width int) AlertDisplay {
+	return AlertDisplay{
+		IsSpinnerVisible: ad.IsSpinnerVisible,
+		SpinnerFrame:     ad.SpinnerFrame,
+		SpinnerText:      ad.SpinnerText,
+		ErrorMessage:     ad.ErrorMessage,
+		Width:            width,
+	}
+}
+
+func (ad AlertDisplay) NextSpinnerFrame() AlertDisplay {
+	if !ad.IsSpinnerVisible {
+		return ad
+	}
+	
+	return AlertDisplay{
+		IsSpinnerVisible: ad.IsSpinnerVisible,
+		SpinnerFrame:     (ad.SpinnerFrame + 1) % len(spinnerFrames),
+		SpinnerText:      ad.SpinnerText,
+		ErrorMessage:     ad.ErrorMessage,
+		Width:            ad.Width,
+	}
+}
+
+func (ad AlertDisplay) GetSpinnerFrame() string {
+	if !ad.IsSpinnerVisible {
+		return ""
+	}
+	return spinnerFrames[ad.SpinnerFrame]
+}
+
+func (ad AlertDisplay) GetDisplayText() string {
+	if ad.ErrorMessage != "" {
+		return ad.ErrorMessage
+	}
+	if ad.IsSpinnerVisible {
+		return ad.GetSpinnerFrame() + " " + ad.SpinnerText
+	}
+	return ""
+}

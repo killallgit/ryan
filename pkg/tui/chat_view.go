@@ -15,7 +15,7 @@ type ChatView struct {
 	status     StatusBar
 	layout     Layout
 	screen     tcell.Screen
-	spinner    SpinnerComponent
+	alert      AlertDisplay
 }
 
 func NewChatView(controller *controllers.ChatController, screen tcell.Screen) *ChatView {
@@ -24,11 +24,11 @@ func NewChatView(controller *controllers.ChatController, screen tcell.Screen) *C
 	view := &ChatView{
 		controller: controller,
 		input:      NewInputField(width),
-		messages:   NewMessageDisplay(width, height-4),
+		messages:   NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
 		status:     NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
 		layout:     NewLayout(width, height),
 		screen:     screen,
-		spinner:    NewSpinnerComponent(),
+		alert:      NewAlertDisplay(width),
 	}
 	
 	view.updateMessages()
@@ -44,9 +44,10 @@ func (cv *ChatView) Description() string {
 }
 
 func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
-	messageArea, inputArea, statusArea := cv.layout.CalculateAreas()
+	messageArea, alertArea, inputArea, statusArea := cv.layout.CalculateAreas()
 	
-	RenderMessagesWithSpinner(screen, cv.messages, messageArea, cv.spinner)
+	RenderMessages(screen, cv.messages, messageArea)
+	RenderAlert(screen, cv.alert, alertArea)
 	RenderInput(screen, cv.input, inputArea)
 	RenderStatus(screen, cv.status, statusArea)
 }
@@ -115,8 +116,9 @@ func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 func (cv *ChatView) HandleResize(width, height int) {
 	cv.layout = NewLayout(width, height)
 	cv.input = cv.input.WithWidth(width)
-	cv.messages = cv.messages.WithSize(width, height-4)
+	cv.messages = cv.messages.WithSize(width, height-5) // -5 for status, input, and alert areas
 	cv.status = cv.status.WithWidth(width)
+	cv.alert = cv.alert.WithWidth(width)
 }
 
 func (cv *ChatView) sendMessage() string {
@@ -137,29 +139,31 @@ func (cv *ChatView) sendMessage() string {
 
 func (cv *ChatView) HandleMessageResponse(response MessageResponseEvent) {
 	cv.status = cv.status.WithStatus("Ready")
+	cv.alert = cv.alert.Clear()
 	cv.updateMessages()
 	cv.scrollToBottom()
 }
 
 func (cv *ChatView) HandleMessageError(error MessageErrorEvent) {
-	cv.status = cv.status.WithStatus("Error: " + error.Error.Error())
+	cv.status = cv.status.WithStatus("Ready") // Keep status simple
+	cv.alert = cv.alert.WithError("Error: " + error.Error.Error())
 }
 
 func (cv *ChatView) SyncWithAppState(sending bool) {
 	log := logger.WithComponent("chat_view")
 	log.Debug("Syncing ChatView state", "app_sending", sending)
 	
-	cv.spinner = cv.spinner.WithVisibility(sending)
-	
 	if sending {
+		cv.alert = cv.alert.WithSpinner(true, "Sending message...")
 		cv.status = cv.status.WithStatus("Sending...")
 	} else {
+		cv.alert = cv.alert.Clear()
 		cv.status = cv.status.WithStatus("Ready")
 	}
 }
 
 func (cv *ChatView) UpdateSpinnerFrame() {
-	cv.spinner = cv.spinner.NextFrame()
+	cv.alert = cv.alert.NextSpinnerFrame()
 }
 
 func (cv *ChatView) updateMessages() {

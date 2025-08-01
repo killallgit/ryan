@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -22,10 +23,34 @@ type App struct {
 	layout        Layout
 	quit          bool
 	sending       bool  // Track if we're currently sending a message
+	sendStartTime time.Time // Track when message sending started
+	cancelSend    chan bool // Channel to cancel current send operation
 	viewManager   *ViewManager
 	chatView      *ChatView
 	spinnerTicker *time.Ticker
 	spinnerStop   chan bool
+}
+
+func checkOllamaConnectivity(baseURL string) error {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Checking Ollama connectivity", "url", baseURL)
+	
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	
+	resp, err := client.Get(fmt.Sprintf("%s/api/tags", baseURL))
+	if err != nil {
+		return fmt.Errorf("Cannot connect to Ollama at %s: %w", baseURL, err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Ollama returned status %d - is it running?", resp.StatusCode)
+	}
+	
+	log.Debug("Ollama connectivity check successful")
+	return nil
 }
 
 func NewApp(controller *controllers.ChatController) (*App, error) {
@@ -51,6 +76,14 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	
 	ollamaURL := viper.GetString("ollama.url")
 	log.Debug("Creating ollama client for models", "url", ollamaURL)
+	
+	// Check Ollama connectivity before proceeding
+	if err := checkOllamaConnectivity(ollamaURL); err != nil {
+		log.Error("Ollama connectivity check failed", "error", err)
+		// Don't fail app startup, but show warning in status
+		chatView.alert = chatView.alert.WithError(fmt.Sprintf("Warning: %v", err))
+	}
+	
 	ollamaClient := ollama.NewClient(ollamaURL)
 	modelsController := controllers.NewModelsController(ollamaClient)
 	modelView := NewModelView(modelsController, screen)
@@ -63,14 +96,15 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 		screen:        screen,
 		controller:    controller,
 		input:         NewInputField(width),
-		messages:      NewMessageDisplay(width, height-4),
+		messages:      NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
 		status:        NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
 		layout:        NewLayout(width, height),
 		quit:          false,
 		sending:       false,
+		cancelSend:    make(chan bool, 1), // Buffered channel for cancellation
 		viewManager:   viewManager,
 		chatView:      chatView,
-		spinnerTicker: time.NewTicker(500 * time.Millisecond),
+		spinnerTicker: time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
 		spinnerStop:   make(chan bool),
 	}
 	
@@ -169,6 +203,14 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 			app.viewManager.HideMenu()
 			app.viewManager.SyncViewState(app.sending)
 			log.Debug("Menu hidden via Escape/Ctrl+C, state synced")
+		} else if app.sending {
+			// Cancel the current send operation
+			select {
+			case app.cancelSend <- true:
+				log.Debug("Cancellation signal sent")
+			default:
+				log.Debug("Cancellation channel full, already cancelling")
+			}
 		} else {
 			app.quit = true
 			log.Debug("Application quit triggered")
@@ -195,7 +237,7 @@ func (app *App) handleResize(ev *tcell.EventResize) {
 	
 	app.layout = NewLayout(width, height)
 	app.input = app.input.WithWidth(width)
-	app.messages = app.messages.WithSize(width, height-4)
+	app.messages = app.messages.WithSize(width, height-5) // -5 for status, input, and alert areas
 	app.status = app.status.WithWidth(width)
 	
 	app.viewManager.HandleResize(width, height)
@@ -220,8 +262,17 @@ func (app *App) sendMessageWithContent(content string) {
 		"previous_sending", app.sending)
 	
 	app.sending = true
+	app.sendStartTime = time.Now()
 	app.status = app.status.WithStatus("Sending...")
 	log.Debug("STATE TRANSITION: Set sending=true, status=Sending")
+	
+	// Sync view state to show spinner immediately
+	app.viewManager.SyncViewState(app.sending)
+	log.Debug("STATE TRANSITION: Synced view state with sending=true")
+	
+	// Force immediate render to show spinner
+	app.render()
+	log.Debug("STATE TRANSITION: Forced render to show spinner")
 	
 	// Send the message in a goroutine to avoid blocking the UI
 	go func() {
@@ -259,12 +310,30 @@ func (app *App) sendMessageWithContent(content string) {
 		case <-time.After(30 * time.Second):
 			log.Error("API CALL: Timeout after 30 seconds", "content", content)
 			err = fmt.Errorf("API call timeout after 30 seconds")
+		case <-app.cancelSend:
+			log.Debug("API CALL: Cancelled by user")
+			err = fmt.Errorf("Message sending cancelled by user")
+			return // Exit the goroutine early
 		}
 		
 		// Post the result back to the main event loop
 		if err != nil {
 			log.Error("API CALL: Message send failed", "error", err)
-			app.screen.PostEvent(NewMessageErrorEvent(err))
+			
+			// Provide more specific error messages
+			var displayError error
+			if strings.Contains(err.Error(), "connection refused") {
+				displayError = fmt.Errorf("Cannot connect to Ollama. Is it running? Try: ollama serve")
+			} else if strings.Contains(err.Error(), "timeout") {
+				displayError = fmt.Errorf("Request timed out after %v. The model might be loading or processing a complex request", 
+					time.Since(app.sendStartTime).Round(time.Second))
+			} else if strings.Contains(err.Error(), "404") {
+				displayError = fmt.Errorf("Model not found. Check if the model is pulled: ollama pull <model>")
+			} else {
+				displayError = err
+			}
+			
+			app.screen.PostEvent(NewMessageErrorEvent(displayError))
 		} else {
 			log.Debug("API CALL: Message send succeeded", "response_content_length", len(response.Content))
 			app.screen.PostEvent(NewMessageResponseEvent(response))
@@ -307,6 +376,11 @@ func (app *App) handleMessageResponse(ev *MessageResponseEvent) {
 	
 	// Sync view state after state change
 	app.viewManager.SyncViewState(app.sending)
+	log.Debug("STATE TRANSITION: Synced view state with sending=false")
+	
+	// Force render to update UI immediately
+	app.render()
+	log.Debug("STATE TRANSITION: Forced render after response")
 }
 
 func (app *App) handleMessageError(ev *MessageErrorEvent) {
@@ -327,6 +401,11 @@ func (app *App) handleMessageError(ev *MessageErrorEvent) {
 	
 	// Sync view state after state change
 	app.viewManager.SyncViewState(app.sending)
+	log.Debug("STATE TRANSITION: Synced view state with sending=false")
+	
+	// Force render to update UI immediately
+	app.render()
+	log.Debug("STATE TRANSITION: Forced render after error")
 }
 
 func (app *App) handleSpinnerAnimation(ev *SpinnerAnimationEvent) {
@@ -336,6 +415,27 @@ func (app *App) handleSpinnerAnimation(ev *SpinnerAnimationEvent) {
 	// Update spinner animation in ChatView
 	if app.chatView != nil && app.sending {
 		app.chatView.UpdateSpinnerFrame()
+		
+		// Update spinner text with elapsed time
+		if !app.sendStartTime.IsZero() {
+			elapsed := time.Since(app.sendStartTime)
+			seconds := int(elapsed.Seconds())
+			
+			var spinnerText string
+			if seconds > 30 {
+				spinnerText = fmt.Sprintf("Still waiting for response... (%ds) - Press Escape to cancel", seconds)
+			} else if seconds > 10 {
+				spinnerText = fmt.Sprintf("Sending message... (%ds) - Press Escape to cancel", seconds)
+			} else {
+				spinnerText = fmt.Sprintf("Sending message... (%ds)", seconds)
+			}
+			
+			// Update alert display with new text
+			if app.chatView.alert.IsSpinnerVisible {
+				app.chatView.alert = app.chatView.alert.WithSpinner(true, spinnerText)
+			}
+		}
+		
 		log.Debug("EVENT: Updated spinner frame in ChatView")
 	}
 }

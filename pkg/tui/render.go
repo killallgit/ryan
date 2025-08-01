@@ -139,7 +139,7 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 	
 	clearArea(screen, area)
 	
-	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorSilver).Background(tcell.ColorDarkGray)
+	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 	
 	statusText := fmt.Sprintf(" Model: %s | Status: %s ", status.Model, status.Status)
 	
@@ -187,4 +187,30 @@ func getRoleLabel(role string) string {
 	default:
 		return role
 	}
+}
+
+func RenderAlert(screen tcell.Screen, alert AlertDisplay, area Rect) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+	
+	clearArea(screen, area)
+	
+	displayText := alert.GetDisplayText()
+	if displayText == "" {
+		return
+	}
+	
+	// Determine style based on content type
+	var style tcell.Style
+	if alert.ErrorMessage != "" {
+		// Base16 red color for errors
+		style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
+	} else {
+		// Default gray for spinner
+		style = tcell.StyleDefault.Foreground(tcell.ColorGray)
+	}
+	
+	// Render left-justified
+	renderText(screen, area.X, area.Y, displayText, style)
 }

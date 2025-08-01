@@ -45,20 +45,22 @@ func NewLayout(width, height int) Layout {
 	}
 }
 
-func (l Layout) CalculateAreas() (messageArea, inputArea, statusArea Rect) {
+func (l Layout) CalculateAreas() (messageArea, alertArea, inputArea, statusArea Rect) {
 	statusHeight := 1
 	inputHeight := 3
-	messageHeight := l.ScreenHeight - statusHeight - inputHeight
+	alertHeight := 1
+	messageHeight := l.ScreenHeight - statusHeight - inputHeight - alertHeight
 	
 	if messageHeight < 1 {
 		messageHeight = 1
 	}
 	
 	messageArea = NewRect(0, 0, l.ScreenWidth, messageHeight)
-	inputArea = NewRect(0, messageHeight, l.ScreenWidth, inputHeight)
-	statusArea = NewRect(0, messageHeight+inputHeight, l.ScreenWidth, statusHeight)
+	alertArea = NewRect(0, messageHeight, l.ScreenWidth, alertHeight)
+	inputArea = NewRect(0, messageHeight+alertHeight, l.ScreenWidth, inputHeight)
+	statusArea = NewRect(0, messageHeight+alertHeight+inputHeight, l.ScreenWidth, statusHeight)
 	
-	return messageArea, inputArea, statusArea
+	return messageArea, alertArea, inputArea, statusArea
 }
 
 func WrapText(text string, width int) []string {

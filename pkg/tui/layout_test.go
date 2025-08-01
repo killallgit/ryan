@@ -83,10 +83,10 @@ var _ = Describe("Layout", func() {
 	})
 
 	Describe("CalculateAreas", func() {
-		It("should divide screen into message, input, and status areas", func() {
+		It("should divide screen into message, alert, input, and status areas", func() {
 			layout := tui.NewLayout(100, 50)
 			
-			messageArea, inputArea, statusArea := layout.CalculateAreas()
+			messageArea, alertArea, inputArea, statusArea := layout.CalculateAreas()
 			
 			// Status bar: 1 line
 			Expect(statusArea.Height).To(Equal(1))
@@ -98,18 +98,24 @@ var _ = Describe("Layout", func() {
 			Expect(inputArea.Y).To(Equal(46)) // Above status
 			Expect(inputArea.Width).To(Equal(100))
 			
+			// Alert area: 1 line
+			Expect(alertArea.Height).To(Equal(1))
+			Expect(alertArea.Y).To(Equal(45)) // Above input
+			Expect(alertArea.Width).To(Equal(100))
+			
 			// Message area: remaining space
-			Expect(messageArea.Height).To(Equal(46)) // 50 - 3 - 1
+			Expect(messageArea.Height).To(Equal(45)) // 50 - 3 - 1 - 1
 			Expect(messageArea.Y).To(Equal(0))
 			Expect(messageArea.Width).To(Equal(100))
 		})
 
 		It("should handle minimum dimensions gracefully", func() {
-			layout := tui.NewLayout(10, 3)
+			layout := tui.NewLayout(10, 5)
 			
-			messageArea, inputArea, statusArea := layout.CalculateAreas()
+			messageArea, alertArea, inputArea, statusArea := layout.CalculateAreas()
 			
 			Expect(messageArea.Height).To(Equal(1)) // Minimum 1 line
+			Expect(alertArea.Height).To(Equal(1))
 			Expect(inputArea.Height).To(Equal(3))
 			Expect(statusArea.Height).To(Equal(1))
 		})
