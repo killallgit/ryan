@@ -14,35 +14,33 @@ type ParsedContent struct {
 
 // ParseThinkingBlock parses a message content to separate <THINK> blocks from regular content
 func ParseThinkingBlock(content string) ParsedContent {
-	// Match <THINK>...</THINK> blocks (case insensitive, multiline, dot matches newlines)
-	// This handles both <THINK> and <think> and allows content to span multiple lines
-	thinkRegex := regexp.MustCompile(`(?ims)<think>(.*?)</think>`)
+
+	thinkRegex := regexp.MustCompile(`(?ims)<think(?:ing)?>(.*?)</think(?:ing)?>`)
 	matches := thinkRegex.FindAllStringSubmatch(content, -1)
 
 	if len(matches) == 0 {
 		return ParsedContent{
 			ThinkingBlock:   "",
-			ResponseContent: content,
+			ResponseContent: strings.TrimSpace(content),
 			HasThinking:     false,
 		}
 	}
 
 	// Extract thinking content (combine all THINK blocks if multiple)
 	var thinkingParts []string
-	for _, match := range matches {
-		if len(match) > 1 {
-			thinkingParts = append(thinkingParts, strings.TrimSpace(match[1]))
+	for _, m := range matches {
+		if len(m) > 1 && strings.TrimSpace(m[1]) != "" {
+			thinkingParts = append(thinkingParts, strings.TrimSpace(m[1]))
 		}
 	}
 
 	// Remove THINK blocks from content to get response
-	responseContent := thinkRegex.ReplaceAllString(content, "")
-	responseContent = strings.TrimSpace(responseContent)
+	response := strings.TrimSpace(thinkRegex.ReplaceAllString(content, ""))
 
 	return ParsedContent{
 		ThinkingBlock:   strings.Join(thinkingParts, "\n\n"),
-		ResponseContent: responseContent,
-		HasThinking:     true,
+		ResponseContent: response,
+		HasThinking:     len(thinkingParts) > 0,
 	}
 }
 

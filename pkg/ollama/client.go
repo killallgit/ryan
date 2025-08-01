@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/spf13/viper"
 )
 
 type ProgressCallback func(status string, completed, total int64)
@@ -21,12 +21,12 @@ type Client struct {
 
 func NewClient(baseURL string) *Client {
 	log := logger.WithComponent("ollama_client")
-	log.Debug("Creating new ollama client", "base_url", baseURL, "timeout", "30s")
-
+	timeout := viper.GetDuration("ollama.timeout")
+	log.Debug("Creating new ollama client", "base_url", baseURL, "timeout", timeout)
 	return &Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: timeout,
 		},
 	}
 }
@@ -96,6 +96,7 @@ func (c *Client) Ps() (*PsResponse, error) {
 func (c *Client) Pull(modelName string) error {
 	log := logger.WithComponent("ollama_client")
 	url := fmt.Sprintf("%s/api/pull", c.baseURL)
+	ollamaTimeout := viper.GetDuration("ollama.timeout")
 
 	pullRequest := PullRequest{
 		Name: modelName,
@@ -109,7 +110,7 @@ func (c *Client) Pull(modelName string) error {
 
 	// Create a client with longer timeout for model pulling
 	pullClient := &http.Client{
-		Timeout: 30 * time.Minute, // Model pulls can take a long time
+		Timeout: ollamaTimeout, // Model pulls can take a long time
 	}
 
 	log.Debug("Making HTTP POST request to pull endpoint", "url", url, "model", modelName)
@@ -161,7 +162,7 @@ func (c *Client) Pull(modelName string) error {
 func (c *Client) PullWithProgress(ctx context.Context, modelName string, progressCallback ProgressCallback) error {
 	log := logger.WithComponent("ollama_client")
 	url := fmt.Sprintf("%s/api/pull", c.baseURL)
-
+	ollamaTimeout := viper.GetDuration("ollama.timeout")
 	pullRequest := PullRequest{
 		Name: modelName,
 	}
@@ -172,9 +173,8 @@ func (c *Client) PullWithProgress(ctx context.Context, modelName string, progres
 		return fmt.Errorf("failed to marshal pull request: %w", err)
 	}
 
-	// Create a client with longer timeout for model pulling
 	pullClient := &http.Client{
-		Timeout: 30 * time.Minute, // Model pulls can take a long time
+		Timeout: ollamaTimeout,
 	}
 
 	log.Debug("Making HTTP POST request to pull endpoint with progress tracking", "url", url, "model", modelName)

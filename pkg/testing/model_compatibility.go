@@ -14,6 +14,7 @@ import (
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/tools"
+	"github.com/spf13/viper"
 )
 
 // OllamaVersion represents version information from Ollama server
@@ -49,11 +50,11 @@ func NewModelCompatibilityTester(ollamaURL string) *ModelCompatibilityTester {
 	if err := toolRegistry.RegisterBuiltinTools(); err != nil {
 		log.Printf("Failed to register built-in tools: %v", err)
 	}
-
+	ollamaTimeout := viper.GetDuration("ollama.timeout")
 	return &ModelCompatibilityTester{
 		ollamaURL:    ollamaURL,
 		toolRegistry: toolRegistry,
-		timeout:      30 * time.Second,
+		timeout:      ollamaTimeout,
 	}
 }
 
