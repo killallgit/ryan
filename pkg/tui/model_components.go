@@ -65,7 +65,7 @@ func (mld ModelListDisplay) WithSelection(selected int) ModelListDisplay {
 	if selected >= len(mld.Models) && len(mld.Models) > 0 {
 		selected = len(mld.Models) - 1
 	}
-	
+
 	return ModelListDisplay{
 		Models:   mld.Models,
 		Selected: selected,
@@ -79,7 +79,7 @@ func (mld ModelListDisplay) WithScroll(scroll int) ModelListDisplay {
 	if scroll < 0 {
 		scroll = 0
 	}
-	
+
 	return ModelListDisplay{
 		Models:   mld.Models,
 		Selected: mld.Selected,
@@ -130,42 +130,61 @@ func (msd ModelStatsDisplay) WithSize(width, height int) ModelStatsDisplay {
 }
 
 func RenderModelList(screen tcell.Screen, display ModelListDisplay, area Rect) {
+	RenderModelListWithCurrentModel(screen, display, area, "")
+}
+
+func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDisplay, area Rect, currentModel string) {
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
-	
+
 	clearArea(screen, area)
-	
+
+	// Draw border
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	drawBorder(screen, area, borderStyle)
+
+	// Calculate content area with padding
+	contentArea := Rect{
+		X:      area.X + 2,
+		Y:      area.Y + 1,
+		Width:  area.Width - 4,
+		Height: area.Height - 2,
+	}
+
 	headerStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
 	normalStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 	selectedStyle := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
-	
+	currentModelStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+
 	header := fmt.Sprintf("%-32s %10s %12s %15s", "NAME", "SIZE", "PARAMETERS", "QUANTIZATION")
-	if len(header) > area.Width {
-		header = header[:area.Width]
+	if len(header) > contentArea.Width {
+		header = header[:contentArea.Width]
 	}
-	renderText(screen, area.X, area.Y, header, headerStyle)
-	
-	startY := area.Y + 2
-	visibleHeight := area.Height - 2
-	
+	renderText(screen, contentArea.X, contentArea.Y, header, headerStyle)
+
+	startY := contentArea.Y + 2
+	visibleHeight := contentArea.Height - 2
+
 	for i := display.Scroll; i < len(display.Models) && i-display.Scroll < visibleHeight; i++ {
 		model := display.Models[i]
 		y := startY + (i - display.Scroll)
-		
+
 		style := normalStyle
 		if i == display.Selected {
 			style = selectedStyle
+		} else if model.Name == currentModel {
+			style = currentModelStyle
 		}
-		
+
 		sizeGB := float64(model.Size) / (1024 * 1024 * 1024)
-		
+
 		// Add status indicator
 		statusIcon := "⚪" // stopped
 		if model.IsRunning {
 			statusIcon = "🟢" // running
 		}
-		
+
 		nameWithStatus := statusIcon + " " + truncateString(model.Name, 28)
 		line := fmt.Sprintf("%-30s %8.1fGB %12s %15s",
 			nameWithStatus,
@@ -173,16 +192,16 @@ func RenderModelList(screen tcell.Screen, display ModelListDisplay, area Rect) {
 			model.ParameterSize,
 			model.QuantizationLevel,
 		)
-		
-		if len(line) > area.Width {
-			line = line[:area.Width]
+
+		if len(line) > contentArea.Width {
+			line = line[:contentArea.Width]
 		}
-		
-		for x := 0; x < area.Width; x++ {
+
+		for x := 0; x < contentArea.Width; x++ {
 			if x < len(line) {
-				screen.SetContent(area.X+x, y, rune(line[x]), nil, style)
+				screen.SetContent(contentArea.X+x, y, rune(line[x]), nil, style)
 			} else {
-				screen.SetContent(area.X+x, y, ' ', nil, style)
+				screen.SetContent(contentArea.X+x, y, ' ', nil, style)
 			}
 		}
 	}
@@ -192,33 +211,33 @@ func RenderModelStats(screen tcell.Screen, display ModelStatsDisplay, area Rect)
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
-	
+
 	clearArea(screen, area)
-	
+
 	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
 	normalStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 	runningStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen)
-	
+
 	title := "System Statistics"
 	renderText(screen, area.X, area.Y, title, titleStyle)
-	
+
 	totalSizeGB := float64(display.Stats.TotalSize) / (1024 * 1024 * 1024)
 	statsText := fmt.Sprintf("Total Models: %d  |  Total Size: %.1f GB",
 		display.Stats.TotalModels, totalSizeGB)
 	renderText(screen, area.X, area.Y+2, statsText, normalStyle)
-	
+
 	if len(display.Stats.RunningModels) > 0 {
 		runningTitle := "Currently Running:"
 		renderText(screen, area.X, area.Y+4, runningTitle, titleStyle)
-		
+
 		for i, running := range display.Stats.RunningModels {
 			if area.Y+5+i >= area.Y+area.Height {
 				break
 			}
-			
+
 			sizeGB := float64(running.Size) / (1024 * 1024 * 1024)
 			sizeVRAMGB := float64(running.SizeVRAM) / (1024 * 1024 * 1024)
-			
+
 			runningText := fmt.Sprintf("  %s (%.1fGB, VRAM: %.1fGB)",
 				running.Name, sizeGB, sizeVRAMGB)
 			renderText(screen, area.X, area.Y+5+i, runningText, runningStyle)

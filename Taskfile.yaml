@@ -7,6 +7,13 @@ tasks:
     cmds:
       - task --list-all
     silent: true
+  check:
+    cmds:
+      - go vet ./...
+      - go fmt ./...
+      - go mod tidy
+      - go mod verify
+      - task: test
   build:
     cmds:
     - go build -o bin/ryan main.go

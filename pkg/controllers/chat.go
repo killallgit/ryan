@@ -8,10 +8,10 @@ import (
 )
 
 type ChatController struct {
-	client         chat.ChatClient
-	conversation   chat.Conversation
-	lastPromptTokens    int
-	lastResponseTokens  int
+	client             chat.ChatClient
+	conversation       chat.Conversation
+	lastPromptTokens   int
+	lastResponseTokens int
 }
 
 func NewChatController(client chat.ChatClient, model string) *ChatController {
@@ -38,7 +38,7 @@ func (cc *ChatController) SendUserMessage(content string) (chat.Message, error) 
 	}
 
 	req := chat.CreateChatRequest(cc.conversation, content)
-	
+
 	response, err := cc.client.SendMessageWithResponse(req)
 	if err != nil {
 		return chat.Message{}, fmt.Errorf("failed to send message: %w", err)
@@ -94,7 +94,7 @@ func (cc *ChatController) Reset() {
 			systemPrompt = messages[0].Content
 		}
 	}
-	
+
 	cc.conversation = chat.NewConversationWithSystem(cc.conversation.Model, systemPrompt)
 	cc.lastPromptTokens = 0
 	cc.lastResponseTokens = 0

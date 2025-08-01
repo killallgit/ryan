@@ -18,9 +18,9 @@ var _ = Describe("Custom Events", func() {
 				Content:   "Test response",
 				Timestamp: time.Now(),
 			}
-			
+
 			event := tui.NewMessageResponseEvent(message)
-			
+
 			Expect(event.Message.Role).To(Equal(chat.RoleAssistant))
 			Expect(event.Message.Content).To(Equal("Test response"))
 		})
@@ -29,9 +29,9 @@ var _ = Describe("Custom Events", func() {
 	Describe("MessageErrorEvent", func() {
 		It("should create event with error", func() {
 			err := errors.New("test error")
-			
+
 			event := tui.NewMessageErrorEvent(err)
-			
+
 			Expect(event.Error).To(Equal(err))
 			Expect(event.Error.Error()).To(Equal("test error"))
 		})
@@ -40,17 +40,17 @@ var _ = Describe("Custom Events", func() {
 	Describe("ChatMessageSendEvent", func() {
 		It("should create event with content", func() {
 			content := "Hello, world!"
-			
+
 			event := tui.NewChatMessageSendEvent(content)
-			
+
 			Expect(event.Content).To(Equal(content))
 		})
 
 		It("should handle empty content", func() {
 			content := ""
-			
+
 			event := tui.NewChatMessageSendEvent(content)
-			
+
 			Expect(event.Content).To(Equal(""))
 		})
 	})
@@ -58,7 +58,7 @@ var _ = Describe("Custom Events", func() {
 	Describe("SpinnerAnimationEvent", func() {
 		It("should create spinner animation event", func() {
 			event := tui.NewSpinnerAnimationEvent()
-			
+
 			Expect(event).ToNot(BeNil())
 		})
 	})

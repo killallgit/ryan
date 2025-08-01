@@ -11,8 +11,8 @@ import (
 type MockChatController struct {
 	sendMessageCalled bool
 	sendMessageError  error
-	model            string
-	history          []interface{} // Using interface{} to avoid chat dependency
+	model             string
+	history           []interface{} // Using interface{} to avoid chat dependency
 }
 
 func (m *MockChatController) SendUserMessage(content string) (interface{}, error) {
@@ -33,7 +33,7 @@ func (m *MockChatController) GetModel() string {
 
 var _ = Describe("State Management", func() {
 	var (
-		screen      tcell.Screen
+		screen tcell.Screen
 	)
 
 	BeforeEach(func() {
@@ -42,7 +42,7 @@ var _ = Describe("State Management", func() {
 		err = screen.Init()
 		Expect(err).ToNot(HaveOccurred())
 		screen.SetSize(80, 24)
-		
+
 		// Note: This test would require adapting the App constructor to accept interface{}
 		// For now, this serves as a template for future integration testing
 	})
@@ -79,7 +79,7 @@ var _ = Describe("State Management", func() {
 			It("should route events regardless of current view", func() {
 				event := tui.NewChatMessageSendEvent("test message")
 				Expect(event.Content).To(Equal("test message"))
-				
+
 				// Event creation works, but full routing test requires App integration
 			})
 		})
@@ -97,11 +97,11 @@ var _ = Describe("State Management", func() {
 })
 
 // Integration Test Notes:
-// 
+//
 // To make these tests fully functional, we would need:
-// 
+//
 // 1. App constructor that accepts interfaces for better testability
-// 2. ChatView methods that can be tested in isolation  
+// 2. ChatView methods that can be tested in isolation
 // 3. ViewManager methods that can be mocked
 // 4. Event simulation helpers
 //

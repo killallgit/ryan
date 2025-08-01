@@ -74,7 +74,7 @@ var _ = Describe("Client", func() {
 				w.WriteHeader(http.StatusNotFound)
 			}
 		}))
-		
+
 		client = ollama.NewClient(server.URL)
 	})
 
@@ -85,11 +85,11 @@ var _ = Describe("Client", func() {
 	Describe("Tags", func() {
 		It("should return list of available models", func() {
 			response, err := client.Tags()
-			
+
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 			Expect(response.Models).To(HaveLen(1))
-			
+
 			model := response.Models[0]
 			Expect(model.Name).To(Equal("llama3.1:8b"))
 			Expect(model.Size).To(Equal(int64(4661211808)))
@@ -101,11 +101,11 @@ var _ = Describe("Client", func() {
 	Describe("Ps", func() {
 		It("should return list of running models", func() {
 			response, err := client.Ps()
-			
+
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 			Expect(response.Models).To(HaveLen(1))
-			
+
 			model := response.Models[0]
 			Expect(model.Name).To(Equal("mistral:latest"))
 			Expect(model.Size).To(Equal(int64(5137025024)))

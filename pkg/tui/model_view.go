@@ -4,36 +4,39 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/spf13/viper"
 )
 
 type ModelView struct {
-	controller   *controllers.ModelsController
-	modelList    ModelListDisplay
-	modelStats   ModelStatsDisplay
-	status       StatusBar
-	layout       Layout
-	loading      bool
-	screen       tcell.Screen
-	showStats    bool
+	controller     *controllers.ModelsController
+	chatController *controllers.ChatController
+	modelList      ModelListDisplay
+	modelStats     ModelStatsDisplay
+	status         StatusBar
+	layout         Layout
+	loading        bool
+	screen         tcell.Screen
+	showStats      bool
 }
 
-func NewModelView(controller *controllers.ModelsController, screen tcell.Screen) *ModelView {
+func NewModelView(controller *controllers.ModelsController, chatController *controllers.ChatController, screen tcell.Screen) *ModelView {
 	width, height := screen.Size()
-	
+
 	log := logger.WithComponent("model_view")
 	log.Debug("Creating new ModelView", "width", width, "height", height)
-	
+
 	view := &ModelView{
-		controller: controller,
-		modelList:  NewModelListDisplay(width, height-6),
-		modelStats: NewModelStatsDisplay(width, 4),
-		status:     NewStatusBar(width).WithStatus("Ready"),
-		layout:     NewLayout(width, height),
-		loading:    false,
-		screen:     screen,
-		showStats:  true,
+		controller:     controller,
+		chatController: chatController,
+		modelList:      NewModelListDisplay(width, height-6),
+		modelStats:     NewModelStatsDisplay(width, 4),
+		status:         NewStatusBar(width).WithStatus("Ready"),
+		layout:         NewLayout(width, height),
+		loading:        false,
+		screen:         screen,
+		showStats:      true,
 	}
-	
+
 	// Don't auto-refresh on creation - wait until view becomes active
 	log.Debug("ModelView created, deferring model refresh until activation")
 	return view
@@ -58,23 +61,24 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 	if !mv.showStats {
 		statsHeight = 0
 	}
-	
+
 	listArea := Rect{
 		X:      area.X,
 		Y:      area.Y,
 		Width:  area.Width,
 		Height: area.Height - statsHeight - 2, // -2 for status bar
 	}
-	
+
 	statusArea := Rect{
 		X:      area.X,
 		Y:      area.Y + area.Height - 1,
 		Width:  area.Width,
 		Height: 1,
 	}
-	
-	RenderModelList(screen, mv.modelList, listArea)
-	
+
+	currentModel := mv.chatController.GetModel()
+	RenderModelListWithCurrentModel(screen, mv.modelList, listArea, currentModel)
+
 	if mv.showStats {
 		statsArea := Rect{
 			X:      area.X,
@@ -84,7 +88,7 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 		}
 		RenderModelStats(screen, mv.modelStats, statsArea)
 	}
-	
+
 	RenderStatus(screen, mv.status, statusArea)
 }
 
@@ -92,61 +96,73 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 	if mv.loading {
 		return true // Consume all events while loading
 	}
-	
+
 	switch ev.Key() {
 	case tcell.KeyUp, tcell.KeyCtrlP:
 		mv.selectPrevious()
 		return true
-		
+
 	case tcell.KeyDown, tcell.KeyCtrlN:
 		mv.selectNext()
 		return true
-		
+
 	case tcell.KeyPgUp:
 		mv.pageUp()
 		return true
-		
+
 	case tcell.KeyPgDn:
 		mv.pageDown()
 		return true
-		
+
 	case tcell.KeyHome:
 		mv.selectFirst()
 		return true
-		
+
 	case tcell.KeyEnd:
 		mv.selectLast()
 		return true
-		
+
+	case tcell.KeyEnter:
+		mv.changeModel()
+		return true
+
 	default:
 		if ev.Rune() != 0 {
 			switch ev.Rune() {
+			case 'j', 'J':
+				mv.selectNext()
+				return true
+
+			case 'k', 'K':
+				mv.selectPrevious()
+				return true
+
 			case 'r', 'R':
 				mv.refreshModels()
 				return true
-				
+
 			case 's', 'S':
 				mv.toggleStats()
 				return true
-				
+
 			case 'q', 'Q':
 				// Let the app handle quit
 				return false
 			}
 		}
 	}
-	
+
 	return false
 }
 
 func (mv *ModelView) HandleResize(width, height int) {
 	mv.layout = NewLayout(width, height)
-	
+
 	statsHeight := 6
 	if !mv.showStats {
 		statsHeight = 0
 	}
-	
+
 	mv.modelList = mv.modelList.WithSize(width, height-statsHeight-2)
 	mv.modelStats = mv.modelStats.WithSize(width, statsHeight-1)
 	mv.status = mv.status.WithWidth(width)
@@ -155,10 +171,10 @@ func (mv *ModelView) HandleResize(width, height int) {
 func (mv *ModelView) refreshModels() {
 	log := logger.WithComponent("model_view")
 	log.Debug("Starting model refresh")
-	
+
 	mv.loading = true
 	mv.status = mv.status.WithStatus("Loading models...")
-	
+
 	go func() {
 		log.Debug("Calling controller.Tags() for model list")
 		response, err := mv.controller.Tags()
@@ -168,7 +184,7 @@ func (mv *ModelView) refreshModels() {
 			return
 		}
 		log.Debug("Successfully retrieved model tags", "model_count", len(response.Models))
-		
+
 		// Get running models first to determine status
 		var runningModels []RunningModelInfo
 		runningModelNames := make(map[string]bool)
@@ -183,19 +199,19 @@ func (mv *ModelView) refreshModels() {
 		} else {
 			log.Warn("Failed to get running models", "error", err)
 		}
-		
+
 		// Convert models and set running status
 		models := convertOllamaModelsToModelInfoWithStatus(response.Models, runningModelNames)
 		log.Debug("Converted models to UI format", "total_models", len(models))
-		
+
 		log.Debug("Posting ModelListUpdateEvent")
 		mv.screen.PostEvent(NewModelListUpdateEvent(models))
-		
+
 		totalSize := int64(0)
 		for _, model := range models {
 			totalSize += model.Size
 		}
-		
+
 		stats := ModelStats{
 			TotalModels:   len(models),
 			RunningModels: runningModels,
@@ -203,7 +219,7 @@ func (mv *ModelView) refreshModels() {
 		}
 		log.Debug("Posting ModelStatsUpdateEvent", "total_size", totalSize)
 		mv.screen.PostEvent(NewModelStatsUpdateEvent(stats))
-		
+
 		log.Debug("Model refresh completed successfully")
 	}()
 }
@@ -211,28 +227,28 @@ func (mv *ModelView) refreshModels() {
 func (mv *ModelView) HandleModelListUpdate(ev ModelListUpdateEvent) {
 	log := logger.WithComponent("model_view")
 	log.Debug("Handling ModelListUpdateEvent", "model_count", len(ev.Models))
-	
+
 	mv.loading = false
 	mv.modelList = mv.modelList.WithModels(ev.Models)
 	mv.status = mv.status.WithStatus("Ready")
-	
+
 	log.Debug("ModelListUpdate completed, status set to Ready")
 }
 
 func (mv *ModelView) HandleModelStatsUpdate(ev ModelStatsUpdateEvent) {
 	log := logger.WithComponent("model_view")
-	log.Debug("Handling ModelStatsUpdateEvent", 
+	log.Debug("Handling ModelStatsUpdateEvent",
 		"total_models", ev.Stats.TotalModels,
 		"running_models", len(ev.Stats.RunningModels),
 		"total_size", ev.Stats.TotalSize)
-	
+
 	mv.modelStats = mv.modelStats.WithStats(ev.Stats)
 }
 
 func (mv *ModelView) HandleModelError(ev ModelErrorEvent) {
 	log := logger.WithComponent("model_view")
 	log.Error("Handling ModelErrorEvent", "error", ev.Error)
-	
+
 	mv.loading = false
 	mv.status = mv.status.WithStatus("Error: " + ev.Error.Error() + " - Press 'r' to retry")
 }
@@ -241,12 +257,12 @@ func (mv *ModelView) selectNext() {
 	if len(mv.modelList.Models) == 0 {
 		return
 	}
-	
+
 	newSelected := mv.modelList.Selected + 1
 	if newSelected >= len(mv.modelList.Models) {
 		newSelected = 0
 	}
-	
+
 	mv.modelList = mv.modelList.WithSelection(newSelected)
 	mv.ensureSelectionVisible()
 }
@@ -255,12 +271,12 @@ func (mv *ModelView) selectPrevious() {
 	if len(mv.modelList.Models) == 0 {
 		return
 	}
-	
+
 	newSelected := mv.modelList.Selected - 1
 	if newSelected < 0 {
 		newSelected = len(mv.modelList.Models) - 1
 	}
-	
+
 	mv.modelList = mv.modelList.WithSelection(newSelected)
 	mv.ensureSelectionVisible()
 }
@@ -269,7 +285,7 @@ func (mv *ModelView) selectFirst() {
 	if len(mv.modelList.Models) == 0 {
 		return
 	}
-	
+
 	mv.modelList = mv.modelList.WithSelection(0).WithScroll(0)
 }
 
@@ -277,7 +293,7 @@ func (mv *ModelView) selectLast() {
 	if len(mv.modelList.Models) == 0 {
 		return
 	}
-	
+
 	lastIndex := len(mv.modelList.Models) - 1
 	mv.modelList = mv.modelList.WithSelection(lastIndex)
 	mv.ensureSelectionVisible()
@@ -289,7 +305,7 @@ func (mv *ModelView) pageUp() {
 		newScroll = 0
 	}
 	mv.modelList = mv.modelList.WithScroll(newScroll)
-	
+
 	newSelected := mv.modelList.Selected - mv.modelList.Height
 	if newSelected < mv.modelList.Scroll {
 		newSelected = mv.modelList.Scroll
@@ -305,13 +321,13 @@ func (mv *ModelView) pageDown() {
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
-	
+
 	newScroll := mv.modelList.Scroll + mv.modelList.Height
 	if newScroll > maxScroll {
 		newScroll = maxScroll
 	}
 	mv.modelList = mv.modelList.WithScroll(newScroll)
-	
+
 	newSelected := mv.modelList.Selected + mv.modelList.Height
 	maxSelected := len(mv.modelList.Models) - 1
 	if newSelected > maxSelected {
@@ -336,4 +352,27 @@ func (mv *ModelView) toggleStats() {
 	mv.showStats = !mv.showStats
 	width, height := mv.screen.Size()
 	mv.HandleResize(width, height)
+}
+
+func (mv *ModelView) changeModel() {
+	if len(mv.modelList.Models) == 0 || mv.modelList.Selected < 0 || mv.modelList.Selected >= len(mv.modelList.Models) {
+		return
+	}
+
+	selectedModel := mv.modelList.Models[mv.modelList.Selected]
+	log := logger.WithComponent("model_view")
+	log.Debug("Changing model", "selected_model", selectedModel.Name)
+
+	// Update the chat controller's model
+	mv.chatController.SetModel(selectedModel.Name)
+
+	// Update the configuration and save it
+	viper.Set("ollama.model", selectedModel.Name)
+	if err := viper.WriteConfig(); err != nil {
+		log.Error("Failed to save configuration", "error", err)
+		mv.status = mv.status.WithStatus("Error: Failed to save configuration - " + err.Error())
+	} else {
+		log.Debug("Configuration saved successfully", "new_model", selectedModel.Name)
+		mv.status = mv.status.WithStatus("Model changed to: " + selectedModel.Name)
+	}
 }

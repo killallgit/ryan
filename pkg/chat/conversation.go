@@ -26,7 +26,7 @@ func AddMessage(conv Conversation, msg Message) Conversation {
 	messages := make([]Message, len(conv.Messages)+1)
 	copy(messages, conv.Messages)
 	messages[len(conv.Messages)] = msg
-	
+
 	return Conversation{
 		Messages: messages,
 		Model:    conv.Model,

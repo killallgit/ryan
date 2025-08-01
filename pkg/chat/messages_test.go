@@ -24,7 +24,7 @@ var _ = Describe("Messages", func() {
 	Describe("NewUserMessage", func() {
 		It("should create a user message with trimmed content", func() {
 			msg := chat.NewUserMessage("  Hello World  ")
-			
+
 			Expect(msg.Role).To(Equal(chat.RoleUser))
 			Expect(msg.Content).To(Equal("Hello World"))
 			Expect(msg.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
@@ -32,7 +32,7 @@ var _ = Describe("Messages", func() {
 
 		It("should handle empty content", func() {
 			msg := chat.NewUserMessage("   ")
-			
+
 			Expect(msg.Role).To(Equal(chat.RoleUser))
 			Expect(msg.Content).To(Equal(""))
 			Expect(msg.IsEmpty()).To(BeTrue())
@@ -42,7 +42,7 @@ var _ = Describe("Messages", func() {
 	Describe("NewAssistantMessage", func() {
 		It("should create an assistant message", func() {
 			msg := chat.NewAssistantMessage("Hello there!")
-			
+
 			Expect(msg.Role).To(Equal(chat.RoleAssistant))
 			Expect(msg.Content).To(Equal("Hello there!"))
 			Expect(msg.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
@@ -52,7 +52,7 @@ var _ = Describe("Messages", func() {
 	Describe("NewSystemMessage", func() {
 		It("should create a system message", func() {
 			msg := chat.NewSystemMessage("You are a helpful assistant")
-			
+
 			Expect(msg.Role).To(Equal(chat.RoleSystem))
 			Expect(msg.Content).To(Equal("You are a helpful assistant"))
 			Expect(msg.Timestamp).To(BeTemporally("~", time.Now(), time.Second))
@@ -64,7 +64,7 @@ var _ = Describe("Messages", func() {
 
 		BeforeEach(func() {
 			userMsg = chat.NewUserMessage("User message")
-			assistantMsg = chat.NewAssistantMessage("Assistant message")  
+			assistantMsg = chat.NewAssistantMessage("Assistant message")
 			systemMsg = chat.NewSystemMessage("System message")
 		})
 
@@ -112,7 +112,7 @@ var _ = Describe("Messages", func() {
 			Expect(updated.Role).To(Equal(original.Role))
 			Expect(updated.Content).To(Equal(original.Content))
 			Expect(updated.Timestamp).To(Equal(testTime))
-			
+
 			// Original should be unchanged
 			Expect(original.Timestamp).ToNot(Equal(testTime))
 		})
