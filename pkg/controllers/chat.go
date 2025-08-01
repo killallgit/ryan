@@ -103,3 +103,7 @@ func (cc *ChatController) Reset() {
 func (cc *ChatController) GetTokenUsage() (promptTokens, responseTokens int) {
 	return cc.lastPromptTokens, cc.lastResponseTokens
 }
+
+func (cc *ChatController) AddErrorMessage(errorMsg string) {
+	cc.conversation = chat.AddMessage(cc.conversation, chat.NewErrorMessage(errorMsg))
+}

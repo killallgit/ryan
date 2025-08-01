@@ -152,6 +152,10 @@ func (cv *ChatView) HandleMessageResponse(response MessageResponseEvent) {
 func (cv *ChatView) HandleMessageError(error MessageErrorEvent) {
 	cv.status = cv.status.WithStatus("Ready") // Keep status simple
 	cv.alert = cv.alert.WithError("Error: " + error.Error.Error())
+	
+	// Update messages to show the error message that was added to conversation
+	cv.updateMessages()
+	cv.scrollToBottom()
 }
 
 func (cv *ChatView) SyncWithAppState(sending bool) {
@@ -161,7 +165,10 @@ func (cv *ChatView) SyncWithAppState(sending bool) {
 	if sending {
 		cv.alert = cv.alert.WithSpinner(true, "")
 	} else {
-		cv.alert = cv.alert.Clear()
+		// Only clear alert if there's no error message
+		if cv.alert.ErrorMessage == "" {
+			cv.alert = cv.alert.Clear()
+		}
 	}
 }
 

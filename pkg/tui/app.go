@@ -413,6 +413,10 @@ func (app *App) handleMessageError(ev *MessageErrorEvent) {
 	app.sending = false
 	log.Debug("STATE TRANSITION: Set sending=false after error")
 
+	// Add error message to conversation so it appears as a red chat message
+	app.controller.AddErrorMessage("Error: " + ev.Error.Error())
+	log.Debug("Added error message to conversation")
+
 	if app.chatView != nil {
 		app.chatView.HandleMessageError(*ev)
 		log.Debug("EVENT: Forwarded error to ChatView")

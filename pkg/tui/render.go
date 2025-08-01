@@ -109,6 +109,9 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 		case chat.RoleSystem:
 			// Normal style for system messages
 			style = tcell.StyleDefault
+		case chat.RoleError:
+			// Red style for error messages
+			style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
 		default:
 			// Default style for empty lines or unknown roles
 			style = tcell.StyleDefault
