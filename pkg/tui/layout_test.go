@@ -94,17 +94,17 @@ var _ = Describe("Layout", func() {
 			Expect(statusArea.Width).To(Equal(100))
 			Expect(statusArea.X).To(Equal(0))
 
-			// Input area: 3 lines (with padding)
+			// Input area: 3 lines (full width)
 			Expect(inputArea.Height).To(Equal(3))
-			Expect(inputArea.Y).To(Equal(46))     // Above status
-			Expect(inputArea.Width).To(Equal(96)) // 100 - 4 padding (2 on each side)
-			Expect(inputArea.X).To(Equal(2))      // 2 character padding
+			Expect(inputArea.Y).To(Equal(46))      // Above status
+			Expect(inputArea.Width).To(Equal(100)) // Full width
+			Expect(inputArea.X).To(Equal(0))       // No padding
 
-			// Alert area: 1 line (with padding)
+			// Alert area: 1 line (full width)
 			Expect(alertArea.Height).To(Equal(1))
-			Expect(alertArea.Y).To(Equal(45))     // Above input
-			Expect(alertArea.Width).To(Equal(96)) // 100 - 4 padding (2 on each side)
-			Expect(alertArea.X).To(Equal(2))      // 2 character padding
+			Expect(alertArea.Y).To(Equal(45))      // Above input
+			Expect(alertArea.Width).To(Equal(100)) // Full width
+			Expect(alertArea.X).To(Equal(0))       // No padding
 
 			// Message area: remaining space (with padding)
 			Expect(messageArea.Height).To(Equal(45)) // 50 - 3 - 1 - 1

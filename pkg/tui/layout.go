@@ -63,9 +63,11 @@ func (l Layout) CalculateAreas() (messageArea, alertArea, inputArea, statusArea 
 		padding = 0
 	}
 
+	// Message area keeps padding for better readability
 	messageArea = NewRect(padding, 0, availableWidth, messageHeight)
-	alertArea = NewRect(padding, messageHeight, availableWidth, alertHeight)
-	inputArea = NewRect(padding, messageHeight+alertHeight, availableWidth, inputHeight)
+	// Alert and input areas use full width to match status bar
+	alertArea = NewRect(0, messageHeight, l.ScreenWidth, alertHeight)
+	inputArea = NewRect(0, messageHeight+alertHeight, l.ScreenWidth, inputHeight)
 	statusArea = NewRect(0, messageHeight+alertHeight+inputHeight, l.ScreenWidth, statusHeight)
 
 	return messageArea, alertArea, inputArea, statusArea
