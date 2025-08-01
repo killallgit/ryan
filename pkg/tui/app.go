@@ -290,6 +290,16 @@ func (app *App) sendMessage() {
 
 func (app *App) sendMessageWithContent(content string) {
 	log := logger.WithComponent("tui_app")
+
+	// Optimistically add user message to conversation and update UI
+	app.controller.AddUserMessage(content)
+	if app.chatView != nil {
+		app.chatView.updateMessages()
+		app.chatView.scrollToBottom()
+	}
+	// Render immediately to show the message before processing starts
+	app.render()
+
 	log.Debug("STATE TRANSITION: Starting message send",
 		"content", content,
 		"length", len(content),
