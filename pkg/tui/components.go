@@ -625,16 +625,16 @@ func (tim TextInputModal) Render(screen tcell.Screen, area Rect) {
 		Width:  modalArea.Width - 4,
 		Height: 1,
 	}
-	
+
 	// Clear input area and render input text
 	for x := inputArea.X; x < inputArea.X+inputArea.Width; x++ {
 		screen.SetContent(x, inputArea.Y, ' ', nil, tcell.StyleDefault)
 	}
-	
+
 	// Render input content
 	visibleContent := tim.Input.Content
 	cursorPos := tim.Input.Cursor
-	
+
 	if len(visibleContent) > inputArea.Width {
 		start := 0
 		if cursorPos >= inputArea.Width {
@@ -647,9 +647,9 @@ func (tim TextInputModal) Render(screen tcell.Screen, area Rect) {
 		visibleContent = visibleContent[start:end]
 		cursorPos = cursorPos - start
 	}
-	
+
 	renderTextWithLimit(screen, inputArea.X, inputArea.Y, inputArea.Width, visibleContent, tcell.StyleDefault)
-	
+
 	// Render cursor
 	if cursorPos >= 0 && cursorPos <= len(visibleContent) && cursorPos < inputArea.Width {
 		cursorStyle := tcell.StyleDefault.Reverse(true)
@@ -782,12 +782,16 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 			if startY+i >= modalArea.Y+modalArea.Height-3 {
 				break
 			}
-			renderTextWithLimit(screen, modalArea.X+2, startY+i, modalArea.Width-4, line, messageStyle)
+			centerX := modalArea.X + (modalArea.Width-len(line))/2
+			if centerX < modalArea.X+1 {
+				centerX = modalArea.X + 1
+			}
+			renderTextWithLimit(screen, centerX, startY+i, modalArea.Width-2, line, messageStyle)
 		}
 	}
 
 	// Render instruction
-	instruction := "y/Enter to confirm, n/Esc to cancel"
+	instruction := "<enter> to confirm. <esc> to cancel."
 	instrX := modalArea.X + (modalArea.Width-len(instruction))/2
 	if instrX < modalArea.X+1 {
 		instrX = modalArea.X + 1
