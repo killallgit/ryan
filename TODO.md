@@ -2,7 +2,7 @@
 
 # Chat UX
 - When submitting the user text. It immediately needs to be visible in the chat history. Currently, it wont show until the request is finished
-- Our timeout default needs to be longer. 90s and after 15s 
+- Our timeout default needs to be longer. 90s and after 15s a small dim white text should populate the chat saying "processing...", after 30s "taking forever...", after "60s", "you're still here?"
 
 # Settings mgmt
 - We need to keep track of a `settings.example.yaml` that contains all of the avail configuration options. We will keep this up to date as we add more, however every field / configuration should have a default.

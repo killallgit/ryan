@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/spf13/viper"
@@ -20,9 +21,13 @@ type Client struct {
 }
 
 func NewClient(baseURL string) *Client {
+	return NewClientWithTimeout(baseURL, 30*time.Second)
+}
+
+func NewClientWithTimeout(baseURL string, timeout time.Duration) *Client {
 	log := logger.WithComponent("ollama_client")
-	timeout := viper.GetDuration("ollama.timeout")
 	log.Debug("Creating new ollama client", "base_url", baseURL, "timeout", timeout)
+
 	return &Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{

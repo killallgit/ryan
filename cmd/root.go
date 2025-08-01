@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/controllers"
@@ -50,7 +51,12 @@ var rootCmd = &cobra.Command{
 		)
 
 		ollamaURL := viper.GetString("ollama.url")
-		client := chat.NewClient(ollamaURL)
+		timeoutDuration, err := time.ParseDuration(viper.GetString("ollama.timeout"))
+		if err != nil {
+			log.Warn("Invalid timeout format, using default", "timeout", viper.GetString("ollama.timeout"), "error", err)
+			timeoutDuration = 90 * time.Second
+		}
+		client := chat.NewClientWithTimeout(ollamaURL, timeoutDuration)
 
 		// Check Ollama server version and model compatibility before initializing tools
 		tester := testing.NewModelCompatibilityTester(ollamaURL)
@@ -147,6 +153,7 @@ func init() {
 	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
 	viper.SetDefault("ollama.model", "qwen2.5:7b")
 	viper.SetDefault("ollama.system_prompt", "")
+	viper.SetDefault("ollama.timeout", "90s")
 	viper.SetDefault("show_thinking", true)
 }
 
