@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.14.0/.schema/devbox.schema.json",
+  "packages": [
+    "go@latest",
+    "go-task@latest"
+  ],
+  "shell": {
+    "init_hook": [
+      "export PATH=$PATH:./bin"
+    ],
+    "scripts": {
+      "test": "go test ./..."
+    }
+  }
+}

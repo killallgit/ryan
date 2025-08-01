@@ -1,0 +1,29 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task --list-all
+    silent: true
+  build:
+    cmds:
+    - go build -o bin/ryan main.go
+  test:
+    cmds:
+      - go test ./...
+  
+  test:integration:
+    desc: Run integration tests against real Ollama API
+    cmds:
+      - go test -v ./integration/...
+    env:
+      OLLAMA_URL: '{{default "https://ollama.kitty-tetra.ts.net" .OLLAMA_URL}}'
+      OLLAMA_TEST_MODEL: '{{default "qwen2.5-coder:1.5b-base" .OLLAMA_TEST_MODEL}}'
+  
+  test:all:
+    desc: Run all tests (unit and integration)
+    cmds:
+      - task: test
+      - task: test:integration
