@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -9,26 +10,38 @@ import (
 )
 
 type ChatView struct {
-	controller *controllers.ChatController
-	input      InputField
-	messages   MessageDisplay
-	status     StatusBar
-	layout     Layout
-	screen     tcell.Screen
-	alert      AlertDisplay
+	controller        *controllers.ChatController
+	input             InputField
+	messages          MessageDisplay
+	status            StatusBar
+	layout            Layout
+	screen            tcell.Screen
+	alert             AlertDisplay
+	downloadModal     DownloadPromptModal
+	progressModal     ProgressModal
+	downloadCtx       context.Context
+	downloadCancel    context.CancelFunc
+	pendingMessage    string
+	modelsController  *controllers.ModelsController
 }
 
-func NewChatView(controller *controllers.ChatController, screen tcell.Screen) *ChatView {
+func NewChatView(controller *controllers.ChatController, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
 	width, height := screen.Size()
 
 	view := &ChatView{
-		controller: controller,
-		input:      NewInputField(width),
-		messages:   NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
-		status:     NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready").WithModelAvailability(true),
-		layout:     NewLayout(width, height),
-		screen:     screen,
-		alert:      NewAlertDisplay(width),
+		controller:       controller,
+		input:            NewInputField(width),
+		messages:         NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
+		status:           NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready").WithModelAvailability(true),
+		layout:           NewLayout(width, height),
+		screen:           screen,
+		alert:            NewAlertDisplay(width),
+		downloadModal:    NewDownloadPromptModal(),
+		progressModal:    NewProgressModal(),
+		downloadCtx:      nil,
+		downloadCancel:   nil,
+		pendingMessage:   "",
+		modelsController: modelsController,
 	}
 
 	view.updateMessages()
@@ -50,11 +63,34 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 	RenderAlertWithTokens(screen, cv.alert, alertArea, cv.status.PromptTokens, cv.status.ResponseTokens)
 	RenderInput(screen, cv.input, inputArea)
 	RenderStatus(screen, cv.status, statusArea)
+	
+	// Render modals on top
+	cv.downloadModal.Render(screen, area)
+	cv.progressModal.Render(screen, area)
 }
 
 func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 	log := logger.WithComponent("chat_view")
 	log.Debug("ChatView handling key event", "key", ev.Key(), "rune", ev.Rune())
+
+	// Handle modal events first
+	if cv.progressModal.Visible {
+		modal, cancel := cv.progressModal.HandleKeyEvent(ev)
+		cv.progressModal = modal
+		if cancel && cv.downloadCancel != nil {
+			cv.downloadCancel()
+		}
+		return true
+	}
+	
+	if cv.downloadModal.Visible {
+		modal, confirmed, _ := cv.downloadModal.HandleKeyEvent(ev)
+		cv.downloadModal = modal
+		if confirmed {
+			cv.startModelDownload(cv.downloadModal.ModelName)
+		}
+		return true
+	}
 
 	switch ev.Key() {
 	case tcell.KeyEnter:
@@ -128,6 +164,17 @@ func (cv *ChatView) sendMessage() string {
 
 	if content == "" {
 		log.Debug("Empty message, skipping send")
+		return ""
+	}
+
+	// Check if current model is available
+	currentModel := cv.controller.GetModel()
+	if err := cv.controller.ValidateModel(currentModel); err != nil {
+		log.Debug("Model not available, showing download prompt", "model", currentModel, "error", err)
+		// Store the message to send after download
+		cv.pendingMessage = content
+		cv.input = cv.input.Clear()
+		cv.downloadModal = cv.downloadModal.Show(currentModel)
 		return ""
 	}
 
@@ -228,5 +275,94 @@ func (cv *ChatView) scrollToBottom() {
 
 	if totalLines > paddedHeight {
 		cv.messages = cv.messages.WithScroll(totalLines - paddedHeight)
+	}
+}
+
+func (cv *ChatView) startModelDownload(modelName string) {
+	log := logger.WithComponent("chat_view")
+	log.Debug("Starting model download from chat view", "model_name", modelName)
+
+	// Create cancellable context
+	cv.downloadCtx, cv.downloadCancel = context.WithCancel(context.Background())
+
+	// Show progress modal
+	cv.progressModal = cv.progressModal.Show("Downloading Model", modelName, "Preparing download...", true)
+
+	// Start download in goroutine
+	go func() {
+		err := cv.modelsController.PullWithProgress(cv.downloadCtx, modelName, func(status string, completed, total int64) {
+			// Calculate progress
+			progress := 0.0
+			if total > 0 {
+				progress = float64(completed) / float64(total)
+			}
+
+			// Post progress event
+			cv.screen.PostEvent(NewModelDownloadProgressEvent(modelName, status, progress))
+		})
+
+		if err != nil {
+			if err == context.Canceled {
+				log.Debug("Model download cancelled in chat view", "model_name", modelName)
+				cv.screen.PostEvent(NewModelDownloadErrorEvent(modelName, err))
+			} else {
+				log.Error("Model download failed in chat view", "model_name", modelName, "error", err)
+				cv.screen.PostEvent(NewModelDownloadErrorEvent(modelName, err))
+			}
+		} else {
+			log.Debug("Model download completed successfully in chat view", "model_name", modelName)
+			cv.screen.PostEvent(NewModelDownloadCompleteEvent(modelName))
+		}
+	}()
+}
+
+func (cv *ChatView) HandleModelDownloadProgress(ev ModelDownloadProgressEvent) {
+	log := logger.WithComponent("chat_view")
+	log.Debug("Handling ModelDownloadProgressEvent in chat view", "model", ev.ModelName, "status", ev.Status, "progress", ev.Progress)
+
+	cv.progressModal = cv.progressModal.WithProgress(ev.Progress, ev.Status).NextSpinnerFrame()
+}
+
+func (cv *ChatView) HandleModelDownloadComplete(ev ModelDownloadCompleteEvent) {
+	log := logger.WithComponent("chat_view")
+	log.Debug("Handling ModelDownloadCompleteEvent in chat view", "model", ev.ModelName)
+
+	// Hide progress modal
+	cv.progressModal = cv.progressModal.Hide()
+	cv.downloadCtx = nil
+	cv.downloadCancel = nil
+
+	// Update status
+	cv.status = cv.status.WithStatus("Model downloaded successfully: " + ev.ModelName)
+
+	// Set as current model
+	cv.controller.SetModel(ev.ModelName)
+	cv.status = cv.status.WithModel(ev.ModelName)
+
+	// Send the pending message if we have one
+	if cv.pendingMessage != "" {
+		log.Debug("Sending pending message after download", "message", cv.pendingMessage)
+		cv.screen.PostEvent(NewChatMessageSendEvent(cv.pendingMessage))
+		cv.pendingMessage = ""
+	}
+}
+
+func (cv *ChatView) HandleModelDownloadError(ev ModelDownloadErrorEvent) {
+	log := logger.WithComponent("chat_view")
+	log.Error("Handling ModelDownloadErrorEvent in chat view", "model", ev.ModelName, "error", ev.Error)
+
+	// Hide progress modal
+	cv.progressModal = cv.progressModal.Hide()
+	cv.downloadCtx = nil
+	cv.downloadCancel = nil
+
+	// Clear pending message since download failed
+	cv.pendingMessage = ""
+
+	// Update status with error
+	if ev.Error == context.Canceled {
+		cv.status = cv.status.WithStatus("Model download cancelled: " + ev.ModelName)
+	} else {
+		cv.status = cv.status.WithStatus("Model download failed: " + ev.Error.Error())
 	}
 }

@@ -142,11 +142,12 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ryan.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is .ryan/settings.yaml)")
 
 	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
-	viper.SetDefault("ollama.model", "qwen2.5:7b")  // Excellent tool calling support
+	viper.SetDefault("ollama.model", "qwen2.5:7b")
 	viper.SetDefault("ollama.system_prompt", "")
+	viper.SetDefault("show_thinking", true)
 }
 
 func initConfig() {

@@ -1,17 +1,10 @@
 package tui_test
 
 import (
-	"testing"
-
 	"github.com/killallgit/ryan/pkg/tui"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
-
-func TestModelDownload(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Model Download Suite")
-}
 
 var _ = Describe("Model Download Events", func() {
 	Describe("ModelDownloadProgressEvent", func() {
@@ -47,6 +40,26 @@ var _ = Describe("Model Download Events", func() {
 			event := tui.NewModelNotFoundEvent("nonexistent:model")
 			
 			Expect(event.ModelName).To(Equal("nonexistent:model"))
+		})
+	})
+})
+
+var _ = Describe("Chat Download Integration", func() {
+	Describe("ChatView with download modals", func() {
+		It("should initialize with download modals hidden", func() {
+			// Test that modals start as hidden (we can't easily test the full NewChatView without tcell)
+			downloadModal := tui.NewDownloadPromptModal()
+			progressModal := tui.NewProgressModal()
+			
+			Expect(downloadModal.Visible).To(BeFalse())
+			Expect(progressModal.Visible).To(BeFalse())
+		})
+		
+		It("should be able to validate models", func() {
+			mockController := &MockChatController{}
+			
+			Expect(mockController.ValidateModel("test-model")).To(BeNil())
+			Expect(mockController.ValidateModel("unavailable-model")).To(HaveOccurred())
 		})
 	})
 })
@@ -108,11 +121,3 @@ var _ = Describe("Download Modal Components", func() {
 	})
 })
 
-// TestError is a simple error implementation for testing
-type TestError struct {
-	message string
-}
-
-func (e *TestError) Error() string {
-	return e.message
-}
