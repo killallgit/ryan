@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 // BashTool executes shell commands with safety constraints
@@ -29,7 +31,7 @@ type BashTool struct {
 func NewBashTool() *BashTool {
 	home, _ := os.UserHomeDir()
 	wd, _ := os.Getwd()
-
+	bashTimeout := viper.GetDuration("tools.bash.timeout")
 	return &BashTool{
 		AllowedPaths: []string{
 			home,
@@ -48,7 +50,7 @@ func NewBashTool() *BashTool {
 			"halt",
 			"poweroff",
 		},
-		Timeout:          30 * time.Second,
+		Timeout:          bashTimeout,
 		WorkingDirectory: wd,
 	}
 }

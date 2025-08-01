@@ -1,0 +1,27 @@
+logging:
+    file: ./.ryan/debug.log
+    preserve: false
+
+show_thinking: false
+
+ollama:
+    model: qwen3:latest
+    system_prompt: examples/SYSTEM_PROMPT.md
+    url: https://ollama.kitty-tetra.ts.net
+
+tools:
+    enabled: true
+    models:
+    - deepseek-r1:latest
+    - qwen3:latest
+    - llama3.1:latest
+    - qwen2.5-coder:7b
+    - mistral-small:latest
+    bash:
+        enabled: true
+        timeout: "60s"
+        allowed_paths: [".", "/tmp"]
+    file_read:
+        enabled: true
+        max_file_size: "10MB"
+        allowed_extensions: [".txt", ".md", ".go", ".json", ".yaml", ".yml", ".ts"]

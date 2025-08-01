@@ -1,5 +1,4 @@
-# Major BUG
-- User is prompted to download a model that is already downloaded. A better check for the model existance is needed.
+
 
 # Chat UX
 - User inputted text should become visibe in the chat history immediately upon submitting.

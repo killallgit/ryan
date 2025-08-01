@@ -337,16 +337,16 @@ func (app *App) sendMessageWithContent(content string) {
 			response, err = app.controller.SendUserMessage(content)
 			log.Debug("API CALL: Controller call completed", "error", err, "has_response", response.Content != "")
 		}()
-
+		timeout := viper.GetDuration("ollama.timeout")
 		select {
 		case <-done:
 			log.Debug("API CALL: Controller completed normally")
-		case <-time.After(30 * time.Second):
-			log.Error("API CALL: Timeout after 30 seconds", "content", content)
-			err = fmt.Errorf("API call timeout after 30 seconds")
+		case <-time.After(timeout * time.Second):
+			log.Error("API CALL: Timeout after %v seconds", "content", content, "timeout", timeout)
+			err = fmt.Errorf("API call timeout after %v seconds", timeout)
 		case <-app.cancelSend:
 			log.Debug("API CALL: Cancelled by user")
-			err = fmt.Errorf("Message sending cancelled by user")
+			err = fmt.Errorf("message sending cancelled by user")
 			return // Exit the goroutine early
 		}
 
@@ -446,9 +446,8 @@ func (app *App) handleMessageError(ev *MessageErrorEvent) {
 	log.Debug("STATE TRANSITION: Forced render after error")
 }
 
-func (app *App) handleSpinnerAnimation(ev *SpinnerAnimationEvent) {
+func (app *App) handleSpinnerAnimation(_ *SpinnerAnimationEvent) {
 	log := logger.WithComponent("tui_app")
-	log.Debug("EVENT: Handling SpinnerAnimationEvent")
 
 	// Update spinner animation in ChatView
 	if app.chatView != nil && app.sending {
