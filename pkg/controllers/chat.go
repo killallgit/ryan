@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tools"
 )
 
@@ -15,6 +16,11 @@ type ChatController struct {
 	toolRegistry       *tools.Registry
 	lastPromptTokens   int
 	lastResponseTokens int
+	ollamaClient       OllamaClient
+}
+
+type OllamaClient interface {
+	Tags() (*ollama.TagsResponse, error)
 }
 
 func NewChatController(client chat.ChatClient, model string, toolRegistry *tools.Registry) *ChatController {
@@ -24,6 +30,7 @@ func NewChatController(client chat.ChatClient, model string, toolRegistry *tools
 		toolRegistry:       toolRegistry,
 		lastPromptTokens:   0,
 		lastResponseTokens: 0,
+		ollamaClient:       nil, // Will be set via SetOllamaClient
 	}
 }
 
@@ -34,6 +41,7 @@ func NewChatControllerWithSystem(client chat.ChatClient, model, systemPrompt str
 		toolRegistry:       toolRegistry,
 		lastPromptTokens:   0,
 		lastResponseTokens: 0,
+		ollamaClient:       nil, // Will be set via SetOllamaClient
 	}
 }
 
@@ -229,4 +237,36 @@ func (cc *ChatController) GetTokenUsage() (promptTokens, responseTokens int) {
 
 func (cc *ChatController) AddErrorMessage(errorMsg string) {
 	cc.conversation = chat.AddMessage(cc.conversation, chat.NewErrorMessage(errorMsg))
+}
+
+func (cc *ChatController) SetOllamaClient(client OllamaClient) {
+	cc.ollamaClient = client
+}
+
+func (cc *ChatController) ValidateModel(model string) error {
+	if cc.ollamaClient == nil {
+		return fmt.Errorf("ollama client not configured")
+	}
+
+	response, err := cc.ollamaClient.Tags()
+	if err != nil {
+		return fmt.Errorf("failed to check available models: %w", err)
+	}
+
+	for _, availableModel := range response.Models {
+		if availableModel.Name == model {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("model %s not found locally", model)
+}
+
+func (cc *ChatController) SetModelWithValidation(model string) error {
+	if err := cc.ValidateModel(model); err != nil {
+		return err
+	}
+
+	cc.SetModel(model)
+	return nil
 }

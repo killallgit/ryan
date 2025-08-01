@@ -2,6 +2,7 @@ package controllers_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"testing"
 
@@ -33,6 +34,11 @@ func (m *MockOllamaClient) Ps() (*ollama.PsResponse, error) {
 
 func (m *MockOllamaClient) Pull(modelName string) error {
 	args := m.Called(modelName)
+	return args.Error(0)
+}
+
+func (m *MockOllamaClient) PullWithProgress(ctx context.Context, modelName string, progressCallback ollama.ProgressCallback) error {
+	args := m.Called(ctx, modelName, progressCallback)
 	return args.Error(0)
 }
 

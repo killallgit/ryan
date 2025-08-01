@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"context"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
@@ -19,6 +21,10 @@ type ModelView struct {
 	showStats         bool
 	pullModal         TextInputModal
 	confirmationModal ConfirmationModal
+	downloadModal     DownloadPromptModal
+	progressModal     ProgressModal
+	downloadCtx       context.Context
+	downloadCancel    context.CancelFunc
 }
 
 func NewModelView(controller *controllers.ModelsController, chatController *controllers.ChatController, screen tcell.Screen) *ModelView {
@@ -39,6 +45,10 @@ func NewModelView(controller *controllers.ModelsController, chatController *cont
 		showStats:         true,
 		pullModal:         NewTextInputModal(),
 		confirmationModal: NewConfirmationModal(),
+		downloadModal:     NewDownloadPromptModal(),
+		progressModal:     NewProgressModal(),
+		downloadCtx:       nil,
+		downloadCancel:    nil,
 	}
 
 	// Don't auto-refresh on creation - wait until view becomes active
@@ -108,6 +118,8 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 	
 	mv.pullModal.Render(screen, area)
 	mv.confirmationModal.Render(screen, area)
+	mv.downloadModal.Render(screen, area)
+	mv.progressModal.Render(screen, area)
 }
 
 func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
@@ -116,6 +128,24 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 	}
 	
 	// Handle modal events first
+	if mv.progressModal.Visible {
+		modal, cancel := mv.progressModal.HandleKeyEvent(ev)
+		mv.progressModal = modal
+		if cancel && mv.downloadCancel != nil {
+			mv.downloadCancel()
+		}
+		return true
+	}
+	
+	if mv.downloadModal.Visible {
+		modal, confirmed, _ := mv.downloadModal.HandleKeyEvent(ev)
+		mv.downloadModal = modal
+		if confirmed {
+			mv.startModelDownload(mv.downloadModal.ModelName)
+		}
+		return true
+	}
+	
 	if mv.confirmationModal.Visible {
 		modal, confirmed, _ := mv.confirmationModal.HandleKeyEvent(ev)
 		mv.confirmationModal = modal
@@ -429,6 +459,14 @@ func (mv *ModelView) changeModel() {
 	log := logger.WithComponent("model_view")
 	log.Debug("Changing model", "selected_model", selectedModel.Name)
 
+	// Check if model exists locally, if not, show download prompt
+	err := mv.chatController.ValidateModel(selectedModel.Name)
+	if err != nil {
+		log.Debug("Model not found locally, showing download prompt", "model", selectedModel.Name, "error", err)
+		mv.downloadModal = mv.downloadModal.Show(selectedModel.Name)
+		return
+	}
+
 	// Update the chat controller's model
 	mv.chatController.SetModel(selectedModel.Name)
 
@@ -522,5 +560,90 @@ func (mv *ModelView) renderHelpText(screen tcell.Screen, area Rect) {
 		for i, r := range helpText {
 			screen.SetContent(startX+i, area.Y, r, nil, helpStyle)
 		}
+	}
+}
+
+func (mv *ModelView) startModelDownload(modelName string) {
+	log := logger.WithComponent("model_view")
+	log.Debug("Starting model download", "model_name", modelName)
+
+	// Create cancellable context
+	mv.downloadCtx, mv.downloadCancel = context.WithCancel(context.Background())
+
+	// Show progress modal
+	mv.progressModal = mv.progressModal.Show("Downloading Model", modelName, "Preparing download...", true)
+
+	// Start download in goroutine
+	go func() {
+		err := mv.controller.PullWithProgress(mv.downloadCtx, modelName, func(status string, completed, total int64) {
+			// Calculate progress
+			progress := 0.0
+			if total > 0 {
+				progress = float64(completed) / float64(total)
+			}
+
+			// Post progress event
+			mv.screen.PostEvent(NewModelDownloadProgressEvent(modelName, status, progress))
+		})
+
+		if err != nil {
+			if err == context.Canceled {
+				log.Debug("Model download cancelled", "model_name", modelName)
+				mv.screen.PostEvent(NewModelDownloadErrorEvent(modelName, err))
+			} else {
+				log.Error("Model download failed", "model_name", modelName, "error", err)
+				mv.screen.PostEvent(NewModelDownloadErrorEvent(modelName, err))
+			}
+		} else {
+			log.Debug("Model download completed successfully", "model_name", modelName)
+			mv.screen.PostEvent(NewModelDownloadCompleteEvent(modelName))
+		}
+	}()
+}
+
+func (mv *ModelView) HandleModelDownloadProgress(ev ModelDownloadProgressEvent) {
+	log := logger.WithComponent("model_view")
+	log.Debug("Handling ModelDownloadProgressEvent", "model", ev.ModelName, "status", ev.Status, "progress", ev.Progress)
+
+	mv.progressModal = mv.progressModal.WithProgress(ev.Progress, ev.Status).NextSpinnerFrame()
+}
+
+func (mv *ModelView) HandleModelDownloadComplete(ev ModelDownloadCompleteEvent) {
+	log := logger.WithComponent("model_view")
+	log.Debug("Handling ModelDownloadCompleteEvent", "model", ev.ModelName)
+
+	// Hide progress modal
+	mv.progressModal = mv.progressModal.Hide()
+	mv.downloadCtx = nil
+	mv.downloadCancel = nil
+
+	// Update status
+	mv.status = mv.status.WithStatus("Model downloaded successfully: " + ev.ModelName)
+
+	// Refresh models list to show the new model
+	mv.refreshModels()
+
+	// Set as current model
+	mv.chatController.SetModel(ev.ModelName)
+	viper.Set("ollama.model", ev.ModelName)
+	if err := viper.WriteConfig(); err != nil {
+		log.Error("Failed to save configuration after download", "error", err)
+	}
+}
+
+func (mv *ModelView) HandleModelDownloadError(ev ModelDownloadErrorEvent) {
+	log := logger.WithComponent("model_view")
+	log.Error("Handling ModelDownloadErrorEvent", "model", ev.ModelName, "error", ev.Error)
+
+	// Hide progress modal
+	mv.progressModal = mv.progressModal.Hide()
+	mv.downloadCtx = nil
+	mv.downloadCancel = nil
+
+	// Update status with error
+	if ev.Error == context.Canceled {
+		mv.status = mv.status.WithStatus("Model download cancelled: " + ev.ModelName)
+	} else {
+		mv.status = mv.status.WithStatus("Model download failed: " + ev.Error.Error())
 	}
 }

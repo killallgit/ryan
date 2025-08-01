@@ -16,7 +16,8 @@
 - The model management view should refresh periodicly based on the config `ollama.poll_interval`
 
 # Chat UX
-- We need to have a config in our settings
+- Some responses have a `<THINK>` block. We should show this thinking block as dimmed white text and once the final response is recieved we can truncate it to a couple of lines with "..." at the end and show the actual response text. This feature can be enabled or disabled by using the settings.yaml viper config of `show_thinking: true` if `show_thinking: false` we will only show the response text. The default for this should be true
+- Our spinner is subpar. I would like to fin
 
 # BUGS
 - Error messages are reported in 2 locations. Lets only use the one at the bottom of the chat.

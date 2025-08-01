@@ -87,6 +87,10 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 
 	ollamaClient := ollama.NewClient(ollamaURL)
 	modelsController := controllers.NewModelsController(ollamaClient)
+	
+	// Connect ollama client to chat controller for model validation
+	controller.SetOllamaClient(ollamaClient)
+	
 	modelView := NewModelView(modelsController, controller, screen)
 
 	viewManager.RegisterView("chat", chatView)
@@ -196,6 +200,14 @@ func (app *App) handleEvent(event tcell.Event) {
 		app.handleChatMessageSend(ev)
 	case *SpinnerAnimationEvent:
 		app.handleSpinnerAnimation(ev)
+	case *ModelDownloadProgressEvent:
+		app.handleModelDownloadProgress(ev)
+	case *ModelDownloadCompleteEvent:
+		app.handleModelDownloadComplete(ev)
+	case *ModelDownloadErrorEvent:
+		app.handleModelDownloadError(ev)
+	case *ModelNotFoundEvent:
+		app.handleModelNotFound(ev)
 	}
 }
 
@@ -567,6 +579,54 @@ func (app *App) handleModelDeleted(ev *ModelDeletedEvent) {
 		log.Debug("Forwarded ModelDeletedEvent to ModelView")
 	} else {
 		log.Debug("Current view is not ModelView, ignoring ModelDeletedEvent", "current_view_type", currentView)
+	}
+}
+
+func (app *App) handleModelDownloadProgress(ev *ModelDownloadProgressEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling ModelDownloadProgressEvent", "model_name", ev.ModelName, "progress", ev.Progress)
+	currentView := app.viewManager.GetCurrentView()
+	if modelView, ok := currentView.(*ModelView); ok {
+		modelView.HandleModelDownloadProgress(*ev)
+		log.Debug("Forwarded ModelDownloadProgressEvent to ModelView")
+	} else {
+		log.Debug("Current view is not ModelView, ignoring ModelDownloadProgressEvent", "current_view_type", currentView)
+	}
+}
+
+func (app *App) handleModelDownloadComplete(ev *ModelDownloadCompleteEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling ModelDownloadCompleteEvent", "model_name", ev.ModelName)
+	currentView := app.viewManager.GetCurrentView()
+	if modelView, ok := currentView.(*ModelView); ok {
+		modelView.HandleModelDownloadComplete(*ev)
+		log.Debug("Forwarded ModelDownloadCompleteEvent to ModelView")
+	} else {
+		log.Debug("Current view is not ModelView, ignoring ModelDownloadCompleteEvent", "current_view_type", currentView)
+	}
+}
+
+func (app *App) handleModelDownloadError(ev *ModelDownloadErrorEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling ModelDownloadErrorEvent", "model_name", ev.ModelName, "error", ev.Error)
+	currentView := app.viewManager.GetCurrentView()
+	if modelView, ok := currentView.(*ModelView); ok {
+		modelView.HandleModelDownloadError(*ev)
+		log.Debug("Forwarded ModelDownloadErrorEvent to ModelView")
+	} else {
+		log.Debug("Current view is not ModelView, ignoring ModelDownloadErrorEvent", "current_view_type", currentView)
+	}
+}
+
+func (app *App) handleModelNotFound(ev *ModelNotFoundEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling ModelNotFoundEvent", "model_name", ev.ModelName)
+	currentView := app.viewManager.GetCurrentView()
+	if _, ok := currentView.(*ModelView); ok {
+		// For now, just log - this event could be used for other integrations
+		log.Debug("Model not found event received", "model_name", ev.ModelName)
+	} else {
+		log.Debug("Current view is not ModelView, ignoring ModelNotFoundEvent", "current_view_type", currentView)
 	}
 }
 
