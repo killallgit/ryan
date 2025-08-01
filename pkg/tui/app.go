@@ -22,9 +22,10 @@ type App struct {
 	status        StatusBar
 	layout        Layout
 	quit          bool
-	sending       bool      // Track if we're currently sending a message
-	sendStartTime time.Time // Track when message sending started
-	cancelSend    chan bool // Channel to cancel current send operation
+	sending       bool          // Track if we're currently sending a message
+	sendStartTime time.Time     // Track when message sending started
+	timeout       time.Duration // Request timeout duration
+	cancelSend    chan bool     // Channel to cancel current send operation
 	viewManager   *ViewManager
 	chatView      *ChatView
 	spinnerTicker *time.Ticker
@@ -82,7 +83,12 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 		connectivityError = err
 	}
 
-	ollamaClient := ollama.NewClient(ollamaURL)
+	timeoutDuration, err := time.ParseDuration(viper.GetString("ollama.timeout"))
+	if err != nil {
+		log.Warn("Invalid timeout format, using default", "timeout", viper.GetString("ollama.timeout"), "error", err)
+		timeoutDuration = 90 * time.Second
+	}
+	ollamaClient := ollama.NewClientWithTimeout(ollamaURL, timeoutDuration)
 	modelsController := controllers.NewModelsController(ollamaClient)
 
 	// Connect ollama client to chat controller for model validation
@@ -105,6 +111,7 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 		layout:        NewLayout(width, height),
 		quit:          false,
 		sending:       false,
+		timeout:       timeoutDuration,
 		cancelSend:    make(chan bool, 1), // Buffered channel for cancellation
 		viewManager:   viewManager,
 		chatView:      chatView,
@@ -427,8 +434,9 @@ func (app *App) handleMessageError(ev *MessageErrorEvent) {
 	log.Debug("STATE TRANSITION: Set sending=false after error")
 
 	// Add error message to conversation so it appears as a red chat message
-	app.controller.AddErrorMessage("Error: " + ev.Error.Error())
-	log.Debug("Added error message to conversation")
+	errorMsg := "Error: " + ev.Error.Error()
+	app.controller.AddErrorMessage(errorMsg)
+	log.Debug("Added error message to conversation", "full_error", errorMsg, "length", len(errorMsg))
 
 	if app.chatView != nil {
 		app.chatView.HandleMessageError(*ev)

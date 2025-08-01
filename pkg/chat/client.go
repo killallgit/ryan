@@ -38,10 +38,14 @@ type ChatClient interface {
 }
 
 func NewClient(baseURL string) *Client {
+	return NewClientWithTimeout(baseURL, 60*time.Second)
+}
+
+func NewClientWithTimeout(baseURL string, timeout time.Duration) *Client {
 	return &Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: timeout,
 		},
 	}
 }

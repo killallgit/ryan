@@ -5,6 +5,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/spf13/viper"
 )
 
@@ -85,6 +86,20 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 			contentLines := WrapText(msg.Content, chatArea.Width)
 			if len(contentLines) == 0 {
 				contentLines = []string{""}
+			}
+
+			// Log error messages for debugging
+			if msg.Role == chat.RoleError {
+				log := logger.WithComponent("tui_render")
+				firstLine := ""
+				if len(contentLines) > 0 {
+					firstLine = contentLines[0]
+				}
+				log.Debug("Rendering error message",
+					"content", msg.Content,
+					"width", chatArea.Width,
+					"lines", len(contentLines),
+					"first_line", firstLine)
 			}
 
 			for _, line := range contentLines {
