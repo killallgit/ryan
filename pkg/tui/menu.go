@@ -95,21 +95,13 @@ func (mc MenuComponent) Render(screen tcell.Screen, area Rect) {
 		return
 	}
 
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
 	selectedStyle := tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorOrange)
 	normalStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
 
 	drawBorder(screen, area, borderStyle)
 
-	titleText := "Select View"
-	titleX := area.X + (area.Width-len(titleText))/2
-	if titleX < area.X+1 {
-		titleX = area.X + 1
-	}
-	renderTextWithLimit(screen, titleX, area.Y+1, len(titleText), titleText, titleStyle)
-
-	startY := area.Y + 3
+	startY := area.Y + 1
 	for i, option := range mc.options {
 		if startY+i >= area.Y+area.Height-1 {
 			break
@@ -121,34 +113,25 @@ func (mc MenuComponent) Render(screen tcell.Screen, area Rect) {
 		}
 
 		optionText := option.Description
-		if len(optionText) > area.Width-6 {
-			optionText = optionText[:area.Width-9] + "..."
+		maxTextWidth := area.Width - 4
+		if maxTextWidth > 3 && len(optionText) > maxTextWidth {
+			cutoffWidth := maxTextWidth - 3
+			if cutoffWidth > 0 && cutoffWidth < len(optionText) {
+				optionText = optionText[:cutoffWidth] + "..."
+			}
 		}
-
-		numberText := string(rune('1' + i))
-		fullText := numberText + ". " + optionText
 
 		// Fill the entire row with the background color for selected item
 		for x := area.X + 1; x < area.X+area.Width-1; x++ {
 			char := ' '
 			textIndex := x - (area.X + 2)
-			if textIndex >= 0 && textIndex < len([]rune(fullText)) {
-				fullTextRunes := []rune(fullText)
-				char = fullTextRunes[textIndex]
+			if textIndex >= 0 && textIndex < len([]rune(optionText)) {
+				optionTextRunes := []rune(optionText)
+				char = optionTextRunes[textIndex]
 			}
 			screen.SetContent(x, startY+i, char, nil, style)
 		}
 	}
-
-	instructionText := "Use ↑↓ or 1-9, Enter to select, Esc to cancel"
-	if len(instructionText) > area.Width-4 {
-		instructionText = "↑↓ or 1-9, Enter, Esc"
-	}
-	instrX := area.X + (area.Width-len(instructionText))/2
-	if instrX < area.X+1 {
-		instrX = area.X + 1
-	}
-	renderTextWithLimit(screen, instrX, area.Y+area.Height-2, len(instructionText), instructionText, normalStyle)
 }
 
 func drawBorder(screen tcell.Screen, area Rect, style tcell.Style) {
