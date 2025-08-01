@@ -10,7 +10,7 @@ var _ = Describe("Model Download Events", func() {
 	Describe("ModelDownloadProgressEvent", func() {
 		It("should create event with correct fields", func() {
 			event := tui.NewModelDownloadProgressEvent("llama3.1:8b", "downloading", 0.5)
-			
+
 			Expect(event.ModelName).To(Equal("llama3.1:8b"))
 			Expect(event.Status).To(Equal("downloading"))
 			Expect(event.Progress).To(Equal(0.5))
@@ -20,7 +20,7 @@ var _ = Describe("Model Download Events", func() {
 	Describe("ModelDownloadCompleteEvent", func() {
 		It("should create event with correct model name", func() {
 			event := tui.NewModelDownloadCompleteEvent("llama3.1:8b")
-			
+
 			Expect(event.ModelName).To(Equal("llama3.1:8b"))
 		})
 	})
@@ -29,7 +29,7 @@ var _ = Describe("Model Download Events", func() {
 		It("should create event with error", func() {
 			testErr := &TestError{message: "download failed"}
 			event := tui.NewModelDownloadErrorEvent("llama3.1:8b", testErr)
-			
+
 			Expect(event.ModelName).To(Equal("llama3.1:8b"))
 			Expect(event.Error).To(Equal(testErr))
 		})
@@ -38,7 +38,7 @@ var _ = Describe("Model Download Events", func() {
 	Describe("ModelNotFoundEvent", func() {
 		It("should create event with model name", func() {
 			event := tui.NewModelNotFoundEvent("nonexistent:model")
-			
+
 			Expect(event.ModelName).To(Equal("nonexistent:model"))
 		})
 	})
@@ -50,14 +50,14 @@ var _ = Describe("Chat Download Integration", func() {
 			// Test that modals start as hidden (we can't easily test the full NewChatView without tcell)
 			downloadModal := tui.NewDownloadPromptModal()
 			progressModal := tui.NewProgressModal()
-			
+
 			Expect(downloadModal.Visible).To(BeFalse())
 			Expect(progressModal.Visible).To(BeFalse())
 		})
-		
+
 		It("should be able to validate models", func() {
 			mockController := &MockChatController{}
-			
+
 			Expect(mockController.ValidateModel("test-model")).To(BeNil())
 			Expect(mockController.ValidateModel("unavailable-model")).To(HaveOccurred())
 		})
@@ -68,7 +68,7 @@ var _ = Describe("Download Modal Components", func() {
 	Describe("DownloadPromptModal", func() {
 		It("should create modal with default values", func() {
 			modal := tui.NewDownloadPromptModal()
-			
+
 			Expect(modal.Visible).To(BeFalse())
 			Expect(modal.ModelName).To(BeEmpty())
 			Expect(modal.Width).To(Equal(60))
@@ -78,7 +78,7 @@ var _ = Describe("Download Modal Components", func() {
 		It("should show modal with model name", func() {
 			modal := tui.NewDownloadPromptModal()
 			modal = modal.Show("llama3.1:8b")
-			
+
 			Expect(modal.Visible).To(BeTrue())
 			Expect(modal.ModelName).To(Equal("llama3.1:8b"))
 		})
@@ -86,7 +86,7 @@ var _ = Describe("Download Modal Components", func() {
 		It("should hide modal", func() {
 			modal := tui.NewDownloadPromptModal().Show("test:model")
 			modal = modal.Hide()
-			
+
 			Expect(modal.Visible).To(BeFalse())
 		})
 	})
@@ -94,7 +94,7 @@ var _ = Describe("Download Modal Components", func() {
 	Describe("ProgressModal", func() {
 		It("should create modal with default values", func() {
 			modal := tui.NewProgressModal()
-			
+
 			Expect(modal.Visible).To(BeFalse())
 			Expect(modal.Progress).To(Equal(0.0))
 			Expect(modal.Cancellable).To(BeTrue())
@@ -103,7 +103,7 @@ var _ = Describe("Download Modal Components", func() {
 		It("should show modal with details", func() {
 			modal := tui.NewProgressModal()
 			modal = modal.Show("Downloading", "llama3.1:8b", "Starting...", true)
-			
+
 			Expect(modal.Visible).To(BeTrue())
 			Expect(modal.Title).To(Equal("Downloading"))
 			Expect(modal.ModelName).To(Equal("llama3.1:8b"))
@@ -114,10 +114,9 @@ var _ = Describe("Download Modal Components", func() {
 		It("should update progress", func() {
 			modal := tui.NewProgressModal()
 			modal = modal.WithProgress(0.75, "Almost done...")
-			
+
 			Expect(modal.Progress).To(Equal(0.75))
 			Expect(modal.Status).To(Equal("Almost done..."))
 		})
 	})
 })
-

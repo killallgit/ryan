@@ -9,14 +9,14 @@ import (
 type Tool interface {
 	// Name returns the unique identifier for this tool
 	Name() string
-	
+
 	// Description returns a human/LLM-readable description of what this tool does
 	Description() string
-	
+
 	// JSONSchema returns the JSON Schema for the tool's parameters
 	// This is used to generate provider-specific tool definitions
 	JSONSchema() map[string]interface{}
-	
+
 	// Execute runs the tool with the given parameters
 	Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error)
 }
@@ -25,16 +25,16 @@ type Tool interface {
 type ToolResult struct {
 	// Success indicates whether the tool execution was successful
 	Success bool `json:"success"`
-	
+
 	// Content is the main result content
 	Content string `json:"content"`
-	
+
 	// Data contains structured data from the tool execution (optional)
 	Data map[string]interface{} `json:"data,omitempty"`
-	
+
 	// Error contains error information if Success is false
 	Error string `json:"error,omitempty"`
-	
+
 	// Metadata contains additional information about the execution
 	Metadata ToolMetadata `json:"metadata"`
 }
@@ -43,16 +43,16 @@ type ToolResult struct {
 type ToolMetadata struct {
 	// ExecutionTime is how long the tool took to execute
 	ExecutionTime time.Duration `json:"execution_time"`
-	
+
 	// StartTime is when the tool execution began
 	StartTime time.Time `json:"start_time"`
-	
+
 	// EndTime is when the tool execution completed
 	EndTime time.Time `json:"end_time"`
-	
+
 	// ToolName is the name of the tool that was executed
 	ToolName string `json:"tool_name"`
-	
+
 	// Parameters are the parameters that were passed to the tool
 	Parameters map[string]interface{} `json:"parameters"`
 }
@@ -61,10 +61,10 @@ type ToolMetadata struct {
 type ToolRequest struct {
 	// Name is the name of the tool to execute
 	Name string `json:"name"`
-	
+
 	// Parameters are the parameters to pass to the tool
 	Parameters map[string]interface{} `json:"parameters"`
-	
+
 	// Context for the execution (timeout, cancellation)
 	Context context.Context `json:"-"`
 }
@@ -73,20 +73,20 @@ type ToolRequest struct {
 type ToolDefinition struct {
 	// Provider is the target provider (openai, anthropic, ollama, mcp)
 	Provider string `json:"provider"`
-	
+
 	// Definition is the provider-specific tool definition
 	Definition map[string]interface{} `json:"definition"`
 }
 
 // JSONSchemaProperty represents a property in a JSON Schema
 type JSONSchemaProperty struct {
-	Type        string                         `json:"type"`
-	Description string                         `json:"description"`
-	Properties  map[string]JSONSchemaProperty  `json:"properties,omitempty"`
-	Required    []string                       `json:"required,omitempty"`
-	Items       *JSONSchemaProperty            `json:"items,omitempty"`
-	Enum        []interface{}                  `json:"enum,omitempty"`
-	Default     interface{}                    `json:"default,omitempty"`
+	Type        string                        `json:"type"`
+	Description string                        `json:"description"`
+	Properties  map[string]JSONSchemaProperty `json:"properties,omitempty"`
+	Required    []string                      `json:"required,omitempty"`
+	Items       *JSONSchemaProperty           `json:"items,omitempty"`
+	Enum        []interface{}                 `json:"enum,omitempty"`
+	Default     interface{}                   `json:"default,omitempty"`
 }
 
 // NewJSONSchema creates a basic JSON Schema structure

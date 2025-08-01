@@ -84,7 +84,7 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 
 	ollamaClient := ollama.NewClient(ollamaURL)
 	modelsController := controllers.NewModelsController(ollamaClient)
-	
+
 	// Connect ollama client to chat controller for model validation
 	controller.SetOllamaClient(ollamaClient)
 

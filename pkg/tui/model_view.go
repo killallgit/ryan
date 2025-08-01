@@ -115,7 +115,7 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 	mv.renderHelpText(screen, helpArea)
 
 	RenderStatus(screen, mv.status, statusArea)
-	
+
 	mv.pullModal.Render(screen, area)
 	mv.confirmationModal.Render(screen, area)
 	mv.downloadModal.Render(screen, area)
@@ -126,7 +126,7 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 	if mv.loading {
 		return true // Consume all events while loading
 	}
-	
+
 	// Handle modal events first
 	if mv.progressModal.Visible {
 		modal, cancel := mv.progressModal.HandleKeyEvent(ev)
@@ -136,7 +136,7 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 		}
 		return true
 	}
-	
+
 	if mv.downloadModal.Visible {
 		modal, confirmed, _ := mv.downloadModal.HandleKeyEvent(ev)
 		mv.downloadModal = modal
@@ -145,7 +145,7 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 		}
 		return true
 	}
-	
+
 	if mv.confirmationModal.Visible {
 		modal, confirmed, _ := mv.confirmationModal.HandleKeyEvent(ev)
 		mv.confirmationModal = modal
@@ -154,7 +154,7 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 		}
 		return true
 	}
-	
+
 	if mv.pullModal.Visible {
 		modal, modelName, confirmed := mv.pullModal.HandleKeyEvent(ev)
 		mv.pullModal = modal
@@ -488,9 +488,9 @@ func (mv *ModelView) showPullModal() {
 func (mv *ModelView) pullModel(modelName string) {
 	log := logger.WithComponent("model_view")
 	log.Debug("Starting model pull", "model_name", modelName)
-	
+
 	mv.status = mv.status.WithStatus("Pulling model: " + modelName + "...")
-	
+
 	go func() {
 		err := mv.controller.Pull(modelName)
 		if err != nil {
@@ -508,7 +508,7 @@ func (mv *ModelView) showDeleteConfirmation() {
 	if len(mv.modelList.Models) == 0 || mv.modelList.Selected < 0 || mv.modelList.Selected >= len(mv.modelList.Models) {
 		return
 	}
-	
+
 	selectedModel := mv.modelList.Models[mv.modelList.Selected]
 	title := "Delete Model"
 	message := selectedModel.Name
@@ -519,14 +519,14 @@ func (mv *ModelView) deleteModel() {
 	if len(mv.modelList.Models) == 0 || mv.modelList.Selected < 0 || mv.modelList.Selected >= len(mv.modelList.Models) {
 		return
 	}
-	
+
 	selectedModel := mv.modelList.Models[mv.modelList.Selected]
 	log := logger.WithComponent("model_view")
 	log.Debug("Starting model deletion", "model_name", selectedModel.Name)
-	
+
 	mv.loading = true
 	mv.status = mv.status.WithStatus("Deleting model: " + selectedModel.Name + "...")
-	
+
 	go func() {
 		err := mv.controller.Delete(selectedModel.Name)
 		if err != nil {

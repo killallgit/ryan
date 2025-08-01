@@ -45,10 +45,10 @@ func convertToAnthropic(tool Tool) map[string]interface{} {
 // Format: Similar to Anthropic but with additional MCP-specific metadata
 func convertToMCP(tool Tool) map[string]interface{} {
 	return map[string]interface{}{
-		"name":         tool.Name(),
-		"description":  tool.Description(),
-		"inputSchema":  tool.JSONSchema(), // MCP uses camelCase
-		"type":         "tool",
+		"name":        tool.Name(),
+		"description": tool.Description(),
+		"inputSchema": tool.JSONSchema(), // MCP uses camelCase
+		"type":        "tool",
 	}
 }
 
@@ -74,7 +74,7 @@ func convertResultToOpenAI(result ToolResult) map[string]interface{} {
 			"role":    "tool",
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"content": result.Error,
 		"role":    "tool",
@@ -88,12 +88,12 @@ func convertResultToAnthropic(result ToolResult) map[string]interface{} {
 		"type":    "tool_result",
 		"content": result.Content,
 	}
-	
+
 	if !result.Success {
 		anthropicResult["is_error"] = true
 		anthropicResult["content"] = result.Error
 	}
-	
+
 	return anthropicResult
 }
 
@@ -107,7 +107,7 @@ func convertResultToMCP(result ToolResult) map[string]interface{} {
 			},
 		},
 	}
-	
+
 	if !result.Success {
 		mcpResult["isError"] = true
 		mcpResult["content"] = []map[string]interface{}{
@@ -117,14 +117,14 @@ func convertResultToMCP(result ToolResult) map[string]interface{} {
 			},
 		}
 	}
-	
+
 	return mcpResult
 }
 
 // BatchConvertToProvider converts multiple tools to provider-specific format
 func BatchConvertToProvider(tools []Tool, provider string) ([]map[string]interface{}, error) {
 	definitions := make([]map[string]interface{}, 0, len(tools))
-	
+
 	for _, tool := range tools {
 		definition, err := ConvertToProvider(tool, provider)
 		if err != nil {
@@ -132,6 +132,6 @@ func BatchConvertToProvider(tools []Tool, provider string) ([]map[string]interfa
 		}
 		definitions = append(definitions, definition)
 	}
-	
+
 	return definitions, nil
 }

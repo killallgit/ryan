@@ -144,9 +144,9 @@ type StatusBar struct {
 	ResponseTokens int
 	ModelAvailable bool
 	// Model management view specific fields
-	IsModelView    bool
-	TotalModels    int
-	TotalSize      int64
+	IsModelView bool
+	TotalModels int
+	TotalSize   int64
 }
 
 func NewStatusBar(width int) StatusBar {
@@ -246,7 +246,6 @@ func (sb StatusBar) WithModelViewData(totalModels int, totalSize int64) StatusBa
 		TotalSize:      totalSize,
 	}
 }
-
 
 type AlertDisplay struct {
 	IsSpinnerVisible bool

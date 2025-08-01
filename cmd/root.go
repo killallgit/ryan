@@ -36,7 +36,7 @@ var rootCmd = &cobra.Command{
 		if model == "" {
 			model = viper.GetString("ollama.model")
 			if model == "" {
-				model = "qwen2.5:7b"  // Default to tool-compatible model
+				model = "qwen2.5:7b" // Default to tool-compatible model
 			}
 		}
 
@@ -55,7 +55,7 @@ var rootCmd = &cobra.Command{
 		// Check Ollama server version and model compatibility before initializing tools
 		tester := testing.NewModelCompatibilityTester(ollamaURL)
 		version, versionSupported, err := tester.CheckOllamaVersion()
-		
+
 		var toolRegistry *tools.Registry
 		if err != nil {
 			log.Warn("Could not check Ollama server version", "error", err)
@@ -63,31 +63,31 @@ var rootCmd = &cobra.Command{
 			// Continue without tools for now
 			toolRegistry = nil
 		} else if !versionSupported {
-			log.Warn("Ollama server version does not support tool calling", 
+			log.Warn("Ollama server version does not support tool calling",
 				"version", version, "minimum_required", "0.4.0")
 			fmt.Printf("Warning: Ollama server v%s does not support tool calling (requires v0.4.0+)\n", version)
 			fmt.Printf("Tool functionality will be disabled. Consider upgrading your Ollama server.\n")
 			toolRegistry = nil
 		} else {
 			log.Info("Ollama server supports tool calling", "version", version)
-			
+
 			// Check if the selected model supports tool calling
 			if !models.IsToolCompatible(model) {
 				modelInfo := models.GetModelInfo(model)
-				log.Warn("Selected model may not support tool calling", 
+				log.Warn("Selected model may not support tool calling",
 					"model", model, "compatibility", modelInfo.ToolCompatibility.String())
 				fmt.Printf("Warning: Model '%s' has %s tool calling support\n", model, modelInfo.ToolCompatibility.String())
 				if modelInfo.Notes != "" {
 					fmt.Printf("Note: %s\n", modelInfo.Notes)
 				}
-				
+
 				// Suggest better alternatives
 				recommended := models.GetRecommendedModels()
 				if len(recommended) > 0 {
 					fmt.Printf("Recommended tool-compatible models: %v\n", recommended[:3]) // Show first 3
 				}
 			}
-			
+
 			// Initialize tool registry with built-in tools
 			toolRegistry = tools.NewRegistry()
 			if err := toolRegistry.RegisterBuiltinTools(); err != nil {

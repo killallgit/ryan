@@ -15,13 +15,13 @@ import (
 type FileReadTool struct {
 	// AllowedPaths are directories where files can be read
 	AllowedPaths []string
-	
+
 	// AllowedExtensions are file extensions that are allowed to be read
 	AllowedExtensions []string
-	
+
 	// MaxFileSize is the maximum file size in bytes
 	MaxFileSize int64
-	
+
 	// MaxLines is the maximum number of lines to read
 	MaxLines int
 }
@@ -30,7 +30,7 @@ type FileReadTool struct {
 func NewFileReadTool() *FileReadTool {
 	home, _ := os.UserHomeDir()
 	wd, _ := os.Getwd()
-	
+
 	// Common text and code file extensions
 	allowedExtensions := []string{
 		".txt", ".md", ".markdown",
@@ -46,7 +46,7 @@ func NewFileReadTool() *FileReadTool {
 		".log", ".gitignore", ".dockerignore",
 		".env", ".example",
 	}
-	
+
 	return &FileReadTool{
 		AllowedPaths: []string{
 			home,
@@ -54,7 +54,7 @@ func NewFileReadTool() *FileReadTool {
 		},
 		AllowedExtensions: allowedExtensions,
 		MaxFileSize:       10 * 1024 * 1024, // 10MB
-		MaxLines:          10000,             // 10k lines
+		MaxLines:          10000,            // 10k lines
 	}
 }
 
@@ -71,81 +71,81 @@ func (ft *FileReadTool) Description() string {
 // JSONSchema returns the JSON schema for the tool parameters
 func (ft *FileReadTool) JSONSchema() map[string]interface{} {
 	schema := NewJSONSchema()
-	
+
 	AddProperty(schema, "path", JSONSchemaProperty{
 		Type:        "string",
 		Description: "The path to the file to read",
 	})
-	
+
 	AddProperty(schema, "start_line", JSONSchemaProperty{
 		Type:        "number",
 		Description: "Optional: line number to start reading from (1-based)",
 		Default:     1,
 	})
-	
+
 	AddProperty(schema, "end_line", JSONSchemaProperty{
 		Type:        "number",
 		Description: "Optional: line number to stop reading at (1-based)",
 	})
-	
+
 	AddRequired(schema, "path")
-	
+
 	return schema
 }
 
 // Execute reads the file contents
 func (ft *FileReadTool) Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error) {
 	startTime := time.Now()
-	
+
 	// Extract path parameter
 	pathInterface, exists := params["path"]
 	if !exists {
 		return ft.createErrorResult(startTime, "path parameter is required"), nil
 	}
-	
+
 	path, ok := pathInterface.(string)
 	if !ok {
 		return ft.createErrorResult(startTime, "path parameter must be a string"), nil
 	}
-	
+
 	if strings.TrimSpace(path) == "" {
 		return ft.createErrorResult(startTime, "path cannot be empty"), nil
 	}
-	
+
 	// Validate file path
 	if err := ft.validatePath(path); err != nil {
 		return ft.createErrorResult(startTime, err.Error()), nil
 	}
-	
+
 	// Get optional line range parameters
 	startLine := 1
 	endLine := -1
-	
+
 	if startLineInterface, exists := params["start_line"]; exists {
 		if sl, ok := startLineInterface.(float64); ok {
 			startLine = int(sl)
 		}
 	}
-	
+
 	if endLineInterface, exists := params["end_line"]; exists {
 		if el, ok := endLineInterface.(float64); ok {
 			endLine = int(el)
 		}
 	}
-	
+
 	// Validate line numbers
 	if startLine < 1 {
 		return ft.createErrorResult(startTime, "start_line must be >= 1"), nil
 	}
-	
+
 	if endLine != -1 && endLine < startLine {
 		return ft.createErrorResult(startTime, "end_line must be >= start_line"), nil
 	}
-	
+
 	// Read file
 	content, err := ft.readFile(path, startLine, endLine)
 	endTime := time.Now()
-	
+
 	result := ToolResult{
 		Success: err == nil,
 		Content: content,
@@ -157,12 +157,12 @@ func (ft *FileReadTool) Execute(ctx context.Context, params map[string]interface
 			Parameters:    params,
 		},
 	}
-	
+
 	if err != nil {
 		result.Error = err.Error()
 		result.Success = false
 	}
-	
+
 	return result, nil
 }
 
@@ -173,7 +173,7 @@ func (ft *FileReadTool) validatePath(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to resolve absolute path: %w", err)
 	}
-	
+
 	// Check if file exists
 	fileInfo, err := os.Stat(absPath)
 	if os.IsNotExist(err) {
@@ -182,17 +182,17 @@ func (ft *FileReadTool) validatePath(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to stat file: %w", err)
 	}
-	
+
 	// Check if it's a regular file
 	if !fileInfo.Mode().IsRegular() {
 		return fmt.Errorf("path is not a regular file: %s", absPath)
 	}
-	
+
 	// Check file size
 	if fileInfo.Size() > ft.MaxFileSize {
 		return fmt.Errorf("file too large: %d bytes (max %d bytes)", fileInfo.Size(), ft.MaxFileSize)
 	}
-	
+
 	// Check file extension
 	ext := strings.ToLower(filepath.Ext(absPath))
 	if len(ft.AllowedExtensions) > 0 {
@@ -207,25 +207,25 @@ func (ft *FileReadTool) validatePath(path string) error {
 			return fmt.Errorf("file extension not allowed: %s (allowed: %v)", ext, ft.AllowedExtensions)
 		}
 	}
-	
+
 	// Check if path is within allowed paths
 	for _, allowed := range ft.AllowedPaths {
 		allowedAbs, err := filepath.Abs(allowed)
 		if err != nil {
 			continue
 		}
-		
+
 		rel, err := filepath.Rel(allowedAbs, absPath)
 		if err != nil {
 			continue
 		}
-		
+
 		// If the relative path doesn't start with "..", it's within the allowed path
 		if !strings.HasPrefix(rel, "..") {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("file not within allowed directories: %s", absPath)
 }
 
@@ -236,20 +236,20 @@ func (ft *FileReadTool) readFile(path string, startLine, endLine int) (string, e
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
-	
+
 	// Read the entire file
 	content, err := io.ReadAll(file)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
-	
+
 	// Check if content is valid UTF-8
 	if !utf8.Valid(content) {
 		return "", fmt.Errorf("file contains invalid UTF-8 content (binary file?)")
 	}
-	
+
 	contentStr := string(content)
-	
+
 	// If no line range specified, return entire content
 	if startLine == 1 && endLine == -1 {
 		// Check line count limit
@@ -259,33 +259,33 @@ func (ft *FileReadTool) readFile(path string, startLine, endLine int) (string, e
 		}
 		return contentStr, nil
 	}
-	
+
 	// Split content into lines for range selection
 	lines := strings.Split(contentStr, "\n")
 	totalLines := len(lines)
-	
+
 	// Validate line range
 	if startLine > totalLines {
 		return "", fmt.Errorf("start_line %d exceeds file length %d", startLine, totalLines)
 	}
-	
+
 	if endLine == -1 {
 		endLine = totalLines
 	}
-	
+
 	if endLine > totalLines {
 		endLine = totalLines
 	}
-	
+
 	// Check that we're not returning too many lines
 	requestedLines := endLine - startLine + 1
 	if requestedLines > ft.MaxLines {
 		return "", fmt.Errorf("requested range too large: %d lines (max %d)", requestedLines, ft.MaxLines)
 	}
-	
+
 	// Extract the requested line range (convert to 0-based indexing)
 	selectedLines := lines[startLine-1 : endLine]
-	
+
 	return strings.Join(selectedLines, "\n"), nil
 }
 

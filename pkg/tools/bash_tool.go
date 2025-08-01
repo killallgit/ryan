@@ -14,13 +14,13 @@ import (
 type BashTool struct {
 	// AllowedPaths are directories where commands can be executed
 	AllowedPaths []string
-	
+
 	// ForbiddenCommands are commands that are not allowed to be executed
 	ForbiddenCommands []string
-	
+
 	// Timeout is the maximum time a command can run
 	Timeout time.Duration
-	
+
 	// WorkingDirectory is the directory where commands are executed
 	WorkingDirectory string
 }
@@ -29,7 +29,7 @@ type BashTool struct {
 func NewBashTool() *BashTool {
 	home, _ := os.UserHomeDir()
 	wd, _ := os.Getwd()
-	
+
 	return &BashTool{
 		AllowedPaths: []string{
 			home,
@@ -66,46 +66,46 @@ func (bt *BashTool) Description() string {
 // JSONSchema returns the JSON schema for the tool parameters
 func (bt *BashTool) JSONSchema() map[string]interface{} {
 	schema := NewJSONSchema()
-	
+
 	AddProperty(schema, "command", JSONSchemaProperty{
 		Type:        "string",
 		Description: "The bash command to execute",
 	})
-	
+
 	AddProperty(schema, "working_directory", JSONSchemaProperty{
 		Type:        "string",
 		Description: "Optional working directory for the command (must be within allowed paths)",
 	})
-	
+
 	AddRequired(schema, "command")
-	
+
 	return schema
 }
 
 // Execute runs the bash command
 func (bt *BashTool) Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error) {
 	startTime := time.Now()
-	
+
 	// Extract command parameter
 	commandInterface, exists := params["command"]
 	if !exists {
 		return bt.createErrorResult(startTime, "command parameter is required"), nil
 	}
-	
+
 	command, ok := commandInterface.(string)
 	if !ok {
 		return bt.createErrorResult(startTime, "command parameter must be a string"), nil
 	}
-	
+
 	if strings.TrimSpace(command) == "" {
 		return bt.createErrorResult(startTime, "command cannot be empty"), nil
 	}
-	
+
 	// Validate command safety
 	if err := bt.validateCommand(command); err != nil {
 		return bt.createErrorResult(startTime, err.Error()), nil
 	}
-	
+
 	// Get working directory
 	workingDir := bt.WorkingDirectory
 	if wdInterface, exists := params["working_directory"]; exists {
@@ -116,18 +116,18 @@ func (bt *BashTool) Execute(ctx context.Context, params map[string]interface{}) 
 			workingDir = wd
 		}
 	}
-	
+
 	// Create context with timeout
 	execCtx, cancel := context.WithTimeout(ctx, bt.Timeout)
 	defer cancel()
-	
+
 	// Execute command
 	cmd := exec.CommandContext(execCtx, "bash", "-c", command)
 	cmd.Dir = workingDir
-	
+
 	output, err := cmd.CombinedOutput()
 	endTime := time.Now()
-	
+
 	result := ToolResult{
 		Success: err == nil,
 		Content: string(output),
@@ -139,21 +139,21 @@ func (bt *BashTool) Execute(ctx context.Context, params map[string]interface{}) 
 			Parameters:    params,
 		},
 	}
-	
+
 	if err != nil {
 		result.Error = fmt.Sprintf("command failed: %v", err)
-		
+
 		// Add context for specific error types
 		if execCtx.Err() == context.DeadlineExceeded {
 			result.Error = fmt.Sprintf("command timed out after %v", bt.Timeout)
 		}
-		
+
 		// Include the output in error cases as it might contain useful error messages
 		if len(output) > 0 {
 			result.Content = string(output)
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -161,13 +161,13 @@ func (bt *BashTool) Execute(ctx context.Context, params map[string]interface{}) 
 func (bt *BashTool) validateCommand(command string) error {
 	// Check for forbidden commands
 	lowerCommand := strings.ToLower(strings.TrimSpace(command))
-	
+
 	for _, forbidden := range bt.ForbiddenCommands {
 		if strings.Contains(lowerCommand, strings.ToLower(forbidden)) {
 			return fmt.Errorf("forbidden command detected: %s", forbidden)
 		}
 	}
-	
+
 	// Additional safety checks
 	dangerousPatterns := []string{
 		"rm -rf",
@@ -178,13 +178,13 @@ func (bt *BashTool) validateCommand(command string) error {
 		"del /f",
 		"del /q",
 	}
-	
+
 	for _, pattern := range dangerousPatterns {
 		if strings.Contains(lowerCommand, strings.ToLower(pattern)) {
 			return fmt.Errorf("potentially dangerous command pattern detected: %s", pattern)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -195,30 +195,30 @@ func (bt *BashTool) validatePath(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to resolve absolute path: %w", err)
 	}
-	
+
 	// Check if path exists
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
 		return fmt.Errorf("path does not exist: %s", absPath)
 	}
-	
+
 	// Check if path is within allowed paths
 	for _, allowed := range bt.AllowedPaths {
 		allowedAbs, err := filepath.Abs(allowed)
 		if err != nil {
 			continue
 		}
-		
+
 		rel, err := filepath.Rel(allowedAbs, absPath)
 		if err != nil {
 			continue
 		}
-		
+
 		// If the relative path doesn't start with "..", it's within the allowed path
 		if !strings.HasPrefix(rel, "..") {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("path not within allowed directories: %s", absPath)
 }
 
