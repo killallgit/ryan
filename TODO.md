@@ -15,6 +15,7 @@
 - The footer status bar needs to be simplified on the model management page. It should say: models: <NUM_MODELS> | size: <TOTAL_SIZE>
 - The model view should refresh periodicly based on the config `ollama.poll_interval`
 - in `.ryan/settings.yaml` the `ollama.system_prompt` field is now the path to a file to be read. If the file does not exist, fallback to the default.
+- Configuration management with viper needs to be moved into its own package and defaults set for all things.
 ~~- On the model management view, add a keyboard command, "n" to bring up a modal text input field for entering in a model name to pull. Pressing <enter> will begin pulling this model.~~
 - When the footer status has an update: "Model changed" or something, it needs to remove the message after 2 seconds back to the default state.
 - From the model management view, help text at the bottom should show that pressing "n" will pull a new model and ctrl-d will delete.
