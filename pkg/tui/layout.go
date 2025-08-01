@@ -55,8 +55,8 @@ func (l Layout) CalculateAreas() (messageArea, alertArea, inputArea, statusArea 
 		messageHeight = 1
 	}
 
-	// Add horizontal padding (1 character on each side)
-	padding := 1
+	// Add horizontal padding (2 characters on each side for more margin)
+	padding := 2
 	availableWidth := l.ScreenWidth - (2 * padding)
 	if availableWidth < 1 {
 		availableWidth = l.ScreenWidth

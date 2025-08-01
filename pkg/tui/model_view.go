@@ -65,12 +65,13 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 	if !mv.showStats {
 		statsHeight = 0
 	}
+	helpHeight := 1
 
 	listArea := Rect{
 		X:      area.X,
 		Y:      area.Y,
 		Width:  area.Width,
-		Height: area.Height - statsHeight - 2, // -2 for status bar
+		Height: area.Height - statsHeight - helpHeight - 2, // -2 for status bar, -1 for help
 	}
 
 	statusArea := Rect{
@@ -78,6 +79,13 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 		Y:      area.Y + area.Height - 1,
 		Width:  area.Width,
 		Height: 1,
+	}
+
+	helpArea := Rect{
+		X:      area.X,
+		Y:      area.Y + area.Height - 2, // Just above status bar
+		Width:  area.Width,
+		Height: helpHeight,
 	}
 
 	currentModel := mv.chatController.GetModel()
@@ -92,6 +100,9 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 		}
 		RenderModelStats(screen, mv.modelStats, statsArea)
 	}
+
+	// Render help text
+	mv.renderHelpText(screen, helpArea)
 
 	RenderStatus(screen, mv.status, statusArea)
 	
@@ -459,8 +470,8 @@ func (mv *ModelView) showDeleteConfirmation() {
 	}
 	
 	selectedModel := mv.modelList.Models[mv.modelList.Selected]
-	title := "Delete Model"
-	message := "Are you sure you want to delete model '" + selectedModel.Name + "'? This action cannot be undone."
+	title := ""
+	message := "Delete: " + selectedModel.Name + "\nPress <enter> to confirm, <esc> to cancel"
 	mv.confirmationModal = mv.confirmationModal.Show(title, message)
 }
 
@@ -486,4 +497,28 @@ func (mv *ModelView) deleteModel() {
 			mv.screen.PostEvent(NewModelDeletedEvent(selectedModel.Name))
 		}
 	}()
+}
+
+func (mv *ModelView) renderHelpText(screen tcell.Screen, area Rect) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+
+	// Clear the area
+	for x := area.X; x < area.X+area.Width; x++ {
+		for y := area.Y; y < area.Y+area.Height; y++ {
+			screen.SetContent(x, y, ' ', nil, tcell.StyleDefault)
+		}
+	}
+
+	helpText := " n: pull new model  •  ctrl-d: delete model "
+	helpStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
+
+	// Center the help text
+	if len(helpText) <= area.Width {
+		startX := area.X + (area.Width-len(helpText))/2
+		for i, r := range helpText {
+			screen.SetContent(startX+i, area.Y, r, nil, helpStyle)
+		}
+	}
 }

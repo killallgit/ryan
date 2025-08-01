@@ -16,9 +16,9 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 		return
 	}
 
-	// Add padding to chat area (1 character on each side, 1 line on top)
-	chatHorizontalPadding := 1
-	chatTopPadding := 1
+	// Add extra padding to chat area (3 characters on each side, 2 lines on top for more breathing room)
+	chatHorizontalPadding := 3
+	chatTopPadding := 2
 	chatArea := Rect{
 		X:      area.X + chatHorizontalPadding,
 		Y:      area.Y + chatTopPadding,
@@ -200,20 +200,20 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 	clearArea(screen, area)
 
 	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	modelStyle := statusStyle
+	modelStyle := tcell.StyleDefault.Foreground(tcell.ColorGray) // Dim white for model name
 	if !status.ModelAvailable {
 		modelStyle = tcell.StyleDefault.Foreground(tcell.ColorRed).StrikeThrough(true)
 	}
 
-	// Build status text with token information
+	// Build status text with token information (no "Model:" prefix)
 	var statusText string
 	var modelPart string
 	if status.PromptTokens > 0 || status.ResponseTokens > 0 {
-		modelPart = fmt.Sprintf("Model: %s", status.Model)
+		modelPart = status.Model
 		statusText = fmt.Sprintf(" %s | Tokens: %d+%d | %s ",
 			modelPart, status.PromptTokens, status.ResponseTokens, status.Status)
 	} else {
-		modelPart = fmt.Sprintf("Model: %s", status.Model)
+		modelPart = status.Model
 		statusText = fmt.Sprintf(" %s | %s ", modelPart, status.Status)
 	}
 
