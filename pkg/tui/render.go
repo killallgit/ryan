@@ -147,8 +147,8 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 		} else {
 			switch msgLine.Role {
 			case chat.RoleUser:
-				// Dimmed style for user messages
-				style = tcell.StyleDefault.Foreground(tcell.ColorGray)
+				// Dim yellow style for user messages
+				style = tcell.StyleDefault.Foreground(tcell.ColorYellow).Dim(true)
 			case chat.RoleAssistant:
 				// Normal style for assistant messages
 				style = tcell.StyleDefault
@@ -192,7 +192,7 @@ func RenderInputWithSpinner(screen tcell.Screen, input InputField, area Rect, sp
 
 	clearArea(screen, area)
 
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDefault)
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Dim(true).Background(tcell.ColorDefault)
 
 	if area.Height >= 3 {
 		for x := area.X; x < area.X+area.Width; x++ {
@@ -395,24 +395,24 @@ func RenderTokensWithSpinner(screen tcell.Screen, area Rect, promptTokens, respo
 
 	clearArea(screen, area)
 
-	// Render spinner on the left with padding if spinning
+	// Render spinner on the left without padding if spinning
 	if isSpinning {
 		spinnerChar := GetSpinnerFrame(spinnerFrame)
 		spinnerStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
-		// Add left padding (2 spaces)
-		renderText(screen, area.X+2, area.Y, spinnerChar, spinnerStyle)
+		// Remove padding - render directly at area.X
+		renderText(screen, area.X, area.Y, spinnerChar, spinnerStyle)
 	}
 
 	// Render token display on the right if tokens are present
 	totalTokens := promptTokens + responseTokens
 	if totalTokens > 0 {
-		tokenStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Dim(true) // Dim blue
+		tokenStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen).Dim(true) // Dim green
 		tokenText := fmt.Sprintf("%d", totalTokens)
 
 		// Right-justify the token text
 		tokenStartX := area.X + area.Width - len(tokenText)
 		// Ensure minimum spacing from spinner area
-		minLeft := area.X + 5 // Space for spinner + padding
+		minLeft := area.X + 3 // Space for spinner without padding
 		if tokenStartX > minLeft {
 			for i, r := range tokenText {
 				screen.SetContent(tokenStartX+i, area.Y, r, nil, tokenStyle)
