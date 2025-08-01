@@ -9,6 +9,10 @@ import (
 )
 
 func RenderMessages(screen tcell.Screen, display MessageDisplay, area Rect) {
+	RenderMessagesWithSpinner(screen, display, area, SpinnerComponent{})
+}
+
+func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area Rect, spinner SpinnerComponent) {
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
@@ -38,15 +42,35 @@ func RenderMessages(screen tcell.Screen, display MessageDisplay, area Rect) {
 		allLines = allLines[:len(allLines)-1]
 	}
 	
-	visibleLines, _ := CalculateVisibleLines(allLines, area.Height, display.Scroll)
+	// Calculate visible lines for messages (leave space for spinner if visible)
+	availableHeight := area.Height
+	if spinner.IsVisible {
+		availableHeight = area.Height - 1 // Reserve bottom line for spinner
+	}
+	
+	visibleLines, _ := CalculateVisibleLines(allLines, availableHeight, display.Scroll)
 	
 	clearArea(screen, area)
 	
+	// Render message lines
 	for i, line := range visibleLines {
-		if i >= area.Height {
+		if i >= availableHeight {
 			break
 		}
 		renderText(screen, area.X, area.Y+i, line, tcell.StyleDefault)
+	}
+	
+	// Render spinner at the bottom if visible
+	if spinner.IsVisible {
+		spinnerY := area.Y + area.Height - 1
+		if spinnerY >= area.Y && spinnerY < area.Y + area.Height {
+			// Clear the spinner line first
+			for x := area.X; x < area.X + area.Width; x++ {
+				screen.SetContent(x, spinnerY, ' ', nil, tcell.StyleDefault)
+			}
+			// Render spinner text
+			renderText(screen, area.X, spinnerY, spinner.GetDisplayText(), spinner.Style)
+		}
 	}
 }
 
@@ -115,7 +139,7 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 	
 	clearArea(screen, area)
 	
-	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
+	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorSilver).Background(tcell.ColorDarkGray)
 	
 	statusText := fmt.Sprintf(" Model: %s | Status: %s ", status.Model, status.Status)
 	

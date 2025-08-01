@@ -15,6 +15,7 @@ type ChatView struct {
 	status     StatusBar
 	layout     Layout
 	screen     tcell.Screen
+	spinner    SpinnerComponent
 }
 
 func NewChatView(controller *controllers.ChatController, screen tcell.Screen) *ChatView {
@@ -27,6 +28,7 @@ func NewChatView(controller *controllers.ChatController, screen tcell.Screen) *C
 		status:     NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
 		layout:     NewLayout(width, height),
 		screen:     screen,
+		spinner:    NewSpinnerComponent(),
 	}
 	
 	view.updateMessages()
@@ -44,7 +46,7 @@ func (cv *ChatView) Description() string {
 func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 	messageArea, inputArea, statusArea := cv.layout.CalculateAreas()
 	
-	RenderMessages(screen, cv.messages, messageArea)
+	RenderMessagesWithSpinner(screen, cv.messages, messageArea, cv.spinner)
 	RenderInput(screen, cv.input, inputArea)
 	RenderStatus(screen, cv.status, statusArea)
 }
@@ -147,11 +149,17 @@ func (cv *ChatView) SyncWithAppState(sending bool) {
 	log := logger.WithComponent("chat_view")
 	log.Debug("Syncing ChatView state", "app_sending", sending)
 	
+	cv.spinner = cv.spinner.WithVisibility(sending)
+	
 	if sending {
 		cv.status = cv.status.WithStatus("Sending...")
 	} else {
 		cv.status = cv.status.WithStatus("Ready")
 	}
+}
+
+func (cv *ChatView) UpdateSpinnerFrame() {
+	cv.spinner = cv.spinner.NextFrame()
 }
 
 func (cv *ChatView) updateMessages() {

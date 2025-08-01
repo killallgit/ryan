@@ -54,6 +54,14 @@ var _ = Describe("Custom Events", func() {
 			Expect(event.Content).To(Equal(""))
 		})
 	})
+
+	Describe("SpinnerAnimationEvent", func() {
+		It("should create spinner animation event", func() {
+			event := tui.NewSpinnerAnimationEvent()
+			
+			Expect(event).ToNot(BeNil())
+		})
+	})
 })
 
 // Note: Tests are run by the existing TestTUI function in tui_suite_test.go

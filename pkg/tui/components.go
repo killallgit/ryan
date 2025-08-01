@@ -1,6 +1,11 @@
 package tui
 
-import "github.com/killallgit/ryan/pkg/chat"
+import (
+	"time"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/killallgit/ryan/pkg/chat"
+)
 
 type MessageDisplay struct {
 	Messages []chat.Message
@@ -166,4 +171,80 @@ func (sb StatusBar) WithWidth(width int) StatusBar {
 		Status: sb.Status,
 		Width:  width,
 	}
+}
+
+type SpinnerComponent struct {
+	IsVisible bool
+	Frame     int
+	StartTime time.Time
+	Text      string
+	Style     tcell.Style
+}
+
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"}
+
+func NewSpinnerComponent() SpinnerComponent {
+	return SpinnerComponent{
+		IsVisible: false,
+		Frame:     0,
+		StartTime: time.Now(),
+		Text:      "Sending message...",
+		Style:     tcell.StyleDefault.Foreground(tcell.ColorGray),
+	}
+}
+
+func (sc SpinnerComponent) WithVisibility(visible bool) SpinnerComponent {
+	spinner := SpinnerComponent{
+		IsVisible: visible,
+		Frame:     sc.Frame,
+		StartTime: sc.StartTime,
+		Text:      sc.Text,
+		Style:     sc.Style,
+	}
+	
+	// Reset animation when becoming visible
+	if visible && !sc.IsVisible {
+		spinner.StartTime = time.Now()
+		spinner.Frame = 0
+	}
+	
+	return spinner
+}
+
+func (sc SpinnerComponent) WithText(text string) SpinnerComponent {
+	return SpinnerComponent{
+		IsVisible: sc.IsVisible,
+		Frame:     sc.Frame,
+		StartTime: sc.StartTime,
+		Text:      text,
+		Style:     sc.Style,
+	}
+}
+
+func (sc SpinnerComponent) NextFrame() SpinnerComponent {
+	if !sc.IsVisible {
+		return sc
+	}
+	
+	return SpinnerComponent{
+		IsVisible: sc.IsVisible,
+		Frame:     (sc.Frame + 1) % len(spinnerFrames),
+		StartTime: sc.StartTime,
+		Text:      sc.Text,
+		Style:     sc.Style,
+	}
+}
+
+func (sc SpinnerComponent) GetCurrentFrame() string {
+	if !sc.IsVisible {
+		return ""
+	}
+	return spinnerFrames[sc.Frame]
+}
+
+func (sc SpinnerComponent) GetDisplayText() string {
+	if !sc.IsVisible {
+		return ""
+	}
+	return sc.GetCurrentFrame() + " " + sc.Text
 }

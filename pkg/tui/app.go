@@ -1,9 +1,12 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
@@ -11,16 +14,18 @@ import (
 )
 
 type App struct {
-	screen      tcell.Screen
-	controller  *controllers.ChatController
-	input       InputField
-	messages    MessageDisplay
-	status      StatusBar
-	layout      Layout
-	quit        bool
-	sending     bool  // Track if we're currently sending a message
-	viewManager *ViewManager
-	chatView    *ChatView
+	screen        tcell.Screen
+	controller    *controllers.ChatController
+	input         InputField
+	messages      MessageDisplay
+	status        StatusBar
+	layout        Layout
+	quit          bool
+	sending       bool  // Track if we're currently sending a message
+	viewManager   *ViewManager
+	chatView      *ChatView
+	spinnerTicker *time.Ticker
+	spinnerStop   chan bool
 }
 
 func NewApp(controller *controllers.ChatController) (*App, error) {
@@ -55,19 +60,25 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	log.Debug("Registered views with view manager", "views", []string{"chat", "models"})
 	
 	app := &App{
-		screen:      screen,
-		controller:  controller,
-		input:       NewInputField(width),
-		messages:    NewMessageDisplay(width, height-4),
-		status:      NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
-		layout:      NewLayout(width, height),
-		quit:        false,
-		sending:     false,
-		viewManager: viewManager,
-		chatView:    chatView,
+		screen:        screen,
+		controller:    controller,
+		input:         NewInputField(width),
+		messages:      NewMessageDisplay(width, height-4),
+		status:        NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
+		layout:        NewLayout(width, height),
+		quit:          false,
+		sending:       false,
+		viewManager:   viewManager,
+		chatView:      chatView,
+		spinnerTicker: time.NewTicker(500 * time.Millisecond),
+		spinnerStop:   make(chan bool),
 	}
 	
 	app.updateMessages()
+	
+	// Start spinner animation timer
+	go app.runSpinnerTimer()
+	
 	log.Debug("TUI application created successfully")
 	
 	return app, nil
@@ -75,6 +86,7 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 
 func (app *App) Run() error {
 	defer app.screen.Fini()
+	defer app.cleanup()
 	
 	app.render()
 	
@@ -85,6 +97,34 @@ func (app *App) Run() error {
 	}
 	
 	return nil
+}
+
+func (app *App) cleanup() {
+	// Stop spinner timer
+	if app.spinnerTicker != nil {
+		app.spinnerTicker.Stop()
+	}
+	if app.spinnerStop != nil {
+		close(app.spinnerStop)
+	}
+}
+
+func (app *App) runSpinnerTimer() {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Starting spinner animation timer")
+	
+	for {
+		select {
+		case <-app.spinnerTicker.C:
+			// Only animate when sending
+			if app.sending {
+				app.screen.PostEvent(NewSpinnerAnimationEvent())
+			}
+		case <-app.spinnerStop:
+			log.Debug("Stopping spinner animation timer")
+			return
+		}
+	}
 }
 
 func (app *App) handleEvent(event tcell.Event) {
@@ -109,6 +149,8 @@ func (app *App) handleEvent(event tcell.Event) {
 		app.handleModelError(ev)
 	case *ChatMessageSendEvent:
 		app.handleChatMessageSend(ev)
+	case *SpinnerAnimationEvent:
+		app.handleSpinnerAnimation(ev)
 	}
 }
 
@@ -183,8 +225,41 @@ func (app *App) sendMessageWithContent(content string) {
 	
 	// Send the message in a goroutine to avoid blocking the UI
 	go func() {
-		log.Debug("API CALL: Calling controller.SendUserMessage", "content", content)
-		response, err := app.controller.SendUserMessage(content)
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("PANIC: Goroutine panic in sendMessageWithContent", "panic", r)
+				app.screen.PostEvent(NewMessageErrorEvent(fmt.Errorf("message sending panic: %v", r)))
+			}
+		}()
+		
+		log.Debug("API CALL: Starting SendUserMessage", "content", content, "goroutine_id", fmt.Sprintf("%p", &content))
+		
+		// Add timeout channel for debugging
+		done := make(chan bool, 1)
+		var response chat.Message
+		var err error
+		
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Error("PANIC: Controller panic", "panic", r)
+					err = fmt.Errorf("controller panic: %v", r)
+				}
+				done <- true
+			}()
+			
+			log.Debug("API CALL: Calling controller.SendUserMessage", "content", content)
+			response, err = app.controller.SendUserMessage(content)
+			log.Debug("API CALL: Controller call completed", "error", err, "has_response", response.Content != "")
+		}()
+		
+		select {
+		case <-done:
+			log.Debug("API CALL: Controller completed normally")
+		case <-time.After(30 * time.Second):
+			log.Error("API CALL: Timeout after 30 seconds", "content", content)
+			err = fmt.Errorf("API call timeout after 30 seconds")
+		}
 		
 		// Post the result back to the main event loop
 		if err != nil {
@@ -194,6 +269,8 @@ func (app *App) sendMessageWithContent(content string) {
 			log.Debug("API CALL: Message send succeeded", "response_content_length", len(response.Content))
 			app.screen.PostEvent(NewMessageResponseEvent(response))
 		}
+		
+		log.Debug("API CALL: Goroutine completing", "content", content)
 	}()
 }
 
@@ -250,6 +327,17 @@ func (app *App) handleMessageError(ev *MessageErrorEvent) {
 	
 	// Sync view state after state change
 	app.viewManager.SyncViewState(app.sending)
+}
+
+func (app *App) handleSpinnerAnimation(ev *SpinnerAnimationEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("EVENT: Handling SpinnerAnimationEvent")
+	
+	// Update spinner animation in ChatView
+	if app.chatView != nil && app.sending {
+		app.chatView.UpdateSpinnerFrame()
+		log.Debug("EVENT: Updated spinner frame in ChatView")
+	}
 }
 
 func (app *App) updateMessages() {

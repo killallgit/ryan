@@ -118,3 +118,15 @@ func NewChatMessageSendEvent(content string) *ChatMessageSendEvent {
 		Content:   content,
 	}
 }
+
+// SpinnerAnimationEvent is sent to update spinner animation frames
+type SpinnerAnimationEvent struct {
+	tcell.EventTime
+}
+
+// NewSpinnerAnimationEvent creates a new spinner animation event
+func NewSpinnerAnimationEvent() *SpinnerAnimationEvent {
+	return &SpinnerAnimationEvent{
+		EventTime: tcell.EventTime{},
+	}
+}
