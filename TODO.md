@@ -1,3 +1,7 @@
+- when downloading is completed the modal should be removed
+- pressing <esc> should only close the modal and not the app
+
+
 # Settings mgmt
 - We need to keep track of a `settings.example.yaml` that contains all of the avail configuration options. We will keep this up to date as we add more, however every field / configuration should have a default.
 - The `cmd/root.go` file where viper is initialized needs to set defaults for all avail configurations. It might be best to move this into it's own package to keep it organized.

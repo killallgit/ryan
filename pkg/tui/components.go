@@ -978,12 +978,12 @@ func (pm ProgressModal) HandleKeyEvent(ev *tcell.EventKey) (ProgressModal, bool)
 
 	switch ev.Key() {
 	case tcell.KeyEscape:
-		return pm, true
+		return pm.Hide(), true
 	default:
 		if ev.Rune() != 0 {
 			switch ev.Rune() {
 			case 'c', 'C':
-				return pm, true
+				return pm.Hide(), true
 			}
 		}
 	}
