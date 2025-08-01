@@ -15,6 +15,7 @@ type App struct {
 	status      StatusBar
 	layout      Layout
 	quit        bool
+	sending     bool  // Track if we're currently sending a message
 }
 
 func NewApp(controller *controllers.ChatController) (*App, error) {
@@ -37,6 +38,7 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 		status:     NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
 		layout:     NewLayout(width, height),
 		quit:       false,
+		sending:    false,
 	}
 	
 	app.updateMessages()
@@ -64,6 +66,10 @@ func (app *App) handleEvent(event tcell.Event) {
 		app.handleKeyEvent(ev)
 	case *tcell.EventResize:
 		app.handleResize(ev)
+	case *MessageResponseEvent:
+		app.handleMessageResponse(ev)
+	case *MessageErrorEvent:
+		app.handleMessageError(ev)
 	}
 }
 
@@ -73,7 +79,9 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 		app.quit = true
 		
 	case tcell.KeyEnter:
-		app.sendMessage()
+		if !app.sending {
+			app.sendMessage()
+		}
 		
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		app.input = app.input.DeleteBackward()
@@ -125,18 +133,38 @@ func (app *App) sendMessage() {
 		return
 	}
 	
+	// Clear input immediately and set sending state
 	app.input = app.input.Clear()
+	app.sending = true
 	app.status = app.status.WithStatus("Sending...")
-	app.render()
 	
-	_, err := app.controller.SendUserMessage(content)
-	if err != nil {
-		app.status = app.status.WithStatus("Error: " + err.Error())
-	} else {
-		app.status = app.status.WithStatus("Ready")
-		app.updateMessages()
-		app.scrollToBottom()
-	}
+	// Send the message in a goroutine to avoid blocking the UI
+	go func() {
+		response, err := app.controller.SendUserMessage(content)
+		
+		// Post the result back to the main event loop
+		if err != nil {
+			app.screen.PostEvent(NewMessageErrorEvent(err))
+		} else {
+			app.screen.PostEvent(NewMessageResponseEvent(response))
+		}
+	}()
+}
+
+func (app *App) handleMessageResponse(ev *MessageResponseEvent) {
+	// Reset sending state
+	app.sending = false
+	app.status = app.status.WithStatus("Ready")
+	
+	// Update messages and scroll to bottom
+	app.updateMessages()
+	app.scrollToBottom()
+}
+
+func (app *App) handleMessageError(ev *MessageErrorEvent) {
+	// Reset sending state and show error
+	app.sending = false
+	app.status = app.status.WithStatus("Error: " + ev.Error.Error())
 }
 
 func (app *App) updateMessages() {
