@@ -14,6 +14,9 @@ Ryan is a responsive terminal-based chat interface for AI assistants, starting w
 ⌨️ **Escape Key Cancellation** - Cancel operations with Escape key  
 📱 **Responsive Layout** - Adapts gracefully to terminal resizing  
 🎨 **Clean Architecture** - Functional programming with immutable data structures  
+🛠️ **Universal Tool System** - Industry-standard tool calling compatible with all major LLM providers  
+🔧 **Built-in Tools** - Bash command execution and file reading with safety constraints  
+🔒 **Security First** - Comprehensive safety validation and sandboxing for tool execution  
 
 ## UI Layout
 
@@ -43,10 +46,12 @@ ryan/
 │   ├── chat/          # Core chat domain logic
 │   ├── controllers/   # Business logic orchestration  
 │   ├── ollama/        # Ollama API client
+│   ├── tools/         # Universal tool system
 │   └── tui/           # Terminal user interface
 ├── docs/              # Architecture and design docs
-├── tests/             # Integration tests
-└── Taskfile.yml       # Development tasks
+├── examples/          # Tool system demos and examples
+├── integration/       # Integration tests
+└── Taskfile.yaml      # Development tasks
 ```
 
 ## Configuration Options
@@ -71,6 +76,17 @@ ui:
   theme: "default"
   spinner_interval: "100ms"
   max_history: 1000
+
+tools:
+  enabled: true
+  bash:
+    enabled: true
+    timeout: "30s"
+    allowed_paths: ["~/", "/tmp"]
+  file_read:
+    enabled: true
+    max_file_size: "10MB"
+    allowed_extensions: [".txt", ".md", ".go", ".json"]
 
 logging:
   level: "info"
