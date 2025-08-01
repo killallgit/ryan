@@ -1,12 +1,8 @@
 
 
 # Chat UX
-- User inputted text should become visibe in the chat history immediately upon submitting.
-- The whole above chat live status row with the spinner and token count should have a small amount of bottom padding and remove the spinner padding
-- User text should be dim yellow
-- Token count color should be dim green
-- The cheveron in the chat input should be dim yellow
-- the solid border around the input should also be dim yellow
+- When submitting the user text. It immediately needs to be visible in the chat history. Currently, it wont show until the request is finished
+- Our timeout default needs to be longer. 90s and after 15s 
 
 # Settings mgmt
 - We need to keep track of a `settings.example.yaml` that contains all of the avail configuration options. We will keep this up to date as we add more, however every field / configuration should have a default.

@@ -70,9 +70,6 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 }
 
 func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
-	log := logger.WithComponent("chat_view")
-	log.Debug("ChatView handling key event", "key", ev.Key(), "rune", ev.Rune())
-
 	// Handle modal events first
 	if cv.progressModal.Visible {
 		modal, cancel := cv.progressModal.HandleKeyEvent(ev)
@@ -94,11 +91,13 @@ func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 
 	switch ev.Key() {
 	case tcell.KeyEnter:
-		log.Debug("Enter key pressed for message send", "sending", sending, "input_content", cv.input.Content)
 		if !sending {
 			content := cv.sendMessage()
 			if content != "" {
 				cv.screen.PostEvent(NewChatMessageSendEvent(content))
+				// Immediately update the UI to show the user message
+				cv.updateMessages()
+				cv.scrollToBottom()
 			}
 		}
 		return true
