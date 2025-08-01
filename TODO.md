@@ -4,6 +4,8 @@
 - Introduce the https://github.com/briandowns/spinner?tab=readme-ov-file spinner library and use spinner number 25
 - token usage tracking should be in a format thats a little less intrusive and perhaps the footer should be organized with the "Ready" text as dim green justified to the left, the model name dim white justified all the way to the right and lets add the token display just above the chat input justified to the right. It can live with the same container that our spinner inhabits. That row should be spinner left justified, token readout in the form "<IN>/<OUT>" in dim white. this should also have the same padding as the input so it aligns exactly to the left and right of the input.
 
+
+
 # Settings mgmt
 - in `.ryan/settings.yaml` the `ollama.system_prompt` field is now the path to a file to be read. If the file does not exist, fallback to the default.
 - The root cmd file where viper is initialized needs to set defaults for all avail configurations. It might be best to move this into it's own package to keep it organized.
