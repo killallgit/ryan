@@ -1,32 +1,37 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/tools"
 )
 
 type ChatController struct {
 	client             chat.ChatClient
 	conversation       chat.Conversation
+	toolRegistry       *tools.Registry
 	lastPromptTokens   int
 	lastResponseTokens int
 }
 
-func NewChatController(client chat.ChatClient, model string) *ChatController {
+func NewChatController(client chat.ChatClient, model string, toolRegistry *tools.Registry) *ChatController {
 	return &ChatController{
 		client:             client,
 		conversation:       chat.NewConversation(model),
+		toolRegistry:       toolRegistry,
 		lastPromptTokens:   0,
 		lastResponseTokens: 0,
 	}
 }
 
-func NewChatControllerWithSystem(client chat.ChatClient, model, systemPrompt string) *ChatController {
+func NewChatControllerWithSystem(client chat.ChatClient, model, systemPrompt string, toolRegistry *tools.Registry) *ChatController {
 	return &ChatController{
 		client:             client,
 		conversation:       chat.NewConversationWithSystem(model, systemPrompt),
+		toolRegistry:       toolRegistry,
 		lastPromptTokens:   0,
 		lastResponseTokens: 0,
 	}
@@ -37,21 +42,131 @@ func (cc *ChatController) SendUserMessage(content string) (chat.Message, error) 
 		return chat.Message{}, fmt.Errorf("message content cannot be empty")
 	}
 
-	req := chat.CreateChatRequest(cc.conversation, content)
+	return cc.SendUserMessageWithContext(context.Background(), content)
+}
 
-	response, err := cc.client.SendMessageWithResponse(req)
-	if err != nil {
-		return chat.Message{}, fmt.Errorf("failed to send message: %w", err)
+func (cc *ChatController) SendUserMessageWithContext(ctx context.Context, content string) (chat.Message, error) {
+	if strings.TrimSpace(content) == "" {
+		return chat.Message{}, fmt.Errorf("message content cannot be empty")
 	}
 
-	// Update token tracking
-	cc.lastPromptTokens = response.PromptEvalCount
-	cc.lastResponseTokens = response.EvalCount
+	// Execute tool-enabled chat loop with user message
+	return cc.executeToolEnabledChat(ctx, content)
+}
 
-	cc.conversation = chat.AddMessage(cc.conversation, chat.NewUserMessage(content))
-	cc.conversation = chat.AddMessage(cc.conversation, response.Message)
+func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessage string) (chat.Message, error) {
+	maxIterations := 10 // prevent infinite loops
+	userMessageAdded := false
+	
+	for i := 0; i < maxIterations; i++ {
+		// Prepare conversation with user message for the first iteration
+		var messages []chat.Message
+		if !userMessageAdded {
+			// Create a temporary conversation with the user message for the request
+			tempConv := chat.AddMessage(cc.conversation, chat.NewUserMessage(userMessage))
+			messages = tempConv.Messages
+		} else {
+			messages = cc.conversation.Messages
+		}
+		
+		// Prepare chat request with tools if available
+		var req chat.ChatRequest
+		if cc.toolRegistry != nil {
+			toolDefs, err := cc.toolRegistry.GetDefinitions("ollama")
+			if err != nil {
+				return chat.Message{}, fmt.Errorf("failed to get tool definitions: %w", err)
+			}
+			
+			// Convert tool definitions to the format expected by chat request
+			tools := make([]map[string]any, len(toolDefs))
+			for i, def := range toolDefs {
+				tools[i] = def.Definition
+			}
+			
+			req = chat.ChatRequest{
+				Model:    cc.conversation.Model,
+				Messages: messages,
+				Stream:   false,
+				Tools:    tools,
+			}
+		} else {
+			req = chat.ChatRequest{
+				Model:    cc.conversation.Model,
+				Messages: messages,
+				Stream:   false,
+			}
+		}
 
-	return response.Message, nil
+		// Send chat request
+		response, err := cc.client.SendMessageWithResponse(req)
+		if err != nil {
+			return chat.Message{}, fmt.Errorf("failed to send message: %w", err)
+		}
+
+		// Update token tracking
+		cc.lastPromptTokens = response.PromptEvalCount
+		cc.lastResponseTokens = response.EvalCount
+
+		// On successful first response, add user message to conversation
+		if !userMessageAdded {
+			cc.conversation = chat.AddMessage(cc.conversation, chat.NewUserMessage(userMessage))
+			userMessageAdded = true
+		}
+
+		// Add assistant message to conversation
+		cc.conversation = chat.AddMessage(cc.conversation, response.Message)
+
+		// Check if assistant wants to call tools
+		if !response.Message.HasToolCalls() {
+			// No tool calls, return the final message
+			return response.Message, nil
+		}
+
+		// Execute tool calls
+		err = cc.executeToolCalls(ctx, response.Message.ToolCalls)
+		if err != nil {
+			return chat.Message{}, fmt.Errorf("failed to execute tools: %w", err)
+		}
+
+		// Continue the loop to get the final response after tool execution
+	}
+
+	return chat.Message{}, fmt.Errorf("maximum tool execution iterations reached")
+}
+
+func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat.ToolCall) error {
+	if cc.toolRegistry == nil {
+		return fmt.Errorf("tool registry not available")
+	}
+
+	for _, toolCall := range toolCalls {
+		// Execute the tool
+		toolReq := tools.ToolRequest{
+			Name:       toolCall.Function.Name,
+			Parameters: toolCall.Function.Arguments,
+			Context:    ctx,
+		}
+
+		result, err := cc.toolRegistry.Execute(ctx, toolReq)
+		if err != nil {
+			// Add error result to conversation
+			errorMsg := fmt.Sprintf("Tool execution failed: %s", err.Error())
+			toolResult := chat.NewToolResultMessage(toolCall.Function.Name, errorMsg)
+			cc.conversation = chat.AddMessage(cc.conversation, toolResult)
+			continue
+		}
+
+		// Add successful result to conversation
+		content := result.Content
+		if !result.Success && result.Error != "" {
+			content = result.Error
+		}
+		
+		toolResult := chat.NewToolResultMessage(toolCall.Function.Name, content)
+		cc.conversation = chat.AddMessage(cc.conversation, toolResult)
+	}
+
+	return nil
 }
 
 func (cc *ChatController) GetHistory() []chat.Message {
@@ -98,6 +213,14 @@ func (cc *ChatController) Reset() {
 	cc.conversation = chat.NewConversationWithSystem(cc.conversation.Model, systemPrompt)
 	cc.lastPromptTokens = 0
 	cc.lastResponseTokens = 0
+}
+
+func (cc *ChatController) GetToolRegistry() *tools.Registry {
+	return cc.toolRegistry
+}
+
+func (cc *ChatController) SetToolRegistry(registry *tools.Registry) {
+	cc.toolRegistry = registry
 }
 
 func (cc *ChatController) GetTokenUsage() (promptTokens, responseTokens int) {

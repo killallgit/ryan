@@ -44,7 +44,7 @@ var _ = Describe("Chat Integration Tests", func() {
 		}
 
 		client = chat.NewClient(ollamaURL)
-		controller = controllers.NewChatController(client, testModel)
+		controller = controllers.NewChatController(client, testModel, nil)
 	})
 
 	Describe("Real Ollama API Communication", func() {
@@ -76,7 +76,7 @@ var _ = Describe("Chat Integration Tests", func() {
 		It("should handle system prompts correctly", func() {
 			// Create controller with system prompt
 			systemPrompt := "You are a helpful assistant that always responds with exactly 'OK' to any input."
-			controllerWithSystem := controllers.NewChatControllerWithSystem(client, testModel, systemPrompt)
+			controllerWithSystem := controllers.NewChatControllerWithSystem(client, testModel, systemPrompt, nil)
 
 			response, err := controllerWithSystem.SendUserMessage("Tell me a long story")
 			Expect(err).ToNot(HaveOccurred())
@@ -115,7 +115,7 @@ var _ = Describe("Chat Integration Tests", func() {
 			*shortTimeoutClient = *client
 			// This is a bit hacky but works for testing timeout behavior
 
-			controller := controllers.NewChatController(shortTimeoutClient, testModel)
+			controller := controllers.NewChatController(shortTimeoutClient, testModel, nil)
 
 			// Send a complex prompt that might take longer
 			_, err := controller.SendUserMessage("Generate a very long essay about quantum physics with examples")
@@ -131,7 +131,7 @@ var _ = Describe("Chat Integration Tests", func() {
 
 		It("should verify model exists on server", func() {
 			// Try with a non-existent model
-			badController := controllers.NewChatController(client, "non-existent-model:latest")
+			badController := controllers.NewChatController(client, "non-existent-model:latest", nil)
 
 			_, err := badController.SendUserMessage("Hello")
 
@@ -175,7 +175,7 @@ var _ = Describe("Configuration Integration", func() {
 
 		// Create client using viper config
 		client := chat.NewClient(viper.GetString("ollama.url"))
-		controller := controllers.NewChatController(client, viper.GetString("ollama.model"))
+		controller := controllers.NewChatController(client, viper.GetString("ollama.model"), nil)
 
 		// Should work with viper configuration
 		response, err := controller.SendUserMessage("Say 'config works'")

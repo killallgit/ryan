@@ -43,3 +43,32 @@ tasks:
     cmds:
       - task: test
       - task: test:integration
+
+  build:model-tester:
+    desc: Build model compatibility testing tool
+    cmds:
+      - go build -o bin/model-tester ./cmd/model-tester
+
+  test:models:primary:
+    desc: Test primary models for tool calling compatibility
+    deps: [build:model-tester]
+    cmds:
+      - ./bin/model-tester -models primary -url {{default "http://localhost:11434" .OLLAMA_URL}}
+
+  test:models:secondary:
+    desc: Test secondary models for tool calling compatibility  
+    deps: [build:model-tester]
+    cmds:
+      - ./bin/model-tester -models secondary -url {{default "http://localhost:11434" .OLLAMA_URL}}
+
+  test:models:all:
+    desc: Test all recommended models for tool calling compatibility
+    deps: [build:model-tester]
+    cmds:
+      - ./bin/model-tester -models all -url {{default "http://localhost:11434" .OLLAMA_URL}}
+
+  test:models:custom:
+    desc: Test custom list of models (set MODELS="model1,model2,model3")
+    deps: [build:model-tester]
+    cmds:
+      - ./bin/model-tester -models "{{.MODELS}}" -url {{default "http://localhost:11434" .OLLAMA_URL}}

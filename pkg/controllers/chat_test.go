@@ -32,7 +32,7 @@ var _ = Describe("ChatController", func() {
 
 	BeforeEach(func() {
 		mockClient = &MockChatClient{}
-		controller = controllers.NewChatController(mockClient, "llama3.1:8b")
+		controller = controllers.NewChatController(mockClient, "llama3.1:8b", nil)
 	})
 
 	AfterEach(func() {
@@ -50,7 +50,7 @@ var _ = Describe("ChatController", func() {
 	Describe("NewChatControllerWithSystem", func() {
 		It("should create controller with system message", func() {
 			systemPrompt := "You are a helpful assistant"
-			controller = controllers.NewChatControllerWithSystem(mockClient, "gpt-4", systemPrompt)
+			controller = controllers.NewChatControllerWithSystem(mockClient, "gpt-4", systemPrompt, nil)
 
 			Expect(controller.GetModel()).To(Equal("gpt-4"))
 			Expect(controller.GetMessageCount()).To(Equal(1))
@@ -58,7 +58,7 @@ var _ = Describe("ChatController", func() {
 		})
 
 		It("should create controller without system message when empty", func() {
-			controller = controllers.NewChatControllerWithSystem(mockClient, "gpt-4", "")
+			controller = controllers.NewChatControllerWithSystem(mockClient, "gpt-4", "", nil)
 
 			Expect(controller.GetModel()).To(Equal("gpt-4"))
 			Expect(controller.GetMessageCount()).To(Equal(0))
@@ -205,7 +205,7 @@ var _ = Describe("ChatController", func() {
 
 		It("should reset conversation but preserve system message", func() {
 			systemPrompt := "You are helpful"
-			controller = controllers.NewChatControllerWithSystem(mockClient, "gpt-4", systemPrompt)
+			controller = controllers.NewChatControllerWithSystem(mockClient, "gpt-4", systemPrompt, nil)
 
 			assistantResponse := chat.NewAssistantMessage("Response")
 			chatResponse := chat.ChatResponse{
@@ -236,7 +236,7 @@ var _ = Describe("ChatController", func() {
 
 	Describe("With system message", func() {
 		BeforeEach(func() {
-			controller = controllers.NewChatControllerWithSystem(mockClient, "gpt-4", "You are helpful")
+			controller = controllers.NewChatControllerWithSystem(mockClient, "gpt-4", "You are helpful", nil)
 		})
 
 		It("should include system message in requests", func() {

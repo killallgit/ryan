@@ -14,9 +14,10 @@ type Client struct {
 }
 
 type ChatRequest struct {
-	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
-	Stream   bool      `json:"stream"`
+	Model    string                   `json:"model"`
+	Messages []Message                `json:"messages"`
+	Stream   bool                     `json:"stream"`
+	Tools    []map[string]any `json:"tools,omitempty"`
 }
 
 type ChatResponse struct {
@@ -24,6 +25,7 @@ type ChatResponse struct {
 	CreatedAt          time.Time     `json:"created_at"`
 	Message            Message       `json:"message"`
 	Done               bool          `json:"done"`
+	DoneReason         string        `json:"done_reason,omitempty"`
 	PromptEvalCount    int           `json:"prompt_eval_count"`
 	EvalCount          int           `json:"eval_count"`
 	PromptEvalDuration time.Duration `json:"prompt_eval_duration"`
@@ -93,5 +95,16 @@ func CreateChatRequest(conversation Conversation, userMessage string) ChatReques
 		Model:    conv.Model,
 		Messages: conv.Messages,
 		Stream:   false,
+	}
+}
+
+func CreateChatRequestWithTools(conversation Conversation, userMessage string, tools []map[string]any) ChatRequest {
+	conv := AddMessage(conversation, NewUserMessage(userMessage))
+
+	return ChatRequest{
+		Model:    conv.Model,
+		Messages: conv.Messages,
+		Stream:   false,
+		Tools:    tools,
 	}
 }
