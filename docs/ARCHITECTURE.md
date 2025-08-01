@@ -86,8 +86,17 @@ type MessageDisplay struct {
     Height   int
 }
 
+type AlertDisplay struct {
+    IsSpinnerVisible bool
+    SpinnerFrame     int
+    SpinnerText      string
+    ErrorMessage     string
+    Width            int
+}
+
 func RenderMessages(screen tcell.Screen, display MessageDisplay, area Rect)
 func RenderInput(screen tcell.Screen, input string, area Rect)
+func RenderAlert(screen tcell.Screen, alert AlertDisplay, area Rect)
 ```
 
 #### 4. Controllers (`pkg/controllers/`)
@@ -238,6 +247,11 @@ type StreamingChannels struct {
 - ✓ Responsive UI during API calls
 - ✓ State management to prevent multiple concurrent requests
 - ✓ Thread-safe communication via tcell's PostEvent
+- ✓ AlertDisplay component for spinner and error feedback
+- ✓ Progress tracking with elapsed time display
+- ✓ Enhanced error handling with base16 red colors
+- ✓ Ollama connectivity checking
+- ✓ Escape key cancellation support
 
 #### Non-Blocking Implementation Details
 The Phase 2 implementation solved a critical UX issue where the TUI would freeze during API calls:
@@ -262,6 +276,10 @@ User Input → sendMessage() → goroutine → API call → PostEvent → UI upd
 - Users can scroll and navigate during API calls
 - No UI blocking or freezing
 - Clean error handling with visual feedback
+- Immediate spinner visibility with progress tracking
+- Enhanced error display with base16 red colors in dedicated alert area
+- Ollama connectivity validation with actionable error messages
+- Escape key cancellation for long-running operations
 - Foundation ready for streaming integration
 
 ### Ready for Phase 3: Streaming
