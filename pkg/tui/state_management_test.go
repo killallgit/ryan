@@ -7,6 +7,15 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// TestError is a simple error implementation for testing
+type TestError struct {
+	message string
+}
+
+func (e *TestError) Error() string {
+	return e.message
+}
+
 // MockChatController for testing
 type MockChatController struct {
 	sendMessageCalled bool
@@ -29,6 +38,13 @@ func (m *MockChatController) GetHistory() []interface{} {
 
 func (m *MockChatController) GetModel() string {
 	return m.model
+}
+
+func (m *MockChatController) ValidateModel(model string) error {
+	if model == "unavailable-model" {
+		return &TestError{message: "model not found"}
+	}
+	return nil
 }
 
 var _ = Describe("State Management", func() {

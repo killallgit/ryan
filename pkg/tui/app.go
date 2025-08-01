@@ -72,9 +72,6 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	width, height := screen.Size()
 	log.Debug("Screen initialized", "width", width, "height", height)
 
-	viewManager := NewViewManager()
-	chatView := NewChatView(controller, screen)
-
 	ollamaURL := viper.GetString("ollama.url")
 	log.Debug("Creating ollama client for models", "url", ollamaURL)
 
@@ -90,7 +87,9 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	
 	// Connect ollama client to chat controller for model validation
 	controller.SetOllamaClient(ollamaClient)
-	
+
+	viewManager := NewViewManager()
+	chatView := NewChatView(controller, modelsController, screen)
 	modelView := NewModelView(modelsController, controller, screen)
 
 	viewManager.RegisterView("chat", chatView)
@@ -589,8 +588,11 @@ func (app *App) handleModelDownloadProgress(ev *ModelDownloadProgressEvent) {
 	if modelView, ok := currentView.(*ModelView); ok {
 		modelView.HandleModelDownloadProgress(*ev)
 		log.Debug("Forwarded ModelDownloadProgressEvent to ModelView")
+	} else if chatView, ok := currentView.(*ChatView); ok {
+		chatView.HandleModelDownloadProgress(*ev)
+		log.Debug("Forwarded ModelDownloadProgressEvent to ChatView")
 	} else {
-		log.Debug("Current view is not ModelView, ignoring ModelDownloadProgressEvent", "current_view_type", currentView)
+		log.Debug("Current view does not support download progress, ignoring ModelDownloadProgressEvent", "current_view_type", currentView)
 	}
 }
 
@@ -601,8 +603,11 @@ func (app *App) handleModelDownloadComplete(ev *ModelDownloadCompleteEvent) {
 	if modelView, ok := currentView.(*ModelView); ok {
 		modelView.HandleModelDownloadComplete(*ev)
 		log.Debug("Forwarded ModelDownloadCompleteEvent to ModelView")
+	} else if chatView, ok := currentView.(*ChatView); ok {
+		chatView.HandleModelDownloadComplete(*ev)
+		log.Debug("Forwarded ModelDownloadCompleteEvent to ChatView")
 	} else {
-		log.Debug("Current view is not ModelView, ignoring ModelDownloadCompleteEvent", "current_view_type", currentView)
+		log.Debug("Current view does not support download complete, ignoring ModelDownloadCompleteEvent", "current_view_type", currentView)
 	}
 }
 
@@ -613,8 +618,11 @@ func (app *App) handleModelDownloadError(ev *ModelDownloadErrorEvent) {
 	if modelView, ok := currentView.(*ModelView); ok {
 		modelView.HandleModelDownloadError(*ev)
 		log.Debug("Forwarded ModelDownloadErrorEvent to ModelView")
+	} else if chatView, ok := currentView.(*ChatView); ok {
+		chatView.HandleModelDownloadError(*ev)
+		log.Debug("Forwarded ModelDownloadErrorEvent to ChatView")
 	} else {
-		log.Debug("Current view is not ModelView, ignoring ModelDownloadErrorEvent", "current_view_type", currentView)
+		log.Debug("Current view does not support download error, ignoring ModelDownloadErrorEvent", "current_view_type", currentView)
 	}
 }
 

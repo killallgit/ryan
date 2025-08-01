@@ -1,5 +1,4 @@
 # Settings mgmt
-- in `.ryan/settings.yaml` the `ollama.system_prompt` field is now the path to a file to be read. If the file does not exist, fallback to the default.
 - We need to keep track of a `settings.example.yaml` that contains all of the avail configuration options. We will keep this up to date as we add more, however every field / configuration should have a default.
 - The `cmd/root.go` file where viper is initialized needs to set defaults for all avail configurations. It might be best to move this into it's own package to keep it organized.
 - passing cobra-cli args need to be bound to viper configs. any viper config should be able to be added as a namespaced cli argument. example: from yaml config ollama: url can be passed as `--ollama.url` and the same for all other arguments.
@@ -17,7 +16,7 @@
 
 # Chat UX
 - Some responses have a `<THINK>` block. We should show this thinking block as dimmed white text and once the final response is recieved we can truncate it to a couple of lines with "..." at the end and show the actual response text. This feature can be enabled or disabled by using the settings.yaml viper config of `show_thinking: true` if `show_thinking: false` we will only show the response text. The default for this should be true
-- Our spinner is subpar. I would like to fin
+- Our spinner is subpar. I would like to change the color and move it. The chat input field needs a cheveron `>` as a prefix. The cheveron needs to be dimmed orange and once the text has been submitted to the chat and our spinner becomes visible, is colored dimmed blue and it should replace the cheveron while it's processing.
 
 # BUGS
 - Error messages are reported in 2 locations. Lets only use the one at the bottom of the chat.
