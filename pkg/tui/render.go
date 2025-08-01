@@ -296,9 +296,10 @@ func RenderAlertWithTokens(screen tcell.Screen, alert AlertDisplay, area Rect, p
 	}
 
 	// Render token display on the right if tokens are present
-	if promptTokens > 0 || responseTokens > 0 {
-		tokenStyle := tcell.StyleDefault.Foreground(tcell.ColorGray) // Dim white
-		tokenText := fmt.Sprintf("%d/%d", promptTokens, responseTokens)
+	totalTokens := promptTokens + responseTokens
+	if totalTokens > 0 {
+		tokenStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Dim(true) // Dim blue
+		tokenText := fmt.Sprintf("%d", totalTokens)
 		
 		// Right-justify the token text
 		tokenStartX := area.X + area.Width - len(tokenText)
