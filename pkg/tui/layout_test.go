@@ -97,20 +97,20 @@ var _ = Describe("Layout", func() {
 			// Input area: 3 lines (with padding)
 			Expect(inputArea.Height).To(Equal(3))
 			Expect(inputArea.Y).To(Equal(46))     // Above status
-			Expect(inputArea.Width).To(Equal(98)) // 100 - 2 padding
-			Expect(inputArea.X).To(Equal(1))      // 1 character padding
+			Expect(inputArea.Width).To(Equal(96)) // 100 - 4 padding (2 on each side)
+			Expect(inputArea.X).To(Equal(2))      // 2 character padding
 
 			// Alert area: 1 line (with padding)
 			Expect(alertArea.Height).To(Equal(1))
 			Expect(alertArea.Y).To(Equal(45))     // Above input
-			Expect(alertArea.Width).To(Equal(98)) // 100 - 2 padding
-			Expect(alertArea.X).To(Equal(1))      // 1 character padding
+			Expect(alertArea.Width).To(Equal(96)) // 100 - 4 padding (2 on each side)
+			Expect(alertArea.X).To(Equal(2))      // 2 character padding
 
 			// Message area: remaining space (with padding)
 			Expect(messageArea.Height).To(Equal(45)) // 50 - 3 - 1 - 1
 			Expect(messageArea.Y).To(Equal(0))
-			Expect(messageArea.Width).To(Equal(98)) // 100 - 2 padding
-			Expect(messageArea.X).To(Equal(1))      // 1 character padding
+			Expect(messageArea.Width).To(Equal(96)) // 100 - 4 padding (2 on each side)
+			Expect(messageArea.X).To(Equal(2))      // 2 character padding
 		})
 
 		It("should handle minimum dimensions gracefully", func() {
