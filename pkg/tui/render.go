@@ -5,6 +5,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/spf13/viper"
 )
 
 func RenderMessages(screen tcell.Screen, display MessageDisplay, area Rect) {
@@ -21,30 +22,76 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 
 	// Build list of message lines with their associated roles for styling
 	type MessageLine struct {
-		Text string
-		Role string
+		Text       string
+		Role       string
+		IsThinking bool
 	}
 
 	var allLines []MessageLine
+	showThinking := viper.GetBool("show_thinking")
 
 	for _, msg := range display.Messages {
-		contentLines := WrapText(msg.Content, chatArea.Width)
-		if len(contentLines) == 0 {
-			contentLines = []string{""}
-		}
+		if msg.Role == chat.RoleAssistant {
+			// Parse thinking blocks for assistant messages
+			parsed := ParseThinkingBlock(msg.Content)
 
-		// Add all content lines with the message role
-		for _, line := range contentLines {
-			allLines = append(allLines, MessageLine{
-				Text: line,
-				Role: msg.Role,
-			})
+			if parsed.HasThinking && showThinking {
+				// Add thinking block lines with dimmed white styling
+				thinkingLines := WrapText(parsed.ThinkingBlock, chatArea.Width)
+				for _, line := range thinkingLines {
+					allLines = append(allLines, MessageLine{
+						Text:       line,
+						Role:       msg.Role,
+						IsThinking: true,
+					})
+				}
+
+				// Add separator line between thinking and response
+				if parsed.ResponseContent != "" {
+					allLines = append(allLines, MessageLine{
+						Text:       "",
+						Role:       "",
+						IsThinking: false,
+					})
+				}
+			}
+
+			// Add response content if present
+			if parsed.ResponseContent != "" {
+				contentLines := WrapText(parsed.ResponseContent, chatArea.Width)
+				if len(contentLines) == 0 {
+					contentLines = []string{""}
+				}
+
+				for _, line := range contentLines {
+					allLines = append(allLines, MessageLine{
+						Text:       line,
+						Role:       msg.Role,
+						IsThinking: false,
+					})
+				}
+			}
+		} else {
+			// Handle non-assistant messages normally
+			contentLines := WrapText(msg.Content, chatArea.Width)
+			if len(contentLines) == 0 {
+				contentLines = []string{""}
+			}
+
+			for _, line := range contentLines {
+				allLines = append(allLines, MessageLine{
+					Text:       line,
+					Role:       msg.Role,
+					IsThinking: false,
+				})
+			}
 		}
 
 		// Add empty line between messages
 		allLines = append(allLines, MessageLine{
-			Text: "",
-			Role: "",
+			Text:       "",
+			Role:       "",
+			IsThinking: false,
 		})
 	}
 
@@ -83,24 +130,29 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 			break
 		}
 
-		// Determine style based on message role
+		// Determine style based on message role and thinking status
 		var style tcell.Style
-		switch msgLine.Role {
-		case chat.RoleUser:
-			// Dimmed style for user messages
-			style = tcell.StyleDefault.Foreground(tcell.ColorGray)
-		case chat.RoleAssistant:
-			// Normal style for assistant messages
-			style = tcell.StyleDefault
-		case chat.RoleSystem:
-			// Normal style for system messages
-			style = tcell.StyleDefault
-		case chat.RoleError:
-			// Red style for error messages
-			style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
-		default:
-			// Default style for empty lines or unknown roles
-			style = tcell.StyleDefault
+		if msgLine.IsThinking {
+			// Dimmed white style for thinking blocks
+			style = tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true)
+		} else {
+			switch msgLine.Role {
+			case chat.RoleUser:
+				// Dimmed style for user messages
+				style = tcell.StyleDefault.Foreground(tcell.ColorGray)
+			case chat.RoleAssistant:
+				// Normal style for assistant messages
+				style = tcell.StyleDefault
+			case chat.RoleSystem:
+				// Normal style for system messages
+				style = tcell.StyleDefault
+			case chat.RoleError:
+				// Red style for error messages
+				style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
+			default:
+				// Default style for empty lines or unknown roles
+				style = tcell.StyleDefault
+			}
 		}
 
 		renderText(screen, chatArea.X, chatArea.Y+i, msgLine.Text, style)
@@ -121,6 +173,10 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 }
 
 func RenderInput(screen tcell.Screen, input InputField, area Rect) {
+	RenderInputWithSpinner(screen, input, area, SpinnerComponent{})
+}
+
+func RenderInputWithSpinner(screen tcell.Screen, input InputField, area Rect, spinner SpinnerComponent) {
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
@@ -143,10 +199,22 @@ func RenderInput(screen tcell.Screen, input InputField, area Rect) {
 		screen.SetContent(area.X+area.Width-1, area.Y+1, '│', nil, borderStyle)
 	}
 
-	if area.Height >= 2 && area.Width >= 3 {
+	if area.Height >= 2 && area.Width >= 5 { // Need more space for chevron/spinner
 		inputY := area.Y + 1
-		inputX := area.X + 1
-		inputWidth := area.Width - 2
+		prefixX := area.X + 1
+		inputX := area.X + 3         // Leave space for chevron/spinner and a space
+		inputWidth := area.Width - 4 // Account for borders and prefix
+
+		// Render chevron or spinner prefix
+		if spinner.IsVisible {
+			// Show dimmed blue spinner during processing
+			spinnerStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Dim(true)
+			renderText(screen, prefixX, inputY, spinner.GetCurrentFrame(), spinnerStyle)
+		} else {
+			// Show dimmed orange chevron when not processing
+			chevronStyle := tcell.StyleDefault.Foreground(tcell.NewRGBColor(255, 165, 0)).Dim(true) // Orange
+			renderText(screen, prefixX, inputY, ">", chevronStyle)
+		}
 
 		visibleContent := input.Content
 		cursorPos := input.Cursor
