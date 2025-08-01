@@ -16,4 +16,4 @@
 12. A simple progress bar integrated into the modal. It will replace the input field and show a percentage. If the user presses <esc> to leave the view, small text in the footer area should reflext that <model> is being pulled.
 
 # PRIORITY BUGS
--  Look at the logs .ryan/debug.spinner-disapear.log. It appears that an error occured but there was no alert or text notifying one occurred appeared. This error text should be displayed as a red chat message.
+~~-  Look at the logs .ryan/debug.spinner-disapear.log. It appears that an error occured but there was no alert or text notifying one occurred appeared. This error text should be displayed as a red chat message.~~
