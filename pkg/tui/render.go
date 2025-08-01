@@ -16,22 +16,8 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 		return
 	}
 
-	// Add extra padding to chat area (3 characters on each side, 2 lines on top for more breathing room)
-	chatHorizontalPadding := 3
-	chatTopPadding := 2
-	chatArea := Rect{
-		X:      area.X + chatHorizontalPadding,
-		Y:      area.Y + chatTopPadding,
-		Width:  area.Width - (2 * chatHorizontalPadding),
-		Height: area.Height - chatTopPadding,
-	}
-
-	// Ensure we have valid dimensions after padding
-	if chatArea.Width <= 0 || chatArea.Height <= 0 {
-		chatArea = area // Fall back to no padding if too narrow/short
-		chatHorizontalPadding = 0
-		chatTopPadding = 0
-	}
+	// Use the area as-is since layout already provides padding
+	chatArea := area
 
 	// Build list of message lines with their associated roles for styling
 	type MessageLine struct {
@@ -129,7 +115,7 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 				screen.SetContent(x, spinnerY, ' ', nil, tcell.StyleDefault)
 			}
 			// Render spinner text with horizontal padding
-			renderText(screen, area.X+chatHorizontalPadding, spinnerY, spinner.GetDisplayText(), spinner.Style)
+			renderText(screen, area.X, spinnerY, spinner.GetDisplayText(), spinner.Style)
 		}
 	}
 }
