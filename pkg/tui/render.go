@@ -197,14 +197,21 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 	clearArea(screen, area)
 
 	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	modelStyle := statusStyle
+	if !status.ModelAvailable {
+		modelStyle = tcell.StyleDefault.Foreground(tcell.ColorRed).StrikeThrough(true)
+	}
 
 	// Build status text with token information
 	var statusText string
+	var modelPart string
 	if status.PromptTokens > 0 || status.ResponseTokens > 0 {
-		statusText = fmt.Sprintf(" Model: %s | Tokens: %d+%d | %s ",
-			status.Model, status.PromptTokens, status.ResponseTokens, status.Status)
+		modelPart = fmt.Sprintf("Model: %s", status.Model)
+		statusText = fmt.Sprintf(" %s | Tokens: %d+%d | %s ",
+			modelPart, status.PromptTokens, status.ResponseTokens, status.Status)
 	} else {
-		statusText = fmt.Sprintf(" Model: %s | %s ", status.Model, status.Status)
+		modelPart = fmt.Sprintf("Model: %s", status.Model)
+		statusText = fmt.Sprintf(" %s | %s ", modelPart, status.Status)
 	}
 
 	// Fill entire row with background
@@ -215,11 +222,18 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 	// Right-justify the status text
 	if len(statusText) <= area.Width {
 		startX := area.X + area.Width - len(statusText)
+		// Render text with different styles for model part
+		currentX := startX
 		for i, r := range statusText {
-			screen.SetContent(startX+i, area.Y, r, nil, statusStyle)
+			style := statusStyle
+			// Check if we're in the model part
+			if i >= 1 && i < len(modelPart)+1 {
+				style = modelStyle
+			}
+			screen.SetContent(currentX+i, area.Y, r, nil, style)
 		}
 	} else {
-		// Truncate from the left if too long
+		// Truncate from the left if too long - for simplicity, use standard style
 		truncated := "..." + statusText[len(statusText)-(area.Width-3):]
 		for i, r := range truncated {
 			screen.SetContent(area.X+i, area.Y, r, nil, statusStyle)

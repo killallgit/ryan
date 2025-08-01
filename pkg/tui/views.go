@@ -126,11 +126,22 @@ func (vm *ViewManager) HandleMenuKeyEvent(ev *tcell.EventKey) bool {
 		return true
 
 	default:
-		if ev.Rune() >= '1' && ev.Rune() <= '9' {
-			index := int(ev.Rune() - '1')
-			if viewName := vm.menu.GetOptionByIndex(index); viewName != "" {
-				vm.SetCurrentView(viewName)
+		if ev.Rune() != 0 {
+			switch ev.Rune() {
+			case 'j', 'J':
+				vm.menu = vm.menu.SelectNext()
 				return true
+			case 'k', 'K':
+				vm.menu = vm.menu.SelectPrevious()
+				return true
+			default:
+				if ev.Rune() >= '1' && ev.Rune() <= '9' {
+					index := int(ev.Rune() - '1')
+					if viewName := vm.menu.GetOptionByIndex(index); viewName != "" {
+						vm.SetCurrentView(viewName)
+						return true
+					}
+				}
 			}
 		}
 	}
