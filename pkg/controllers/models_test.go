@@ -31,6 +31,11 @@ func (m *MockOllamaClient) Ps() (*ollama.PsResponse, error) {
 	return args.Get(0).(*ollama.PsResponse), args.Error(1)
 }
 
+func (m *MockOllamaClient) Pull(modelName string) error {
+	args := m.Called(modelName)
+	return args.Error(0)
+}
+
 var _ = Describe("ModelsController", func() {
 	var (
 		mockClient *MockOllamaClient

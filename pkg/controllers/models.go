@@ -12,6 +12,7 @@ import (
 type OllamaClient interface {
 	Tags() (*ollama.TagsResponse, error)
 	Ps() (*ollama.PsResponse, error)
+	Pull(modelName string) error
 }
 
 type ModelsController struct {
@@ -76,4 +77,18 @@ func (mc *ModelsController) ListModels(writer io.Writer) error {
 	}
 
 	return w.Flush()
+}
+
+func (mc *ModelsController) Pull(modelName string) error {
+	log := logger.WithComponent("models_controller")
+	log.Debug("Calling ollama client Pull()", "model_name", modelName)
+
+	err := mc.client.Pull(modelName)
+	if err != nil {
+		log.Error("ollama client Pull() failed", "model_name", modelName, "error", err)
+		return err
+	}
+
+	log.Debug("ollama client Pull() succeeded", "model_name", modelName)
+	return nil
 }

@@ -28,3 +28,15 @@ type TagsResponse struct {
 type PsResponse struct {
 	Models []Model `json:"models"`
 }
+
+type PullRequest struct {
+	Name string `json:"name"`
+}
+
+type PullResponse struct {
+	Status    string `json:"status"`
+	Digest    string `json:"digest,omitempty"`
+	Total     int64  `json:"total,omitempty"`
+	Completed int64  `json:"completed,omitempty"`
+	Error     string `json:"error,omitempty"`
+}

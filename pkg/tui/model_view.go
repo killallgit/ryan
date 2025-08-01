@@ -17,6 +17,7 @@ type ModelView struct {
 	loading        bool
 	screen         tcell.Screen
 	showStats      bool
+	pullModal      TextInputModal
 }
 
 func NewModelView(controller *controllers.ModelsController, chatController *controllers.ChatController, screen tcell.Screen) *ModelView {
@@ -35,6 +36,7 @@ func NewModelView(controller *controllers.ModelsController, chatController *cont
 		loading:        false,
 		screen:         screen,
 		showStats:      true,
+		pullModal:      NewTextInputModal(),
 	}
 
 	// Don't auto-refresh on creation - wait until view becomes active
@@ -90,11 +92,23 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 	}
 
 	RenderStatus(screen, mv.status, statusArea)
+	
+	mv.pullModal.Render(screen, area)
 }
 
 func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 	if mv.loading {
 		return true // Consume all events while loading
+	}
+	
+	// Handle modal events first
+	if mv.pullModal.Visible {
+		modal, modelName, confirmed := mv.pullModal.HandleKeyEvent(ev)
+		mv.pullModal = modal
+		if confirmed && modelName != "" {
+			mv.pullModel(modelName)
+		}
+		return true
 	}
 
 	switch ev.Key() {
@@ -143,6 +157,10 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 
 			case 's', 'S':
 				mv.toggleStats()
+				return true
+
+			case 'n', 'N':
+				mv.showPullModal()
 				return true
 
 			case 'q', 'Q':
@@ -385,4 +403,27 @@ func (mv *ModelView) changeModel() {
 		log.Debug("Configuration saved successfully", "new_model", selectedModel.Name)
 		mv.status = mv.status.WithStatus("Model changed to: " + selectedModel.Name)
 	}
+}
+
+func (mv *ModelView) showPullModal() {
+	mv.pullModal = mv.pullModal.Show("Pull Model", "Enter model name to pull:")
+}
+
+func (mv *ModelView) pullModel(modelName string) {
+	log := logger.WithComponent("model_view")
+	log.Debug("Starting model pull", "model_name", modelName)
+	
+	mv.status = mv.status.WithStatus("Pulling model: " + modelName + "...")
+	
+	go func() {
+		err := mv.controller.Pull(modelName)
+		if err != nil {
+			log.Error("Failed to pull model", "model_name", modelName, "error", err)
+			mv.screen.PostEvent(NewModelErrorEvent(err))
+		} else {
+			log.Debug("Model pull completed successfully", "model_name", modelName)
+			mv.status = mv.status.WithStatus("Model pulled successfully: " + modelName)
+			mv.refreshModels()
+		}
+	}()
 }

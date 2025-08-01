@@ -1,8 +1,10 @@
 package ollama
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -86,4 +88,69 @@ func (c *Client) Ps() (*PsResponse, error) {
 
 	log.Debug("Successfully decoded ps response", "running_count", len(psResponse.Models))
 	return &psResponse, nil
+}
+
+func (c *Client) Pull(modelName string) error {
+	log := logger.WithComponent("ollama_client")
+	url := fmt.Sprintf("%s/api/pull", c.baseURL)
+
+	pullRequest := PullRequest{
+		Name: modelName,
+	}
+
+	requestBody, err := json.Marshal(pullRequest)
+	if err != nil {
+		log.Error("Failed to marshal pull request", "model", modelName, "error", err)
+		return fmt.Errorf("failed to marshal pull request: %w", err)
+	}
+
+	// Create a client with longer timeout for model pulling
+	pullClient := &http.Client{
+		Timeout: 30 * time.Minute, // Model pulls can take a long time
+	}
+
+	log.Debug("Making HTTP POST request to pull endpoint", "url", url, "model", modelName)
+	resp, err := pullClient.Post(url, "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Error("HTTP POST to pull endpoint failed", "url", url, "model", modelName, "error", err)
+		return fmt.Errorf("failed to pull model: %w", err)
+	}
+	defer resp.Body.Close()
+
+	log.Debug("Received HTTP response from pull endpoint",
+		"status_code", resp.StatusCode,
+		"content_length", resp.ContentLength)
+
+	if resp.StatusCode != http.StatusOK {
+		log.Error("Pull endpoint returned non-200 status", "status_code", resp.StatusCode, "model", modelName)
+		return fmt.Errorf("pull request failed with status: %d", resp.StatusCode)
+	}
+
+	// Read and parse streaming response
+	decoder := json.NewDecoder(resp.Body)
+	for {
+		var pullResponse PullResponse
+		if err := decoder.Decode(&pullResponse); err != nil {
+			if err == io.EOF {
+				log.Error("Pull response stream ended unexpectedly", "model", modelName)
+				return fmt.Errorf("pull stream ended unexpectedly")
+			}
+			log.Error("Failed to decode pull response", "model", modelName, "error", err)
+			return fmt.Errorf("failed to decode pull response: %w", err)
+		}
+
+		log.Debug("Pull progress", "model", modelName, "status", pullResponse.Status)
+
+		// Handle errors in the response
+		if pullResponse.Error != "" {
+			log.Error("Pull failed with error", "model", modelName, "error", pullResponse.Error)
+			return fmt.Errorf("pull failed: %s", pullResponse.Error)
+		}
+
+		// Check for completion
+		if pullResponse.Status == "success" {
+			log.Debug("Successfully pulled model", "model", modelName)
+			return nil
+		}
+	}
 }

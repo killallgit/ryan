@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -480,6 +481,188 @@ func (md ModalDialog) Render(screen tcell.Screen, area Rect) {
 
 	// Render instruction
 	instruction := "Press any key to continue"
+	instrX := modalArea.X + (modalArea.Width-len(instruction))/2
+	if instrX < modalArea.X+1 {
+		instrX = modalArea.X + 1
+	}
+	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+}
+
+type TextInputModal struct {
+	Visible bool
+	Title   string
+	Prompt  string
+	Input   InputField
+	Width   int
+	Height  int
+}
+
+func NewTextInputModal() TextInputModal {
+	return TextInputModal{
+		Visible: false,
+		Title:   "",
+		Prompt:  "",
+		Input:   NewInputField(40),
+		Width:   50,
+		Height:  8,
+	}
+}
+
+func (tim TextInputModal) Show(title, prompt string) TextInputModal {
+	return TextInputModal{
+		Visible: true,
+		Title:   title,
+		Prompt:  prompt,
+		Input:   NewInputField(40),
+		Width:   tim.Width,
+		Height:  tim.Height,
+	}
+}
+
+func (tim TextInputModal) Hide() TextInputModal {
+	return TextInputModal{
+		Visible: false,
+		Title:   tim.Title,
+		Prompt:  tim.Prompt,
+		Input:   tim.Input.Clear(),
+		Width:   tim.Width,
+		Height:  tim.Height,
+	}
+}
+
+func (tim TextInputModal) WithInput(input InputField) TextInputModal {
+	return TextInputModal{
+		Visible: tim.Visible,
+		Title:   tim.Title,
+		Prompt:  tim.Prompt,
+		Input:   input,
+		Width:   tim.Width,
+		Height:  tim.Height,
+	}
+}
+
+func (tim TextInputModal) HandleKeyEvent(ev *tcell.EventKey) (TextInputModal, string, bool) {
+	if !tim.Visible {
+		return tim, "", false
+	}
+
+	switch ev.Key() {
+	case tcell.KeyEscape:
+		return tim.Hide(), "", false
+	case tcell.KeyEnter:
+		content := strings.TrimSpace(tim.Input.Content)
+		return tim.Hide(), content, true
+	case tcell.KeyBackspace, tcell.KeyBackspace2:
+		return tim.WithInput(tim.Input.DeleteBackward()), "", false
+	case tcell.KeyLeft:
+		return tim.WithInput(tim.Input.WithCursor(tim.Input.Cursor - 1)), "", false
+	case tcell.KeyRight:
+		return tim.WithInput(tim.Input.WithCursor(tim.Input.Cursor + 1)), "", false
+	case tcell.KeyHome:
+		return tim.WithInput(tim.Input.WithCursor(0)), "", false
+	case tcell.KeyEnd:
+		return tim.WithInput(tim.Input.WithCursor(len(tim.Input.Content))), "", false
+	default:
+		if ev.Rune() != 0 {
+			return tim.WithInput(tim.Input.InsertRune(ev.Rune())), "", false
+		}
+	}
+	return tim, "", false
+}
+
+func (tim TextInputModal) Render(screen tcell.Screen, area Rect) {
+	if !tim.Visible {
+		return
+	}
+
+	// Calculate modal position (centered)
+	modalWidth := tim.Width
+	modalHeight := tim.Height
+	if modalWidth > area.Width-4 {
+		modalWidth = area.Width - 4
+	}
+	if modalHeight > area.Height-4 {
+		modalHeight = area.Height - 4
+	}
+
+	modalX := (area.Width - modalWidth) / 2
+	modalY := (area.Height - modalHeight) / 2
+
+	modalArea := Rect{
+		X:      modalX,
+		Y:      modalY,
+		Width:  modalWidth,
+		Height: modalHeight,
+	}
+
+	// Draw modal background and border
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	drawBorder(screen, modalArea, borderStyle)
+
+	// Styles
+	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
+	promptStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
+
+	// Render title
+	if tim.Title != "" {
+		titleX := modalArea.X + (modalArea.Width-len(tim.Title))/2
+		if titleX < modalArea.X+1 {
+			titleX = modalArea.X + 1
+		}
+		renderTextWithLimit(screen, titleX, modalArea.Y+1, modalArea.Width-2, tim.Title, titleStyle)
+	}
+
+	// Render prompt
+	if tim.Prompt != "" {
+		renderTextWithLimit(screen, modalArea.X+2, modalArea.Y+3, modalArea.Width-4, tim.Prompt, promptStyle)
+	}
+
+	// Render input field
+	inputArea := Rect{
+		X:      modalArea.X + 2,
+		Y:      modalArea.Y + 4,
+		Width:  modalArea.Width - 4,
+		Height: 1,
+	}
+	
+	// Clear input area and render input text
+	for x := inputArea.X; x < inputArea.X+inputArea.Width; x++ {
+		screen.SetContent(x, inputArea.Y, ' ', nil, tcell.StyleDefault)
+	}
+	
+	// Render input content
+	visibleContent := tim.Input.Content
+	cursorPos := tim.Input.Cursor
+	
+	if len(visibleContent) > inputArea.Width {
+		start := 0
+		if cursorPos >= inputArea.Width {
+			start = cursorPos - inputArea.Width + 1
+		}
+		end := start + inputArea.Width
+		if end > len(visibleContent) {
+			end = len(visibleContent)
+		}
+		visibleContent = visibleContent[start:end]
+		cursorPos = cursorPos - start
+	}
+	
+	renderTextWithLimit(screen, inputArea.X, inputArea.Y, inputArea.Width, visibleContent, tcell.StyleDefault)
+	
+	// Render cursor
+	if cursorPos >= 0 && cursorPos <= len(visibleContent) && cursorPos < inputArea.Width {
+		cursorStyle := tcell.StyleDefault.Reverse(true)
+		if cursorPos < len(visibleContent) {
+			r := rune(visibleContent[cursorPos])
+			screen.SetContent(inputArea.X+cursorPos, inputArea.Y, r, nil, cursorStyle)
+		} else {
+			screen.SetContent(inputArea.X+cursorPos, inputArea.Y, ' ', nil, cursorStyle)
+		}
+	}
+
+	// Render instructions
+	instruction := "Enter to confirm, Esc to cancel"
 	instrX := modalArea.X + (modalArea.Width-len(instruction))/2
 	if instrX < modalArea.X+1 {
 		instrX = modalArea.X + 1
