@@ -143,6 +143,10 @@ type StatusBar struct {
 	PromptTokens   int
 	ResponseTokens int
 	ModelAvailable bool
+	// Model management view specific fields
+	IsModelView    bool
+	TotalModels    int
+	TotalSize      int64
 }
 
 func NewStatusBar(width int) StatusBar {
@@ -153,6 +157,9 @@ func NewStatusBar(width int) StatusBar {
 		PromptTokens:   0,
 		ResponseTokens: 0,
 		ModelAvailable: true,
+		IsModelView:    false,
+		TotalModels:    0,
+		TotalSize:      0,
 	}
 }
 
@@ -164,6 +171,9 @@ func (sb StatusBar) WithModel(model string) StatusBar {
 		PromptTokens:   sb.PromptTokens,
 		ResponseTokens: sb.ResponseTokens,
 		ModelAvailable: sb.ModelAvailable,
+		IsModelView:    sb.IsModelView,
+		TotalModels:    sb.TotalModels,
+		TotalSize:      sb.TotalSize,
 	}
 }
 
@@ -175,6 +185,9 @@ func (sb StatusBar) WithStatus(status string) StatusBar {
 		PromptTokens:   sb.PromptTokens,
 		ResponseTokens: sb.ResponseTokens,
 		ModelAvailable: sb.ModelAvailable,
+		IsModelView:    sb.IsModelView,
+		TotalModels:    sb.TotalModels,
+		TotalSize:      sb.TotalSize,
 	}
 }
 
@@ -186,6 +199,9 @@ func (sb StatusBar) WithWidth(width int) StatusBar {
 		PromptTokens:   sb.PromptTokens,
 		ResponseTokens: sb.ResponseTokens,
 		ModelAvailable: sb.ModelAvailable,
+		IsModelView:    sb.IsModelView,
+		TotalModels:    sb.TotalModels,
+		TotalSize:      sb.TotalSize,
 	}
 }
 
@@ -197,6 +213,9 @@ func (sb StatusBar) WithTokens(promptTokens, responseTokens int) StatusBar {
 		PromptTokens:   promptTokens,
 		ResponseTokens: responseTokens,
 		ModelAvailable: sb.ModelAvailable,
+		IsModelView:    sb.IsModelView,
+		TotalModels:    sb.TotalModels,
+		TotalSize:      sb.TotalSize,
 	}
 }
 
@@ -208,6 +227,23 @@ func (sb StatusBar) WithModelAvailability(available bool) StatusBar {
 		PromptTokens:   sb.PromptTokens,
 		ResponseTokens: sb.ResponseTokens,
 		ModelAvailable: available,
+		IsModelView:    sb.IsModelView,
+		TotalModels:    sb.TotalModels,
+		TotalSize:      sb.TotalSize,
+	}
+}
+
+func (sb StatusBar) WithModelViewData(totalModels int, totalSize int64) StatusBar {
+	return StatusBar{
+		Model:          sb.Model,
+		Status:         sb.Status,
+		Width:          sb.Width,
+		PromptTokens:   sb.PromptTokens,
+		ResponseTokens: sb.ResponseTokens,
+		ModelAvailable: sb.ModelAvailable,
+		IsModelView:    true,
+		TotalModels:    totalModels,
+		TotalSize:      totalSize,
 	}
 }
 
@@ -219,14 +255,15 @@ type SpinnerComponent struct {
 	Style     tcell.Style
 }
 
-var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧"}
+// Using spinner character set #25 from github.com/briandowns/spinner
+var spinnerFrames = []string{"ｦ", "ｧ", "ｨ", "ｩ", "ｪ", "ｫ", "ｬ", "ｭ", "ｮ", "ｯ", "ｱ", "ｲ", "ｳ", "ｴ", "ｵ", "ｶ", "ｷ", "ｸ", "ｹ", "ｺ", "ｻ", "ｼ", "ｽ", "ｾ", "ｿ", "ﾀ", "ﾁ", "ﾂ", "ﾃ", "ﾄ", "ﾅ", "ﾆ", "ﾇ", "ﾈ", "ﾉ", "ﾊ", "ﾋ", "ﾌ", "ﾍ", "ﾎ", "ﾏ", "ﾐ", "ﾑ", "ﾒ", "ﾓ", "ﾔ", "ﾕ", "ﾖ", "ﾗ", "ﾘ", "ﾙ", "ﾚ", "ﾛ", "ﾜ", "ﾝ"}
 
 func NewSpinnerComponent() SpinnerComponent {
 	return SpinnerComponent{
 		IsVisible: false,
 		Frame:     0,
 		StartTime: time.Now(),
-		Text:      "Sending message...",
+		Text:      "",
 		Style:     tcell.StyleDefault.Foreground(tcell.ColorGray),
 	}
 }
@@ -299,7 +336,7 @@ func NewAlertDisplay(width int) AlertDisplay {
 	return AlertDisplay{
 		IsSpinnerVisible: false,
 		SpinnerFrame:     0,
-		SpinnerText:      "Sending message...",
+		SpinnerText:      "",
 		ErrorMessage:     "",
 		Width:            width,
 	}

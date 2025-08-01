@@ -224,7 +224,7 @@ var _ = Describe("StatusBar", func() {
 
 			Expect(spinner.IsVisible).To(BeFalse())
 			Expect(spinner.Frame).To(Equal(0))
-			Expect(spinner.Text).To(Equal("Sending message..."))
+			Expect(spinner.Text).To(Equal(""))
 		})
 
 		It("should toggle visibility correctly", func() {
@@ -260,8 +260,8 @@ var _ = Describe("StatusBar", func() {
 
 			displayText := spinner.GetDisplayText()
 
-			Expect(displayText).To(ContainSubstring("Sending message..."))
-			Expect(len(displayText)).To(BeNumerically(">", len("Sending message...")))
+			// Since we removed the text, display text should just be the spinner character
+			Expect(displayText).To(Equal("ｦ ")) // First character in spinnerFrames + space
 		})
 	})
 })

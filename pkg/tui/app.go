@@ -445,17 +445,8 @@ func (app *App) handleSpinnerAnimation(ev *SpinnerAnimationEvent) {
 
 		// Update spinner text with elapsed time
 		if !app.sendStartTime.IsZero() {
-			elapsed := time.Since(app.sendStartTime)
-			seconds := int(elapsed.Seconds())
-
-			var spinnerText string
-			if seconds > 30 {
-				spinnerText = fmt.Sprintf("Still waiting for response... (%ds) - Press Escape to cancel", seconds)
-			} else if seconds > 10 {
-				spinnerText = fmt.Sprintf("Sending message... (%ds) - Press Escape to cancel", seconds)
-			} else {
-				spinnerText = fmt.Sprintf("Sending message... (%ds)", seconds)
-			}
+			// Simplified spinner - no extra text as per TODO
+			spinnerText := ""
 
 			// Update alert display with new text
 			if app.chatView.alert.IsSpinnerVisible {
