@@ -10,19 +10,19 @@ import (
 )
 
 type ChatView struct {
-	controller        *controllers.ChatController
-	input             InputField
-	messages          MessageDisplay
-	status            StatusBar
-	layout            Layout
-	screen            tcell.Screen
-	alert             AlertDisplay
-	downloadModal     DownloadPromptModal
-	progressModal     ProgressModal
-	downloadCtx       context.Context
-	downloadCancel    context.CancelFunc
-	pendingMessage    string
-	modelsController  *controllers.ModelsController
+	controller       *controllers.ChatController
+	input            InputField
+	messages         MessageDisplay
+	status           StatusBar
+	layout           Layout
+	screen           tcell.Screen
+	alert            AlertDisplay
+	downloadModal    DownloadPromptModal
+	progressModal    ProgressModal
+	downloadCtx      context.Context
+	downloadCancel   context.CancelFunc
+	pendingMessage   string
+	modelsController *controllers.ModelsController
 }
 
 func NewChatView(controller *controllers.ChatController, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
@@ -61,9 +61,23 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 
 	RenderMessages(screen, cv.messages, messageArea)
 	RenderAlertWithTokens(screen, cv.alert, alertArea, cv.status.PromptTokens, cv.status.ResponseTokens)
-	RenderInput(screen, cv.input, inputArea)
+
+	// Create a spinner component for the input field based on current state
+	inputSpinner := NewSpinnerComponent()
+	if cv.alert.IsSpinnerVisible {
+		inputSpinner = inputSpinner.WithVisibility(true)
+		inputSpinner = SpinnerComponent{
+			IsVisible: true,
+			Frame:     cv.alert.SpinnerFrame,
+			StartTime: inputSpinner.StartTime,
+			Text:      "",
+			Style:     tcell.StyleDefault.Foreground(tcell.ColorBlue).Dim(true),
+		}
+	}
+
+	RenderInputWithSpinner(screen, cv.input, inputArea, inputSpinner)
 	RenderStatus(screen, cv.status, statusArea)
-	
+
 	// Render modals on top
 	cv.downloadModal.Render(screen, area)
 	cv.progressModal.Render(screen, area)
@@ -82,7 +96,7 @@ func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 		}
 		return true
 	}
-	
+
 	if cv.downloadModal.Visible {
 		modal, confirmed, _ := cv.downloadModal.HandleKeyEvent(ev)
 		cv.downloadModal = modal
@@ -200,7 +214,7 @@ func (cv *ChatView) HandleMessageError(error MessageErrorEvent) {
 	cv.status = cv.status.WithStatus("Ready") // Keep status simple
 	// Don't set alert error - only show error in chat messages
 	cv.alert = cv.alert.Clear()
-	
+
 	// Update messages to show the error message that was added to conversation
 	cv.updateMessages()
 	cv.scrollToBottom()
