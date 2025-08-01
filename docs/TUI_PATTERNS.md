@@ -179,6 +179,15 @@ type MessageList struct {
     Styles   MessageStyles
 }
 
+// Alert display component for spinner and errors
+type AlertDisplay struct {
+    IsSpinnerVisible bool
+    SpinnerFrame     int
+    SpinnerText      string
+    ErrorMessage     string
+    Width            int
+}
+
 func (ml *MessageList) Render(screen tcell.Screen, rect Rect) {
     // Clear the area first
     ml.clearArea(screen, rect)
@@ -210,6 +219,36 @@ func (ml *MessageList) clearArea(screen tcell.Screen, rect Rect) {
         for x := rect.X; x < rect.X+rect.Width; x++ {
             screen.SetContent(x, y, ' ', nil, clearStyle)
         }
+    }
+}
+
+// Alert display rendering with base16 colors
+func (ad *AlertDisplay) Render(screen tcell.Screen, rect Rect) {
+    // Clear the alert area
+    clearStyle := tcell.StyleDefault.Background(tcell.ColorReset)
+    for x := rect.X; x < rect.X+rect.Width; x++ {
+        screen.SetContent(x, rect.Y, ' ', nil, clearStyle)
+    }
+    
+    var content string
+    var style tcell.Style
+    
+    if ad.ErrorMessage != "" {
+        // Base16 red color for errors
+        style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
+        content = ad.ErrorMessage
+    } else if ad.IsSpinnerVisible {
+        // Default style for spinner
+        style = tcell.StyleDefault.Foreground(tcell.ColorWhite)
+        
+        // Spinner animation frames
+        frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+        spinner := frames[ad.SpinnerFrame%len(frames)]
+        content = spinner + " " + ad.SpinnerText
+    }
+    
+    if content != "" {
+        renderText(screen, rect.X, rect.Y, rect.Width, content, style)
     }
 }
 ```
@@ -323,6 +362,7 @@ type Layout struct {
     screenWidth  int
     screenHeight int
     messageArea  Rect
+    alertArea    Rect    // NEW: Alert area for spinner/errors
     inputArea    Rect
     statusArea   Rect
 }
@@ -330,8 +370,11 @@ type Layout struct {
 func (app *StreamingApp) calculateLayout() Layout {
     w, h := app.screen.Size()
     
-    // Reserve bottom 2 lines for input and status
-    messageHeight := h - 2
+    // Reserve bottom 3 lines for alert, input and status
+    statusHeight := 1
+    inputHeight := 1  
+    alertHeight := 1
+    messageHeight := h - statusHeight - inputHeight - alertHeight
     if messageHeight < 1 {
         messageHeight = 1
     }
@@ -343,13 +386,17 @@ func (app *StreamingApp) calculateLayout() Layout {
             X: 0, Y: 0,
             Width: w, Height: messageHeight,
         },
-        inputArea: Rect{
+        alertArea: Rect{
             X: 0, Y: messageHeight,
-            Width: w, Height: 1,
+            Width: w, Height: alertHeight,
+        },
+        inputArea: Rect{
+            X: 0, Y: messageHeight + alertHeight,
+            Width: w, Height: inputHeight,
         },
         statusArea: Rect{
-            X: 0, Y: h - 1,
-            Width: w, Height: 1,
+            X: 0, Y: h - statusHeight,
+            Width: w, Height: statusHeight,
         },
     }
 }

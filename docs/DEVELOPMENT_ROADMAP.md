@@ -323,6 +323,14 @@ func (app *App) sendMessage() {
 - **NON-BLOCKING UI**: Extended beyond original spec to solve UI blocking
 - Custom event system for thread-safe API communication
 - State management prevents multiple concurrent requests
+- **ENHANCED UX**: Significant improvements beyond specification:
+  - AlertDisplay component with dedicated alert area
+  - Immediate spinner visibility with state synchronization
+  - Progress feedback with elapsed time tracking
+  - Base16 red error colors in alert area
+  - Ollama connectivity validation with specific error guidance
+  - Escape key cancellation for long-running operations
+  - Enhanced error messages with actionable suggestions
 - Ready for streaming integration in Phase 3
 
 ## Phase 3: Streaming Infrastructure
@@ -627,6 +635,11 @@ func (sa *StreamingApp) safeUpdateStreamingText(content string) {
 - [x] Clean event handling
 - [x] Non-blocking UI during API calls
 - [x] Thread-safe event communication
+- [x] AlertDisplay component with spinner and error feedback
+- [x] Progress tracking with elapsed time display
+- [x] Enhanced error messages with base16 red colors
+- [x] Ollama connectivity validation
+- [x] Escape key cancellation support
 
 ### Phase 3: Streaming
 - [ ] Streaming works in isolation

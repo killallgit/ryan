@@ -22,11 +22,21 @@ Phase 2 of the Chat TUI development has been **successfully completed** with enh
    - Input processing and cursor management
    - Quit/escape handling
 
-### 🚀 Beyond Specification: Non-Blocking Architecture
+### 🚀 Beyond Specification: Non-Blocking Architecture + UX Enhancements
 
-**Critical Issue Identified**: The original Phase 2 spec would have resulted in a TUI that freezes during API calls, creating a poor user experience.
+**Critical Issues Identified**: 
+1. The original Phase 2 spec would have resulted in a TUI that freezes during API calls
+2. No visual feedback when sending messages (invisible spinner)
+3. Poor error visibility and user guidance
+4. No progress indication for slow API responses
 
-**Solution Implemented**: Event-driven non-blocking architecture
+**Solutions Implemented**: 
+1. Event-driven non-blocking architecture
+2. Enhanced spinner visibility with immediate state synchronization
+3. Dedicated alert area with base16 red error colors
+4. Progress feedback with elapsed time tracking
+5. Ollama connectivity validation
+6. Escape key cancellation support
 
 ## Technical Implementation Details
 
@@ -68,10 +78,16 @@ go func() {
 }()
 ```
 
-### State Management
+### State Management & UX Enhancements
 - Added `sending` field to prevent multiple concurrent requests
 - Proper state transitions: Ready → Sending → Ready/Error
-- Visual feedback during API calls
+- Visual feedback during API calls with immediate spinner visibility
+- Added `sendStartTime` for elapsed time tracking
+- AlertDisplay component for spinner and error messages
+- Enhanced layout with dedicated alert area between messages and input
+- Base16 red color scheme for error messages
+- Ollama connectivity checking with specific error guidance
+- Escape key cancellation for long-running operations
 
 ## User Experience Improvements
 
@@ -79,8 +95,13 @@ go func() {
 |--------|-------|
 | ❌ UI freezes during API calls | ✅ UI stays responsive |
 | ❌ Can't scroll while waiting | ✅ Can navigate freely |
-| ❌ No feedback during send | ✅ "Sending..." status |
+| ❌ No feedback during send | ✅ Immediate spinner with "Sending..." |
 | ❌ Possible double-sends | ✅ Prevents concurrent requests |
+| ❌ Invisible spinner | ✅ Prominent spinner in alert area |
+| ❌ Generic errors in status bar | ✅ Red error messages with specific guidance |
+| ❌ No progress indication | ✅ Elapsed time tracking and "Still waiting..." |
+| ❌ No way to cancel | ✅ Escape key cancellation |
+| ❌ Unclear server status | ✅ Ollama connectivity validation |
 
 ## Architecture Benefits
 
@@ -135,11 +156,16 @@ The enhanced Phase 2 implementation provides an excellent foundation for Phase 3
 - `pkg/tui/events.go` - Custom event types
 - `pkg/tui/events_test.go` - Event testing
 - `docs/PHASE_2_COMPLETION.md` - This document
+- `docs/SPINNER_ALERT_ENHANCEMENTS.md` - Detailed UX enhancement documentation
 
 ### Modified Files
-- `pkg/tui/app.go` - Non-blocking implementation
+- `pkg/tui/app.go` - Non-blocking implementation + UX enhancements
+- `pkg/tui/layout.go` - Added alert area to layout calculation
+- `pkg/tui/components.go` - Added AlertDisplay component
+- `pkg/tui/render.go` - Added alert rendering with base16 red colors
+- `pkg/tui/layout_test.go` - Updated tests for 4-area layout
 - `docs/DEVELOPMENT_ROADMAP.md` - Updated progress
-- `docs/ARCHITECTURE.md` - Added implementation details
+- `docs/ARCHITECTURE.md` - Added implementation details and AlertDisplay
 - `docs/TUI_PATTERNS.md` - Documented event patterns
 
 ## Risk Mitigation
