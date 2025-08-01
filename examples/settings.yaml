@@ -6,3 +6,4 @@ ollama:
 logging:
   file: ./.ryan/debug.log
   preserve: false
+show_thinking: true
