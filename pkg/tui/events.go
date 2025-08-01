@@ -144,3 +144,49 @@ func NewSpinnerAnimationEvent() *SpinnerAnimationEvent {
 		EventTime: tcell.EventTime{},
 	}
 }
+
+// ToolExecutionStartEvent is sent when a tool starts executing
+type ToolExecutionStartEvent struct {
+	tcell.EventTime
+	ToolName string
+}
+
+// ToolExecutionCompleteEvent is sent when a tool completes successfully
+type ToolExecutionCompleteEvent struct {
+	tcell.EventTime
+	ToolName string
+	Result   string
+}
+
+// ToolExecutionErrorEvent is sent when a tool execution fails
+type ToolExecutionErrorEvent struct {
+	tcell.EventTime
+	ToolName string
+	Error    error
+}
+
+// NewToolExecutionStartEvent creates a new tool execution start event
+func NewToolExecutionStartEvent(toolName string) *ToolExecutionStartEvent {
+	return &ToolExecutionStartEvent{
+		EventTime: tcell.EventTime{},
+		ToolName:  toolName,
+	}
+}
+
+// NewToolExecutionCompleteEvent creates a new tool execution complete event
+func NewToolExecutionCompleteEvent(toolName, result string) *ToolExecutionCompleteEvent {
+	return &ToolExecutionCompleteEvent{
+		EventTime: tcell.EventTime{},
+		ToolName:  toolName,
+		Result:    result,
+	}
+}
+
+// NewToolExecutionErrorEvent creates a new tool execution error event
+func NewToolExecutionErrorEvent(toolName string, err error) *ToolExecutionErrorEvent {
+	return &ToolExecutionErrorEvent{
+		EventTime: tcell.EventTime{},
+		ToolName:  toolName,
+		Error:     err,
+	}
+}

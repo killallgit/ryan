@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/killallgit/ryan/pkg/models"
 	"github.com/killallgit/ryan/pkg/ollama"
 )
 
@@ -185,9 +186,23 @@ func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDispl
 			statusIcon = "🟢" // running
 		}
 
-		nameWithStatus := statusIcon + " " + truncateString(model.Name, 28)
+		// Add tool compatibility indicator
+		toolIcon := ""
+		if models.IsRecommendedForTools(model.Name) {
+			modelInfo := models.GetModelInfo(model.Name)
+			switch modelInfo.ToolCompatibility {
+			case models.ToolCompatibilityExcellent:
+				toolIcon = "🔧" // Excellent tool support
+			case models.ToolCompatibilityGood:
+				toolIcon = "⚙️"  // Good tool support
+			case models.ToolCompatibilityBasic:
+				toolIcon = "🔩" // Basic tool support
+			}
+		}
+
+		nameWithIndicators := statusIcon + toolIcon + " " + truncateString(model.Name, 26)
 		line := fmt.Sprintf("%-30s %8.1fGB %12s %15s",
-			nameWithStatus,
+			nameWithIndicators,
 			sizeGB,
 			model.ParameterSize,
 			model.QuantizationLevel,
