@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/ollama"
@@ -285,4 +286,260 @@ func (cc *ChatController) SetModelWithValidation(model string) error {
 
 	cc.SetModel(model)
 	return nil
+}
+
+// Streaming functionality
+
+// StreamingUpdate represents updates from the streaming process
+type StreamingUpdate struct {
+	Type     StreamingUpdateType
+	StreamID string
+	Content  string
+	Chunk    chat.MessageChunk
+	Message  chat.Message
+	Error    error
+	Metadata StreamingMetadata
+}
+
+// StreamingUpdateType indicates the type of streaming update
+type StreamingUpdateType int
+
+const (
+	StreamStarted StreamingUpdateType = iota
+	ChunkReceived
+	MessageComplete
+	StreamError
+	ToolExecutionStarted
+	ToolExecutionComplete
+)
+
+// StreamingMetadata provides additional context about the stream
+type StreamingMetadata struct {
+	ChunkCount    int
+	ContentLength int
+	Duration      time.Duration
+	Model         string
+}
+
+// StartStreaming initiates streaming for a user message
+func (cc *ChatController) StartStreaming(ctx context.Context, content string) (<-chan StreamingUpdate, error) {
+	if strings.TrimSpace(content) == "" {
+		return nil, fmt.Errorf("message content cannot be empty")
+	}
+
+	// Check if client supports streaming
+	streamingClient, ok := cc.client.(chat.StreamingChatClient)
+	if !ok {
+		// Fallback to non-streaming
+		return cc.fallbackToNonStreaming(ctx, content)
+	}
+
+	return cc.executeStreamingChat(ctx, streamingClient, content)
+}
+
+// executeStreamingChat handles the streaming chat process with tool support
+func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingClient chat.StreamingChatClient, userMessage string) (<-chan StreamingUpdate, error) {
+	maxIterations := 10
+
+	// Store original conversation in case we need to rollback on error
+	originalConversation := cc.conversation
+
+	// Check if the user message was already added (optimistic UI update)
+	needsUserMessage := true
+	if len(cc.conversation.Messages) > 0 {
+		lastMsg := cc.conversation.Messages[len(cc.conversation.Messages)-1]
+		if lastMsg.Role == chat.RoleUser && lastMsg.Content == userMessage {
+			needsUserMessage = false
+		}
+	}
+
+	// Add user message if not already present
+	if needsUserMessage {
+		cc.conversation = chat.AddMessage(cc.conversation, chat.NewUserMessage(userMessage))
+	}
+
+	// Create update channel
+	updates := make(chan StreamingUpdate, 100)
+
+	// Start streaming goroutine
+	go func() {
+		defer close(updates)
+
+		accumulator := chat.NewMessageAccumulator()
+
+		for i := 0; i < maxIterations; i++ {
+			// Prepare chat request with tools if available
+			var req chat.ChatRequest
+			if cc.toolRegistry != nil {
+				toolDefs, err := cc.toolRegistry.GetDefinitions("ollama")
+				if err != nil {
+					updates <- StreamingUpdate{
+						Type:  StreamError,
+						Error: fmt.Errorf("failed to get tool definitions: %w", err),
+					}
+					cc.conversation = originalConversation
+					return
+				}
+
+				// Convert tool definitions
+				tools := make([]map[string]any, len(toolDefs))
+				for j, def := range toolDefs {
+					tools[j] = def.Definition
+				}
+
+				req = chat.CreateStreamingChatRequestWithTools(cc.conversation, "", tools)
+			} else {
+				req = chat.CreateStreamingChatRequest(cc.conversation, "")
+			}
+
+			// Start streaming
+			chunks, err := streamingClient.StreamMessage(ctx, req)
+			if err != nil {
+				updates <- StreamingUpdate{
+					Type:  StreamError,
+					Error: fmt.Errorf("failed to start streaming: %w", err),
+				}
+				cc.conversation = originalConversation
+				return
+			}
+
+			streamID := ""
+			startTime := time.Now()
+			var assistantMessage chat.Message
+
+			// Send stream started event
+			updates <- StreamingUpdate{
+				Type:     StreamStarted,
+				StreamID: streamID,
+				Metadata: StreamingMetadata{
+					Model: cc.conversation.Model,
+				},
+			}
+
+			// Process chunks
+			for chunk := range chunks {
+				if chunk.Error != nil {
+					updates <- StreamingUpdate{
+						Type:     StreamError,
+						StreamID: chunk.StreamID,
+						Error:    chunk.Error,
+					}
+					continue
+				}
+
+				if streamID == "" {
+					streamID = chunk.StreamID
+				}
+
+				// Add chunk to accumulator
+				accumulator.AddChunk(chunk)
+
+				// Send chunk update
+				stats, _ := accumulator.GetStreamStats(chunk.StreamID)
+				updates <- StreamingUpdate{
+					Type:     ChunkReceived,
+					StreamID: chunk.StreamID,
+					Content:  chunk.Content,
+					Chunk:    chunk,
+					Metadata: StreamingMetadata{
+						ChunkCount:    stats.ChunkCount,
+						ContentLength: len(accumulator.GetCurrentContent(chunk.StreamID)),
+						Duration:      time.Since(startTime),
+						Model:         chunk.Model,
+					},
+				}
+
+				// Check if stream is complete
+				if chunk.Done {
+					// Get final message
+					finalMessage, exists := accumulator.GetCompleteMessage(chunk.StreamID)
+					if exists {
+						assistantMessage = finalMessage
+
+						// Update token tracking from last chunk
+						cc.lastPromptTokens = chunk.PromptEvalCount
+						cc.lastResponseTokens = chunk.EvalCount
+
+						// Add assistant message to conversation
+						cc.conversation = chat.AddMessage(cc.conversation, assistantMessage)
+
+						// Send completion event
+						finalStats, _ := accumulator.GetStreamStats(chunk.StreamID)
+						updates <- StreamingUpdate{
+							Type:     MessageComplete,
+							StreamID: chunk.StreamID,
+							Message:  assistantMessage,
+							Metadata: StreamingMetadata{
+								ChunkCount:    finalStats.ChunkCount,
+								ContentLength: len(assistantMessage.Content),
+								Duration:      time.Since(startTime),
+								Model:         chunk.Model,
+							},
+						}
+					}
+					break
+				}
+			}
+
+			// Check if assistant wants to call tools
+			if !assistantMessage.HasToolCalls() {
+				// No tool calls, streaming complete
+				return
+			}
+
+			// Execute tool calls
+			updates <- StreamingUpdate{
+				Type:     ToolExecutionStarted,
+				StreamID: streamID,
+			}
+
+			err = cc.executeToolCalls(ctx, assistantMessage.ToolCalls)
+			if err != nil {
+				updates <- StreamingUpdate{
+					Type:  StreamError,
+					Error: fmt.Errorf("failed to execute tools: %w", err),
+				}
+				return
+			}
+
+			updates <- StreamingUpdate{
+				Type:     ToolExecutionComplete,
+				StreamID: streamID,
+			}
+
+			// Continue the loop to get the final response after tool execution
+		}
+
+		updates <- StreamingUpdate{
+			Type:  StreamError,
+			Error: fmt.Errorf("maximum tool execution iterations reached"),
+		}
+	}()
+
+	return updates, nil
+}
+
+// fallbackToNonStreaming provides non-streaming fallback when streaming is not available
+func (cc *ChatController) fallbackToNonStreaming(ctx context.Context, content string) (<-chan StreamingUpdate, error) {
+	updates := make(chan StreamingUpdate, 1)
+
+	go func() {
+		defer close(updates)
+
+		response, err := cc.SendUserMessageWithContext(ctx, content)
+		if err != nil {
+			updates <- StreamingUpdate{
+				Type:  StreamError,
+				Error: err,
+			}
+			return
+		}
+
+		updates <- StreamingUpdate{
+			Type:    MessageComplete,
+			Message: response,
+		}
+	}()
+
+	return updates, nil
 }
