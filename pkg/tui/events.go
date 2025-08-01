@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"time"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
 )
@@ -250,5 +252,101 @@ func NewModelNotFoundEvent(modelName string) *ModelNotFoundEvent {
 	return &ModelNotFoundEvent{
 		EventTime: tcell.EventTime{},
 		ModelName: modelName,
+	}
+}
+
+// Streaming Events
+
+// MessageChunkEvent is sent when a streaming message chunk is received
+type MessageChunkEvent struct {
+	tcell.EventTime
+	StreamID   string
+	Content    string
+	IsComplete bool
+	ChunkIndex int
+	Timestamp  time.Time
+}
+
+// StreamStartEvent is sent when a streaming message starts
+type StreamStartEvent struct {
+	tcell.EventTime
+	StreamID string
+	Model    string
+}
+
+// StreamCompleteEvent is sent when a streaming message completes
+type StreamCompleteEvent struct {
+	tcell.EventTime
+	StreamID     string
+	FinalMessage chat.Message
+	TotalChunks  int
+	Duration     time.Duration
+}
+
+// StreamErrorEvent is sent when a streaming message encounters an error
+type StreamErrorEvent struct {
+	tcell.EventTime
+	StreamID string
+	Error    error
+}
+
+// StreamProgressEvent is sent to update streaming progress indicators
+type StreamProgressEvent struct {
+	tcell.EventTime
+	StreamID      string
+	ContentLength int
+	ChunkCount    int
+	Duration      time.Duration
+}
+
+// NewMessageChunkEvent creates a new message chunk event
+func NewMessageChunkEvent(streamID, content string, isComplete bool, chunkIndex int) *MessageChunkEvent {
+	return &MessageChunkEvent{
+		EventTime:  tcell.EventTime{},
+		StreamID:   streamID,
+		Content:    content,
+		IsComplete: isComplete,
+		ChunkIndex: chunkIndex,
+		Timestamp:  time.Now(),
+	}
+}
+
+// NewStreamStartEvent creates a new stream start event
+func NewStreamStartEvent(streamID, model string) *StreamStartEvent {
+	return &StreamStartEvent{
+		EventTime: tcell.EventTime{},
+		StreamID:  streamID,
+		Model:     model,
+	}
+}
+
+// NewStreamCompleteEvent creates a new stream complete event
+func NewStreamCompleteEvent(streamID string, finalMessage chat.Message, totalChunks int, duration time.Duration) *StreamCompleteEvent {
+	return &StreamCompleteEvent{
+		EventTime:    tcell.EventTime{},
+		StreamID:     streamID,
+		FinalMessage: finalMessage,
+		TotalChunks:  totalChunks,
+		Duration:     duration,
+	}
+}
+
+// NewStreamErrorEvent creates a new stream error event
+func NewStreamErrorEvent(streamID string, err error) *StreamErrorEvent {
+	return &StreamErrorEvent{
+		EventTime: tcell.EventTime{},
+		StreamID:  streamID,
+		Error:     err,
+	}
+}
+
+// NewStreamProgressEvent creates a new stream progress event
+func NewStreamProgressEvent(streamID string, contentLength, chunkCount int, duration time.Duration) *StreamProgressEvent {
+	return &StreamProgressEvent{
+		EventTime:     tcell.EventTime{},
+		StreamID:      streamID,
+		ContentLength: contentLength,
+		ChunkCount:    chunkCount,
+		Duration:      duration,
 	}
 }

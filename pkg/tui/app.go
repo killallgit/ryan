@@ -31,6 +31,12 @@ type App struct {
 	spinnerTicker *time.Ticker
 	spinnerStop   chan bool
 	modal         ModalDialog
+
+	// Streaming state
+	streaming         bool                     // Track if we're currently streaming
+	currentStreamID   string                   // Current stream identifier
+	streamingContent  string                   // Accumulating streaming content
+	streamAccumulator *chat.MessageAccumulator // Message accumulator for streaming
 }
 
 func checkOllamaConnectivity(baseURL string) error {
@@ -118,6 +124,12 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 		spinnerTicker: time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
 		spinnerStop:   make(chan bool),
 		modal:         NewModalDialog(),
+
+		// Initialize streaming state
+		streaming:         false,
+		currentStreamID:   "",
+		streamingContent:  "",
+		streamAccumulator: chat.NewMessageAccumulator(),
 	}
 
 	app.updateMessages()
@@ -210,6 +222,16 @@ func (app *App) handleEvent(event tcell.Event) {
 		app.handleModelDownloadError(ev)
 	case *ModelNotFoundEvent:
 		app.handleModelNotFound(ev)
+	case *MessageChunkEvent:
+		app.handleMessageChunk(ev)
+	case *StreamStartEvent:
+		app.handleStreamStart(ev)
+	case *StreamCompleteEvent:
+		app.handleStreamComplete(ev)
+	case *StreamErrorEvent:
+		app.handleStreamError(ev)
+	case *StreamProgressEvent:
+		app.handleStreamProgress(ev)
 	}
 }
 
@@ -666,6 +688,174 @@ func (app *App) handleModelNotFound(ev *ModelNotFoundEvent) {
 		log.Debug("Model not found event received", "model_name", ev.ModelName)
 	} else {
 		log.Debug("Current view is not ModelView, ignoring ModelNotFoundEvent", "current_view_type", currentView)
+	}
+}
+
+// Streaming Event Handlers
+
+func (app *App) handleMessageChunk(ev *MessageChunkEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling MessageChunkEvent",
+		"stream_id", ev.StreamID,
+		"content_length", len(ev.Content),
+		"is_complete", ev.IsComplete,
+		"chunk_index", ev.ChunkIndex)
+
+	// Update streaming state
+	if app.currentStreamID == "" {
+		app.currentStreamID = ev.StreamID
+		app.streaming = true
+	}
+
+	// Accumulate content
+	if ev.Content != "" {
+		app.streamingContent += ev.Content
+	}
+
+	// Add chunk to accumulator
+	chunk := chat.MessageChunk{
+		ID:        fmt.Sprintf("%s-%d", ev.StreamID, ev.ChunkIndex),
+		Content:   ev.Content,
+		Done:      ev.IsComplete,
+		Timestamp: ev.Timestamp,
+		StreamID:  ev.StreamID,
+	}
+	app.streamAccumulator.AddChunk(chunk)
+
+	// Update ChatView with streaming content
+	if app.chatView != nil {
+		app.chatView.UpdateStreamingContent(ev.StreamID, app.streamingContent, ev.IsComplete)
+	}
+
+	log.Debug("Updated streaming content",
+		"total_length", len(app.streamingContent),
+		"chunk_count", ev.ChunkIndex+1)
+}
+
+func (app *App) handleStreamStart(ev *StreamStartEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling StreamStartEvent",
+		"stream_id", ev.StreamID,
+		"model", ev.Model)
+
+	// Initialize streaming state
+	app.streaming = true
+	app.currentStreamID = ev.StreamID
+	app.streamingContent = ""
+
+	// Update status to show streaming
+	app.status = app.status.WithStatus("Streaming...")
+
+	// Sync view state to show streaming indicators
+	app.viewManager.SyncViewState(app.sending)
+
+	// Notify ChatView about stream start
+	if app.chatView != nil {
+		app.chatView.HandleStreamStart(ev.StreamID, ev.Model)
+	}
+
+	log.Debug("Started streaming session", "stream_id", ev.StreamID)
+}
+
+func (app *App) handleStreamComplete(ev *StreamCompleteEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling StreamCompleteEvent",
+		"stream_id", ev.StreamID,
+		"total_chunks", ev.TotalChunks,
+		"duration", ev.Duration,
+		"final_message_length", len(ev.FinalMessage.Content))
+
+	// Clear streaming state
+	app.streaming = false
+	app.sending = false
+	app.currentStreamID = ""
+	app.streamingContent = ""
+
+	// Update status
+	app.status = app.status.WithStatus("Ready")
+
+	// Finalize message in accumulator
+	if app.streamAccumulator != nil {
+		app.streamAccumulator.FinalizeMessage(ev.StreamID)
+	}
+
+	// Notify ChatView about completion
+	if app.chatView != nil {
+		app.chatView.HandleStreamComplete(ev.StreamID, ev.FinalMessage, ev.TotalChunks, ev.Duration)
+		app.chatView.updateMessages()
+		app.chatView.scrollToBottom()
+	}
+
+	// Sync view state after state change
+	app.viewManager.SyncViewState(app.sending)
+
+	// Force render to update UI
+	app.render()
+
+	log.Debug("Completed streaming session",
+		"stream_id", ev.StreamID,
+		"final_content_length", len(ev.FinalMessage.Content),
+		"duration", ev.Duration)
+}
+
+func (app *App) handleStreamError(ev *StreamErrorEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Error("Handling StreamErrorEvent",
+		"stream_id", ev.StreamID,
+		"error", ev.Error)
+
+	// Clear streaming state
+	app.streaming = false
+	app.sending = false
+	app.currentStreamID = ""
+	app.streamingContent = ""
+
+	// Update status
+	app.status = app.status.WithStatus("Ready")
+
+	// Add error message to conversation
+	errorMsg := "Streaming Error: " + ev.Error.Error()
+	app.controller.AddErrorMessage(errorMsg)
+
+	// Clean up accumulator
+	if app.streamAccumulator != nil {
+		app.streamAccumulator.CleanupStream(ev.StreamID)
+	}
+
+	// Notify ChatView about error
+	if app.chatView != nil {
+		app.chatView.HandleStreamError(ev.StreamID, ev.Error)
+		app.chatView.updateMessages()
+	}
+
+	// Sync view state after state change
+	app.viewManager.SyncViewState(app.sending)
+
+	// Force render to update UI
+	app.render()
+
+	log.Debug("Handled streaming error", "stream_id", ev.StreamID)
+}
+
+func (app *App) handleStreamProgress(ev *StreamProgressEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling StreamProgressEvent",
+		"stream_id", ev.StreamID,
+		"content_length", ev.ContentLength,
+		"chunk_count", ev.ChunkCount,
+		"duration", ev.Duration)
+
+	// Update progress indicators in ChatView
+	if app.chatView != nil {
+		app.chatView.UpdateStreamProgress(ev.StreamID, ev.ContentLength, ev.ChunkCount, ev.Duration)
+	}
+
+	// Optional: Update status with progress info for very long streams
+	if ev.Duration > 5*time.Second {
+		statusText := fmt.Sprintf("Streaming... %d chars (%s)",
+			ev.ContentLength,
+			ev.Duration.Round(time.Second))
+		app.status = app.status.WithStatus(statusText)
 	}
 }
 

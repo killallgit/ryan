@@ -2,9 +2,12 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
 )
@@ -363,5 +366,81 @@ func (cv *ChatView) HandleModelDownloadError(ev ModelDownloadErrorEvent) {
 		cv.status = cv.status.WithStatus("Model download cancelled: " + ev.ModelName)
 	} else {
 		cv.status = cv.status.WithStatus("Model download failed: " + ev.Error.Error())
+	}
+}
+
+// Streaming Methods
+
+func (cv *ChatView) HandleStreamStart(streamID, model string) {
+	log := logger.WithComponent("chat_view")
+	log.Debug("Handling stream start in chat view", "stream_id", streamID, "model", model)
+
+	// Update status to show streaming
+	cv.status = cv.status.WithStatus("Streaming response...")
+
+	// Show spinner with streaming indicator
+	cv.alert = cv.alert.WithSpinner(true, "Streaming...")
+}
+
+func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete bool) {
+	log := logger.WithComponent("chat_view")
+	log.Debug("Updating streaming content in chat view",
+		"stream_id", streamID,
+		"content_length", len(content),
+		"is_complete", isComplete)
+
+	// For now, we'll update the messages display to show partial content
+	// In a more sophisticated implementation, we might have a separate
+	// streaming message display area
+	if !isComplete {
+		// Update spinner text to show progress
+		cv.alert = cv.alert.WithSpinner(true, "Streaming...").NextSpinnerFrame()
+	}
+}
+
+func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Message, totalChunks int, duration time.Duration) {
+	log := logger.WithComponent("chat_view")
+	log.Debug("Handling stream complete in chat view",
+		"stream_id", streamID,
+		"total_chunks", totalChunks,
+		"duration", duration.String(),
+		"final_message_length", len(finalMessage.Content))
+
+	// Hide spinner
+	cv.alert = cv.alert.WithSpinner(false, "")
+
+	// Update status
+	cv.status = cv.status.WithStatus("Ready")
+
+	// Update messages display with final content
+	cv.updateMessages()
+}
+
+func (cv *ChatView) HandleStreamError(streamID string, err error) {
+	log := logger.WithComponent("chat_view")
+	log.Error("Handling stream error in chat view", "stream_id", streamID, "error", err)
+
+	// Hide spinner
+	cv.alert = cv.alert.WithSpinner(false, "")
+
+	// Update status with error
+	cv.status = cv.status.WithStatus("Streaming failed: " + err.Error())
+
+	// Update messages display to show error
+	cv.updateMessages()
+}
+
+func (cv *ChatView) UpdateStreamProgress(streamID string, contentLength, chunkCount int, duration time.Duration) {
+	log := logger.WithComponent("chat_view")
+	log.Debug("Updating stream progress in chat view",
+		"stream_id", streamID,
+		"content_length", contentLength,
+		"chunk_count", chunkCount,
+		"duration", duration.String())
+
+	// Update spinner with progress info for long streams
+	if duration > 3*time.Second {
+		progressText := fmt.Sprintf("Streaming... %d chars", contentLength)
+		cv.alert = cv.alert.WithSpinner(true, progressText).NextSpinnerFrame()
 	}
 }
