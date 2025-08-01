@@ -141,6 +141,7 @@ type StatusBar struct {
 	Width          int
 	PromptTokens   int
 	ResponseTokens int
+	ModelAvailable bool
 }
 
 func NewStatusBar(width int) StatusBar {
@@ -150,6 +151,7 @@ func NewStatusBar(width int) StatusBar {
 		Width:          width,
 		PromptTokens:   0,
 		ResponseTokens: 0,
+		ModelAvailable: true,
 	}
 }
 
@@ -160,6 +162,7 @@ func (sb StatusBar) WithModel(model string) StatusBar {
 		Width:          sb.Width,
 		PromptTokens:   sb.PromptTokens,
 		ResponseTokens: sb.ResponseTokens,
+		ModelAvailable: sb.ModelAvailable,
 	}
 }
 
@@ -170,6 +173,7 @@ func (sb StatusBar) WithStatus(status string) StatusBar {
 		Width:          sb.Width,
 		PromptTokens:   sb.PromptTokens,
 		ResponseTokens: sb.ResponseTokens,
+		ModelAvailable: sb.ModelAvailable,
 	}
 }
 
@@ -180,6 +184,7 @@ func (sb StatusBar) WithWidth(width int) StatusBar {
 		Width:          width,
 		PromptTokens:   sb.PromptTokens,
 		ResponseTokens: sb.ResponseTokens,
+		ModelAvailable: sb.ModelAvailable,
 	}
 }
 
@@ -190,6 +195,18 @@ func (sb StatusBar) WithTokens(promptTokens, responseTokens int) StatusBar {
 		Width:          sb.Width,
 		PromptTokens:   promptTokens,
 		ResponseTokens: responseTokens,
+		ModelAvailable: sb.ModelAvailable,
+	}
+}
+
+func (sb StatusBar) WithModelAvailability(available bool) StatusBar {
+	return StatusBar{
+		Model:          sb.Model,
+		Status:         sb.Status,
+		Width:          sb.Width,
+		PromptTokens:   sb.PromptTokens,
+		ResponseTokens: sb.ResponseTokens,
+		ModelAvailable: available,
 	}
 }
 
@@ -356,4 +373,116 @@ func (ad AlertDisplay) GetDisplayText() string {
 		return ad.GetSpinnerFrame() + " " + ad.SpinnerText
 	}
 	return ""
+}
+
+type ModalDialog struct {
+	Visible bool
+	Title   string
+	Message string
+	Width   int
+	Height  int
+}
+
+func NewModalDialog() ModalDialog {
+	return ModalDialog{
+		Visible: false,
+		Title:   "",
+		Message: "",
+		Width:   50,
+		Height:  8,
+	}
+}
+
+func (md ModalDialog) WithError(title, message string) ModalDialog {
+	return ModalDialog{
+		Visible: true,
+		Title:   title,
+		Message: message,
+		Width:   md.Width,
+		Height:  md.Height,
+	}
+}
+
+func (md ModalDialog) Hide() ModalDialog {
+	return ModalDialog{
+		Visible: false,
+		Title:   md.Title,
+		Message: md.Message,
+		Width:   md.Width,
+		Height:  md.Height,
+	}
+}
+
+func (md ModalDialog) WithSize(width, height int) ModalDialog {
+	return ModalDialog{
+		Visible: md.Visible,
+		Title:   md.Title,
+		Message: md.Message,
+		Width:   width,
+		Height:  height,
+	}
+}
+
+func (md ModalDialog) Render(screen tcell.Screen, area Rect) {
+	if !md.Visible {
+		return
+	}
+
+	// Calculate modal position (centered)
+	modalWidth := md.Width
+	modalHeight := md.Height
+	if modalWidth > area.Width-4 {
+		modalWidth = area.Width - 4
+	}
+	if modalHeight > area.Height-4 {
+		modalHeight = area.Height - 4
+	}
+
+	modalX := (area.Width - modalWidth) / 2
+	modalY := (area.Height - modalHeight) / 2
+
+	modalArea := Rect{
+		X:      modalX,
+		Y:      modalY,
+		Width:  modalWidth,
+		Height: modalHeight,
+	}
+
+	// Draw modal background and border
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorRed)
+	drawBorder(screen, modalArea, borderStyle)
+
+	// Styles
+	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorRed).Bold(true)
+	messageStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+
+	// Render title
+	if md.Title != "" {
+		titleX := modalArea.X + (modalArea.Width-len(md.Title))/2
+		if titleX < modalArea.X+1 {
+			titleX = modalArea.X + 1
+		}
+		renderTextWithLimit(screen, titleX, modalArea.Y+1, modalArea.Width-2, md.Title, titleStyle)
+	}
+
+	// Render message (wrap text if needed)
+	if md.Message != "" {
+		lines := WrapText(md.Message, modalArea.Width-4)
+		startY := modalArea.Y + 3
+		for i, line := range lines {
+			if startY+i >= modalArea.Y+modalArea.Height-3 {
+				break
+			}
+			renderTextWithLimit(screen, modalArea.X+2, startY+i, modalArea.Width-4, line, messageStyle)
+		}
+	}
+
+	// Render instruction
+	instruction := "Press any key to continue"
+	instrX := modalArea.X + (modalArea.Width-len(instruction))/2
+	if instrX < modalArea.X+1 {
+		instrX = modalArea.X + 1
+	}
+	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
 }

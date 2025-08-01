@@ -25,7 +25,7 @@ func NewChatView(controller *controllers.ChatController, screen tcell.Screen) *C
 		controller: controller,
 		input:      NewInputField(width),
 		messages:   NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
-		status:     NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
+		status:     NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready").WithModelAvailability(true),
 		layout:     NewLayout(width, height),
 		screen:     screen,
 		alert:      NewAlertDisplay(width),

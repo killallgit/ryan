@@ -29,6 +29,7 @@ type App struct {
 	chatView      *ChatView
 	spinnerTicker *time.Ticker
 	spinnerStop   chan bool
+	modal         ModalDialog
 }
 
 func checkOllamaConnectivity(baseURL string) error {
@@ -78,10 +79,10 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	log.Debug("Creating ollama client for models", "url", ollamaURL)
 
 	// Check Ollama connectivity before proceeding
+	var connectivityError error
 	if err := checkOllamaConnectivity(ollamaURL); err != nil {
 		log.Error("Ollama connectivity check failed", "error", err)
-		// Don't fail app startup, but show warning in status
-		chatView.alert = chatView.alert.WithError(fmt.Sprintf("Warning: %v", err))
+		connectivityError = err
 	}
 
 	ollamaClient := ollama.NewClient(ollamaURL)
@@ -106,9 +107,17 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 		chatView:      chatView,
 		spinnerTicker: time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
 		spinnerStop:   make(chan bool),
+		modal:         NewModalDialog(),
 	}
 
 	app.updateMessages()
+
+	// Show connectivity error modal if there was an issue
+	if connectivityError != nil {
+		app.modal = app.modal.WithError("Ollama Connection Error", 
+			fmt.Sprintf("Cannot connect to Ollama at %s\n\n%v\n\nPress any key to continue with limited functionality.", 
+				ollamaURL, connectivityError))
+	}
 
 	// Start spinner animation timer
 	go app.runSpinnerTimer()
@@ -192,6 +201,13 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 	log := logger.WithComponent("tui_app")
 	log.Debug("Handling key event", "key", ev.Key(), "rune", ev.Rune(), "modifiers", ev.Modifiers())
 
+	// Handle modal first
+	if app.modal.Visible {
+		app.modal = app.modal.Hide()
+		log.Debug("Modal dismissed")
+		return
+	}
+	
 	if app.viewManager.HandleMenuKeyEvent(ev) {
 		log.Debug("Key event handled by menu")
 		return
@@ -211,6 +227,11 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 			default:
 				log.Debug("Cancellation channel full, already cancelling")
 			}
+		} else if app.viewManager.GetCurrentViewName() != "chat" {
+			// Switch back to chat view if not already there
+			app.viewManager.SetCurrentView("chat")
+			app.viewManager.SyncViewState(app.sending)
+			log.Debug("Switched to chat view via Escape")
 		} else {
 			app.quit = true
 			log.Debug("Application quit triggered")
@@ -547,6 +568,9 @@ func (app *App) render() {
 	area := Rect{X: 0, Y: 0, Width: width, Height: height}
 
 	app.viewManager.Render(app.screen, area)
+	
+	// Render modal on top of everything else
+	app.modal.Render(app.screen, area)
 
 	app.screen.Show()
 }
