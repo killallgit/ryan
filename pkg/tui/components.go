@@ -321,7 +321,8 @@ func (sc SpinnerComponent) GetDisplayText() string {
 	if !sc.IsVisible {
 		return ""
 	}
-	return sc.GetCurrentFrame() + " " + sc.Text
+	// Only return the spinner character, no text
+	return sc.GetCurrentFrame()
 }
 
 type AlertDisplay struct {
@@ -408,7 +409,8 @@ func (ad AlertDisplay) GetDisplayText() string {
 		return ad.ErrorMessage
 	}
 	if ad.IsSpinnerVisible {
-		return ad.GetSpinnerFrame() + " " + ad.SpinnerText
+		// Only return the spinner character, no text
+		return ad.GetSpinnerFrame()
 	}
 	return ""
 }
