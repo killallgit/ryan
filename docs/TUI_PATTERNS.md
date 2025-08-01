@@ -367,7 +367,80 @@ func (app *StreamingApp) handleResize(ev *tcell.EventResize) bool {
 }
 ```
 
-## Streaming-Specific UI Patterns
+## Event-Driven Non-Blocking Patterns
+
+### Current Implementation: Custom Events
+Our TUI uses a custom event system to maintain responsiveness during API calls:
+
+```go
+// Custom event types in pkg/tui/events.go
+type MessageResponseEvent struct {
+    tcell.EventTime
+    Message chat.Message
+}
+
+type MessageErrorEvent struct {
+    tcell.EventTime
+    Error error
+}
+
+// Event handling in main loop
+func (app *App) handleEvent(event tcell.Event) {
+    switch ev := event.(type) {
+    case *tcell.EventKey:
+        app.handleKeyEvent(ev)
+    case *MessageResponseEvent:
+        app.handleMessageResponse(ev)
+    case *MessageErrorEvent:
+        app.handleMessageError(ev)
+    }
+}
+```
+
+### Non-Blocking Message Flow
+```go
+func (app *App) sendMessage() {
+    // 1. Update UI immediately
+    app.input = app.input.Clear()
+    app.sending = true
+    app.status = app.status.WithStatus("Sending...")
+    
+    // 2. API call in background
+    go func() {
+        response, err := app.controller.SendUserMessage(content)
+        
+        // 3. Post result back to main thread
+        if err != nil {
+            app.screen.PostEvent(NewMessageErrorEvent(err))
+        } else {
+            app.screen.PostEvent(NewMessageResponseEvent(response))
+        }
+    }()
+    // 4. Function returns immediately - UI stays responsive
+}
+```
+
+### State Management for Concurrency
+```go
+type App struct {
+    // ... other fields
+    sending bool  // Prevents multiple concurrent requests
+}
+
+// In key handler
+case tcell.KeyEnter:
+    if !app.sending {  // Only send if not already sending
+        app.sendMessage()
+    }
+```
+
+### Benefits of This Pattern
+- ✅ **UI Never Blocks**: Users can scroll, navigate during API calls
+- ✅ **Thread Safe**: Uses tcell's built-in PostEvent mechanism
+- ✅ **Clean Error Handling**: Errors displayed without blocking
+- ✅ **Extensible**: Easy to add more event types (perfect for streaming)
+
+## Streaming-Specific UI Patterns (Future)
 
 ### 1. Progressive Message Display
 ```go

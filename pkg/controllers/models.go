@@ -5,6 +5,7 @@ import (
 	"io"
 	"text/tabwriter"
 
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
 )
 
@@ -21,6 +22,34 @@ func NewModelsController(client OllamaClient) *ModelsController {
 	return &ModelsController{
 		client: client,
 	}
+}
+
+func (mc *ModelsController) Tags() (*ollama.TagsResponse, error) {
+	log := logger.WithComponent("models_controller")
+	log.Debug("Calling ollama client Tags()")
+	
+	response, err := mc.client.Tags()
+	if err != nil {
+		log.Error("ollama client Tags() failed", "error", err)
+		return nil, err
+	}
+	
+	log.Debug("ollama client Tags() succeeded", "model_count", len(response.Models))
+	return response, nil
+}
+
+func (mc *ModelsController) Ps() (*ollama.PsResponse, error) {
+	log := logger.WithComponent("models_controller")
+	log.Debug("Calling ollama client Ps()")
+	
+	response, err := mc.client.Ps()
+	if err != nil {
+		log.Error("ollama client Ps() failed", "error", err)
+		return nil, err
+	}
+	
+	log.Debug("ollama client Ps() succeeded", "running_count", len(response.Models))
+	return response, nil
 }
 
 func (mc *ModelsController) ListModels(writer io.Writer) error {

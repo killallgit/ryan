@@ -239,6 +239,31 @@ type StreamingChannels struct {
 - ✓ State management to prevent multiple concurrent requests
 - ✓ Thread-safe communication via tcell's PostEvent
 
+#### Non-Blocking Implementation Details
+The Phase 2 implementation solved a critical UX issue where the TUI would freeze during API calls:
+
+**Problem**: Synchronous `controller.SendUserMessage()` blocked the main event loop
+**Solution**: Event-driven architecture with goroutines
+
+```go
+// Custom event types for thread-safe communication
+type MessageResponseEvent struct {
+    tcell.EventTime
+    Message chat.Message
+}
+
+// Non-blocking flow
+User Input → sendMessage() → goroutine → API call → PostEvent → UI update
+     ↑                                                              │  
+     └───────────── UI stays responsive ──────────────────────────┘
+```
+
+**Key Benefits**:
+- Users can scroll and navigate during API calls
+- No UI blocking or freezing
+- Clean error handling with visual feedback
+- Foundation ready for streaming integration
+
 ### Ready for Phase 3: Streaming
 The foundation is now solid with:
 - Working chat functionality verified against real Ollama deployment

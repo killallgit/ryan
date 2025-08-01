@@ -36,6 +36,24 @@ var _ = Describe("Custom Events", func() {
 			Expect(event.Error.Error()).To(Equal("test error"))
 		})
 	})
+
+	Describe("ChatMessageSendEvent", func() {
+		It("should create event with content", func() {
+			content := "Hello, world!"
+			
+			event := tui.NewChatMessageSendEvent(content)
+			
+			Expect(event.Content).To(Equal(content))
+		})
+
+		It("should handle empty content", func() {
+			content := ""
+			
+			event := tui.NewChatMessageSendEvent(content)
+			
+			Expect(event.Content).To(Equal(""))
+		})
+	})
 })
 
 // Note: Tests are run by the existing TestTUI function in tui_suite_test.go

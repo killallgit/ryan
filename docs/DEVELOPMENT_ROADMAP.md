@@ -152,9 +152,9 @@ var chatCmd = &cobra.Command{
 - Task commands added: `task test:integration`, `task test:all`
 - App is now TUI-focused with no CLI chat interface
 
-## Phase 2: Simple TUI Foundation
+## Phase 2: Simple TUI Foundation ✓ COMPLETED
 **Duration**: 1 week  
-**Goal**: Basic TUI that works with synchronous chat
+**Goal**: Basic TUI that works with synchronous chat - Extended to non-blocking
 
 ### 2.1: Basic TUI Components (`pkg/tui/`)
 **Files**: `components.go`, `layout.go`, `render.go`
@@ -278,32 +278,52 @@ func (l Layout) HandleResize(newWidth, newHeight int) Layout
 - Resize handling
 - Minimum size constraints
 
-**Exit Criteria**: TUI adapts correctly to terminal resizing
+**Exit Criteria**: TUI adapts correctly to terminal resizing ✓ COMPLETED
 
-### 2.4: Enhanced Command (`cmd/chat.go`)
-**Purpose**: Replace simple CLI with TUI
+### 2.4: Non-Blocking Implementation (`pkg/tui/events.go`, `pkg/tui/app.go`)
+**Purpose**: Prevent UI blocking during API calls - IMPLEMENTED BEYOND SPEC
 
 ```go
-var chatCmd = &cobra.Command{
-    Use:   "chat",
-    Short: "Start interactive chat TUI",
-    Run: func(cmd *cobra.Command, args []string) {
-        client := chat.NewClient(viper.GetString("ollama.url"))
-        controller := controllers.NewChatController(client, "llama3.1:8b")
-        
-        app, err := tui.NewApp(controller)
+// Custom events for non-blocking communication
+type MessageResponseEvent struct {
+    tcell.EventTime
+    Message chat.Message
+}
+
+type MessageErrorEvent struct {
+    tcell.EventTime
+    Error error
+}
+
+// Non-blocking sendMessage implementation
+func (app *App) sendMessage() {
+    // Clear input immediately and set sending state
+    app.input = app.input.Clear()
+    app.sending = true
+    app.status = app.status.WithStatus("Sending...")
+    
+    // Send in goroutine to avoid blocking UI
+    go func() {
+        response, err := app.controller.SendUserMessage(content)
         if err != nil {
-            log.Fatal(err)
+            app.screen.PostEvent(NewMessageErrorEvent(err))
+        } else {
+            app.screen.PostEvent(NewMessageResponseEvent(response))
         }
-        
-        if err := app.Run(); err != nil {
-            log.Fatal(err)
-        }
-    },
+    }()
 }
 ```
 
-**Exit Criteria**: `ryan chat` starts a functional TUI chat interface
+**Exit Criteria**: TUI remains responsive during API calls ✓ COMPLETED
+
+### Phase 2 Completion Notes:
+- Basic TUI components fully implemented and working
+- Layout management and responsive resizing ✓
+- Event handling and keyboard navigation ✓
+- **NON-BLOCKING UI**: Extended beyond original spec to solve UI blocking
+- Custom event system for thread-safe API communication
+- State management prevents multiple concurrent requests
+- Ready for streaming integration in Phase 3
 
 ## Phase 3: Streaming Infrastructure
 **Duration**: 1 week  
@@ -596,15 +616,17 @@ func (sa *StreamingApp) safeUpdateStreamingText(content string) {
 
 ## Success Metrics
 
-### Phase 1: Foundation
-- [ ] All unit tests pass
-- [ ] Can have basic CLI conversation
-- [ ] Clean, testable architecture
+### Phase 1: Foundation ✅ ACHIEVED
+- [x] All unit tests pass
+- [x] Can have basic conversation (TUI-only)
+- [x] Clean, testable architecture
 
-### Phase 2: Basic TUI
-- [ ] Functional chat interface
-- [ ] Responsive to terminal resizing
-- [ ] Clean event handling
+### Phase 2: Basic TUI ✅ ACHIEVED
+- [x] Functional chat interface
+- [x] Responsive to terminal resizing
+- [x] Clean event handling
+- [x] Non-blocking UI during API calls
+- [x] Thread-safe event communication
 
 ### Phase 3: Streaming
 - [ ] Streaming works in isolation

@@ -19,6 +19,30 @@ type MessageErrorEvent struct {
 	Error error
 }
 
+// ViewChangeEvent is sent when a view change is requested
+type ViewChangeEvent struct {
+	tcell.EventTime
+	ViewName string
+}
+
+// MenuToggleEvent is sent when the menu should be toggled
+type MenuToggleEvent struct {
+	tcell.EventTime
+	Show bool
+}
+
+// ModelListUpdateEvent is sent when model list data is updated
+type ModelListUpdateEvent struct {
+	tcell.EventTime
+	Models []ModelInfo
+}
+
+// ModelStatsUpdateEvent is sent when model statistics are updated
+type ModelStatsUpdateEvent struct {
+	tcell.EventTime
+	Stats ModelStats
+}
+
 // NewMessageResponseEvent creates a new message response event
 func NewMessageResponseEvent(message chat.Message) *MessageResponseEvent {
 	return &MessageResponseEvent{
@@ -32,5 +56,65 @@ func NewMessageErrorEvent(err error) *MessageErrorEvent {
 	return &MessageErrorEvent{
 		EventTime: tcell.EventTime{},
 		Error:     err,
+	}
+}
+
+// NewViewChangeEvent creates a new view change event
+func NewViewChangeEvent(viewName string) *ViewChangeEvent {
+	return &ViewChangeEvent{
+		EventTime: tcell.EventTime{},
+		ViewName:  viewName,
+	}
+}
+
+// NewMenuToggleEvent creates a new menu toggle event
+func NewMenuToggleEvent(show bool) *MenuToggleEvent {
+	return &MenuToggleEvent{
+		EventTime: tcell.EventTime{},
+		Show:      show,
+	}
+}
+
+// NewModelListUpdateEvent creates a new model list update event
+func NewModelListUpdateEvent(models []ModelInfo) *ModelListUpdateEvent {
+	return &ModelListUpdateEvent{
+		EventTime: tcell.EventTime{},
+		Models:    models,
+	}
+}
+
+// ModelErrorEvent is sent when model operations fail
+type ModelErrorEvent struct {
+	tcell.EventTime
+	Error error
+}
+
+// NewModelStatsUpdateEvent creates a new model stats update event
+func NewModelStatsUpdateEvent(stats ModelStats) *ModelStatsUpdateEvent {
+	return &ModelStatsUpdateEvent{
+		EventTime: tcell.EventTime{},
+		Stats:     stats,
+	}
+}
+
+// NewModelErrorEvent creates a new model error event
+func NewModelErrorEvent(err error) *ModelErrorEvent {
+	return &ModelErrorEvent{
+		EventTime: tcell.EventTime{},
+		Error:     err,
+	}
+}
+
+// ChatMessageSendEvent is sent when a chat message should be sent
+type ChatMessageSendEvent struct {
+	tcell.EventTime
+	Content string
+}
+
+// NewChatMessageSendEvent creates a new chat message send event
+func NewChatMessageSendEvent(content string) *ChatMessageSendEvent {
+	return &ChatMessageSendEvent{
+		EventTime: tcell.EventTime{},
+		Content:   content,
 	}
 }

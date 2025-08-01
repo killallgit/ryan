@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/killallgit/ryan/pkg/logger"
 )
 
 type Client struct {
@@ -13,6 +15,9 @@ type Client struct {
 }
 
 func NewClient(baseURL string) *Client {
+	log := logger.WithComponent("ollama_client")
+	log.Debug("Creating new ollama client", "base_url", baseURL, "timeout", "30s")
+	
 	return &Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{
@@ -22,43 +27,63 @@ func NewClient(baseURL string) *Client {
 }
 
 func (c *Client) Tags() (*TagsResponse, error) {
+	log := logger.WithComponent("ollama_client")
 	url := fmt.Sprintf("%s/api/tags", c.baseURL)
 	
+	log.Debug("Making HTTP GET request to tags endpoint", "url", url)
 	resp, err := c.httpClient.Get(url)
 	if err != nil {
+		log.Error("HTTP GET to tags endpoint failed", "url", url, "error", err)
 		return nil, fmt.Errorf("failed to get tags: %w", err)
 	}
 	defer resp.Body.Close()
 
+	log.Debug("Received HTTP response from tags endpoint", 
+		"status_code", resp.StatusCode, 
+		"content_length", resp.ContentLength)
+
 	if resp.StatusCode != http.StatusOK {
+		log.Error("Tags endpoint returned non-200 status", "status_code", resp.StatusCode)
 		return nil, fmt.Errorf("tags request failed with status: %d", resp.StatusCode)
 	}
 
 	var tagsResponse TagsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tagsResponse); err != nil {
+		log.Error("Failed to decode JSON response from tags endpoint", "error", err)
 		return nil, fmt.Errorf("failed to decode tags response: %w", err)
 	}
 
+	log.Debug("Successfully decoded tags response", "model_count", len(tagsResponse.Models))
 	return &tagsResponse, nil
 }
 
 func (c *Client) Ps() (*PsResponse, error) {
+	log := logger.WithComponent("ollama_client")
 	url := fmt.Sprintf("%s/api/ps", c.baseURL)
 	
+	log.Debug("Making HTTP GET request to ps endpoint", "url", url)
 	resp, err := c.httpClient.Get(url)
 	if err != nil {
+		log.Error("HTTP GET to ps endpoint failed", "url", url, "error", err)
 		return nil, fmt.Errorf("failed to get ps: %w", err)
 	}
 	defer resp.Body.Close()
 
+	log.Debug("Received HTTP response from ps endpoint", 
+		"status_code", resp.StatusCode, 
+		"content_length", resp.ContentLength)
+
 	if resp.StatusCode != http.StatusOK {
+		log.Error("Ps endpoint returned non-200 status", "status_code", resp.StatusCode)
 		return nil, fmt.Errorf("ps request failed with status: %d", resp.StatusCode)
 	}
 
 	var psResponse PsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&psResponse); err != nil {
+		log.Error("Failed to decode JSON response from ps endpoint", "error", err)
 		return nil, fmt.Errorf("failed to decode ps response: %w", err)
 	}
 
+	log.Debug("Successfully decoded ps response", "running_count", len(psResponse.Models))
 	return &psResponse, nil
 }
