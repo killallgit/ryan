@@ -8,7 +8,8 @@
 ~~7. When we do have a connection to ollama, we need to make sure there is a model to use. If there is only one avail in ollama we need to make sure that the text showing the default model is red-strikethrough to show unavailability. This should be the case whenever any model that is set is not avail in ollama.~~
 ~~7. When we do have a connection to ollama, we need to make sure there is a model to use. If there is only one avail in ollama we need to make sure that the text showing the default model is red-strikethrough to show unavailability. This should be the case whenever any model that is set is not avail in ollama.~~
 ~~8. Refactor the "view select modal" to be more of a command pallette - a little wider, ho header, a straight simple list of views and actions.~~
-- Pressing <ctrl-d> should prompt the user to delete the model with a confirmation modal
+~~- Pressing <ctrl-d> should prompt the user to delete the model with a confirmation modal~~
+- The delete confirm modal needs to be simplified to read "Delete: <MODEL_NAME>\n Press <enter> to confirm, <esc> to cancel"
 - Remove "Model:" text from the status footer. Only show the model name. Adjust the font color to be dim white
 - There needs to be a lot more margin or padding around the whole TUI. The inside chat area should have slightly more margin / padding than the rest.
 - The footer status bar needs to be simplified on the model management page. It should say: models: <NUM_MODELS> | size: <TOTAL_SIZE> | running: [+] or [-] for not
