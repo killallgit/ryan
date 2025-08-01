@@ -95,10 +95,10 @@ func (mc MenuComponent) Render(screen tcell.Screen, area Rect) {
 		return
 	}
 	
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
-	selectedStyle := tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorWhite)
-	normalStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
-	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(tcell.ColorBlue).Bold(true)
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	selectedStyle := tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorOrange)
+	normalStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
 	
 	drawBorder(screen, area, borderStyle)
 	
@@ -167,11 +167,6 @@ func drawBorder(screen tcell.Screen, area Rect, style tcell.Style) {
 	screen.SetContent(area.X, area.Y+area.Height-1, '└', nil, style)
 	screen.SetContent(area.X+area.Width-1, area.Y+area.Height-1, '┘', nil, style)
 	
-	for y := area.Y + 1; y < area.Y+area.Height-1; y++ {
-		for x := area.X + 1; x < area.X+area.Width-1; x++ {
-			screen.SetContent(x, y, ' ', nil, style)
-		}
-	}
 }
 
 func renderTextWithLimit(screen tcell.Screen, x, y, maxWidth int, text string, style tcell.Style) {
