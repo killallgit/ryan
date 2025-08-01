@@ -216,9 +216,9 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 			log.Debug("Application quit triggered")
 		}
 		
-	case tcell.KeyF1:  // Changed from KeyCtrlM to avoid conflict with Enter
+	case tcell.KeyCtrlP:
 		app.viewManager.ToggleMenu()
-		log.Debug("Menu toggled via F1")
+		log.Debug("Menu toggled via Ctrl+P")
 		
 	default:
 		currentView := app.viewManager.GetCurrentView()

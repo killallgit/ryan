@@ -66,7 +66,7 @@ var _ = Describe("State Management", func() {
 			It("should maintain sending state across view switches", func() {
 				// This test would verify the specific bug scenario:
 				// 1. Start sending a message
-				// 2. Open view menu (F1)
+				// 2. Open view menu (Ctrl+P)
 				// 3. Close view menu (Escape)
 				// 4. Try to send another message - should work
 				Skip("Requires App interface refactoring for testability")
