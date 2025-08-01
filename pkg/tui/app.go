@@ -156,9 +156,6 @@ func (app *App) cleanup() {
 }
 
 func (app *App) runSpinnerTimer() {
-	log := logger.WithComponent("tui_app")
-	log.Debug("Starting spinner animation timer")
-
 	for {
 		select {
 		case <-app.spinnerTicker.C:
@@ -167,7 +164,6 @@ func (app *App) runSpinnerTimer() {
 				app.screen.PostEvent(NewSpinnerAnimationEvent())
 			}
 		case <-app.spinnerStop:
-			log.Debug("Stopping spinner animation timer")
 			return
 		}
 	}
@@ -212,7 +208,6 @@ func (app *App) handleEvent(event tcell.Event) {
 
 func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 	log := logger.WithComponent("tui_app")
-	log.Debug("Handling key event", "key", ev.Key(), "rune", ev.Rune(), "modifiers", ev.Modifiers())
 
 	// Handle modal first
 	if app.modal.Visible {
@@ -222,7 +217,6 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 	}
 
 	if app.viewManager.HandleMenuKeyEvent(ev) {
-		log.Debug("Key event handled by menu")
 		return
 	}
 
@@ -257,10 +251,7 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 	default:
 		currentView := app.viewManager.GetCurrentView()
 		if currentView != nil {
-			handled := currentView.HandleKeyEvent(ev, app.sending)
-			log.Debug("Key event forwarded to current view", "view", currentView.Name(), "handled", handled)
-		} else {
-			log.Debug("No current view to handle key event")
+			currentView.HandleKeyEvent(ev, app.sending)
 		}
 	}
 }
@@ -316,7 +307,6 @@ func (app *App) sendMessageWithContent(content string) {
 
 	// Force immediate render to show spinner
 	app.render()
-	log.Debug("STATE TRANSITION: Forced render to show spinner")
 
 	// Send the message in a goroutine to avoid blocking the UI
 	go func() {
@@ -456,9 +446,7 @@ func (app *App) handleMessageError(ev *MessageErrorEvent) {
 	log.Debug("STATE TRANSITION: Forced render after error")
 }
 
-func (app *App) handleSpinnerAnimation(_ *SpinnerAnimationEvent) {
-	log := logger.WithComponent("tui_app")
-
+func (app *App) handleSpinnerAnimation(ev *SpinnerAnimationEvent) {
 	// Update spinner animation in ChatView
 	if app.chatView != nil && app.sending {
 		app.chatView.UpdateSpinnerFrame()
@@ -474,7 +462,6 @@ func (app *App) handleSpinnerAnimation(_ *SpinnerAnimationEvent) {
 			}
 		}
 
-		log.Debug("EVENT: Updated spinner frame in ChatView")
 	}
 }
 
