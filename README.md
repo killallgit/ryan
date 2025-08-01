@@ -21,20 +21,18 @@ ryan
 - [Ollama](https://ollama.ai/) running locally
 
 ### Build from source
+_for a better experience, install devbox_
+
 ```bash
-git clone https://github.com/killallgit/ryan.git
-cd ryan
+# create the nix environment
+devbox shell
+# build the binary
 task build
+# bin can be found at ./bin/ryan
 ```
 
 ## Configuration
-
-Create `~/.ryan/settings.yaml`:
-```yaml
-ollama:
-  url: "http://localhost:11434"
-  model: "llama3.1:8b"
-```
+docs TODO
 
 ## Development
 
