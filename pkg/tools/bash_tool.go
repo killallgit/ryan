@@ -32,6 +32,9 @@ func NewBashTool() *BashTool {
 	home, _ := os.UserHomeDir()
 	wd, _ := os.Getwd()
 	bashTimeout := viper.GetDuration("tools.bash.timeout")
+	if bashTimeout == 0 {
+		bashTimeout = 30 * time.Second
+	}
 	return &BashTool{
 		AllowedPaths: []string{
 			home,
