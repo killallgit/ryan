@@ -2,6 +2,7 @@ package ollama
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/killallgit/ryan/pkg/logger"
 )
+
+type ProgressCallback func(status string, completed, total int64)
 
 type Client struct {
 	baseURL    string
@@ -140,6 +143,89 @@ func (c *Client) Pull(modelName string) error {
 		}
 
 		log.Debug("Pull progress", "model", modelName, "status", pullResponse.Status)
+
+		// Handle errors in the response
+		if pullResponse.Error != "" {
+			log.Error("Pull failed with error", "model", modelName, "error", pullResponse.Error)
+			return fmt.Errorf("pull failed: %s", pullResponse.Error)
+		}
+
+		// Check for completion
+		if pullResponse.Status == "success" {
+			log.Debug("Successfully pulled model", "model", modelName)
+			return nil
+		}
+	}
+}
+
+func (c *Client) PullWithProgress(ctx context.Context, modelName string, progressCallback ProgressCallback) error {
+	log := logger.WithComponent("ollama_client")
+	url := fmt.Sprintf("%s/api/pull", c.baseURL)
+
+	pullRequest := PullRequest{
+		Name: modelName,
+	}
+
+	requestBody, err := json.Marshal(pullRequest)
+	if err != nil {
+		log.Error("Failed to marshal pull request", "model", modelName, "error", err)
+		return fmt.Errorf("failed to marshal pull request: %w", err)
+	}
+
+	// Create a client with longer timeout for model pulling
+	pullClient := &http.Client{
+		Timeout: 30 * time.Minute, // Model pulls can take a long time
+	}
+
+	log.Debug("Making HTTP POST request to pull endpoint with progress tracking", "url", url, "model", modelName)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return fmt.Errorf("failed to create pull request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := pullClient.Do(req)
+	if err != nil {
+		log.Error("HTTP POST to pull endpoint failed", "url", url, "model", modelName, "error", err)
+		return fmt.Errorf("failed to pull model: %w", err)
+	}
+	defer resp.Body.Close()
+
+	log.Debug("Received HTTP response from pull endpoint",
+		"status_code", resp.StatusCode,
+		"content_length", resp.ContentLength)
+
+	if resp.StatusCode != http.StatusOK {
+		log.Error("Pull endpoint returned non-200 status", "status_code", resp.StatusCode, "model", modelName)
+		return fmt.Errorf("pull request failed with status: %d", resp.StatusCode)
+	}
+
+	// Read and parse streaming response
+	decoder := json.NewDecoder(resp.Body)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debug("Pull operation cancelled", "model", modelName)
+			return ctx.Err()
+		default:
+		}
+
+		var pullResponse PullResponse
+		if err := decoder.Decode(&pullResponse); err != nil {
+			if err == io.EOF {
+				log.Error("Pull response stream ended unexpectedly", "model", modelName)
+				return fmt.Errorf("pull stream ended unexpectedly")
+			}
+			log.Error("Failed to decode pull response", "model", modelName, "error", err)
+			return fmt.Errorf("failed to decode pull response: %w", err)
+		}
+
+		log.Debug("Pull progress", "model", modelName, "status", pullResponse.Status, "completed", pullResponse.Completed, "total", pullResponse.Total)
+
+		// Call progress callback if provided
+		if progressCallback != nil {
+			progressCallback(pullResponse.Status, pullResponse.Completed, pullResponse.Total)
+		}
 
 		// Handle errors in the response
 		if pullResponse.Error != "" {

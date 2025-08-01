@@ -190,3 +190,65 @@ func NewToolExecutionErrorEvent(toolName string, err error) *ToolExecutionErrorE
 		Error:     err,
 	}
 }
+
+// ModelDownloadProgressEvent is sent during model download progress
+type ModelDownloadProgressEvent struct {
+	tcell.EventTime
+	ModelName string
+	Status    string
+	Progress  float64
+}
+
+// ModelDownloadCompleteEvent is sent when model download completes
+type ModelDownloadCompleteEvent struct {
+	tcell.EventTime
+	ModelName string
+}
+
+// ModelDownloadErrorEvent is sent when model download fails
+type ModelDownloadErrorEvent struct {
+	tcell.EventTime
+	ModelName string
+	Error     error
+}
+
+// ModelNotFoundEvent is sent when a selected model is not available locally
+type ModelNotFoundEvent struct {
+	tcell.EventTime
+	ModelName string
+}
+
+// NewModelDownloadProgressEvent creates a new model download progress event
+func NewModelDownloadProgressEvent(modelName, status string, progress float64) *ModelDownloadProgressEvent {
+	return &ModelDownloadProgressEvent{
+		EventTime: tcell.EventTime{},
+		ModelName: modelName,
+		Status:    status,
+		Progress:  progress,
+	}
+}
+
+// NewModelDownloadCompleteEvent creates a new model download complete event
+func NewModelDownloadCompleteEvent(modelName string) *ModelDownloadCompleteEvent {
+	return &ModelDownloadCompleteEvent{
+		EventTime: tcell.EventTime{},
+		ModelName: modelName,
+	}
+}
+
+// NewModelDownloadErrorEvent creates a new model download error event
+func NewModelDownloadErrorEvent(modelName string, err error) *ModelDownloadErrorEvent {
+	return &ModelDownloadErrorEvent{
+		EventTime: tcell.EventTime{},
+		ModelName: modelName,
+		Error:     err,
+	}
+}
+
+// NewModelNotFoundEvent creates a new model not found event
+func NewModelNotFoundEvent(modelName string) *ModelNotFoundEvent {
+	return &ModelNotFoundEvent{
+		EventTime: tcell.EventTime{},
+		ModelName: modelName,
+	}
+}

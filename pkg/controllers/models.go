@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"text/tabwriter"
@@ -9,18 +10,19 @@ import (
 	"github.com/killallgit/ryan/pkg/ollama"
 )
 
-type OllamaClient interface {
+type ModelsOllamaClient interface {
 	Tags() (*ollama.TagsResponse, error)
 	Ps() (*ollama.PsResponse, error)
 	Pull(modelName string) error
+	PullWithProgress(ctx context.Context, modelName string, progressCallback ollama.ProgressCallback) error
 	Delete(modelName string) error
 }
 
 type ModelsController struct {
-	client OllamaClient
+	client ModelsOllamaClient
 }
 
-func NewModelsController(client OllamaClient) *ModelsController {
+func NewModelsController(client ModelsOllamaClient) *ModelsController {
 	return &ModelsController{
 		client: client,
 	}
@@ -91,6 +93,20 @@ func (mc *ModelsController) Pull(modelName string) error {
 	}
 
 	log.Debug("ollama client Pull() succeeded", "model_name", modelName)
+	return nil
+}
+
+func (mc *ModelsController) PullWithProgress(ctx context.Context, modelName string, progressCallback ollama.ProgressCallback) error {
+	log := logger.WithComponent("models_controller")
+	log.Debug("Calling ollama client PullWithProgress()", "model_name", modelName)
+
+	err := mc.client.PullWithProgress(ctx, modelName, progressCallback)
+	if err != nil {
+		log.Error("ollama client PullWithProgress() failed", "model_name", modelName, "error", err)
+		return err
+	}
+
+	log.Debug("ollama client PullWithProgress() succeeded", "model_name", modelName)
 	return nil
 }
 

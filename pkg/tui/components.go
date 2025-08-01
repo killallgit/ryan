@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -758,4 +759,337 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 		instrX = modalArea.X + 1
 	}
 	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+}
+
+type DownloadPromptModal struct {
+	Visible   bool
+	ModelName string
+	Width     int
+	Height    int
+}
+
+func NewDownloadPromptModal() DownloadPromptModal {
+	return DownloadPromptModal{
+		Visible:   false,
+		ModelName: "",
+		Width:     60,
+		Height:    10,
+	}
+}
+
+func (dpm DownloadPromptModal) Show(modelName string) DownloadPromptModal {
+	return DownloadPromptModal{
+		Visible:   true,
+		ModelName: modelName,
+		Width:     dpm.Width,
+		Height:    dpm.Height,
+	}
+}
+
+func (dpm DownloadPromptModal) Hide() DownloadPromptModal {
+	return DownloadPromptModal{
+		Visible:   false,
+		ModelName: dpm.ModelName,
+		Width:     dpm.Width,
+		Height:    dpm.Height,
+	}
+}
+
+func (dpm DownloadPromptModal) HandleKeyEvent(ev *tcell.EventKey) (DownloadPromptModal, bool, bool) {
+	if !dpm.Visible {
+		return dpm, false, false
+	}
+
+	switch ev.Key() {
+	case tcell.KeyEscape:
+		return dpm.Hide(), false, false
+	case tcell.KeyEnter:
+		return dpm.Hide(), true, false
+	default:
+		if ev.Rune() != 0 {
+			switch ev.Rune() {
+			case 'y', 'Y':
+				return dpm.Hide(), true, false
+			case 'n', 'N':
+				return dpm.Hide(), false, false
+			}
+		}
+	}
+	return dpm, false, false
+}
+
+func (dpm DownloadPromptModal) Render(screen tcell.Screen, area Rect) {
+	if !dpm.Visible {
+		return
+	}
+
+	// Calculate modal position (centered)
+	modalWidth := dpm.Width
+	modalHeight := dpm.Height
+	if modalWidth > area.Width-4 {
+		modalWidth = area.Width - 4
+	}
+	if modalHeight > area.Height-4 {
+		modalHeight = area.Height - 4
+	}
+
+	modalX := (area.Width - modalWidth) / 2
+	modalY := (area.Height - modalHeight) / 2
+
+	modalArea := Rect{
+		X:      modalX,
+		Y:      modalY,
+		Width:  modalWidth,
+		Height: modalHeight,
+	}
+
+	// Draw modal background and border
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+	drawBorder(screen, modalArea, borderStyle)
+
+	// Styles
+	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
+	messageStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	modelStyle := tcell.StyleDefault.Foreground(tcell.ColorDarkCyan).Bold(true)
+	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
+
+	// Render title
+	title := "Download Model"
+	titleX := modalArea.X + (modalArea.Width-len(title))/2
+	if titleX < modalArea.X+1 {
+		titleX = modalArea.X + 1
+	}
+	renderTextWithLimit(screen, titleX, modalArea.Y+1, modalArea.Width-2, title, titleStyle)
+
+	// Render message
+	message1 := "The model you selected is not available locally:"
+	renderTextWithLimit(screen, modalArea.X+2, modalArea.Y+3, modalArea.Width-4, message1, messageStyle)
+
+	// Render model name (centered and highlighted)
+	modelNameX := modalArea.X + (modalArea.Width-len(dpm.ModelName))/2
+	if modelNameX < modalArea.X+1 {
+		modelNameX = modalArea.X + 1
+	}
+	renderTextWithLimit(screen, modelNameX, modalArea.Y+5, modalArea.Width-2, dpm.ModelName, modelStyle)
+
+	// Render prompt
+	message2 := "Would you like to download it now?"
+	message2X := modalArea.X + (modalArea.Width-len(message2))/2
+	if message2X < modalArea.X+1 {
+		message2X = modalArea.X + 1
+	}
+	renderTextWithLimit(screen, message2X, modalArea.Y+6, modalArea.Width-2, message2, messageStyle)
+
+	// Render instructions
+	instruction := "[Y]es / [N]o / [Esc] to cancel"
+	instrX := modalArea.X + (modalArea.Width-len(instruction))/2
+	if instrX < modalArea.X+1 {
+		instrX = modalArea.X + 1
+	}
+	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+}
+
+type ProgressModal struct {
+	Visible     bool
+	Title       string
+	ModelName   string
+	Status      string
+	Progress    float64
+	Spinner     SpinnerComponent
+	Cancellable bool
+	Width       int
+	Height      int
+}
+
+func NewProgressModal() ProgressModal {
+	return ProgressModal{
+		Visible:     false,
+		Title:       "",
+		ModelName:   "",
+		Status:      "",
+		Progress:    0.0,
+		Spinner:     NewSpinnerComponent(),
+		Cancellable: true,
+		Width:       60,
+		Height:      10,
+	}
+}
+
+func (pm ProgressModal) Show(title, modelName, status string, cancellable bool) ProgressModal {
+	return ProgressModal{
+		Visible:     true,
+		Title:       title,
+		ModelName:   modelName,
+		Status:      status,
+		Progress:    pm.Progress,
+		Spinner:     pm.Spinner.WithVisibility(true),
+		Cancellable: cancellable,
+		Width:       pm.Width,
+		Height:      pm.Height,
+	}
+}
+
+func (pm ProgressModal) Hide() ProgressModal {
+	return ProgressModal{
+		Visible:     false,
+		Title:       pm.Title,
+		ModelName:   pm.ModelName,
+		Status:      pm.Status,
+		Progress:    pm.Progress,
+		Spinner:     pm.Spinner.WithVisibility(false),
+		Cancellable: pm.Cancellable,
+		Width:       pm.Width,
+		Height:      pm.Height,
+	}
+}
+
+func (pm ProgressModal) WithProgress(progress float64, status string) ProgressModal {
+	return ProgressModal{
+		Visible:     pm.Visible,
+		Title:       pm.Title,
+		ModelName:   pm.ModelName,
+		Status:      status,
+		Progress:    progress,
+		Spinner:     pm.Spinner,
+		Cancellable: pm.Cancellable,
+		Width:       pm.Width,
+		Height:      pm.Height,
+	}
+}
+
+func (pm ProgressModal) NextSpinnerFrame() ProgressModal {
+	return ProgressModal{
+		Visible:     pm.Visible,
+		Title:       pm.Title,
+		ModelName:   pm.ModelName,
+		Status:      pm.Status,
+		Progress:    pm.Progress,
+		Spinner:     pm.Spinner.NextFrame(),
+		Cancellable: pm.Cancellable,
+		Width:       pm.Width,
+		Height:      pm.Height,
+	}
+}
+
+func (pm ProgressModal) HandleKeyEvent(ev *tcell.EventKey) (ProgressModal, bool) {
+	if !pm.Visible || !pm.Cancellable {
+		return pm, false
+	}
+
+	switch ev.Key() {
+	case tcell.KeyEscape:
+		return pm, true
+	default:
+		if ev.Rune() != 0 {
+			switch ev.Rune() {
+			case 'c', 'C':
+				return pm, true
+			}
+		}
+	}
+	return pm, false
+}
+
+func (pm ProgressModal) Render(screen tcell.Screen, area Rect) {
+	if !pm.Visible {
+		return
+	}
+
+	// Calculate modal position (centered)
+	modalWidth := pm.Width
+	modalHeight := pm.Height
+	if modalWidth > area.Width-4 {
+		modalWidth = area.Width - 4
+	}
+	if modalHeight > area.Height-4 {
+		modalHeight = area.Height - 4
+	}
+
+	modalX := (area.Width - modalWidth) / 2
+	modalY := (area.Height - modalHeight) / 2
+
+	modalArea := Rect{
+		X:      modalX,
+		Y:      modalY,
+		Width:  modalWidth,
+		Height: modalHeight,
+	}
+
+	// Draw modal background and border
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue)
+	drawBorder(screen, modalArea, borderStyle)
+
+	// Styles
+	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Bold(true)
+	modelStyle := tcell.StyleDefault.Foreground(tcell.ColorDarkCyan).Bold(true)
+	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	progressStyle := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
+
+	// Render title with spinner
+	spinnerChar := pm.Spinner.GetCurrentFrame()
+	titleWithSpinner := spinnerChar + " " + pm.Title
+	titleX := modalArea.X + (modalArea.Width-len(titleWithSpinner))/2
+	if titleX < modalArea.X+1 {
+		titleX = modalArea.X + 1
+	}
+	renderTextWithLimit(screen, titleX, modalArea.Y+1, modalArea.Width-2, titleWithSpinner, titleStyle)
+
+	// Render model name
+	if pm.ModelName != "" {
+		modelNameX := modalArea.X + (modalArea.Width-len(pm.ModelName))/2
+		if modelNameX < modalArea.X+1 {
+			modelNameX = modalArea.X + 1
+		}
+		renderTextWithLimit(screen, modelNameX, modalArea.Y+3, modalArea.Width-2, pm.ModelName, modelStyle)
+	}
+
+	// Render progress bar
+	progressBarWidth := modalArea.Width - 6
+	if progressBarWidth > 0 {
+		progressFilled := int(pm.Progress * float64(progressBarWidth))
+		if progressFilled > progressBarWidth {
+			progressFilled = progressBarWidth
+		}
+
+		progressY := modalArea.Y + 5
+		progressX := modalArea.X + 3
+
+		// Draw progress bar background
+		for i := 0; i < progressBarWidth; i++ {
+			screen.SetContent(progressX+i, progressY, '░', nil, tcell.StyleDefault.Foreground(tcell.ColorGray))
+		}
+
+		// Draw progress bar fill
+		for i := 0; i < progressFilled; i++ {
+			screen.SetContent(progressX+i, progressY, '█', nil, progressStyle)
+		}
+
+		// Draw percentage
+		percentage := fmt.Sprintf("%.1f%%", pm.Progress*100)
+		percentX := modalArea.X + (modalArea.Width-len(percentage))/2
+		if percentX < modalArea.X+1 {
+			percentX = modalArea.X + 1
+		}
+		renderTextWithLimit(screen, percentX, modalArea.Y+6, modalArea.Width-2, percentage, statusStyle)
+	}
+
+	// Render status
+	if pm.Status != "" {
+		statusX := modalArea.X + (modalArea.Width-len(pm.Status))/2
+		if statusX < modalArea.X+1 {
+			statusX = modalArea.X + 1
+		}
+		renderTextWithLimit(screen, statusX, modalArea.Y+7, modalArea.Width-2, pm.Status, statusStyle)
+	}
+
+	// Render cancellation instruction
+	if pm.Cancellable {
+		instruction := "[Esc] or [C] to cancel"
+		instrX := modalArea.X + (modalArea.Width-len(instruction))/2
+		if instrX < modalArea.X+1 {
+			instrX = modalArea.X + 1
+		}
+		renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+	}
 }

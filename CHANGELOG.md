@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - 🔩 Basic tool calling support
   - Model compatibility warnings and recommendations on startup
   - Smart model validation with graceful degradation
+- **Model Download Prompt**: Automatic model downloading when selecting unavailable models
+  - Interactive download confirmation dialog with model name display
+  - Real-time progress tracking with animated progress bar and status updates
+  - Cancellable downloads with context-based cancellation
+  - Seamless integration with model selection workflow
+  - Automatic model activation and configuration after successful download
 - **Testing Infrastructure**:
   - Model compatibility tester with performance benchmarking
   - Comprehensive test suite for tool calling functionality
