@@ -102,12 +102,12 @@ var _ = Describe("Layout", func() {
 
 			// Alert area: 1 line (full width)
 			Expect(alertArea.Height).To(Equal(1))
-			Expect(alertArea.Y).To(Equal(45))      // Above input
+			Expect(alertArea.Y).To(Equal(44))      // Above input with padding
 			Expect(alertArea.Width).To(Equal(100)) // Full width
 			Expect(alertArea.X).To(Equal(0))       // No padding
 
 			// Message area: remaining space (with padding)
-			Expect(messageArea.Height).To(Equal(45)) // 50 - 3 - 1 - 1
+			Expect(messageArea.Height).To(Equal(44)) // 50 - 3 - 1 - 1 - 1 (padding)
 			Expect(messageArea.Y).To(Equal(0))
 			Expect(messageArea.Width).To(Equal(96)) // 100 - 4 padding (2 on each side)
 			Expect(messageArea.X).To(Equal(2))      // 2 character padding

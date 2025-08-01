@@ -49,7 +49,8 @@ func (l Layout) CalculateAreas() (messageArea, alertArea, inputArea, statusArea 
 	statusHeight := 1
 	inputHeight := 3
 	alertHeight := 1
-	messageHeight := l.ScreenHeight - statusHeight - inputHeight - alertHeight
+	alertBottomPadding := 1 // Add small bottom padding for status row
+	messageHeight := l.ScreenHeight - statusHeight - inputHeight - alertHeight - alertBottomPadding
 
 	if messageHeight < 1 {
 		messageHeight = 1
@@ -65,10 +66,11 @@ func (l Layout) CalculateAreas() (messageArea, alertArea, inputArea, statusArea 
 
 	// Message area keeps padding for better readability
 	messageArea = NewRect(padding, 0, availableWidth, messageHeight)
-	// Alert and input areas use full width to match status bar
+	// Alert area uses full width to match status bar
 	alertArea = NewRect(0, messageHeight, l.ScreenWidth, alertHeight)
-	inputArea = NewRect(0, messageHeight+alertHeight, l.ScreenWidth, inputHeight)
-	statusArea = NewRect(0, messageHeight+alertHeight+inputHeight, l.ScreenWidth, statusHeight)
+	// Input area has padding below alert area
+	inputArea = NewRect(0, messageHeight+alertHeight+alertBottomPadding, l.ScreenWidth, inputHeight)
+	statusArea = NewRect(0, messageHeight+alertHeight+alertBottomPadding+inputHeight, l.ScreenWidth, statusHeight)
 
 	return messageArea, alertArea, inputArea, statusArea
 }

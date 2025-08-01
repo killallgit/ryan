@@ -70,21 +70,16 @@ func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessag
 	userMessageAdded := ok && lastMsg.IsUser() && lastMsg.Content == strings.TrimSpace(userMessage)
 
 	for i := 0; i < maxIterations; i++ {
-		// Prepare conversation with user message for the first iteration
-		var messages []chat.Message
-		if !userMessageAdded {
-			// Create a temporary conversation with the user message for the request
-			tempConv := chat.AddMessage(cc.conversation, chat.NewUserMessage(userMessage))
-			messages = tempConv.Messages
-		} else {
-			messages = cc.conversation.Messages
-		}
+		// Use current conversation messages
+		messages := cc.conversation.Messages
 
 		// Prepare chat request with tools if available
 		var req chat.ChatRequest
 		if cc.toolRegistry != nil {
 			toolDefs, err := cc.toolRegistry.GetDefinitions("ollama")
 			if err != nil {
+				// Restore original conversation on error
+				cc.conversation = originalConversation
 				return chat.Message{}, fmt.Errorf("failed to get tool definitions: %w", err)
 			}
 
@@ -111,18 +106,14 @@ func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessag
 		// Send chat request
 		response, err := cc.client.SendMessageWithResponse(req)
 		if err != nil {
+			// Restore original conversation on error
+			cc.conversation = originalConversation
 			return chat.Message{}, fmt.Errorf("failed to send message: %w", err)
 		}
 
 		// Update token tracking
 		cc.lastPromptTokens = response.PromptEvalCount
 		cc.lastResponseTokens = response.EvalCount
-
-		// On successful first response, add user message to conversation
-		if !userMessageAdded {
-			cc.conversation = chat.AddMessage(cc.conversation, chat.NewUserMessage(userMessage))
-			userMessageAdded = true
-		}
 
 		// Add assistant message to conversation
 		cc.conversation = chat.AddMessage(cc.conversation, response.Message)
