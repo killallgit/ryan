@@ -190,6 +190,8 @@ func (app *App) handleEvent(event tcell.Event) {
 		app.handleModelStatsUpdate(ev)
 	case *ModelErrorEvent:
 		app.handleModelError(ev)
+	case *ModelDeletedEvent:
+		app.handleModelDeleted(ev)
 	case *ChatMessageSendEvent:
 		app.handleChatMessageSend(ev)
 	case *SpinnerAnimationEvent:
@@ -562,6 +564,18 @@ func (app *App) handleModelError(ev *ModelErrorEvent) {
 		log.Debug("Forwarded ModelErrorEvent to ModelView")
 	} else {
 		log.Debug("Current view is not ModelView, ignoring ModelErrorEvent", "current_view_type", currentView)
+	}
+}
+
+func (app *App) handleModelDeleted(ev *ModelDeletedEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling ModelDeletedEvent", "model_name", ev.ModelName)
+	currentView := app.viewManager.GetCurrentView()
+	if modelView, ok := currentView.(*ModelView); ok {
+		modelView.HandleModelDeleted(*ev)
+		log.Debug("Forwarded ModelDeletedEvent to ModelView")
+	} else {
+		log.Debug("Current view is not ModelView, ignoring ModelDeletedEvent", "current_view_type", currentView)
 	}
 }
 

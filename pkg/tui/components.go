@@ -669,3 +669,128 @@ func (tim TextInputModal) Render(screen tcell.Screen, area Rect) {
 	}
 	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
 }
+
+type ConfirmationModal struct {
+	Visible bool
+	Title   string
+	Message string
+	Width   int
+	Height  int
+}
+
+func NewConfirmationModal() ConfirmationModal {
+	return ConfirmationModal{
+		Visible: false,
+		Title:   "",
+		Message: "",
+		Width:   50,
+		Height:  8,
+	}
+}
+
+func (cm ConfirmationModal) Show(title, message string) ConfirmationModal {
+	return ConfirmationModal{
+		Visible: true,
+		Title:   title,
+		Message: message,
+		Width:   cm.Width,
+		Height:  cm.Height,
+	}
+}
+
+func (cm ConfirmationModal) Hide() ConfirmationModal {
+	return ConfirmationModal{
+		Visible: false,
+		Title:   cm.Title,
+		Message: cm.Message,
+		Width:   cm.Width,
+		Height:  cm.Height,
+	}
+}
+
+func (cm ConfirmationModal) HandleKeyEvent(ev *tcell.EventKey) (ConfirmationModal, bool, bool) {
+	if !cm.Visible {
+		return cm, false, false
+	}
+
+	switch ev.Key() {
+	case tcell.KeyEscape:
+		return cm.Hide(), false, false
+	case tcell.KeyEnter:
+		return cm.Hide(), true, false
+	default:
+		if ev.Rune() != 0 {
+			switch ev.Rune() {
+			case 'y', 'Y':
+				return cm.Hide(), true, false
+			case 'n', 'N':
+				return cm.Hide(), false, false
+			}
+		}
+	}
+	return cm, false, false
+}
+
+func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
+	if !cm.Visible {
+		return
+	}
+
+	// Calculate modal position (centered)
+	modalWidth := cm.Width
+	modalHeight := cm.Height
+	if modalWidth > area.Width-4 {
+		modalWidth = area.Width - 4
+	}
+	if modalHeight > area.Height-4 {
+		modalHeight = area.Height - 4
+	}
+
+	modalX := (area.Width - modalWidth) / 2
+	modalY := (area.Height - modalHeight) / 2
+
+	modalArea := Rect{
+		X:      modalX,
+		Y:      modalY,
+		Width:  modalWidth,
+		Height: modalHeight,
+	}
+
+	// Draw modal background and border
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorRed)
+	drawBorder(screen, modalArea, borderStyle)
+
+	// Styles
+	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorRed).Bold(true)
+	messageStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+
+	// Render title
+	if cm.Title != "" {
+		titleX := modalArea.X + (modalArea.Width-len(cm.Title))/2
+		if titleX < modalArea.X+1 {
+			titleX = modalArea.X + 1
+		}
+		renderTextWithLimit(screen, titleX, modalArea.Y+1, modalArea.Width-2, cm.Title, titleStyle)
+	}
+
+	// Render message (wrap text if needed)
+	if cm.Message != "" {
+		lines := WrapText(cm.Message, modalArea.Width-4)
+		startY := modalArea.Y + 3
+		for i, line := range lines {
+			if startY+i >= modalArea.Y+modalArea.Height-3 {
+				break
+			}
+			renderTextWithLimit(screen, modalArea.X+2, startY+i, modalArea.Width-4, line, messageStyle)
+		}
+	}
+
+	// Render instruction
+	instruction := "y/Enter to confirm, n/Esc to cancel"
+	instrX := modalArea.X + (modalArea.Width-len(instruction))/2
+	if instrX < modalArea.X+1 {
+		instrX = modalArea.X + 1
+	}
+	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+}
