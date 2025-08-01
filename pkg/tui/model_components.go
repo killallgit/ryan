@@ -142,7 +142,7 @@ func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDispl
 	clearArea(screen, area)
 
 	// Draw border
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	borderStyle := StyleBorder
 	drawBorder(screen, area, borderStyle)
 
 	// Calculate content area with padding
@@ -153,10 +153,10 @@ func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDispl
 		Height: area.Height - 2,
 	}
 
-	headerStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
-	normalStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	selectedStyle := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
-	currentModelStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+	headerStyle := StyleHighlight
+	normalStyle := StyleMenuNormal
+	selectedStyle := tcell.StyleDefault.Background(ColorProgressBar).Foreground(ColorMenuNormal)
+	currentModelStyle := tcell.StyleDefault.Foreground(ColorHighlight)
 
 	header := fmt.Sprintf("%-32s %10s %12s %15s", "NAME", "SIZE", "PARAMETERS", "QUANTIZATION")
 	if len(header) > contentArea.Width {
@@ -229,9 +229,9 @@ func RenderModelStats(screen tcell.Screen, display ModelStatsDisplay, area Rect)
 
 	clearArea(screen, area)
 
-	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
-	normalStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	runningStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen)
+	titleStyle := StyleHighlight
+	normalStyle := StyleMenuNormal
+	runningStyle := tcell.StyleDefault.Foreground(ColorModelRunning)
 
 	title := "System Statistics"
 	renderText(screen, area.X, area.Y, title, titleStyle)

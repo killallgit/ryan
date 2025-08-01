@@ -158,21 +158,21 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 		var style tcell.Style
 		if msgLine.IsThinking {
 			// Dimmed white style for thinking blocks
-			style = tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true)
+			style = StyleDimText
 		} else {
 			switch msgLine.Role {
 			case chat.RoleUser:
-				// Dim yellow style for user messages
-				style = tcell.StyleDefault.Foreground(tcell.ColorYellow).Dim(true)
+				// User message style
+				style = StyleUserText
 			case chat.RoleAssistant:
-				// Normal style for assistant messages
-				style = tcell.StyleDefault
+				// Assistant message style
+				style = StyleAssistantText
 			case chat.RoleSystem:
-				// Normal style for system messages
-				style = tcell.StyleDefault
+				// System message style
+				style = StyleSystemText
 			case chat.RoleError:
-				// Red style for error messages
-				style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
+				// Error message style
+				style = StyleBorderError
 			default:
 				// Default style for empty lines or unknown roles
 				style = tcell.StyleDefault
@@ -207,7 +207,7 @@ func RenderInputWithSpinner(screen tcell.Screen, input InputField, area Rect, sp
 
 	clearArea(screen, area)
 
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Dim(true).Background(tcell.ColorDefault)
+	borderStyle := StyleBorder.Background(tcell.ColorDefault)
 
 	if area.Height >= 3 {
 		for x := area.X; x < area.X+area.Width; x++ {
@@ -232,11 +232,11 @@ func RenderInputWithSpinner(screen tcell.Screen, input InputField, area Rect, sp
 		// Render chevron or spinner prefix
 		if spinner.IsVisible {
 			// Show dimmed blue spinner during processing
-			spinnerStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Dim(true)
+			spinnerStyle := StyleStatusBusy
 			renderText(screen, prefixX, inputY, spinner.GetCurrentFrame(), spinnerStyle)
 		} else {
 			// Show dimmed yellow chevron when not processing
-			chevronStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Dim(true)
+			chevronStyle := StylePrompt
 			renderText(screen, prefixX, inputY, ">", chevronStyle)
 		}
 
@@ -297,10 +297,10 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 		}
 	} else {
 		// Chat view format with reorganized layout
-		readyStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen).Dim(true)
-		modelStyle := tcell.StyleDefault.Foreground(tcell.ColorGray) // Dim white
+		readyStyle := StyleStatusReady.Dim(true)
+		modelStyle := StyleDimText
 		if !status.ModelAvailable {
-			modelStyle = tcell.StyleDefault.Foreground(tcell.ColorRed).StrikeThrough(true)
+			modelStyle = StyleStatusOffline
 		}
 
 		// Left-justified Ready text
@@ -354,10 +354,10 @@ func RenderAlert(screen tcell.Screen, alert AlertDisplay, area Rect) {
 	var style tcell.Style
 	if alert.ErrorMessage != "" {
 		// Base16 red color for errors
-		style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
+		style = StyleBorderError
 	} else {
 		// Default gray for spinner
-		style = tcell.StyleDefault.Foreground(tcell.ColorGray)
+		style = StyleDimText
 	}
 
 	// Render left-justified
@@ -378,10 +378,10 @@ func RenderAlertWithTokens(screen tcell.Screen, alert AlertDisplay, area Rect, p
 		var style tcell.Style
 		if alert.ErrorMessage != "" {
 			// Base16 red color for errors
-			style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
+			style = StyleBorderError
 		} else {
 			// Default gray for spinner
-			style = tcell.StyleDefault.Foreground(tcell.ColorGray)
+			style = StyleDimText
 		}
 		// Render left-justified
 		renderText(screen, area.X, area.Y, displayText, style)
@@ -390,7 +390,7 @@ func RenderAlertWithTokens(screen tcell.Screen, alert AlertDisplay, area Rect, p
 	// Render token display on the right if tokens are present
 	totalTokens := promptTokens + responseTokens
 	if totalTokens > 0 {
-		tokenStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Dim(true) // Dim blue
+		tokenStyle := StyleTokenCount
 		tokenText := fmt.Sprintf("%d", totalTokens)
 
 		// Right-justify the token text
@@ -413,7 +413,7 @@ func RenderTokensWithSpinner(screen tcell.Screen, area Rect, promptTokens, respo
 	// Render spinner on the left without padding if spinning
 	if isSpinning {
 		spinnerChar := GetSpinnerFrame(spinnerFrame)
-		spinnerStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+		spinnerStyle := StyleStatusBusy
 		// Remove padding - render directly at area.X
 		renderText(screen, area.X, area.Y, spinnerChar, spinnerStyle)
 	}
@@ -421,7 +421,7 @@ func RenderTokensWithSpinner(screen tcell.Screen, area Rect, promptTokens, respo
 	// Render token display on the right if tokens are present
 	totalTokens := promptTokens + responseTokens
 	if totalTokens > 0 {
-		tokenStyle := tcell.StyleDefault.Foreground(tcell.ColorGreen).Dim(true) // Dim green
+		tokenStyle := StyleTokenCount.Dim(true)
 		tokenText := fmt.Sprintf("%d", totalTokens)
 
 		// Right-justify the token text

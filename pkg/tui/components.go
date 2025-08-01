@@ -411,13 +411,13 @@ func (md ModalDialog) Render(screen tcell.Screen, area Rect) {
 	}
 
 	// Draw modal background and border
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorRed)
+	borderStyle := StyleBorderError
 	drawBorder(screen, modalArea, borderStyle)
 
 	// Styles
-	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorRed).Bold(true)
-	messageStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+	titleStyle := StyleBorderError.Bold(true)
+	messageStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
+	instructionStyle := StyleInstruction
 
 	// Render title
 	if md.Title != "" {
@@ -557,13 +557,13 @@ func (tim TextInputModal) Render(screen tcell.Screen, area Rect) {
 	}
 
 	// Draw modal background and border
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	borderStyle := StyleBorder
 	drawBorder(screen, modalArea, borderStyle)
 
 	// Styles
-	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
-	promptStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
+	titleStyle := StyleHighlight
+	promptStyle := StylePrompt
+	instructionStyle := StyleDimText
 
 	// Render title
 	if tim.Title != "" {
@@ -718,13 +718,13 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 	}
 
 	// Draw modal background and border
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorRed)
+	borderStyle := StyleBorderError
 	drawBorder(screen, modalArea, borderStyle)
 
 	// Styles
-	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorRed).Bold(true)
-	messageStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+	titleStyle := StyleBorderError.Bold(true)
+	messageStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
+	instructionStyle := StyleInstruction
 
 	// Render title
 	if cm.Title != "" {
@@ -843,14 +843,14 @@ func (dpm DownloadPromptModal) Render(screen tcell.Screen, area Rect) {
 	}
 
 	// Draw modal background and border
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow)
+	borderStyle := StyleBorder
 	drawBorder(screen, modalArea, borderStyle)
 
 	// Styles
-	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Bold(true)
-	messageStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	modelStyle := tcell.StyleDefault.Foreground(tcell.ColorDarkCyan).Bold(true)
-	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
+	titleStyle := StyleHighlight
+	messageStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
+	modelStyle := tcell.StyleDefault.Foreground(ColorModelName).Bold(true)
+	instructionStyle := StyleDimText
 
 	// Render title
 	title := "Download Model"
@@ -1015,15 +1015,15 @@ func (pm ProgressModal) Render(screen tcell.Screen, area Rect) {
 	}
 
 	// Draw modal background and border
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue)
+	borderStyle := tcell.StyleDefault.Foreground(ColorProgressBar)
 	drawBorder(screen, modalArea, borderStyle)
 
 	// Styles
-	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorBlue).Bold(true)
-	modelStyle := tcell.StyleDefault.Foreground(tcell.ColorDarkCyan).Bold(true)
-	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	progressStyle := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
-	instructionStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
+	titleStyle := tcell.StyleDefault.Foreground(ColorProgressBar).Bold(true)
+	modelStyle := tcell.StyleDefault.Foreground(ColorModelName).Bold(true)
+	statusStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
+	progressStyle := tcell.StyleDefault.Background(ColorProgressBar).Foreground(ColorMenuNormal)
+	instructionStyle := StyleDimText
 
 	// Render title with spinner
 	spinnerChar := pm.Spinner.GetCurrentFrame()
@@ -1056,7 +1056,7 @@ func (pm ProgressModal) Render(screen tcell.Screen, area Rect) {
 
 		// Draw progress bar background
 		for i := 0; i < progressBarWidth; i++ {
-			screen.SetContent(progressX+i, progressY, '░', nil, tcell.StyleDefault.Foreground(tcell.ColorGray))
+			screen.SetContent(progressX+i, progressY, '░', nil, tcell.StyleDefault.Foreground(ColorProgressBarBg))
 		}
 
 		// Draw progress bar fill

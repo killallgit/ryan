@@ -95,9 +95,9 @@ func (mc MenuComponent) Render(screen tcell.Screen, area Rect) {
 		return
 	}
 
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorGray)
-	selectedStyle := tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(tcell.ColorOrange)
-	normalStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	borderStyle := StyleDimText
+	selectedStyle := StyleMenuSelected
+	normalStyle := StyleMenuNormal
 
 	drawBorder(screen, area, borderStyle)
 
