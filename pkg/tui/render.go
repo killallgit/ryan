@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
@@ -17,50 +16,108 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 		return
 	}
 	
-	var allLines []string
+	// Add padding to chat area (1 character on each side, 1 line on top)
+	chatHorizontalPadding := 1
+	chatTopPadding := 1
+	chatArea := Rect{
+		X:      area.X + chatHorizontalPadding,
+		Y:      area.Y + chatTopPadding,
+		Width:  area.Width - (2 * chatHorizontalPadding),
+		Height: area.Height - chatTopPadding,
+	}
+	
+	// Ensure we have valid dimensions after padding
+	if chatArea.Width <= 0 || chatArea.Height <= 0 {
+		chatArea = area // Fall back to no padding if too narrow/short
+		chatHorizontalPadding = 0
+		chatTopPadding = 0
+	}
+	
+	// Build list of message lines with their associated roles for styling
+	type MessageLine struct {
+		Text string
+		Role string
+	}
+	
+	var allLines []MessageLine
 	
 	for _, msg := range display.Messages {
-		roleLabel := getRoleLabel(msg.Role)
-		timestamp := msg.Timestamp.Format("15:04")
-		prefix := fmt.Sprintf("[%s] %s: ", timestamp, roleLabel)
-		
-		contentLines := WrapText(msg.Content, area.Width-len(prefix))
+		contentLines := WrapText(msg.Content, chatArea.Width)
 		if len(contentLines) == 0 {
 			contentLines = []string{""}
 		}
 		
-		allLines = append(allLines, prefix+contentLines[0])
-		for i := 1; i < len(contentLines); i++ {
-			padding := strings.Repeat(" ", len(prefix))
-			allLines = append(allLines, padding+contentLines[i])
+		// Add all content lines with the message role
+		for _, line := range contentLines {
+			allLines = append(allLines, MessageLine{
+				Text: line,
+				Role: msg.Role,
+			})
 		}
 		
-		allLines = append(allLines, "")
+		// Add empty line between messages
+		allLines = append(allLines, MessageLine{
+			Text: "",
+			Role: "",
+		})
 	}
 	
+	// Remove trailing empty line
 	if len(allLines) > 0 {
 		allLines = allLines[:len(allLines)-1]
 	}
 	
 	// Calculate visible lines for messages (leave space for spinner if visible)
-	availableHeight := area.Height
+	availableHeight := chatArea.Height
 	if spinner.IsVisible {
-		availableHeight = area.Height - 1 // Reserve bottom line for spinner
+		availableHeight = chatArea.Height - 1 // Reserve bottom line for spinner
 	}
 	
-	visibleLines, _ := CalculateVisibleLines(allLines, availableHeight, display.Scroll)
+	// Calculate which lines are visible based on scroll
+	startLine := display.Scroll
+	if startLine >= len(allLines) {
+		startLine = len(allLines) - 1
+	}
+	if startLine < 0 {
+		startLine = 0
+	}
+	
+	endLine := startLine + availableHeight
+	if endLine > len(allLines) {
+		endLine = len(allLines)
+	}
+	
+	visibleLines := allLines[startLine:endLine]
 	
 	clearArea(screen, area)
 	
-	// Render message lines
-	for i, line := range visibleLines {
+	// Render message lines with appropriate styling in the padded area
+	for i, msgLine := range visibleLines {
 		if i >= availableHeight {
 			break
 		}
-		renderText(screen, area.X, area.Y+i, line, tcell.StyleDefault)
+		
+		// Determine style based on message role
+		var style tcell.Style
+		switch msgLine.Role {
+		case chat.RoleUser:
+			// Dimmed style for user messages
+			style = tcell.StyleDefault.Foreground(tcell.ColorGray)
+		case chat.RoleAssistant:
+			// Normal style for assistant messages
+			style = tcell.StyleDefault
+		case chat.RoleSystem:
+			// Normal style for system messages
+			style = tcell.StyleDefault
+		default:
+			// Default style for empty lines or unknown roles
+			style = tcell.StyleDefault
+		}
+		
+		renderText(screen, chatArea.X, chatArea.Y+i, msgLine.Text, style)
 	}
 	
-	// Render spinner at the bottom if visible
+	// Render spinner at the bottom if visible (use original area for full width)
 	if spinner.IsVisible {
 		spinnerY := area.Y + area.Height - 1
 		if spinnerY >= area.Y && spinnerY < area.Y + area.Height {
@@ -68,8 +125,8 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 			for x := area.X; x < area.X + area.Width; x++ {
 				screen.SetContent(x, spinnerY, ' ', nil, tcell.StyleDefault)
 			}
-			// Render spinner text
-			renderText(screen, area.X, spinnerY, spinner.GetDisplayText(), spinner.Style)
+			// Render spinner text with horizontal padding
+			renderText(screen, area.X + chatHorizontalPadding, spinnerY, spinner.GetDisplayText(), spinner.Style)
 		}
 	}
 }
@@ -184,18 +241,6 @@ func renderText(screen tcell.Screen, x, y int, text string, style tcell.Style) {
 	}
 }
 
-func getRoleLabel(role string) string {
-	switch role {
-	case chat.RoleUser:
-		return "You"
-	case chat.RoleAssistant:
-		return "Assistant"
-	case chat.RoleSystem:
-		return "System"
-	default:
-		return role
-	}
-}
 
 func RenderAlert(screen tcell.Screen, alert AlertDisplay, area Rect) {
 	if area.Width <= 0 || area.Height <= 0 {

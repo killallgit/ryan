@@ -159,7 +159,7 @@ func (cv *ChatView) SyncWithAppState(sending bool) {
 	log.Debug("Syncing ChatView state", "app_sending", sending)
 	
 	if sending {
-		cv.alert = cv.alert.WithSpinner(true, "Sending message...")
+		cv.alert = cv.alert.WithSpinner(true, "")
 	} else {
 		cv.alert = cv.alert.Clear()
 	}
@@ -199,12 +199,28 @@ func (cv *ChatView) pageDown() {
 
 func (cv *ChatView) scrollToBottom() {
 	var totalLines int
-	for _, msg := range cv.messages.Messages {
-		lines := WrapText(msg.Content, cv.messages.Width)
-		totalLines += len(lines) + 2
+	// Account for chat area padding (1 character on each side, 1 line on top)
+	paddedWidth := cv.messages.Width - 2
+	paddedHeight := cv.messages.Height - 1
+	
+	if paddedWidth < 1 {
+		paddedWidth = cv.messages.Width // Fall back if too narrow
+	}
+	if paddedHeight < 1 {
+		paddedHeight = cv.messages.Height // Fall back if too short
 	}
 	
-	if totalLines > cv.messages.Height {
-		cv.messages = cv.messages.WithScroll(totalLines - cv.messages.Height)
+	for _, msg := range cv.messages.Messages {
+		lines := WrapText(msg.Content, paddedWidth)
+		totalLines += len(lines) + 1 // +1 for empty line between messages
+	}
+	
+	// Remove the trailing empty line
+	if totalLines > 0 {
+		totalLines -= 1
+	}
+	
+	if totalLines > paddedHeight {
+		cv.messages = cv.messages.WithScroll(totalLines - paddedHeight)
 	}
 }
