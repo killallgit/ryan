@@ -10,6 +10,10 @@ tasks:
   build:
     cmds:
     - go build -o bin/ryan main.go
+  run:
+    cmds:
+      - task: build
+      - ./bin/ryan
   test:
     cmds:
       - go test ./...
