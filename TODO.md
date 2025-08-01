@@ -1,3 +1,5 @@
+# Major BUG
+- User is prompted to download a model that is already downloaded. A better check for the model existance is needed.
 
 # Chat UX
 - User inputted text should become visibe in the chat history immediately upon submitting.
@@ -19,6 +21,7 @@
 - the debug log file needs to respect the persistence config option
 
 # model management view
+- Better visual indication is need for when a model is selected. The blue highlight obfuscates that the model name color has changed
 - When the footer status has an update: "Model changed" or something, it needs to remove the message after 2 seconds back to the default state like a toast message
 - A simple progress bar integrated into the download modal. It will replace the input field and show a percentage by polling ollama for updates. If the user presses <esc> to leave the view, small text in the footer area should reflext that <model> is being pulled by putting a dim white text justified right saying and showing the spinner "<SPINNER> pulling: <MODEL_NAME>..."
 - The model management view should refresh periodicly based on the config `ollama.poll_interval`
