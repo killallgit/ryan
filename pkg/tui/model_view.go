@@ -8,16 +8,17 @@ import (
 )
 
 type ModelView struct {
-	controller     *controllers.ModelsController
-	chatController *controllers.ChatController
-	modelList      ModelListDisplay
-	modelStats     ModelStatsDisplay
-	status         StatusBar
-	layout         Layout
-	loading        bool
-	screen         tcell.Screen
-	showStats      bool
-	pullModal      TextInputModal
+	controller        *controllers.ModelsController
+	chatController    *controllers.ChatController
+	modelList         ModelListDisplay
+	modelStats        ModelStatsDisplay
+	status            StatusBar
+	layout            Layout
+	loading           bool
+	screen            tcell.Screen
+	showStats         bool
+	pullModal         TextInputModal
+	confirmationModal ConfirmationModal
 }
 
 func NewModelView(controller *controllers.ModelsController, chatController *controllers.ChatController, screen tcell.Screen) *ModelView {
@@ -27,16 +28,17 @@ func NewModelView(controller *controllers.ModelsController, chatController *cont
 	log.Debug("Creating new ModelView", "width", width, "height", height)
 
 	view := &ModelView{
-		controller:     controller,
-		chatController: chatController,
-		modelList:      NewModelListDisplay(width, height-6),
-		modelStats:     NewModelStatsDisplay(width, 4),
-		status:         NewStatusBar(width).WithStatus("Ready"),
-		layout:         NewLayout(width, height),
-		loading:        false,
-		screen:         screen,
-		showStats:      true,
-		pullModal:      NewTextInputModal(),
+		controller:        controller,
+		chatController:    chatController,
+		modelList:         NewModelListDisplay(width, height-6),
+		modelStats:        NewModelStatsDisplay(width, 4),
+		status:            NewStatusBar(width).WithStatus("Ready"),
+		layout:            NewLayout(width, height),
+		loading:           false,
+		screen:            screen,
+		showStats:         true,
+		pullModal:         NewTextInputModal(),
+		confirmationModal: NewConfirmationModal(),
 	}
 
 	// Don't auto-refresh on creation - wait until view becomes active
@@ -94,6 +96,7 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 	RenderStatus(screen, mv.status, statusArea)
 	
 	mv.pullModal.Render(screen, area)
+	mv.confirmationModal.Render(screen, area)
 }
 
 func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
@@ -102,6 +105,15 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 	}
 	
 	// Handle modal events first
+	if mv.confirmationModal.Visible {
+		modal, confirmed, _ := mv.confirmationModal.HandleKeyEvent(ev)
+		mv.confirmationModal = modal
+		if confirmed {
+			mv.deleteModel()
+		}
+		return true
+	}
+	
 	if mv.pullModal.Visible {
 		modal, modelName, confirmed := mv.pullModal.HandleKeyEvent(ev)
 		mv.pullModal = modal
@@ -138,6 +150,10 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 
 	case tcell.KeyEnter:
 		mv.changeModel()
+		return true
+
+	case tcell.KeyCtrlD:
+		mv.showDeleteConfirmation()
 		return true
 
 	default:
@@ -279,6 +295,15 @@ func (mv *ModelView) HandleModelError(ev ModelErrorEvent) {
 
 	mv.loading = false
 	mv.status = mv.status.WithStatus("Error: " + ev.Error.Error() + " - Press 'r' to retry")
+}
+
+func (mv *ModelView) HandleModelDeleted(ev ModelDeletedEvent) {
+	log := logger.WithComponent("model_view")
+	log.Debug("Handling ModelDeletedEvent", "model_name", ev.ModelName)
+
+	mv.loading = false
+	mv.status = mv.status.WithStatus("Model deleted: " + ev.ModelName)
+	mv.refreshModels()
 }
 
 func (mv *ModelView) selectNext() {
@@ -424,6 +449,41 @@ func (mv *ModelView) pullModel(modelName string) {
 			log.Debug("Model pull completed successfully", "model_name", modelName)
 			mv.status = mv.status.WithStatus("Model pulled successfully: " + modelName)
 			mv.refreshModels()
+		}
+	}()
+}
+
+func (mv *ModelView) showDeleteConfirmation() {
+	if len(mv.modelList.Models) == 0 || mv.modelList.Selected < 0 || mv.modelList.Selected >= len(mv.modelList.Models) {
+		return
+	}
+	
+	selectedModel := mv.modelList.Models[mv.modelList.Selected]
+	title := "Delete Model"
+	message := "Are you sure you want to delete model '" + selectedModel.Name + "'? This action cannot be undone."
+	mv.confirmationModal = mv.confirmationModal.Show(title, message)
+}
+
+func (mv *ModelView) deleteModel() {
+	if len(mv.modelList.Models) == 0 || mv.modelList.Selected < 0 || mv.modelList.Selected >= len(mv.modelList.Models) {
+		return
+	}
+	
+	selectedModel := mv.modelList.Models[mv.modelList.Selected]
+	log := logger.WithComponent("model_view")
+	log.Debug("Starting model deletion", "model_name", selectedModel.Name)
+	
+	mv.loading = true
+	mv.status = mv.status.WithStatus("Deleting model: " + selectedModel.Name + "...")
+	
+	go func() {
+		err := mv.controller.Delete(selectedModel.Name)
+		if err != nil {
+			log.Error("Failed to delete model", "model_name", selectedModel.Name, "error", err)
+			mv.screen.PostEvent(NewModelErrorEvent(err))
+		} else {
+			log.Debug("Model deletion completed successfully", "model_name", selectedModel.Name)
+			mv.screen.PostEvent(NewModelDeletedEvent(selectedModel.Name))
 		}
 	}()
 }

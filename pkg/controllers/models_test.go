@@ -36,6 +36,11 @@ func (m *MockOllamaClient) Pull(modelName string) error {
 	return args.Error(0)
 }
 
+func (m *MockOllamaClient) Delete(modelName string) error {
+	args := m.Called(modelName)
+	return args.Error(0)
+}
+
 var _ = Describe("ModelsController", func() {
 	var (
 		mockClient *MockOllamaClient

@@ -40,3 +40,7 @@ type PullResponse struct {
 	Completed int64  `json:"completed,omitempty"`
 	Error     string `json:"error,omitempty"`
 }
+
+type DeleteRequest struct {
+	Name string `json:"name"`
+}

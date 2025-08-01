@@ -154,3 +154,45 @@ func (c *Client) Pull(modelName string) error {
 		}
 	}
 }
+
+func (c *Client) Delete(modelName string) error {
+	log := logger.WithComponent("ollama_client")
+	url := fmt.Sprintf("%s/api/delete", c.baseURL)
+
+	deleteRequest := DeleteRequest{
+		Name: modelName,
+	}
+
+	requestBody, err := json.Marshal(deleteRequest)
+	if err != nil {
+		log.Error("Failed to marshal delete request", "model", modelName, "error", err)
+		return fmt.Errorf("failed to marshal delete request: %w", err)
+	}
+
+	log.Debug("Making HTTP DELETE request to delete endpoint", "url", url, "model", modelName)
+	req, err := http.NewRequest("DELETE", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Error("Failed to create delete request", "url", url, "model", modelName, "error", err)
+		return fmt.Errorf("failed to create delete request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		log.Error("HTTP DELETE to delete endpoint failed", "url", url, "model", modelName, "error", err)
+		return fmt.Errorf("failed to delete model: %w", err)
+	}
+	defer resp.Body.Close()
+
+	log.Debug("Received HTTP response from delete endpoint",
+		"status_code", resp.StatusCode,
+		"content_length", resp.ContentLength)
+
+	if resp.StatusCode != http.StatusOK {
+		log.Error("Delete endpoint returned non-200 status", "status_code", resp.StatusCode, "model", modelName)
+		return fmt.Errorf("delete request failed with status: %d", resp.StatusCode)
+	}
+
+	log.Debug("Successfully deleted model", "model", modelName)
+	return nil
+}

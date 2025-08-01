@@ -13,6 +13,7 @@ type OllamaClient interface {
 	Tags() (*ollama.TagsResponse, error)
 	Ps() (*ollama.PsResponse, error)
 	Pull(modelName string) error
+	Delete(modelName string) error
 }
 
 type ModelsController struct {
@@ -90,5 +91,19 @@ func (mc *ModelsController) Pull(modelName string) error {
 	}
 
 	log.Debug("ollama client Pull() succeeded", "model_name", modelName)
+	return nil
+}
+
+func (mc *ModelsController) Delete(modelName string) error {
+	log := logger.WithComponent("models_controller")
+	log.Debug("Calling ollama client Delete()", "model_name", modelName)
+
+	err := mc.client.Delete(modelName)
+	if err != nil {
+		log.Error("ollama client Delete() failed", "model_name", modelName, "error", err)
+		return err
+	}
+
+	log.Debug("ollama client Delete() succeeded", "model_name", modelName)
 	return nil
 }

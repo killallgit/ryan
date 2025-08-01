@@ -105,6 +105,20 @@ func NewModelErrorEvent(err error) *ModelErrorEvent {
 	}
 }
 
+// ModelDeletedEvent is sent when a model is successfully deleted
+type ModelDeletedEvent struct {
+	tcell.EventTime
+	ModelName string
+}
+
+// NewModelDeletedEvent creates a new model deleted event
+func NewModelDeletedEvent(modelName string) *ModelDeletedEvent {
+	return &ModelDeletedEvent{
+		EventTime: tcell.EventTime{},
+		ModelName: modelName,
+	}
+}
+
 // ChatMessageSendEvent is sent when a chat message should be sent
 type ChatMessageSendEvent struct {
 	tcell.EventTime
