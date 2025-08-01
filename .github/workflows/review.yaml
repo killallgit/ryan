@@ -5,9 +5,11 @@ on:
     types:
       - opened
       - synchronize
+
 permissions: write-all
 jobs:
   review:
+    if: false # TODO: Enable this when we have a model that can do this
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
