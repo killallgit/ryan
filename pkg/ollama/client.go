@@ -17,7 +17,7 @@ type Client struct {
 func NewClient(baseURL string) *Client {
 	log := logger.WithComponent("ollama_client")
 	log.Debug("Creating new ollama client", "base_url", baseURL, "timeout", "30s")
-	
+
 	return &Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{
@@ -29,7 +29,7 @@ func NewClient(baseURL string) *Client {
 func (c *Client) Tags() (*TagsResponse, error) {
 	log := logger.WithComponent("ollama_client")
 	url := fmt.Sprintf("%s/api/tags", c.baseURL)
-	
+
 	log.Debug("Making HTTP GET request to tags endpoint", "url", url)
 	resp, err := c.httpClient.Get(url)
 	if err != nil {
@@ -38,8 +38,8 @@ func (c *Client) Tags() (*TagsResponse, error) {
 	}
 	defer resp.Body.Close()
 
-	log.Debug("Received HTTP response from tags endpoint", 
-		"status_code", resp.StatusCode, 
+	log.Debug("Received HTTP response from tags endpoint",
+		"status_code", resp.StatusCode,
 		"content_length", resp.ContentLength)
 
 	if resp.StatusCode != http.StatusOK {
@@ -60,7 +60,7 @@ func (c *Client) Tags() (*TagsResponse, error) {
 func (c *Client) Ps() (*PsResponse, error) {
 	log := logger.WithComponent("ollama_client")
 	url := fmt.Sprintf("%s/api/ps", c.baseURL)
-	
+
 	log.Debug("Making HTTP GET request to ps endpoint", "url", url)
 	resp, err := c.httpClient.Get(url)
 	if err != nil {
@@ -69,8 +69,8 @@ func (c *Client) Ps() (*PsResponse, error) {
 	}
 	defer resp.Body.Close()
 
-	log.Debug("Received HTTP response from ps endpoint", 
-		"status_code", resp.StatusCode, 
+	log.Debug("Received HTTP response from ps endpoint",
+		"status_code", resp.StatusCode,
 		"content_length", resp.ContentLength)
 
 	if resp.StatusCode != http.StatusOK {

@@ -103,7 +103,7 @@ func (inf InputField) InsertRune(r rune) InputField {
 	left := content[:inf.Cursor]
 	right := content[inf.Cursor:]
 	newContent := left + string(r) + right
-	
+
 	return InputField{
 		Content: newContent,
 		Cursor:  inf.Cursor + 1,
@@ -115,11 +115,11 @@ func (inf InputField) DeleteBackward() InputField {
 	if inf.Cursor == 0 {
 		return inf
 	}
-	
+
 	content := inf.Content
 	left := content[:inf.Cursor-1]
 	right := content[inf.Cursor:]
-	
+
 	return InputField{
 		Content: left + right,
 		Cursor:  inf.Cursor - 1,
@@ -136,60 +136,60 @@ func (inf InputField) Clear() InputField {
 }
 
 type StatusBar struct {
-	Model           string
-	Status          string
-	Width           int
-	PromptTokens    int
-	ResponseTokens  int
+	Model          string
+	Status         string
+	Width          int
+	PromptTokens   int
+	ResponseTokens int
 }
 
 func NewStatusBar(width int) StatusBar {
 	return StatusBar{
-		Model:           "",
-		Status:          "Ready",
-		Width:           width,
-		PromptTokens:    0,
-		ResponseTokens:  0,
+		Model:          "",
+		Status:         "Ready",
+		Width:          width,
+		PromptTokens:   0,
+		ResponseTokens: 0,
 	}
 }
 
 func (sb StatusBar) WithModel(model string) StatusBar {
 	return StatusBar{
-		Model:           model,
-		Status:          sb.Status,
-		Width:           sb.Width,
-		PromptTokens:    sb.PromptTokens,
-		ResponseTokens:  sb.ResponseTokens,
+		Model:          model,
+		Status:         sb.Status,
+		Width:          sb.Width,
+		PromptTokens:   sb.PromptTokens,
+		ResponseTokens: sb.ResponseTokens,
 	}
 }
 
 func (sb StatusBar) WithStatus(status string) StatusBar {
 	return StatusBar{
-		Model:           sb.Model,
-		Status:          status,
-		Width:           sb.Width,
-		PromptTokens:    sb.PromptTokens,
-		ResponseTokens:  sb.ResponseTokens,
+		Model:          sb.Model,
+		Status:         status,
+		Width:          sb.Width,
+		PromptTokens:   sb.PromptTokens,
+		ResponseTokens: sb.ResponseTokens,
 	}
 }
 
 func (sb StatusBar) WithWidth(width int) StatusBar {
 	return StatusBar{
-		Model:           sb.Model,
-		Status:          sb.Status,
-		Width:           width,
-		PromptTokens:    sb.PromptTokens,
-		ResponseTokens:  sb.ResponseTokens,
+		Model:          sb.Model,
+		Status:         sb.Status,
+		Width:          width,
+		PromptTokens:   sb.PromptTokens,
+		ResponseTokens: sb.ResponseTokens,
 	}
 }
 
 func (sb StatusBar) WithTokens(promptTokens, responseTokens int) StatusBar {
 	return StatusBar{
-		Model:           sb.Model,
-		Status:          sb.Status,
-		Width:           sb.Width,
-		PromptTokens:    promptTokens,
-		ResponseTokens:  responseTokens,
+		Model:          sb.Model,
+		Status:         sb.Status,
+		Width:          sb.Width,
+		PromptTokens:   promptTokens,
+		ResponseTokens: responseTokens,
 	}
 }
 
@@ -221,13 +221,13 @@ func (sc SpinnerComponent) WithVisibility(visible bool) SpinnerComponent {
 		Text:      sc.Text,
 		Style:     sc.Style,
 	}
-	
+
 	// Reset animation when becoming visible
 	if visible && !sc.IsVisible {
 		spinner.StartTime = time.Now()
 		spinner.Frame = 0
 	}
-	
+
 	return spinner
 }
 
@@ -245,7 +245,7 @@ func (sc SpinnerComponent) NextFrame() SpinnerComponent {
 	if !sc.IsVisible {
 		return sc
 	}
-	
+
 	return SpinnerComponent{
 		IsVisible: sc.IsVisible,
 		Frame:     (sc.Frame + 1) % len(spinnerFrames),
@@ -331,7 +331,7 @@ func (ad AlertDisplay) NextSpinnerFrame() AlertDisplay {
 	if !ad.IsSpinnerVisible {
 		return ad
 	}
-	
+
 	return AlertDisplay{
 		IsSpinnerVisible: ad.IsSpinnerVisible,
 		SpinnerFrame:     (ad.SpinnerFrame + 1) % len(spinnerFrames),

@@ -32,7 +32,7 @@ func NewViewManager() *ViewManager {
 func (vm *ViewManager) RegisterView(name string, view View) {
 	vm.views[name] = view
 	vm.menu = vm.menu.WithOption(name, view.Description())
-	
+
 	if vm.currentView == "" {
 		vm.currentView = name
 	}
@@ -52,14 +52,14 @@ func (vm *ViewManager) GetCurrentViewName() string {
 func (vm *ViewManager) SetCurrentView(name string) bool {
 	log := logger.WithComponent("view_manager")
 	log.Debug("SetCurrentView called", "requested_view", name, "current_view", vm.currentView)
-	
+
 	if _, exists := vm.views[name]; exists {
 		oldView := vm.currentView
 		vm.currentView = name
 		vm.menuVisible = false
-		
+
 		log.Debug("View switched", "from", oldView, "to", name)
-		
+
 		// If switching to ModelView, activate it to start loading data
 		if name == "models" {
 			if modelView, ok := vm.views[name].(*ModelView); ok {
@@ -67,7 +67,7 @@ func (vm *ViewManager) SetCurrentView(name string) bool {
 				modelView.Activate()
 			}
 		}
-		
+
 		return true
 	}
 	log.Debug("View not found", "requested_view", name)
@@ -77,7 +77,7 @@ func (vm *ViewManager) SetCurrentView(name string) bool {
 func (vm *ViewManager) SyncViewState(sending bool) {
 	log := logger.WithComponent("view_manager")
 	log.Debug("Syncing view state", "sending", sending, "current_view", vm.currentView)
-	
+
 	// Sync ChatView state when it's the current view
 	if vm.currentView == "chat" {
 		if chatView, ok := vm.views["chat"].(*ChatView); ok {
@@ -103,12 +103,12 @@ func (vm *ViewManager) HandleMenuKeyEvent(ev *tcell.EventKey) bool {
 	if !vm.menuVisible {
 		return false
 	}
-	
+
 	switch ev.Key() {
 	case tcell.KeyEscape:
 		vm.menuVisible = false
 		return true
-		
+
 	case tcell.KeyEnter:
 		selectedView := vm.menu.GetSelectedOption()
 		if selectedView != "" {
@@ -116,15 +116,15 @@ func (vm *ViewManager) HandleMenuKeyEvent(ev *tcell.EventKey) bool {
 			return true
 		}
 		return false
-		
+
 	case tcell.KeyUp, tcell.KeyCtrlP:
 		vm.menu = vm.menu.SelectPrevious()
 		return true
-		
+
 	case tcell.KeyDown, tcell.KeyCtrlN:
 		vm.menu = vm.menu.SelectNext()
 		return true
-		
+
 	default:
 		if ev.Rune() >= '1' && ev.Rune() <= '9' {
 			index := int(ev.Rune() - '1')
@@ -134,7 +134,7 @@ func (vm *ViewManager) HandleMenuKeyEvent(ev *tcell.EventKey) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -150,7 +150,7 @@ func (vm *ViewManager) Render(screen tcell.Screen, area Rect) {
 	if currentView != nil {
 		currentView.Render(screen, area)
 	}
-	
+
 	if vm.menuVisible {
 		vm.renderMenu(screen, area)
 	}
@@ -161,7 +161,7 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 	if area.Width < 10 || area.Height < 6 {
 		return
 	}
-	
+
 	// Calculate optimal menu width based on content
 	maxDescLen := 0
 	for _, view := range vm.views {
@@ -170,7 +170,7 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 			maxDescLen = descLen
 		}
 	}
-	
+
 	// Menu width: longest description + number + spacing + padding
 	menuWidth := maxDescLen + 10 // "1. " + description + padding
 	if menuWidth < 50 {
@@ -179,14 +179,14 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 	if menuWidth > area.Width-10 {
 		menuWidth = area.Width - 10 // leave margin
 	}
-	
+
 	// Ensure minimum menu width
 	if menuWidth < 20 {
 		menuWidth = 20
 	}
-	
+
 	menuHeight := len(vm.views) + 6 // options + title + instructions + borders
-	
+
 	// Ensure minimum menu height
 	if menuHeight < 6 {
 		menuHeight = 6
@@ -194,10 +194,10 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 	if menuHeight > area.Height-2 {
 		menuHeight = area.Height - 2 // leave margin
 	}
-	
+
 	menuX := (area.Width - menuWidth) / 2
 	menuY := (area.Height - menuHeight) / 2
-	
+
 	if menuX < 0 {
 		menuX = 0
 		menuWidth = area.Width
@@ -206,13 +206,13 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 		menuY = 0
 		menuHeight = area.Height
 	}
-	
+
 	menuArea := Rect{
 		X:      menuX,
 		Y:      menuY,
 		Width:  menuWidth,
 		Height: menuHeight,
 	}
-	
+
 	vm.menu.Render(screen, menuArea)
 }

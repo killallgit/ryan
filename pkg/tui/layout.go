@@ -50,11 +50,11 @@ func (l Layout) CalculateAreas() (messageArea, alertArea, inputArea, statusArea 
 	inputHeight := 3
 	alertHeight := 1
 	messageHeight := l.ScreenHeight - statusHeight - inputHeight - alertHeight
-	
+
 	if messageHeight < 1 {
 		messageHeight = 1
 	}
-	
+
 	// Add horizontal padding (1 character on each side)
 	padding := 1
 	availableWidth := l.ScreenWidth - (2 * padding)
@@ -62,12 +62,12 @@ func (l Layout) CalculateAreas() (messageArea, alertArea, inputArea, statusArea 
 		availableWidth = l.ScreenWidth
 		padding = 0
 	}
-	
+
 	messageArea = NewRect(padding, 0, availableWidth, messageHeight)
 	alertArea = NewRect(padding, messageHeight, availableWidth, alertHeight)
 	inputArea = NewRect(padding, messageHeight+alertHeight, availableWidth, inputHeight)
 	statusArea = NewRect(0, messageHeight+alertHeight+inputHeight, l.ScreenWidth, statusHeight)
-	
+
 	return messageArea, alertArea, inputArea, statusArea
 }
 
@@ -75,29 +75,29 @@ func WrapText(text string, width int) []string {
 	if width <= 0 {
 		return []string{}
 	}
-	
+
 	if text == "" {
 		return []string{}
 	}
-	
+
 	if len(text) <= width {
 		return []string{text}
 	}
-	
+
 	var lines []string
 	runes := []rune(text)
-	
+
 	for len(runes) > 0 {
 		lineLength := width
 		if lineLength > len(runes) {
 			lineLength = len(runes)
 		}
-		
+
 		if lineLength == len(runes) {
 			lines = append(lines, string(runes))
 			break
 		}
-		
+
 		breakPos := lineLength
 		for i := lineLength - 1; i >= 0; i-- {
 			if runes[i] == ' ' || runes[i] == '\n' {
@@ -105,20 +105,20 @@ func WrapText(text string, width int) []string {
 				break
 			}
 		}
-		
+
 		if breakPos == 0 && lineLength > 0 {
 			breakPos = lineLength
 		}
-		
+
 		line := string(runes[:breakPos])
 		lines = append(lines, line)
-		
+
 		runes = runes[breakPos:]
 		for len(runes) > 0 && (runes[0] == ' ' || runes[0] == '\n') {
 			runes = runes[1:]
 		}
 	}
-	
+
 	return lines
 }
 
@@ -126,21 +126,21 @@ func CalculateVisibleLines(lines []string, height, scroll int) (visibleLines []s
 	if height <= 0 || len(lines) == 0 {
 		return []string{}, 0
 	}
-	
+
 	totalLines := len(lines)
-	
+
 	if scroll >= totalLines {
 		scroll = totalLines - 1
 	}
 	if scroll < 0 {
 		scroll = 0
 	}
-	
+
 	startLine = scroll
 	endLine := startLine + height
 	if endLine > totalLines {
 		endLine = totalLines
 	}
-	
+
 	return lines[startLine:endLine], startLine
 }

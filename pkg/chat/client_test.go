@@ -26,7 +26,7 @@ var _ = Describe("Client", func() {
 			var req chat.ChatRequest
 			err := json.NewDecoder(r.Body).Decode(&req)
 			Expect(err).ToNot(HaveOccurred())
-			
+
 			Expect(req.Stream).To(BeFalse())
 			Expect(req.Model).To(Equal("llama3.1:8b"))
 			Expect(req.Messages).To(HaveLen(1))
@@ -146,25 +146,25 @@ var _ = Describe("CreateChatRequest", func() {
 	It("should create request with user message added to conversation", func() {
 		conv := chat.NewConversation("llama3.1:8b")
 		conv = chat.AddMessage(conv, chat.NewSystemMessage("You are helpful"))
-		
+
 		req := chat.CreateChatRequest(conv, "Hello there")
-		
+
 		Expect(req.Model).To(Equal("llama3.1:8b"))
 		Expect(req.Stream).To(BeFalse())
 		Expect(req.Messages).To(HaveLen(2))
-		
+
 		Expect(req.Messages[0].Role).To(Equal(chat.RoleSystem))
 		Expect(req.Messages[0].Content).To(Equal("You are helpful"))
-		
+
 		Expect(req.Messages[1].Role).To(Equal(chat.RoleUser))
 		Expect(req.Messages[1].Content).To(Equal("Hello there"))
 	})
 
 	It("should handle empty conversation", func() {
 		conv := chat.NewConversation("gpt-4")
-		
+
 		req := chat.CreateChatRequest(conv, "First message")
-		
+
 		Expect(req.Model).To(Equal("gpt-4"))
 		Expect(req.Messages).To(HaveLen(1))
 		Expect(req.Messages[0].Role).To(Equal(chat.RoleUser))

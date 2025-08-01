@@ -25,16 +25,16 @@ func InitLogger() error {
 	if logFile == "" {
 		logFile = ".ryan/debug.log"
 	}
-	
+
 	preserve := viper.GetBool("logging.preserve")
 	level := viper.GetString("logging.level")
-	
+
 	// Ensure directory exists
 	dir := filepath.Dir(logFile)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
-	
+
 	// Open log file
 	flag := os.O_CREATE | os.O_WRONLY
 	if preserve {
@@ -42,12 +42,12 @@ func InitLogger() error {
 	} else {
 		flag |= os.O_TRUNC
 	}
-	
+
 	file, err := os.OpenFile(logFile, flag, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
-	
+
 	// Parse log level
 	var logLevel slog.Level
 	switch level {
@@ -62,7 +62,7 @@ func InitLogger() error {
 	default:
 		logLevel = slog.LevelDebug
 	}
-	
+
 	// Create structured logger with timestamp and component
 	opts := &slog.HandlerOptions{
 		Level: logLevel,
@@ -76,20 +76,20 @@ func InitLogger() error {
 			return a
 		},
 	}
-	
+
 	// Only write to file for TUI applications to avoid interfering with display
 	handler := slog.NewTextHandler(file, opts)
-	
+
 	logger := slog.New(handler)
 	defaultLogger = &Logger{logger}
-	
+
 	// Log initialization
 	defaultLogger.Info("Logger initialized",
 		"file", logFile,
 		"preserve", preserve,
 		"level", level,
 	)
-	
+
 	return nil
 }
 

@@ -15,7 +15,7 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
-	
+
 	// Add padding to chat area (1 character on each side, 1 line on top)
 	chatHorizontalPadding := 1
 	chatTopPadding := 1
@@ -25,28 +25,28 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 		Width:  area.Width - (2 * chatHorizontalPadding),
 		Height: area.Height - chatTopPadding,
 	}
-	
+
 	// Ensure we have valid dimensions after padding
 	if chatArea.Width <= 0 || chatArea.Height <= 0 {
 		chatArea = area // Fall back to no padding if too narrow/short
 		chatHorizontalPadding = 0
 		chatTopPadding = 0
 	}
-	
+
 	// Build list of message lines with their associated roles for styling
 	type MessageLine struct {
 		Text string
 		Role string
 	}
-	
+
 	var allLines []MessageLine
-	
+
 	for _, msg := range display.Messages {
 		contentLines := WrapText(msg.Content, chatArea.Width)
 		if len(contentLines) == 0 {
 			contentLines = []string{""}
 		}
-		
+
 		// Add all content lines with the message role
 		for _, line := range contentLines {
 			allLines = append(allLines, MessageLine{
@@ -54,25 +54,25 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 				Role: msg.Role,
 			})
 		}
-		
+
 		// Add empty line between messages
 		allLines = append(allLines, MessageLine{
 			Text: "",
 			Role: "",
 		})
 	}
-	
+
 	// Remove trailing empty line
 	if len(allLines) > 0 {
 		allLines = allLines[:len(allLines)-1]
 	}
-	
+
 	// Calculate visible lines for messages (leave space for spinner if visible)
 	availableHeight := chatArea.Height
 	if spinner.IsVisible {
 		availableHeight = chatArea.Height - 1 // Reserve bottom line for spinner
 	}
-	
+
 	// Calculate which lines are visible based on scroll
 	startLine := display.Scroll
 	if startLine >= len(allLines) {
@@ -81,22 +81,22 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 	if startLine < 0 {
 		startLine = 0
 	}
-	
+
 	endLine := startLine + availableHeight
 	if endLine > len(allLines) {
 		endLine = len(allLines)
 	}
-	
+
 	visibleLines := allLines[startLine:endLine]
-	
+
 	clearArea(screen, area)
-	
+
 	// Render message lines with appropriate styling in the padded area
 	for i, msgLine := range visibleLines {
 		if i >= availableHeight {
 			break
 		}
-		
+
 		// Determine style based on message role
 		var style tcell.Style
 		switch msgLine.Role {
@@ -113,20 +113,20 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 			// Default style for empty lines or unknown roles
 			style = tcell.StyleDefault
 		}
-		
+
 		renderText(screen, chatArea.X, chatArea.Y+i, msgLine.Text, style)
 	}
-	
+
 	// Render spinner at the bottom if visible (use original area for full width)
 	if spinner.IsVisible {
 		spinnerY := area.Y + area.Height - 1
-		if spinnerY >= area.Y && spinnerY < area.Y + area.Height {
+		if spinnerY >= area.Y && spinnerY < area.Y+area.Height {
 			// Clear the spinner line first
-			for x := area.X; x < area.X + area.Width; x++ {
+			for x := area.X; x < area.X+area.Width; x++ {
 				screen.SetContent(x, spinnerY, ' ', nil, tcell.StyleDefault)
 			}
 			// Render spinner text with horizontal padding
-			renderText(screen, area.X + chatHorizontalPadding, spinnerY, spinner.GetDisplayText(), spinner.Style)
+			renderText(screen, area.X+chatHorizontalPadding, spinnerY, spinner.GetDisplayText(), spinner.Style)
 		}
 	}
 }
@@ -135,11 +135,11 @@ func RenderInput(screen tcell.Screen, input InputField, area Rect) {
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
-	
+
 	clearArea(screen, area)
-	
+
 	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorDefault)
-	
+
 	if area.Height >= 3 {
 		for x := area.X; x < area.X+area.Width; x++ {
 			screen.SetContent(x, area.Y, '─', nil, borderStyle)
@@ -149,19 +149,19 @@ func RenderInput(screen tcell.Screen, input InputField, area Rect) {
 		screen.SetContent(area.X+area.Width-1, area.Y, '╮', nil, borderStyle)
 		screen.SetContent(area.X, area.Y+2, '╰', nil, borderStyle)
 		screen.SetContent(area.X+area.Width-1, area.Y+2, '╯', nil, borderStyle)
-		
+
 		screen.SetContent(area.X, area.Y+1, '│', nil, borderStyle)
 		screen.SetContent(area.X+area.Width-1, area.Y+1, '│', nil, borderStyle)
 	}
-	
+
 	if area.Height >= 2 && area.Width >= 3 {
 		inputY := area.Y + 1
 		inputX := area.X + 1
 		inputWidth := area.Width - 2
-		
+
 		visibleContent := input.Content
 		cursorPos := input.Cursor
-		
+
 		if len(visibleContent) > inputWidth {
 			start := 0
 			if cursorPos >= inputWidth {
@@ -174,9 +174,9 @@ func RenderInput(screen tcell.Screen, input InputField, area Rect) {
 			visibleContent = visibleContent[start:end]
 			cursorPos = cursorPos - start
 		}
-		
+
 		renderText(screen, inputX, inputY, visibleContent, tcell.StyleDefault)
-		
+
 		if cursorPos >= 0 && cursorPos <= len(visibleContent) && cursorPos < inputWidth {
 			cursorStyle := tcell.StyleDefault.Reverse(true)
 			if cursorPos < len(visibleContent) {
@@ -193,25 +193,25 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
-	
+
 	clearArea(screen, area)
-	
+
 	statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	
+
 	// Build status text with token information
 	var statusText string
 	if status.PromptTokens > 0 || status.ResponseTokens > 0 {
-		statusText = fmt.Sprintf(" Model: %s | Tokens: %d+%d | %s ", 
+		statusText = fmt.Sprintf(" Model: %s | Tokens: %d+%d | %s ",
 			status.Model, status.PromptTokens, status.ResponseTokens, status.Status)
 	} else {
 		statusText = fmt.Sprintf(" Model: %s | %s ", status.Model, status.Status)
 	}
-	
+
 	// Fill entire row with background
 	for x := area.X; x < area.X+area.Width; x++ {
 		screen.SetContent(x, area.Y, ' ', nil, statusStyle)
 	}
-	
+
 	// Right-justify the status text
 	if len(statusText) <= area.Width {
 		startX := area.X + area.Width - len(statusText)
@@ -241,19 +241,18 @@ func renderText(screen tcell.Screen, x, y int, text string, style tcell.Style) {
 	}
 }
 
-
 func RenderAlert(screen tcell.Screen, alert AlertDisplay, area Rect) {
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
-	
+
 	clearArea(screen, area)
-	
+
 	displayText := alert.GetDisplayText()
 	if displayText == "" {
 		return
 	}
-	
+
 	// Determine style based on content type
 	var style tcell.Style
 	if alert.ErrorMessage != "" {
@@ -263,7 +262,7 @@ func RenderAlert(screen tcell.Screen, alert AlertDisplay, area Rect) {
 		// Default gray for spinner
 		style = tcell.StyleDefault.Foreground(tcell.ColorGray)
 	}
-	
+
 	// Render left-justified
 	renderText(screen, area.X, area.Y, displayText, style)
 }

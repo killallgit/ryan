@@ -54,7 +54,7 @@ func (c *Client) SendMessage(req ChatRequest) (Message, error) {
 
 func (c *Client) SendMessageWithResponse(req ChatRequest) (ChatResponse, error) {
 	req.Stream = false
-	
+
 	reqBody, err := json.Marshal(req)
 	if err != nil {
 		return ChatResponse{}, fmt.Errorf("failed to marshal request: %w", err)
@@ -88,7 +88,7 @@ func (c *Client) SendMessageWithResponse(req ChatRequest) (ChatResponse, error) 
 
 func CreateChatRequest(conversation Conversation, userMessage string) ChatRequest {
 	conv := AddMessage(conversation, NewUserMessage(userMessage))
-	
+
 	return ChatRequest{
 		Model:    conv.Model,
 		Messages: conv.Messages,

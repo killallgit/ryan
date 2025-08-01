@@ -20,7 +20,7 @@ var modelsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		client := ollama.NewClient(viper.GetString("ollama.url"))
 		controller := controllers.NewModelsController(client)
-		
+
 		if err := controller.ListModels(os.Stdout); err != nil {
 			fmt.Fprintf(os.Stderr, "Error listing models: %v\n", err)
 			os.Exit(1)
