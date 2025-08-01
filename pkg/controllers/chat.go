@@ -64,7 +64,10 @@ func (cc *ChatController) SendUserMessageWithContext(ctx context.Context, conten
 
 func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessage string) (chat.Message, error) {
 	maxIterations := 10 // prevent infinite loops
-	userMessageAdded := false
+
+	// Detect if the user message was already appended optimistically
+	lastMsg, ok := chat.GetLastMessage(cc.conversation)
+	userMessageAdded := ok && lastMsg.IsUser() && lastMsg.Content == strings.TrimSpace(userMessage)
 
 	for i := 0; i < maxIterations; i++ {
 		// Prepare conversation with user message for the first iteration
@@ -175,6 +178,14 @@ func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat
 	}
 
 	return nil
+}
+
+// AddUserMessage adds a user message to the conversation immediately (optimistic UI update)
+func (cc *ChatController) AddUserMessage(content string) {
+	if strings.TrimSpace(content) == "" {
+		return
+	}
+	cc.conversation = chat.AddMessage(cc.conversation, chat.NewUserMessage(content))
 }
 
 func (cc *ChatController) GetHistory() []chat.Message {
