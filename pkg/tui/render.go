@@ -5,8 +5,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/logger"
-	"github.com/spf13/viper"
 )
 
 func RenderMessages(screen tcell.Screen, display MessageDisplay, area Rect) {
@@ -33,7 +33,18 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 	}
 
 	var allLines []MessageLine
-	showThinking := viper.GetBool("show_thinking")
+	// Get showThinking from config or use default
+	showThinking := true
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Config not initialized, use default
+			}
+		}()
+		if cfg := config.Get(); cfg != nil {
+			showThinking = cfg.ShowThinking
+		}
+	}()
 
 	for i, msg := range display.Messages {
 		isLastMessage := i == len(display.Messages)-1

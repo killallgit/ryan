@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/viper"
+	"github.com/killallgit/ryan/pkg/config"
 )
 
 // BashTool executes shell commands with safety constraints
@@ -31,10 +31,20 @@ type BashTool struct {
 func NewBashTool() *BashTool {
 	home, _ := os.UserHomeDir()
 	wd, _ := os.Getwd()
-	bashTimeout := viper.GetDuration("tools.bash.timeout")
-	if bashTimeout == 0 {
-		bashTimeout = 30 * time.Second
-	}
+	
+	// Get timeout from config if available, fallback to default
+	bashTimeout := 30 * time.Second
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Config not initialized, use default
+			}
+		}()
+		if cfg := config.Get(); cfg != nil {
+			bashTimeout = cfg.Tools.Bash.Timeout
+		}
+	}()
+	
 	return &BashTool{
 		AllowedPaths: []string{
 			home,

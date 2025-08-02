@@ -3,18 +3,15 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/models"
-	"github.com/killallgit/ryan/pkg/testing"
 	"github.com/killallgit/ryan/pkg/tools"
 	"github.com/killallgit/ryan/pkg/tui"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var cfgFile string
@@ -24,8 +21,15 @@ var rootCmd = &cobra.Command{
 	Short: "Claude's friend",
 	Long:  `Open source Claude Code alternative.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Initialize logger first
-		if err := logger.InitLogger(); err != nil {
+		// Load configuration
+		cfg, err := config.Load(cfgFile)
+		if err != nil {
+			fmt.Printf("Failed to load configuration: %v\n", err)
+			return
+		}
+
+		// Initialize logger with config
+		if err := logger.InitLoggerWithConfig(cfg.Logging.File, cfg.Logging.Preserve, cfg.Logging.Level); err != nil {
 			fmt.Printf("Failed to initialize logger: %v\n", err)
 			return
 		}
@@ -35,32 +39,25 @@ var rootCmd = &cobra.Command{
 
 		model, _ := cmd.Flags().GetString("model")
 		if model == "" {
-			model = viper.GetString("ollama.model")
-			if model == "" {
-				model = "qwen2.5:7b" // Default to tool-compatible model
-			}
+			model = cfg.Ollama.Model
 		}
 
 		systemPrompt, _ := cmd.Flags().GetString("ollama.system_prompt")
+		if systemPrompt == "" {
+			systemPrompt = cfg.Ollama.SystemPrompt
+		}
 
 		log.Debug("Configuration loaded",
-			"ollama_url", viper.GetString("ollama.url"),
+			"ollama_url", cfg.Ollama.URL,
 			"model", model,
 			"has_system_prompt", systemPrompt != "",
-			"config_file", viper.ConfigFileUsed(),
+			"config_file", config.GetConfigFileUsed(),
 		)
 
-		ollamaURL := viper.GetString("ollama.url")
-		timeoutDuration, err := time.ParseDuration(viper.GetString("ollama.timeout"))
-		if err != nil {
-			log.Warn("Invalid timeout format, using default", "timeout", viper.GetString("ollama.timeout"), "error", err)
-			timeoutDuration = 90 * time.Second
-		}
-		client := chat.NewStreamingClientWithTimeout(ollamaURL, timeoutDuration)
+		client := chat.NewStreamingClientWithTimeout(cfg.Ollama.URL, cfg.Ollama.Timeout)
 
 		// Check Ollama server version and model compatibility before initializing tools
-		tester := testing.NewModelCompatibilityTester(ollamaURL)
-		version, versionSupported, err := tester.CheckOllamaVersion()
+		version, versionSupported, err := models.CheckOllamaVersion(cfg.Ollama.URL)
 
 		var toolRegistry *tools.Registry
 		if err != nil {
@@ -147,36 +144,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is .ryan/settings.yaml)")
-
-	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
-	viper.SetDefault("ollama.model", "qwen2.5:7b")
-	viper.SetDefault("ollama.system_prompt", "")
-	viper.SetDefault("ollama.timeout", "90s")
-	viper.SetDefault("show_thinking", true)
-}
-
-func initConfig() {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
-		xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
-		if xdgConfigHome == "" {
-			xdgConfigHome = filepath.Join(home, ".config")
-		}
-		ryanCfgHome := filepath.Join(xdgConfigHome, ".ryan")
-		viper.AddConfigPath("./.ryan")   // Check project directory first
-		viper.AddConfigPath(ryanCfgHome) // Then check XDG config location
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("settings.yaml")
-	}
-
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-	}
+	rootCmd.PersistentFlags().String("model", "", "model to use (overrides config)")
+	rootCmd.PersistentFlags().String("ollama.system_prompt", "", "system prompt to use (overrides config)")
 }
