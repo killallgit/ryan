@@ -26,6 +26,8 @@ type ModelView struct {
 	progressModal     ProgressModal
 	downloadCtx       context.Context
 	downloadCancel    context.CancelFunc
+	showingDetails    bool
+	detailsModel      ModelInfo
 }
 
 func NewModelView(controller *controllers.ModelsController, chatController *controllers.ChatController, screen tcell.Screen) *ModelView {
@@ -50,6 +52,8 @@ func NewModelView(controller *controllers.ModelsController, chatController *cont
 		progressModal:     NewProgressModal(),
 		downloadCtx:       nil,
 		downloadCancel:    nil,
+		showingDetails:    false,
+		detailsModel:      ModelInfo{},
 	}
 
 	// Don't auto-refresh on creation - wait until view becomes active
@@ -72,6 +76,12 @@ func (mv *ModelView) Activate() {
 }
 
 func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
+	// If showing details, render details view instead
+	if mv.showingDetails {
+		mv.renderModelDetailsView(screen, area)
+		return
+	}
+
 	helpHeight := 1
 	modelInfoHeight := 1 // Height for model count and selected model info
 
@@ -116,6 +126,17 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 		return true // Consume all events while loading
 	}
 
+	// If showing details view, handle only escape key and consume all other events
+	if mv.showingDetails {
+		if ev.Key() == tcell.KeyEscape {
+			mv.showingDetails = false
+			mv.screen.Show()
+			return true // Escape key handled, event consumed
+		}
+		// Consume all other events while in details view
+		return true
+	}
+
 	// Handle modal events first
 	if mv.progressModal.Visible {
 		modal, cancel := mv.progressModal.HandleKeyEvent(ev)
@@ -154,7 +175,7 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 	}
 
 	switch ev.Key() {
-	case tcell.KeyUp, tcell.KeyCtrlP:
+	case tcell.KeyUp:
 		mv.selectPrevious()
 		return true
 
@@ -197,10 +218,13 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 				mv.selectPrevious()
 				return true
 
+			case 'd', 'D':
+				mv.showModelDetails()
+				return true
+
 			case 'r', 'R':
 				mv.refreshModels()
 				return true
-
 
 			case 'n', 'N':
 				mv.showPullModal()
@@ -570,7 +594,7 @@ func (mv *ModelView) renderHelpText(screen tcell.Screen, area Rect) {
 		}
 	}
 
-	helpText := "[n] new model | [ctrl-d] delete | [enter] select | [r] refresh | [j/k] navigate"
+	helpText := "[n] new model | [ctrl-d] delete | [d] details | [enter] select | [r] refresh | [j/k] navigate"
 	helpStyle := StyleDimText
 
 	// Center the help text
@@ -664,5 +688,115 @@ func (mv *ModelView) HandleModelDownloadError(ev ModelDownloadErrorEvent) {
 		mv.status = mv.status.WithStatus("Model download cancelled: " + ev.ModelName)
 	} else {
 		mv.status = mv.status.WithStatus("Model download failed: " + ev.Error.Error())
+	}
+}
+
+func (mv *ModelView) showModelDetails() {
+	if len(mv.modelList.Models) == 0 || mv.modelList.Selected < 0 || mv.modelList.Selected >= len(mv.modelList.Models) {
+		return
+	}
+
+	mv.detailsModel = mv.modelList.Models[mv.modelList.Selected]
+	mv.showingDetails = true
+	mv.screen.Show()
+}
+
+func (mv *ModelView) renderModelDetailsView(screen tcell.Screen, area Rect) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+
+	// Clear the area
+	for y := area.Y; y < area.Y+area.Height; y++ {
+		for x := area.X; x < area.X+area.Width; x++ {
+			screen.SetContent(x, y, ' ', nil, tcell.StyleDefault)
+		}
+	}
+
+	// Draw border
+	borderStyle := StyleBorder
+	drawBorder(screen, area, borderStyle)
+
+	// Calculate content area with padding
+	contentArea := Rect{
+		X:      area.X + 2,
+		Y:      area.Y + 1,
+		Width:  area.Width - 4,
+		Height: area.Height - 2,
+	}
+
+	titleStyle := StyleHeaderText
+	labelStyle := StyleMenuNormal
+	valueStyle := StyleModelCurrent
+	currentModelStyle := StyleHighlight
+
+	// Title
+	title := fmt.Sprintf("Model Details: %s", mv.detailsModel.Name)
+	renderText(screen, contentArea.X, contentArea.Y, title, titleStyle)
+
+	// Check if this is the current model
+	currentModel := mv.chatController.GetModel()
+	isCurrentModel := mv.detailsModel.Name == currentModel
+
+	y := contentArea.Y + 2
+
+	// Basic information
+	sizeGB := float64(mv.detailsModel.Size) / (1024 * 1024 * 1024)
+	
+	details := []struct {
+		label string
+		value string
+		style tcell.Style
+	}{
+		{"Name:", mv.detailsModel.Name, valueStyle},
+		{"Size:", fmt.Sprintf("%.2f GB (%d bytes)", sizeGB, mv.detailsModel.Size), valueStyle},
+		{"Parameters:", mv.detailsModel.ParameterSize, valueStyle},
+		{"Quantization:", mv.detailsModel.QuantizationLevel, valueStyle},
+		{"Status:", func() string {
+			if mv.detailsModel.IsRunning {
+				return "Running"
+			}
+			return "Stopped"
+		}(), valueStyle},
+		{"Current Model:", func() string {
+			if isCurrentModel {
+				return "Yes"
+			}
+			return "No"
+		}(), func() tcell.Style {
+			if isCurrentModel {
+				return currentModelStyle
+			}
+			return valueStyle
+		}()},
+		{"Modified:", mv.detailsModel.ModifiedAt.Format("2006-01-02 15:04:05"), valueStyle},
+	}
+
+	for _, detail := range details {
+		if y >= contentArea.Y+contentArea.Height-2 {
+			break
+		}
+		
+		// Render label
+		renderText(screen, contentArea.X, y, detail.label, labelStyle)
+		
+		// Render value (offset to align values)
+		valueX := contentArea.X + 15
+		if valueX < contentArea.X+contentArea.Width {
+			renderText(screen, valueX, y, detail.value, detail.style)
+		}
+		
+		y += 2
+	}
+
+	// Instructions at bottom
+	instructionY := contentArea.Y + contentArea.Height - 1
+	instruction := "[ESC] Back to list"
+	instrStyle := StyleDimText
+	
+	// Center the instruction
+	if len(instruction) <= contentArea.Width {
+		startX := contentArea.X + (contentArea.Width-len(instruction))/2
+		renderText(screen, startX, instructionY, instruction, instrStyle)
 	}
 }

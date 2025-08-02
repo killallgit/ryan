@@ -227,12 +227,49 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 		return
 	}
 
+	// Handle critical app-level shortcuts first (before views)
 	switch ev.Key() {
-	case tcell.KeyCtrlC, tcell.KeyEscape:
+	case tcell.KeyCtrlP:
+		app.viewManager.ToggleMenu()
+		log.Debug("Menu toggled via Ctrl+P")
+		return
+	case tcell.KeyCtrlC:
+		// Handle Ctrl-C for canceling or quitting
 		if app.viewManager.IsMenuVisible() {
 			app.viewManager.HideMenu()
 			app.viewManager.SyncViewState(app.sending)
-			log.Debug("Menu hidden via Escape/Ctrl+C, state synced")
+			log.Debug("Menu hidden via Ctrl+C, state synced")
+		} else if app.sending {
+			// Cancel the current send operation
+			select {
+			case app.cancelSend <- true:
+				log.Debug("Cancellation signal sent")
+			default:
+				log.Debug("Cancellation channel full, already cancelling")
+			}
+		} else {
+			app.quit = true
+			log.Debug("Application quit triggered via Ctrl+C")
+		}
+		return
+	}
+
+	// Let the current view handle the key event
+	currentView := app.viewManager.GetCurrentView()
+	if currentView != nil {
+		if currentView.HandleKeyEvent(ev, app.sending) {
+			// Event was consumed by the view, don't handle it at app level
+			return
+		}
+	}
+
+	// Handle remaining app-level key events only if not consumed by the current view
+	switch ev.Key() {
+	case tcell.KeyEscape:
+		if app.viewManager.IsMenuVisible() {
+			app.viewManager.HideMenu()
+			app.viewManager.SyncViewState(app.sending)
+			log.Debug("Menu hidden via Escape, state synced")
 		} else if app.sending {
 			// Cancel the current send operation
 			select {
@@ -249,16 +286,6 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 		} else {
 			app.quit = true
 			log.Debug("Application quit triggered")
-		}
-
-	case tcell.KeyCtrlP:
-		app.viewManager.ToggleMenu()
-		log.Debug("Menu toggled via Ctrl+P")
-
-	default:
-		currentView := app.viewManager.GetCurrentView()
-		if currentView != nil {
-			currentView.HandleKeyEvent(ev, app.sending)
 		}
 	}
 }
