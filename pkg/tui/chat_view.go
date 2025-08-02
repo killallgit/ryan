@@ -159,10 +159,22 @@ func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 		return true
 
 	case tcell.KeyUp:
+		// Check for Ctrl+Up for node navigation
+		if ev.Modifiers()&tcell.ModCtrl != 0 {
+			if cv.handleNodeNavigation(true) {
+				return true
+			}
+		}
 		cv.scrollUp()
 		return true
 
 	case tcell.KeyDown:
+		// Check for Ctrl+Down for node navigation
+		if ev.Modifiers()&tcell.ModCtrl != 0 {
+			if cv.handleNodeNavigation(false) {
+				return true
+			}
+		}
 		cv.scrollDown()
 		return true
 
@@ -174,13 +186,87 @@ func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 		cv.pageDown()
 		return true
 
+	case tcell.KeyTab:
+		// Tab to expand/collapse focused node
+		if cv.handleNodeToggleExpansion() {
+			return true
+		}
+
 	default:
 		if ev.Rune() != 0 {
+			// Check for specific key combinations for node operations
+			switch ev.Rune() {
+			case ' ':
+				// Space to select/deselect focused node
+				if ev.Modifiers()&tcell.ModCtrl != 0 {
+					if cv.handleNodeToggleSelection() {
+						return true
+					}
+				}
+			case 'a', 'A':
+				// Ctrl+A to select all nodes
+				if ev.Modifiers()&tcell.ModCtrl != 0 {
+					if cv.handleSelectAllNodes() {
+						return true
+					}
+				}
+			case 'c', 'C':
+				// Ctrl+C to clear selection (if not sending)
+				if ev.Modifiers()&tcell.ModCtrl != 0 && !sending {
+					if cv.handleClearNodeSelection() {
+						return true
+					}
+				}
+			}
+			
 			cv.input = cv.input.InsertRune(ev.Rune())
 			return true
 		}
 	}
 
+	return false
+}
+
+func (cv *ChatView) HandleMouseEvent(ev *tcell.EventMouse) bool {
+	log := logger.WithComponent("chat_view")
+	
+	// Get mouse coordinates
+	x, y := ev.Position()
+	buttons := ev.Buttons()
+	
+	log.Debug("Chat view mouse event", "x", x, "y", y, "buttons", buttons)
+	
+	// Only handle left mouse button clicks
+	if buttons&tcell.ButtonPrimary == 0 {
+		return false
+	}
+	
+	// Check if the click is in the message area
+	messageArea, _, _, _ := cv.layout.CalculateAreas()
+	
+	if x >= messageArea.X && x < messageArea.X+messageArea.Width &&
+	   y >= messageArea.Y && y < messageArea.Y+messageArea.Height {
+		
+		// Handle click in message area
+		if cv.messages.UseNodes && cv.messages.NodeManager != nil {
+			// Use node-based click handling
+			nodeID, handled := cv.messages.HandleClick(x, y)
+			if handled {
+				log.Debug("Node click handled", "node_id", nodeID, "x", x, "y", y)
+				
+				// Post node click event for further processing if needed
+				cv.screen.PostEvent(NewMessageNodeClickEvent(nodeID, x-messageArea.X, y-messageArea.Y))
+				return true
+			}
+		}
+		
+		// For legacy mode or if node handling didn't work, 
+		// we could implement basic click handling here
+		log.Debug("Click in message area not handled by nodes", "x", x, "y", y)
+		return true // Still consume the event even if not handled
+	}
+	
+	// Click was not in message area
 	return false
 }
 
@@ -755,4 +841,135 @@ func (cv *ChatView) HandleModelChange(ev ModelChangeEvent) {
 	// Update the status bar to show the new model
 	cv.status = cv.status.WithModel(ev.ModelName)
 	log.Debug("Updated chat view status bar with new model", "model_name", ev.ModelName)
+}
+
+// Node navigation and interaction methods
+
+func (cv *ChatView) handleNodeNavigation(up bool) bool {
+	// Only handle if using nodes
+	if !cv.messages.UseNodes || cv.messages.NodeManager == nil {
+		return false
+	}
+	
+	log := logger.WithComponent("chat_view")
+	
+	var moved bool
+	if up {
+		moved = cv.messages.MoveFocusUp()
+		log.Debug("Node navigation up", "moved", moved)
+	} else {
+		moved = cv.messages.MoveFocusDown()
+		log.Debug("Node navigation down", "moved", moved)
+	}
+	
+	if moved {
+		// Post focus change event
+		focusedNodeID := cv.messages.NodeManager.GetFocusedNode()
+		cv.screen.PostEvent(NewMessageNodeFocusEvent(focusedNodeID))
+		
+		// TODO: Auto-scroll to keep focused node visible
+		cv.autoScrollToFocusedNode()
+	}
+	
+	return moved
+}
+
+func (cv *ChatView) handleNodeToggleSelection() bool {
+	// Only handle if using nodes
+	if !cv.messages.UseNodes || cv.messages.NodeManager == nil {
+		return false
+	}
+	
+	focusedNodeID := cv.messages.NodeManager.GetFocusedNode()
+	if focusedNodeID == "" {
+		return false
+	}
+	
+	log := logger.WithComponent("chat_view")
+	log.Debug("Toggling selection for focused node", "node_id", focusedNodeID)
+	
+	if cv.messages.NodeManager.SelectNode(focusedNodeID) {
+		// Get the new selection state
+		isSelected := cv.messages.NodeManager.IsNodeSelected(focusedNodeID)
+		cv.screen.PostEvent(NewMessageNodeSelectEvent(focusedNodeID, isSelected))
+		return true
+	}
+	
+	return false
+}
+
+func (cv *ChatView) handleNodeToggleExpansion() bool {
+	// Only handle if using nodes
+	if !cv.messages.UseNodes || cv.messages.NodeManager == nil {
+		return false
+	}
+	
+	focusedNodeID := cv.messages.NodeManager.GetFocusedNode()
+	if focusedNodeID == "" {
+		return false
+	}
+	
+	log := logger.WithComponent("chat_view")
+	log.Debug("Toggling expansion for focused node", "node_id", focusedNodeID)
+	
+	if cv.messages.NodeManager.ToggleNodeExpansion(focusedNodeID) {
+		// Get the node to check its new state
+		if node, exists := cv.messages.NodeManager.GetNode(focusedNodeID); exists {
+			cv.screen.PostEvent(NewMessageNodeExpandEvent(focusedNodeID, node.State().Expanded))
+		}
+		return true
+	}
+	
+	return false
+}
+
+func (cv *ChatView) handleSelectAllNodes() bool {
+	// Only handle if using nodes
+	if !cv.messages.UseNodes || cv.messages.NodeManager == nil {
+		return false
+	}
+	
+	log := logger.WithComponent("chat_view")
+	log.Debug("Selecting all nodes")
+	
+	// Get all nodes and select them
+	nodes := cv.messages.NodeManager.GetNodes()
+	for _, node := range nodes {
+		cv.messages.NodeManager.SetNodeSelected(node.ID(), true)
+	}
+	
+	// Post selection events for all nodes
+	for _, node := range nodes {
+		cv.screen.PostEvent(NewMessageNodeSelectEvent(node.ID(), true))
+	}
+	
+	return len(nodes) > 0
+}
+
+func (cv *ChatView) handleClearNodeSelection() bool {
+	// Only handle if using nodes
+	if !cv.messages.UseNodes || cv.messages.NodeManager == nil {
+		return false
+	}
+	
+	log := logger.WithComponent("chat_view")
+	log.Debug("Clearing all node selections")
+	
+	selectedNodes := cv.messages.GetSelectedNodes()
+	cv.messages.ClearSelection()
+	
+	// Post deselection events
+	for _, nodeID := range selectedNodes {
+		cv.screen.PostEvent(NewMessageNodeSelectEvent(nodeID, false))
+	}
+	
+	return len(selectedNodes) > 0
+}
+
+func (cv *ChatView) autoScrollToFocusedNode() {
+	// TODO: Implement auto-scrolling to keep focused node visible
+	// This would involve calculating the focused node's position and
+	// adjusting the scroll offset if needed
+	log := logger.WithComponent("chat_view")
+	log.Debug("Auto-scroll to focused node requested (not yet implemented)")
 }

@@ -99,6 +99,72 @@ func NewModelStatsUpdateEvent(stats ModelStats) *ModelStatsUpdateEvent {
 	}
 }
 
+// Node interaction events
+
+// MessageNodeSelectEvent is sent when a message node is selected/deselected
+type MessageNodeSelectEvent struct {
+	tcell.EventTime
+	NodeID   string
+	Selected bool
+}
+
+// MessageNodeExpandEvent is sent when a message node is expanded/collapsed
+type MessageNodeExpandEvent struct {
+	tcell.EventTime
+	NodeID   string
+	Expanded bool
+}
+
+// MessageNodeFocusEvent is sent when focus moves to a different node
+type MessageNodeFocusEvent struct {
+	tcell.EventTime
+	NodeID string // Empty string means no focus
+}
+
+// MessageNodeClickEvent is sent when a message node is clicked
+type MessageNodeClickEvent struct {
+	tcell.EventTime
+	NodeID string
+	X      int // Relative X coordinate within the node
+	Y      int // Relative Y coordinate within the node
+}
+
+// NewMessageNodeSelectEvent creates a new node selection event
+func NewMessageNodeSelectEvent(nodeID string, selected bool) *MessageNodeSelectEvent {
+	return &MessageNodeSelectEvent{
+		EventTime: tcell.EventTime{},
+		NodeID:    nodeID,
+		Selected:  selected,
+	}
+}
+
+// NewMessageNodeExpandEvent creates a new node expansion event
+func NewMessageNodeExpandEvent(nodeID string, expanded bool) *MessageNodeExpandEvent {
+	return &MessageNodeExpandEvent{
+		EventTime: tcell.EventTime{},
+		NodeID:    nodeID,
+		Expanded:  expanded,
+	}
+}
+
+// NewMessageNodeFocusEvent creates a new node focus event
+func NewMessageNodeFocusEvent(nodeID string) *MessageNodeFocusEvent {
+	return &MessageNodeFocusEvent{
+		EventTime: tcell.EventTime{},
+		NodeID:    nodeID,
+	}
+}
+
+// NewMessageNodeClickEvent creates a new node click event
+func NewMessageNodeClickEvent(nodeID string, x, y int) *MessageNodeClickEvent {
+	return &MessageNodeClickEvent{
+		EventTime: tcell.EventTime{},
+		NodeID:    nodeID,
+		X:         x,
+		Y:         y,
+	}
+}
+
 // NewModelErrorEvent creates a new model error event
 func NewModelErrorEvent(err error) *ModelErrorEvent {
 	return &ModelErrorEvent{

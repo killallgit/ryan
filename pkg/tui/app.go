@@ -192,6 +192,8 @@ func (app *App) handleEvent(event tcell.Event) {
 	switch ev := event.(type) {
 	case *tcell.EventKey:
 		app.handleKeyEvent(ev)
+	case *tcell.EventMouse:
+		app.handleMouseEvent(ev)
 	case *tcell.EventResize:
 		app.handleResize(ev)
 	case *MessageResponseEvent:
@@ -310,6 +312,45 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 		} else {
 			app.quit = true
 			log.Debug("Application quit triggered")
+		}
+	}
+}
+
+func (app *App) handleMouseEvent(ev *tcell.EventMouse) {
+	log := logger.WithComponent("tui_app")
+	
+	// Get mouse coordinates
+	x, y := ev.Position()
+	buttons := ev.Buttons()
+	
+	log.Debug("Mouse event received", "x", x, "y", y, "buttons", buttons)
+	
+	// Handle modal first - if modal is visible, consume the click
+	if app.modal.Visible {
+		app.modal = app.modal.Hide()
+		log.Debug("Modal dismissed by mouse click")
+		return
+	}
+	
+	// Handle menu clicks
+	if app.viewManager.IsMenuVisible() {
+		// Let the menu handle the mouse event
+		if app.viewManager.HandleMenuMouseEvent(ev) {
+			return
+		}
+	}
+	
+	// Only handle left mouse button clicks for now
+	if buttons&tcell.ButtonPrimary != 0 {
+		// Let the current view handle the mouse event
+		currentView := app.viewManager.GetCurrentView()
+		if currentView != nil {
+			// For chat view, we need to check if it supports mouse handling
+			if chatView, ok := currentView.(*ChatView); ok {
+				if chatView.HandleMouseEvent(ev) {
+					return
+				}
+			}
 		}
 	}
 }

@@ -141,6 +141,17 @@ func (vm *ViewManager) HandleMenuKeyEvent(ev *tcell.EventKey) bool {
 	return false
 }
 
+func (vm *ViewManager) HandleMenuMouseEvent(ev *tcell.EventMouse) bool {
+	if !vm.menuVisible {
+		return false
+	}
+	
+	// For now, just hide menu on any click - could be enhanced later
+	// to handle specific menu item clicks
+	vm.menuVisible = false
+	return true
+}
+
 func (vm *ViewManager) HandleResize(width, height int) {
 	for _, view := range vm.views {
 		view.HandleResize(width, height)
