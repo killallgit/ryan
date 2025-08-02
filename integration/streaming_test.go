@@ -62,9 +62,9 @@ var _ = Describe("Streaming Integration Tests", func() {
 			Expect(updates).ToNot(BeNil())
 
 			var (
-				streamStarted     = false
-				chunksReceived    = 0
-				messageCompleted  = false
+				streamStarted    = false
+				chunksReceived   = 0
+				messageCompleted = false
 				finalMessage     chat.Message
 				totalDuration    time.Duration
 				contentLength    int
@@ -72,7 +72,7 @@ var _ = Describe("Streaming Integration Tests", func() {
 
 			// Process all streaming updates
 			for update := range updates {
-				GinkgoWriter.Printf("Received update: Type=%d, StreamID=%s, Content='%s'\n", 
+				GinkgoWriter.Printf("Received update: Type=%d, StreamID=%s, Content='%s'\n",
 					update.Type, update.StreamID, update.Content)
 
 				switch update.Type {
@@ -86,7 +86,7 @@ var _ = Describe("Streaming Integration Tests", func() {
 					contentLength += len(update.Content)
 					Expect(update.StreamID).ToNot(BeEmpty())
 					Expect(update.Content).ToNot(BeEmpty()) // Each chunk should have content
-					GinkgoWriter.Printf("Chunk %d: '%s' (length: %d)\n", 
+					GinkgoWriter.Printf("Chunk %d: '%s' (length: %d)\n",
 						chunksReceived, update.Content, len(update.Content))
 
 				case controllers.MessageComplete:
@@ -111,7 +111,7 @@ var _ = Describe("Streaming Integration Tests", func() {
 			Expect(chunksReceived).To(BeNumerically(">", 0), "Should have received chunks")
 			Expect(messageCompleted).To(BeTrue(), "Message should have completed")
 			Expect(finalMessage.Content).ToNot(BeEmpty(), "Final message should have content")
-			
+
 			// Verify the message makes sense
 			Expect(len(finalMessage.Content)).To(BeNumerically(">", 20), "Response should be substantial")
 			Expect(totalDuration).To(BeNumerically(">", 0), "Duration should be tracked")
@@ -173,7 +173,7 @@ var _ = Describe("Streaming Integration Tests", func() {
 				case controllers.ChunkReceived:
 					chunksReceived++
 					GinkgoWriter.Printf("Received chunk %d before cancellation\n", chunksReceived)
-					
+
 				case controllers.StreamError:
 					if update.Error == context.Canceled {
 						GinkgoWriter.Printf("Stream cancelled as expected\n")
@@ -197,7 +197,7 @@ var _ = Describe("Streaming Integration Tests", func() {
 			defer cancel()
 
 			startTime := time.Now()
-			
+
 			updates, err := controller.StartStreaming(ctx, "Count from 1 to 10 with brief explanations.")
 			Expect(err).ToNot(HaveOccurred())
 
@@ -227,7 +227,7 @@ var _ = Describe("Streaming Integration Tests", func() {
 			b.RecordValue("Time to first chunk (ms)", float64(timeToFirstChunk.Milliseconds()))
 			b.RecordValue("Total streaming time (ms)", float64(totalStreamingTime.Milliseconds()))
 			b.RecordValue("Chunks received", float64(chunksReceived))
-			
+
 			if chunksReceived > 0 {
 				avgChunkInterval := totalStreamingTime / time.Duration(chunksReceived)
 				b.RecordValue("Average chunk interval (ms)", float64(avgChunkInterval.Milliseconds()))
@@ -269,7 +269,7 @@ var _ = Describe("Streaming Integration Tests", func() {
 
 				chunksReceived++
 				contentReceived += chunk.Content
-				
+
 				if chunk.Done {
 					streamCompleted = true
 					break
@@ -279,7 +279,7 @@ var _ = Describe("Streaming Integration Tests", func() {
 			Expect(chunksReceived).To(BeNumerically(">", 0), "Should receive chunks")
 			Expect(streamCompleted).To(BeTrue(), "Stream should complete")
 			Expect(contentReceived).ToNot(BeEmpty(), "Should receive content")
-			
+
 			GinkgoWriter.Printf("Raw streaming test completed:\n")
 			GinkgoWriter.Printf("  - Chunks: %d\n", chunksReceived)
 			GinkgoWriter.Printf("  - Content: %s\n", contentReceived)
