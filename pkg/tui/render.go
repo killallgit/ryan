@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
@@ -17,6 +18,7 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 		Text       string
 		Role       string
 		IsThinking bool
+		Style      *tcell.Style // Optional specific style for this line
 	}
 
 	var allLines []MessageLine
@@ -47,6 +49,7 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 						Text:       line,
 						Role:       msg.Role,
 						IsThinking: true, // Force thinking styling
+						Style:      nil,
 					})
 				}
 			} else {
@@ -70,6 +73,7 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 							Text:       line,
 							Role:       msg.Role,
 							IsThinking: true,
+							Style:      nil,
 						})
 					}
 
@@ -79,6 +83,7 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 							Text:       "",
 							Role:       "",
 							IsThinking: false,
+							Style:      nil,
 						})
 					}
 				}
@@ -92,13 +97,39 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 				}
 
 				if contentToRender != "" {
-					contentLines := WrapText(contentToRender, chatWidth)
-					for _, line := range contentLines {
-						allLines = append(allLines, MessageLine{
-							Text:       line,
-							Role:       msg.Role,
-							IsThinking: false,
-						})
+					// Check if we should use simple formatting for line calculation
+					contentTypes := DetectContentTypes(contentToRender)
+					if ShouldUseSimpleFormatting(contentTypes) {
+						// Use simple formatting to calculate lines
+						formatter := NewSimpleFormatter(chatWidth)
+						segments := ParseContentSegments(contentToRender)
+						formattedLines := formatter.FormatContentSegments(segments)
+						
+						for _, formattedLine := range formattedLines {
+							// Apply indentation
+							content := formattedLine.Content
+							if formattedLine.Indent > 0 {
+								content = strings.Repeat(" ", formattedLine.Indent) + content
+							}
+							
+							allLines = append(allLines, MessageLine{
+								Text:       content,
+								Role:       msg.Role,
+								IsThinking: false,
+								Style:      &formattedLine.Style,
+							})
+						}
+					} else {
+						// Use traditional text wrapping
+						contentLines := WrapText(contentToRender, chatWidth)
+						for _, line := range contentLines {
+							allLines = append(allLines, MessageLine{
+								Text:       line,
+								Role:       msg.Role,
+								IsThinking: false,
+								Style:      nil,
+							})
+						}
 					}
 				}
 			}
@@ -151,6 +182,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 		Text       string
 		Role       string
 		IsThinking bool
+		Style      *tcell.Style // Optional specific style for this line
 	}
 
 	var allLines []MessageLine
@@ -194,6 +226,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 						Text:       line,
 						Role:       msg.Role,
 						IsThinking: true, // Force thinking styling
+						Style:      nil,
 					})
 				}
 				log.Debug("Rendered streaming thinking message", "lines_added", len(thinkingLines))
@@ -218,6 +251,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 							Text:       line,
 							Role:       msg.Role,
 							IsThinking: true,
+							Style:      nil,
 						})
 					}
 
@@ -227,6 +261,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 							Text:       "",
 							Role:       "",
 							IsThinking: false,
+							Style:      nil,
 						})
 					}
 				}
@@ -240,33 +275,59 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 				}
 
 				if contentToRender != "" {
-					contentLines := WrapText(contentToRender, chatArea.Width)
-					log := logger.WithComponent("render")
-
-					firstLine := ""
-					if len(contentLines) > 0 {
-						firstLine = contentLines[0]
-					}
-					log.Debug("Rendering assistant message lines",
-						"role", msg.Role,
-						"content_length", len(contentToRender),
-						"width", chatArea.Width,
-						"lines", len(contentLines),
-						"first_line", firstLine,
-						"had_thinking", parsed.HasThinking,
-						"content_preview", func() string {
-							if len(contentToRender) > 100 {
-								return contentToRender[:100] + "..."
+					// Check if we should use simple formatting
+					contentTypes := DetectContentTypes(contentToRender)
+					if ShouldUseSimpleFormatting(contentTypes) {
+						// Use simple formatting for complex content
+						formatter := NewSimpleFormatter(chatArea.Width)
+						segments := ParseContentSegments(contentToRender)
+						formattedLines := formatter.FormatContentSegments(segments)
+						
+						for _, formattedLine := range formattedLines {
+							// Apply indentation
+							content := formattedLine.Content
+							if formattedLine.Indent > 0 {
+								content = strings.Repeat(" ", formattedLine.Indent) + content
 							}
-							return contentToRender
-						}())
+							
+							allLines = append(allLines, MessageLine{
+								Text:       content,
+								Role:       msg.Role,
+								IsThinking: false,
+								Style:      &formattedLine.Style, // Store the specific style
+							})
+						}
+					} else {
+						// Use traditional text wrapping for simple content
+						contentLines := WrapText(contentToRender, chatArea.Width)
+						log := logger.WithComponent("render")
 
-					for _, line := range contentLines {
-						allLines = append(allLines, MessageLine{
-							Text:       line,
-							Role:       msg.Role,
-							IsThinking: false,
-						})
+						firstLine := ""
+						if len(contentLines) > 0 {
+							firstLine = contentLines[0]
+						}
+						log.Debug("Rendering assistant message lines",
+							"role", msg.Role,
+							"content_length", len(contentToRender),
+							"width", chatArea.Width,
+							"lines", len(contentLines),
+							"first_line", firstLine,
+							"had_thinking", parsed.HasThinking,
+							"content_preview", func() string {
+								if len(contentToRender) > 100 {
+									return contentToRender[:100] + "..."
+								}
+								return contentToRender
+							}())
+
+						for _, line := range contentLines {
+							allLines = append(allLines, MessageLine{
+								Text:       line,
+								Role:       msg.Role,
+								IsThinking: false,
+								Style:      nil,
+							})
+						}
 					}
 				}
 			}
@@ -343,9 +404,12 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 			break
 		}
 
-		// Determine style based on message role and thinking status
+		// Determine style based on custom style or message role and thinking status
 		var style tcell.Style
-		if msgLine.IsThinking {
+		if msgLine.Style != nil {
+			// Use custom style if available
+			style = *msgLine.Style
+		} else if msgLine.IsThinking {
 			// Dimmed italic style for thinking blocks
 			style = StyleThinkingText
 		} else {
