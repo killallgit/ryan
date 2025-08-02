@@ -451,7 +451,6 @@ func (mv *ModelView) ensureSelectionVisible() {
 	}
 }
 
-
 func (mv *ModelView) changeModel() {
 	if len(mv.modelList.Models) == 0 || mv.modelList.Selected < 0 || mv.modelList.Selected >= len(mv.modelList.Models) {
 		return
@@ -480,10 +479,10 @@ func (mv *ModelView) changeModel() {
 	} else {
 		log.Debug("Configuration saved successfully", "new_model", selectedModel.Name)
 		mv.status = mv.status.WithStatus("Model changed to: " + selectedModel.Name)
-		
+
 		// Post event to notify other views (especially ChatView) that the model changed
 		mv.screen.PostEvent(NewModelChangeEvent(selectedModel.Name))
-		
+
 		// Trigger screen refresh to update the current model highlighting
 		mv.screen.Show()
 	}
@@ -675,7 +674,7 @@ func (mv *ModelView) HandleModelDownloadComplete(ev ModelDownloadCompleteEvent) 
 	if err := viper.WriteConfig(); err != nil {
 		log.Error("Failed to save configuration after download", "error", err)
 	}
-	
+
 	// Post event to notify other views that the model changed
 	mv.screen.PostEvent(NewModelChangeEvent(ev.ModelName))
 }
@@ -748,7 +747,7 @@ func (mv *ModelView) renderModelDetailsView(screen tcell.Screen, area Rect) {
 
 	// Basic information
 	sizeGB := float64(mv.detailsModel.Size) / (1024 * 1024 * 1024)
-	
+
 	details := []struct {
 		label string
 		value string
@@ -782,16 +781,16 @@ func (mv *ModelView) renderModelDetailsView(screen tcell.Screen, area Rect) {
 		if y >= contentArea.Y+contentArea.Height-2 {
 			break
 		}
-		
+
 		// Render label
 		renderText(screen, contentArea.X, y, detail.label, labelStyle)
-		
+
 		// Render value (offset to align values)
 		valueX := contentArea.X + 15
 		if valueX < contentArea.X+contentArea.Width {
 			renderText(screen, valueX, y, detail.value, detail.style)
 		}
-		
+
 		y += 2
 	}
 
@@ -799,7 +798,7 @@ func (mv *ModelView) renderModelDetailsView(screen tcell.Screen, area Rect) {
 	instructionY := contentArea.Y + contentArea.Height - 1
 	instruction := "[ESC] Back to list"
 	instrStyle := StyleDimText
-	
+
 	// Center the instruction
 	if len(instruction) <= contentArea.Width {
 		startX := contentArea.X + (contentArea.Width-len(instruction))/2

@@ -37,7 +37,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 
 	for i, msg := range display.Messages {
 		isLastMessage := i == len(display.Messages)-1
-		
+
 		if msg.Role == chat.RoleAssistant {
 			// Check if this is a streaming thinking message (last message + streaming thinking mode)
 			if isLastMessage && streamingThinking && showThinking {
@@ -336,20 +336,45 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 
 	clearArea(screen, area)
 
-	// Format status line: [Model: modelname] Status | Tokens: prompt/response
-	statusText := fmt.Sprintf("[Model: %s] %s", status.Model, status.Status)
+	// Create status indicator (green circle for ready, hollow for other states)
+	var statusIndicator string
+	indicatorStyle := StyleDimText
+	if status.Status == "Ready" {
+		statusIndicator = "●" // Filled circle for ready
+		indicatorStyle = tcell.StyleDefault.Foreground(tcell.ColorGreen)
+	} else {
+		statusIndicator = "○" // Hollow circle for other states
+	}
 
+	// Format the status text with indicator and model name
+	statusText := fmt.Sprintf("%s %s", statusIndicator, status.Model)
+
+	// Add token information if available (just total count)
 	if status.PromptTokens > 0 || status.ResponseTokens > 0 {
-		tokenText := fmt.Sprintf(" | Tokens: %d/%d", status.PromptTokens, status.ResponseTokens)
+		totalTokens := status.PromptTokens + status.ResponseTokens
+		tokenText := fmt.Sprintf(" %d", totalTokens)
 		statusText += tokenText
 	}
 
-	// Truncate if too long
-	if len(statusText) > area.Width {
-		statusText = statusText[:area.Width-3] + "..."
+	// Calculate position for right-aligned text
+	textLen := len(statusText)
+	startX := area.X + area.Width - textLen
+	if startX < area.X {
+		// Text is too long, truncate from the left
+		startX = area.X
+		if textLen > area.Width {
+			// Show the end of the text (keep model and tokens visible)
+			statusText = "..." + statusText[textLen-area.Width+3:]
+		}
 	}
 
-	renderText(screen, area.X, area.Y, statusText, StyleDimText)
+	// Render the indicator with appropriate style
+	screen.SetContent(startX, area.Y, rune(statusIndicator[0]), nil, indicatorStyle)
+
+	// Render the rest of the text
+	if len(statusText) > 1 {
+		renderText(screen, startX+2, area.Y, statusText[2:], StyleDimText) // Skip the indicator and space
+	}
 }
 
 func RenderTokensOnly(screen tcell.Screen, area Rect, promptTokens, responseTokens int) {
@@ -381,7 +406,9 @@ func RenderTokensWithSpinner(screen tcell.Screen, area Rect, promptTokens, respo
 
 	clearArea(screen, area)
 
-	tokenText := fmt.Sprintf("Tokens: %d/%d", promptTokens, responseTokens)
+	// Show only total token count as a single number
+	totalTokens := promptTokens + responseTokens
+	tokenText := fmt.Sprintf("%d", totalTokens)
 	fullText := tokenText
 
 	if spinnerVisible {
@@ -400,15 +427,15 @@ func RenderTokensWithSpinner(screen tcell.Screen, area Rect, promptTokens, respo
 	}
 
 	if spinnerVisible {
-		// Render token text first
-		renderText(screen, startX, area.Y, tokenText, StyleTokenCount)
+		// Render token text first in dim style
+		renderText(screen, startX, area.Y, tokenText, StyleDimText)
 		// Then render spinner
 		spinnerX := startX + len(tokenText)
 		if spinnerX < area.X+area.Width {
 			renderText(screen, spinnerX, area.Y, fmt.Sprintf(" %s", spinnerFrame), StyleDimText)
 		}
 	} else {
-		renderText(screen, startX, area.Y, tokenText, StyleTokenCount)
+		renderText(screen, startX, area.Y, tokenText, StyleDimText)
 	}
 }
 
@@ -425,3 +452,4 @@ func renderText(screen tcell.Screen, x, y int, text string, style tcell.Style) {
 		screen.SetContent(x+i, y, r, nil, style)
 	}
 }
+

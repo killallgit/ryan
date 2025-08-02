@@ -11,18 +11,18 @@ import (
 )
 
 type DownloadModalView struct {
-	modelsController  *controllers.ModelsController
-	chatController    *controllers.ChatController
-	screen            tcell.Screen
-	textInputModal    TextInputModal
-	downloadModal     DownloadPromptModal
-	progressModal     ProgressModal
-	errorModal        ModalDialog
-	width             int
-	height            int
-	instructions      []string
-	isDownloading     bool
-	currentModelName  string
+	modelsController *controllers.ModelsController
+	chatController   *controllers.ChatController
+	screen           tcell.Screen
+	textInputModal   TextInputModal
+	downloadModal    DownloadPromptModal
+	progressModal    ProgressModal
+	errorModal       ModalDialog
+	width            int
+	height           int
+	instructions     []string
+	isDownloading    bool
+	currentModelName string
 }
 
 func NewDownloadModalView(modelsController *controllers.ModelsController, chatController *controllers.ChatController, screen tcell.Screen) *DownloadModalView {
@@ -33,7 +33,7 @@ func NewDownloadModalView(modelsController *controllers.ModelsController, chatCo
 		"",
 		"Popular models:",
 		"  • llama3.2:3b    - Fast, lightweight model",
-		"  • llama3.2:1b    - Ultra-fast, minimal model", 
+		"  • llama3.2:1b    - Ultra-fast, minimal model",
 		"  • qwen2.5:7b     - High-quality general purpose",
 		"  • phi3:mini      - Microsoft's efficient model",
 		"  • gemma2:2b      - Google's compact model",
@@ -47,18 +47,18 @@ func NewDownloadModalView(modelsController *controllers.ModelsController, chatCo
 	}
 
 	return &DownloadModalView{
-		modelsController:  modelsController,
-		chatController:    chatController,
-		screen:            screen,
-		textInputModal:    NewTextInputModal(),
-		downloadModal:     NewDownloadPromptModal(),
-		progressModal:     NewProgressModal(),
-		errorModal:        NewModalDialog(),
-		width:             80,
+		modelsController: modelsController,
+		chatController:   chatController,
+		screen:           screen,
+		textInputModal:   NewTextInputModal(),
+		downloadModal:    NewDownloadPromptModal(),
+		progressModal:    NewProgressModal(),
+		errorModal:       NewModalDialog(),
+		width:            80,
 		height:           24,
-		instructions:      instructions,
-		isDownloading:     false,
-		currentModelName:  "",
+		instructions:     instructions,
+		isDownloading:    false,
+		currentModelName: "",
 	}
 }
 
@@ -151,7 +151,7 @@ func (dmv *DownloadModalView) HandleKeyEvent(ev *tcell.EventKey, sending bool) b
 		var content string
 		var submitted bool
 		dmv.textInputModal, content, submitted = dmv.textInputModal.HandleKeyEvent(ev)
-		
+
 		if submitted && content != "" {
 			// Show download confirmation modal
 			dmv.downloadModal = dmv.downloadModal.Show(content)
@@ -164,7 +164,7 @@ func (dmv *DownloadModalView) HandleKeyEvent(ev *tcell.EventKey, sending bool) b
 	if dmv.downloadModal.Visible {
 		var confirmed bool
 		dmv.downloadModal, confirmed, _ = dmv.downloadModal.HandleKeyEvent(ev)
-		
+
 		if confirmed {
 			dmv.startDownload(dmv.currentModelName)
 		} else if !dmv.downloadModal.Visible {
@@ -177,7 +177,7 @@ func (dmv *DownloadModalView) HandleKeyEvent(ev *tcell.EventKey, sending bool) b
 	if dmv.progressModal.Visible {
 		var cancelled bool
 		dmv.progressModal, cancelled = dmv.progressModal.HandleKeyEvent(ev)
-		
+
 		if cancelled {
 			dmv.cancelDownload()
 		}
@@ -223,7 +223,7 @@ func (dmv *DownloadModalView) startDownload(modelName string) {
 
 	dmv.isDownloading = true
 	dmv.currentModelName = modelName
-	
+
 	// Show progress modal
 	dmv.progressModal = dmv.progressModal.Show("Downloading Model", modelName, "Initializing download...", true)
 
@@ -284,11 +284,11 @@ func (dmv *DownloadModalView) HandleModelDownloadComplete(ev ModelDownloadComple
 	if dmv.currentModelName == ev.ModelName {
 		dmv.isDownloading = false
 		dmv.progressModal = dmv.progressModal.Hide()
-		
+
 		// Show success message
 		successMsg := fmt.Sprintf("Successfully downloaded model: %s\n\nYou can now use this model in chat by selecting it in the models view.", ev.ModelName)
 		dmv.errorModal = dmv.errorModal.WithError("Download Complete", successMsg)
-		
+
 		dmv.currentModelName = ""
 	}
 }
@@ -300,11 +300,11 @@ func (dmv *DownloadModalView) HandleModelDownloadError(ev ModelDownloadErrorEven
 	if dmv.currentModelName == ev.ModelName {
 		dmv.isDownloading = false
 		dmv.progressModal = dmv.progressModal.Hide()
-		
+
 		// Show error message
 		errorMsg := fmt.Sprintf("Failed to download model: %s\n\nError: %v\n\nPlease check your internet connection and try again.", ev.ModelName, ev.Error)
 		dmv.errorModal = dmv.errorModal.WithError("Download Failed", errorMsg)
-		
+
 		dmv.currentModelName = ""
 	}
 }

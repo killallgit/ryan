@@ -87,16 +87,16 @@ func (c *Client) SendMessageWithResponse(req ChatRequest) (ChatResponse, error) 
 		if err != nil {
 			return ChatResponse{}, fmt.Errorf("request failed with status %d (failed to read error response: %w)", resp.StatusCode, err)
 		}
-		
+
 		// Try to parse as JSON error response
 		var errorResp struct {
 			Error string `json:"error"`
 		}
-		
+
 		if json.Unmarshal(errorBody, &errorResp) == nil && errorResp.Error != "" {
 			return ChatResponse{}, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, errorResp.Error)
 		}
-		
+
 		// Fallback to raw body if JSON parsing fails
 		return ChatResponse{}, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(errorBody))
 	}

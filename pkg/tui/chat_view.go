@@ -262,7 +262,6 @@ func (cv *ChatView) updateMessages() {
 	cv.messages = cv.messages.WithMessages(history)
 }
 
-
 func (cv *ChatView) updateMessagesWithStreamingThinking() {
 	history := cv.controller.GetHistory()
 
@@ -737,7 +736,7 @@ func (cv *ChatView) UpdateStreamProgress(streamID string, contentLength, chunkCo
 func (cv *ChatView) HandleModelChange(ev ModelChangeEvent) {
 	log := logger.WithComponent("chat_view")
 	log.Debug("Handling ModelChangeEvent in chat view", "model_name", ev.ModelName)
-	
+
 	// Update the status bar to show the new model
 	cv.status = cv.status.WithModel(ev.ModelName)
 	log.Debug("Updated chat view status bar with new model", "model_name", ev.ModelName)

@@ -16,23 +16,23 @@ import (
 )
 
 type App struct {
-	screen        tcell.Screen
-	controller    *controllers.ChatController
-	input         InputField
-	messages      MessageDisplay
-	status        StatusBar
-	layout        Layout
-	quit          bool
-	sending       bool          // Track if we're currently sending a message
-	sendStartTime time.Time     // Track when message sending started
-	timeout       time.Duration // Request timeout duration
-	cancelSend        chan bool             // Channel to cancel current send operation
+	screen            tcell.Screen
+	controller        *controllers.ChatController
+	input             InputField
+	messages          MessageDisplay
+	status            StatusBar
+	layout            Layout
+	quit              bool
+	sending           bool          // Track if we're currently sending a message
+	sendStartTime     time.Time     // Track when message sending started
+	timeout           time.Duration // Request timeout duration
+	cancelSend        chan bool     // Channel to cancel current send operation
 	viewManager       *ViewManager
 	chatView          *ChatView
 	downloadModalView *DownloadModalView
 	spinnerTicker     *time.Ticker
-	spinnerStop   chan bool
-	modal         ModalDialog
+	spinnerStop       chan bool
+	modal             ModalDialog
 
 	// Streaming state
 	streaming         bool                     // Track if we're currently streaming
@@ -113,22 +113,22 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	log.Debug("Registered views with view manager", "views", []string{"chat", "models", "download"})
 
 	app := &App{
-		screen:        screen,
-		controller:    controller,
-		input:         NewInputField(width),
-		messages:      NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
-		status:        NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
-		layout:        NewLayout(width, height),
-		quit:          false,
-		sending:       false,
-		timeout:       timeoutDuration,
+		screen:            screen,
+		controller:        controller,
+		input:             NewInputField(width),
+		messages:          NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
+		status:            NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
+		layout:            NewLayout(width, height),
+		quit:              false,
+		sending:           false,
+		timeout:           timeoutDuration,
 		cancelSend:        make(chan bool, 1), // Buffered channel for cancellation
 		viewManager:       viewManager,
 		chatView:          chatView,
 		downloadModalView: downloadModalView,
 		spinnerTicker:     time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
-		spinnerStop:   make(chan bool),
-		modal:         NewModalDialog(),
+		spinnerStop:       make(chan bool),
+		modal:             NewModalDialog(),
 
 		// Initialize streaming state
 		streaming:         false,
@@ -721,7 +721,7 @@ func (app *App) handleModelNotFound(ev *ModelNotFoundEvent) {
 func (app *App) handleModelChange(ev *ModelChangeEvent) {
 	log := logger.WithComponent("tui_app")
 	log.Debug("Handling ModelChangeEvent", "model_name", ev.ModelName)
-	
+
 	// Forward the event to ChatView to update its status bar
 	if app.chatView != nil {
 		app.chatView.HandleModelChange(*ev)

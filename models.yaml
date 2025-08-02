@@ -1,4 +1,5 @@
-ollama:
+models:
+- qwen3:latest
 - deepseek-r1:latest
 - qwen3:latest
 - llama3.1:latest
