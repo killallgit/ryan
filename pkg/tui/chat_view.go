@@ -26,6 +26,11 @@ type ChatView struct {
 	downloadCancel   context.CancelFunc
 	pendingMessage   string
 	modelsController *controllers.ModelsController
+
+	// Streaming state
+	isStreaming      bool
+	streamingContent string
+	currentStreamID  string
 }
 
 func NewChatView(controller *controllers.ChatController, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
@@ -45,6 +50,11 @@ func NewChatView(controller *controllers.ChatController, modelsController *contr
 		downloadCancel:   nil,
 		pendingMessage:   "",
 		modelsController: modelsController,
+
+		// Initialize streaming state
+		isStreaming:      false,
+		streamingContent: "",
+		currentStreamID:  "",
 	}
 
 	view.updateMessages()
@@ -229,6 +239,32 @@ func (cv *ChatView) updateMessages() {
 	cv.messages = cv.messages.WithMessages(history)
 }
 
+func (cv *ChatView) updateMessagesWithStreaming() {
+	history := cv.controller.GetHistory()
+
+	// If we're streaming, append the streaming content as a temporary message
+	if cv.isStreaming && cv.streamingContent != "" {
+		// Create a copy of history to avoid modifying the original
+		messagesWithStreaming := make([]chat.Message, len(history))
+		copy(messagesWithStreaming, history)
+
+		// Add streaming content as a temporary assistant message
+		streamingMessage := chat.Message{
+			Role:    chat.RoleAssistant,
+			Content: cv.streamingContent + " ▌", // Add cursor to indicate streaming
+		}
+		messagesWithStreaming = append(messagesWithStreaming, streamingMessage)
+
+		cv.messages = cv.messages.WithMessages(messagesWithStreaming)
+
+		// Auto-scroll to bottom during streaming
+		cv.scrollToBottom()
+	} else {
+		// No streaming, show regular messages
+		cv.messages = cv.messages.WithMessages(history)
+	}
+}
+
 func (cv *ChatView) scrollUp() {
 	if cv.messages.Scroll > 0 {
 		cv.messages = cv.messages.WithScroll(cv.messages.Scroll - 1)
@@ -375,6 +411,11 @@ func (cv *ChatView) HandleStreamStart(streamID, model string) {
 	log := logger.WithComponent("chat_view")
 	log.Debug("Handling stream start in chat view", "stream_id", streamID, "model", model)
 
+	// Initialize streaming state
+	cv.isStreaming = true
+	cv.currentStreamID = streamID
+	cv.streamingContent = ""
+
 	// Update status to show streaming
 	cv.status = cv.status.WithStatus("Streaming response...")
 
@@ -389,12 +430,23 @@ func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete 
 		"content_length", len(content),
 		"is_complete", isComplete)
 
-	// For now, we'll update the messages display to show partial content
-	// In a more sophisticated implementation, we might have a separate
-	// streaming message display area
+	// Update streaming state
+	cv.currentStreamID = streamID
+	cv.streamingContent = content
+	cv.isStreaming = !isComplete
+
+	// Update the message display to show streaming content
+	cv.updateMessagesWithStreaming()
+
 	if !isComplete {
 		// Update spinner text to show progress
 		cv.alert = cv.alert.WithSpinner(true, "Streaming...").NextSpinnerFrame()
+	} else {
+		// Clear streaming state when complete
+		cv.isStreaming = false
+		cv.streamingContent = ""
+		cv.currentStreamID = ""
+		cv.alert = cv.alert.WithSpinner(false, "")
 	}
 }
 
@@ -406,19 +458,30 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 		"duration", duration.String(),
 		"final_message_length", len(finalMessage.Content))
 
+	// Clear streaming state
+	cv.isStreaming = false
+	cv.streamingContent = ""
+	cv.currentStreamID = ""
+
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
 
 	// Update status
 	cv.status = cv.status.WithStatus("Ready")
 
-	// Update messages display with final content
+	// Update messages display with final content (no streaming)
 	cv.updateMessages()
+	cv.scrollToBottom()
 }
 
 func (cv *ChatView) HandleStreamError(streamID string, err error) {
 	log := logger.WithComponent("chat_view")
 	log.Error("Handling stream error in chat view", "stream_id", streamID, "error", err)
+
+	// Clear streaming state
+	cv.isStreaming = false
+	cv.streamingContent = ""
+	cv.currentStreamID = ""
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
