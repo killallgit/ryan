@@ -21,6 +21,12 @@ var rootCmd = &cobra.Command{
 	Short: "Claude's friend",
 	Long:  `Open source Claude Code alternative.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Initialize default configuration if needed
+		if err := config.InitializeDefaults(); err != nil {
+			fmt.Printf("Failed to initialize default configuration: %v\n", err)
+			return
+		}
+
 		// Load configuration
 		cfg, err := config.Load(cfgFile)
 		if err != nil {
