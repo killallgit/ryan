@@ -456,6 +456,9 @@ func (mv *ModelView) changeModel() {
 	} else {
 		log.Debug("Configuration saved successfully", "new_model", selectedModel.Name)
 		mv.status = mv.status.WithStatus("Model changed to: " + selectedModel.Name)
+		
+		// Trigger screen refresh to update the current model highlighting
+		mv.screen.Show()
 	}
 }
 
@@ -540,20 +543,15 @@ func (mv *ModelView) renderModelInfo(screen tcell.Screen, area Rect) {
 		}
 	}
 
-	// Right side: Selected model name
-	var selectedModelName string
-	if len(mv.modelList.Models) > 0 && mv.modelList.Selected >= 0 && mv.modelList.Selected < len(mv.modelList.Models) {
-		selectedModelName = mv.modelList.Models[mv.modelList.Selected].Name
-	}
+	// Right side: Current model name (only the name, no extra text)
+	currentModelName := mv.chatController.GetModel()
+	if currentModelName != "" {
+		rightStyle := StyleModelCurrent
 
-	if selectedModelName != "" {
-		rightText := fmt.Sprintf("selected: %s", selectedModelName)
-		rightStyle := StyleDimText
-
-		// Right-justify the selected model text
-		if len(rightText) <= area.Width && len(leftText)+len(rightText)+4 <= area.Width { // Ensure spacing
-			startX := area.X + area.Width - len(rightText)
-			for i, r := range rightText {
+		// Right-justify the current model name
+		if len(currentModelName) <= area.Width && len(leftText)+len(currentModelName)+4 <= area.Width { // Ensure spacing
+			startX := area.X + area.Width - len(currentModelName)
+			for i, r := range currentModelName {
 				screen.SetContent(startX+i, area.Y, r, nil, rightStyle)
 			}
 		}

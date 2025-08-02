@@ -52,6 +52,7 @@ var (
 	ColorModelRunning  = tcell.NewRGBColor(50, 255, 50)   // Bright green
 	ColorModelOffline  = tcell.NewRGBColor(255, 99, 71)   // Tomato
 	ColorModelSelected = tcell.NewRGBColor(221, 160, 221) // Plum - soft lavender for list selection
+	ColorModelCurrent  = tcell.NewRGBColor(255, 215, 0)   // Gold - bright color for current model name
 )
 
 // Style presets combining colors with text attributes
@@ -79,6 +80,7 @@ var (
 	StyleStatusError   = tcell.StyleDefault.Foreground(ColorStatusError)
 	StyleStatusOffline = tcell.StyleDefault.Foreground(ColorStatusOffline).StrikeThrough(true)
 
-	StyleTokenCount = tcell.StyleDefault.Foreground(ColorTokenCount)
-	StyleMetric     = tcell.StyleDefault.Foreground(ColorMetric)
+	StyleTokenCount    = tcell.StyleDefault.Foreground(ColorTokenCount)
+	StyleMetric        = tcell.StyleDefault.Foreground(ColorMetric)
+	StyleModelCurrent  = tcell.StyleDefault.Foreground(ColorModelCurrent).Bold(true)
 )
