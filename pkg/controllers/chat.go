@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tools"
 )
@@ -195,7 +196,36 @@ func (cc *ChatController) AddUserMessage(content string) {
 }
 
 func (cc *ChatController) GetHistory() []chat.Message {
-	return chat.GetMessages(cc.conversation)
+	messages := chat.GetMessages(cc.conversation)
+	
+	// DEBUG: Log the conversation history
+	log := logger.WithComponent("chat_controller")
+	log.Debug("GetHistory called",
+		"total_messages", len(messages),
+		"last_message_role", func() string {
+			if len(messages) > 0 {
+				return string(messages[len(messages)-1].Role)
+			}
+			return "none"
+		}(),
+		"last_message_length", func() int {
+			if len(messages) > 0 {
+				return len(messages[len(messages)-1].Content)
+			}
+			return 0
+		}(),
+		"last_message_preview", func() string {
+			if len(messages) > 0 {
+				content := messages[len(messages)-1].Content
+				if len(content) > 100 {
+					return content[:100] + "..."
+				}
+				return content
+			}
+			return "none"
+		}())
+	
+	return messages
 }
 
 func (cc *ChatController) GetConversation() chat.Conversation {

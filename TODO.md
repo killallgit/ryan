@@ -1,14 +1,6 @@
-# Refactors
-- cmd/root.go: This file is doing too much. Separate out configuration loading into its own package. Make sure that the configurations are initialized properly so they are avail before they're used. I've had this issue before.
-- cmd/root.go: Model compatibility logic is spead across this file and pkg/models/compaibility. This functionality needs to be combined and refactored to remove duplicated code and streamline the process
 
-
-# Settings mgmt
-- We need to keep track of a `settings.example.yaml` that contains all of the avail configuration options. We will keep this up to date as we add more, however every field / configuration should have a default.
-- The `cmd/root.go` file where viper is initialized needs to set defaults for all avail configurations. It might be best to move this into it's own package to keep it organized.
-- passing cobra-cli args need to be bound to viper configs. any viper config should be able to be added as a namespaced cli argument. example: from yaml config ollama: url can be passed as `--ollama.url` and the same for all other arguments.
-- Full review of config usage. Make sure that the configs are being used everywhere they should
-- A "models.yaml" has been added to set a static list of avail models to download
+# Support for more than just agent models
+- We need to create an idea of "modes" modes 
 
 # Log handling
 - debug logging does not need to report every keypress. only core events and errors
@@ -17,10 +9,6 @@
 
 # model management view
 - The model management view should refresh periodicly based on the config `ollama.poll_interval`
-
-
-# BUGS
-- Error messages are reported in 2 locations. Lets only use the one at the bottom of the chat.
 
 # Duplicate or unused logic
 - pkg/chat/conversation.go has isEmpty, GetMessagesAfter, Getmessagesbefore which seems to only be used in

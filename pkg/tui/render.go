@@ -50,6 +50,19 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 		isLastMessage := i == len(display.Messages)-1
 
 		if msg.Role == chat.RoleAssistant {
+			// DEBUG: Log what assistant message is being rendered
+			log := logger.WithComponent("render")
+			log.Debug("Rendering assistant message",
+				"is_last_message", isLastMessage,
+				"streaming_thinking", streamingThinking,
+				"message_length", len(msg.Content),
+				"message_preview", func() string {
+					if len(msg.Content) > 100 {
+						return msg.Content[:100] + "..."
+					}
+					return msg.Content
+				}())
+
 			// Check if this is a streaming thinking message (last message + streaming thinking mode)
 			if isLastMessage && streamingThinking && showThinking {
 				// Handle streaming thinking content - apply thinking styling directly
@@ -62,6 +75,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 						IsThinking: true, // Force thinking styling
 					})
 				}
+				log.Debug("Rendered streaming thinking message", "lines_added", len(thinkingLines))
 			} else {
 				// Regular assistant message - use normal ParseThinkingBlock logic
 				parsed := ParseThinkingBlock(msg.Content)
@@ -117,7 +131,14 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 						"content_length", len(contentToRender),
 						"width", chatArea.Width,
 						"lines", len(contentLines),
-						"first_line", firstLine)
+						"first_line", firstLine,
+						"had_thinking", parsed.HasThinking,
+						"content_preview", func() string {
+							if len(contentToRender) > 100 {
+								return contentToRender[:100] + "..."
+							}
+							return contentToRender
+						}())
 
 					for _, line := range contentLines {
 						allLines = append(allLines, MessageLine{
@@ -420,34 +441,19 @@ func RenderTokensWithSpinner(screen tcell.Screen, area Rect, promptTokens, respo
 	// Show only total token count as a single number
 	totalTokens := promptTokens + responseTokens
 	tokenText := fmt.Sprintf("%d", totalTokens)
-	fullText := tokenText
 
-	if spinnerVisible {
-		spinnerText := fmt.Sprintf(" %s", spinnerFrame)
-		fullText = tokenText + spinnerText
-	}
-
-	// Right-align the full text
-	startX := area.X + area.Width - len(fullText)
+	// Right-align the token text
+	startX := area.X + area.Width - len(tokenText)
 	if startX < area.X {
 		startX = area.X
 		// Truncate if necessary
-		if len(fullText) > area.Width {
-			fullText = fullText[:area.Width]
+		if len(tokenText) > area.Width {
+			tokenText = tokenText[:area.Width]
 		}
 	}
 
-	if spinnerVisible {
-		// Render token text first in dim style
-		renderText(screen, startX, area.Y, tokenText, StyleDimText)
-		// Then render spinner
-		spinnerX := startX + len(tokenText)
-		if spinnerX < area.X+area.Width {
-			renderText(screen, spinnerX, area.Y, fmt.Sprintf(" %s", spinnerFrame), StyleDimText)
-		}
-	} else {
-		renderText(screen, startX, area.Y, tokenText, StyleDimText)
-	}
+	// Always render just the token text, no spinner
+	renderText(screen, startX, area.Y, tokenText, StyleDimText)
 }
 
 func clearArea(screen tcell.Screen, area Rect) {
