@@ -493,31 +493,43 @@ func (cv *ChatView) createStreamingMessage() chat.Message {
 	var content string
 
 	if cv.thinkingContent != "" {
-		// Add thinking content with proper formatting
-		thinkingFormatted := "Thinking: " + cv.thinkingContent
-		content = thinkingFormatted
+		// Format thinking content with proper tags so ParseThinkingBlock can style it correctly
+		thinkingWithTags := "<think>" + cv.thinkingContent
 
-		if cv.responseContent != "" {
-			// Add separator and response
-			content += "\n\n" + cv.responseContent
+		if cv.isStreamingThinking {
+			// Still streaming thinking content, add cursor before closing tag
+			content = thinkingWithTags + " ▌"
+		} else {
+			// Thinking complete, close tag and add response if any
+			content = thinkingWithTags + "</think>"
+
+			if cv.responseContent != "" {
+				// Add response content with cursor if still streaming
+				responseContent := cv.responseContent
+				if cv.isStreaming {
+					responseContent += " ▌"
+				}
+				content += "\n\n" + responseContent
+			}
 		}
 	} else if cv.responseContent != "" {
-		// Only response content
+		// Only response content (no thinking detected)
 		content = cv.responseContent
+		if cv.isStreaming {
+			content += " ▌"
+		}
 	} else if cv.isStreamingThinking {
-		// Currently streaming thinking content
-		content = "Thinking: " + cv.streamingContent
+		// Currently streaming thinking content from the beginning
+		thinkingRaw := cv.streamingContent
+		// Remove any <think> tags that might be in the raw content
+		thinkStartRegex := regexp.MustCompile(`(?i)<think(?:ing)?>`)
+		thinkingRaw = thinkStartRegex.ReplaceAllString(thinkingRaw, "")
+		content = "<think>" + strings.TrimSpace(thinkingRaw) + " ▌"
 	} else {
 		// Regular content without thinking
 		content = cv.streamingContent
-	}
-
-	// Add cursor indicator for active streaming
-	if cv.isStreaming {
-		if cv.isStreamingThinking {
-			content += " ▌" // Cursor in thinking content
-		} else {
-			content += " ▌" // Cursor in response content
+		if cv.isStreaming {
+			content += " ▌"
 		}
 	}
 
