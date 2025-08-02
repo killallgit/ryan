@@ -313,7 +313,6 @@ func (cv *ChatView) pageDown() {
 }
 
 func (cv *ChatView) scrollToBottom() {
-	var totalLines int
 	// Account for chat area padding (1 character on each side, 1 line on top)
 	paddedWidth := cv.messages.Width - 2
 	paddedHeight := cv.messages.Height - 1
@@ -325,18 +324,15 @@ func (cv *ChatView) scrollToBottom() {
 		paddedHeight = cv.messages.Height // Fall back if too short
 	}
 
-	for _, msg := range cv.messages.Messages {
-		lines := WrapText(msg.Content, paddedWidth)
-		totalLines += len(lines) + 1 // +1 for empty line between messages
-	}
-
-	// Remove the trailing empty line
-	if totalLines > 0 {
-		totalLines -= 1
-	}
+	// Use the same line calculation logic as the rendering function
+	// Check if we're currently streaming thinking content
+	streamingThinking := cv.isStreamingThinking
+	totalLines := CalculateMessageLines(cv.messages.Messages, paddedWidth, streamingThinking)
 
 	if totalLines > paddedHeight {
 		cv.messages = cv.messages.WithScroll(totalLines - paddedHeight)
+	} else {
+		cv.messages = cv.messages.WithScroll(0)
 	}
 }
 

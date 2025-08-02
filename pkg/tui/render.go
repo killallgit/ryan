@@ -9,6 +9,127 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
+// CalculateMessageLines calculates the total number of lines needed to render messages
+// using the same logic as RenderMessagesWithSpinnerAndStreaming
+func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThinking bool) int {
+	// Build list of message lines with their associated roles for styling
+	type MessageLine struct {
+		Text       string
+		Role       string
+		IsThinking bool
+	}
+
+	var allLines []MessageLine
+	// Get showThinking from config or use default
+	showThinking := true
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Config not initialized, use default
+			}
+		}()
+		if cfg := config.Get(); cfg != nil {
+			showThinking = cfg.ShowThinking
+		}
+	}()
+
+	for i, msg := range messages {
+		isLastMessage := i == len(messages)-1
+
+		if msg.Role == chat.RoleAssistant {
+			// Check if this is a streaming thinking message (last message + streaming thinking mode)
+			if isLastMessage && streamingThinking && showThinking {
+				// Handle streaming thinking content - apply thinking styling directly
+				thinkingText := "Thinking: " + msg.Content
+				thinkingLines := WrapText(thinkingText, chatWidth)
+				for _, line := range thinkingLines {
+					allLines = append(allLines, MessageLine{
+						Text:       line,
+						Role:       msg.Role,
+						IsThinking: true, // Force thinking styling
+					})
+				}
+			} else {
+				// Regular assistant message - use normal ParseThinkingBlock logic
+				parsed := ParseThinkingBlock(msg.Content)
+
+				if parsed.HasThinking && showThinking {
+					// Add "Thinking: " prefix and format thinking block
+					var thinkingText string
+					if parsed.ResponseContent != "" {
+						// Response is complete, truncate thinking to 3 lines
+						thinkingText = "Thinking: " + TruncateThinkingBlock(parsed.ThinkingBlock, 3, chatWidth-10)
+					} else {
+						// Response not complete, show full thinking block
+						thinkingText = "Thinking: " + parsed.ThinkingBlock
+					}
+
+					thinkingLines := WrapText(thinkingText, chatWidth)
+					for _, line := range thinkingLines {
+						allLines = append(allLines, MessageLine{
+							Text:       line,
+							Role:       msg.Role,
+							IsThinking: true,
+						})
+					}
+
+					// Add separator line between thinking and response
+					if parsed.ResponseContent != "" {
+						allLines = append(allLines, MessageLine{
+							Text:       "",
+							Role:       "",
+							IsThinking: false,
+						})
+					}
+				}
+
+				// Add response content if present
+				var contentToRender string
+				if parsed.HasThinking && showThinking {
+					contentToRender = parsed.ResponseContent
+				} else {
+					contentToRender = msg.Content
+				}
+
+				if contentToRender != "" {
+					contentLines := WrapText(contentToRender, chatWidth)
+					for _, line := range contentLines {
+						allLines = append(allLines, MessageLine{
+							Text:       line,
+							Role:       msg.Role,
+							IsThinking: false,
+						})
+					}
+				}
+			}
+		} else {
+			// Handle non-assistant messages normally
+			contentLines := WrapText(msg.Content, chatWidth)
+			for _, line := range contentLines {
+				allLines = append(allLines, MessageLine{
+					Text:       line,
+					Role:       msg.Role,
+					IsThinking: false,
+				})
+			}
+		}
+
+		// Add empty line between messages
+		allLines = append(allLines, MessageLine{
+			Text:       "",
+			Role:       "",
+			IsThinking: false,
+		})
+	}
+
+	// Remove trailing empty line
+	if len(allLines) > 0 {
+		allLines = allLines[:len(allLines)-1]
+	}
+
+	return len(allLines)
+}
+
 func RenderMessages(screen tcell.Screen, display MessageDisplay, area Rect) {
 	RenderMessagesWithSpinner(screen, display, area, SpinnerComponent{})
 }
@@ -198,10 +319,18 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 	if startLine < 0 {
 		startLine = 0
 	}
+	if startLine > len(allLines) {
+		startLine = len(allLines)
+	}
 
 	endLine := startLine + availableHeight
 	if endLine > len(allLines) {
 		endLine = len(allLines)
+	}
+
+	// Ensure valid slice bounds
+	if startLine > endLine {
+		startLine = endLine
 	}
 
 	visibleLines := allLines[startLine:endLine]
