@@ -378,8 +378,8 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 		statusIndicator = "○" // Hollow circle for other states
 	}
 
-	// Format the status text with indicator and model name
-	statusText := fmt.Sprintf("%s %s", statusIndicator, status.Model)
+	// Format the status text with model name only (indicator rendered separately)
+	statusText := status.Model
 
 	// Add token information if available (just total count)
 	if status.PromptTokens > 0 || status.ResponseTokens > 0 {
@@ -388,24 +388,28 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 		statusText += tokenText
 	}
 
-	// Calculate position for right-aligned text
-	textLen := len(statusText)
+	// Calculate position for right-aligned text (include space for indicator + space)
+	textLen := len(statusText) + 2 // +2 for indicator and space
 	startX := area.X + area.Width - textLen
 	if startX < area.X {
 		// Text is too long, truncate from the left
 		startX = area.X
 		if textLen > area.Width {
 			// Show the end of the text (keep model and tokens visible)
-			statusText = "..." + statusText[textLen-area.Width+3:]
+			statusText = "..." + statusText[len(statusText)-(area.Width-5):]
 		}
 	}
 
 	// Render the indicator with appropriate style
-	screen.SetContent(startX, area.Y, rune(statusIndicator[0]), nil, indicatorStyle)
+	// Convert string to runes and get the first rune to handle Unicode properly
+	runes := []rune(statusIndicator)
+	if len(runes) > 0 {
+		screen.SetContent(startX, area.Y, runes[0], nil, indicatorStyle)
+	}
 
-	// Render the rest of the text
-	if len(statusText) > 1 {
-		renderText(screen, startX+2, area.Y, statusText[2:], StyleDimText) // Skip the indicator and space
+	// Render the model name and tokens after the indicator
+	if len(statusText) > 0 {
+		renderText(screen, startX+2, area.Y, statusText, StyleDimText) // Render model name + tokens
 	}
 }
 
