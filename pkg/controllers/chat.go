@@ -197,7 +197,7 @@ func (cc *ChatController) AddUserMessage(content string) {
 
 func (cc *ChatController) GetHistory() []chat.Message {
 	messages := chat.GetMessages(cc.conversation)
-	
+
 	// DEBUG: Log the conversation history
 	log := logger.WithComponent("chat_controller")
 	log.Debug("GetHistory called",
@@ -224,7 +224,7 @@ func (cc *ChatController) GetHistory() []chat.Message {
 			}
 			return "none"
 		}())
-	
+
 	return messages
 }
 
