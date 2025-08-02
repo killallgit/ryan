@@ -26,10 +26,11 @@ type App struct {
 	sending       bool          // Track if we're currently sending a message
 	sendStartTime time.Time     // Track when message sending started
 	timeout       time.Duration // Request timeout duration
-	cancelSend    chan bool     // Channel to cancel current send operation
-	viewManager   *ViewManager
-	chatView      *ChatView
-	spinnerTicker *time.Ticker
+	cancelSend        chan bool             // Channel to cancel current send operation
+	viewManager       *ViewManager
+	chatView          *ChatView
+	downloadModalView *DownloadModalView
+	spinnerTicker     *time.Ticker
 	spinnerStop   chan bool
 	modal         ModalDialog
 
@@ -104,10 +105,12 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	viewManager := NewViewManager()
 	chatView := NewChatView(controller, modelsController, screen)
 	modelView := NewModelView(modelsController, controller, screen)
+	downloadModalView := NewDownloadModalView(modelsController, controller, screen)
 
 	viewManager.RegisterView("chat", chatView)
 	viewManager.RegisterView("models", modelView)
-	log.Debug("Registered views with view manager", "views", []string{"chat", "models"})
+	viewManager.RegisterView("download", downloadModalView)
+	log.Debug("Registered views with view manager", "views", []string{"chat", "models", "download"})
 
 	app := &App{
 		screen:        screen,
@@ -119,10 +122,11 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 		quit:          false,
 		sending:       false,
 		timeout:       timeoutDuration,
-		cancelSend:    make(chan bool, 1), // Buffered channel for cancellation
-		viewManager:   viewManager,
-		chatView:      chatView,
-		spinnerTicker: time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
+		cancelSend:        make(chan bool, 1), // Buffered channel for cancellation
+		viewManager:       viewManager,
+		chatView:          chatView,
+		downloadModalView: downloadModalView,
+		spinnerTicker:     time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
 		spinnerStop:   make(chan bool),
 		modal:         NewModalDialog(),
 
@@ -656,6 +660,9 @@ func (app *App) handleModelDownloadProgress(ev *ModelDownloadProgressEvent) {
 	} else if chatView, ok := currentView.(*ChatView); ok {
 		chatView.HandleModelDownloadProgress(*ev)
 		log.Debug("Forwarded ModelDownloadProgressEvent to ChatView")
+	} else if downloadModalView, ok := currentView.(*DownloadModalView); ok {
+		downloadModalView.HandleModelDownloadProgress(*ev)
+		log.Debug("Forwarded ModelDownloadProgressEvent to DownloadModalView")
 	} else {
 		log.Debug("Current view does not support download progress, ignoring ModelDownloadProgressEvent", "current_view_type", currentView)
 	}
@@ -671,6 +678,9 @@ func (app *App) handleModelDownloadComplete(ev *ModelDownloadCompleteEvent) {
 	} else if chatView, ok := currentView.(*ChatView); ok {
 		chatView.HandleModelDownloadComplete(*ev)
 		log.Debug("Forwarded ModelDownloadCompleteEvent to ChatView")
+	} else if downloadModalView, ok := currentView.(*DownloadModalView); ok {
+		downloadModalView.HandleModelDownloadComplete(*ev)
+		log.Debug("Forwarded ModelDownloadCompleteEvent to DownloadModalView")
 	} else {
 		log.Debug("Current view does not support download complete, ignoring ModelDownloadCompleteEvent", "current_view_type", currentView)
 	}
@@ -686,6 +696,9 @@ func (app *App) handleModelDownloadError(ev *ModelDownloadErrorEvent) {
 	} else if chatView, ok := currentView.(*ChatView); ok {
 		chatView.HandleModelDownloadError(*ev)
 		log.Debug("Forwarded ModelDownloadErrorEvent to ChatView")
+	} else if downloadModalView, ok := currentView.(*DownloadModalView); ok {
+		downloadModalView.HandleModelDownloadError(*ev)
+		log.Debug("Forwarded ModelDownloadErrorEvent to DownloadModalView")
 	} else {
 		log.Debug("Current view does not support download error, ignoring ModelDownloadErrorEvent", "current_view_type", currentView)
 	}

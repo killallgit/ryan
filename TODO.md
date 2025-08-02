@@ -1,8 +1,5 @@
 
 
-# Chat UX
-- When submitting the user text. It immediately needs to be visible in the chat history. Currently, it wont show until the request is finished
-- Our timeout default needs to be longer. 90s and after 15s a small dim white text should populate the chat saying "processing...", after 30s "taking forever...", after "60s", "you're still here?"
 
 # Settings mgmt
 - We need to keep track of a `settings.example.yaml` that contains all of the avail configuration options. We will keep this up to date as we add more, however every field / configuration should have a default.
@@ -16,9 +13,6 @@
 - the debug log file needs to respect the persistence config option
 
 # model management view
-- Better visual indication is need for when a model is selected. The blue highlight obfuscates that the model name color has changed
-- When the footer status has an update: "Model changed" or something, it needs to remove the message after 2 seconds back to the default state like a toast message
-- A simple progress bar integrated into the download modal. It will replace the input field and show a percentage by polling ollama for updates. If the user presses <esc> to leave the view, small text in the footer area should reflext that <model> is being pulled by putting a dim white text justified right saying and showing the spinner "<SPINNER> pulling: <MODEL_NAME>..."
 - The model management view should refresh periodicly based on the config `ollama.poll_interval`
 
 
