@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -364,7 +365,7 @@ func (app *App) sendMessageWithContent(content string) {
 	// Force immediate render to show spinner
 	app.render()
 
-	// Send the message in a goroutine to avoid blocking the UI
+	// Send the message using streaming in a goroutine to avoid blocking the UI
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -373,50 +374,24 @@ func (app *App) sendMessageWithContent(content string) {
 			}
 		}()
 
-		log.Debug("API CALL: Starting SendUserMessage", "content", content, "goroutine_id", fmt.Sprintf("%p", &content))
+		log.Debug("STREAMING: Starting streaming for message", "content", content)
 
-		// Add timeout channel for debugging
-		done := make(chan bool, 1)
-		var response chat.Message
-		var err error
-
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Error("PANIC: Controller panic", "panic", r)
-					err = fmt.Errorf("controller panic: %v", r)
-				}
-				done <- true
-			}()
-
-			log.Debug("API CALL: Calling controller.SendUserMessage", "content", content)
-			response, err = app.controller.SendUserMessage(content)
-			log.Debug("API CALL: Controller call completed", "error", err, "has_response", response.Content != "")
-		}()
+		// Create context with timeout
 		timeout := viper.GetDuration("ollama.timeout")
-		select {
-		case <-done:
-			log.Debug("API CALL: Controller completed normally")
-		case <-time.After(timeout * time.Second):
-			log.Error("API CALL: Timeout after %v seconds", "content", content, "timeout", timeout)
-			err = fmt.Errorf("API call timeout after %v seconds", timeout)
-		case <-app.cancelSend:
-			log.Debug("API CALL: Cancelled by user")
-			err = fmt.Errorf("message sending cancelled by user")
-			return // Exit the goroutine early
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 
-		// Post the result back to the main event loop
+		// Start streaming
+		updates, err := app.controller.StartStreaming(ctx, content)
 		if err != nil {
-			log.Error("API CALL: Message send failed", "error", err)
-
+			log.Error("STREAMING: Failed to start streaming", "error", err)
+			
 			// Provide more specific error messages
 			var displayError error
 			if strings.Contains(err.Error(), "connection refused") {
 				displayError = fmt.Errorf("Cannot connect to Ollama. Is it running? Try: ollama serve")
 			} else if strings.Contains(err.Error(), "timeout") {
-				displayError = fmt.Errorf("Request timed out after %v. The model might be loading or processing a complex request",
-					time.Since(app.sendStartTime).Round(time.Second))
+				displayError = fmt.Errorf("Request timed out. The model might be loading or processing a complex request")
 			} else if strings.Contains(err.Error(), "404") {
 				displayError = fmt.Errorf("Model not found. Check if the model is pulled: ollama pull <model>")
 			} else {
@@ -424,12 +399,49 @@ func (app *App) sendMessageWithContent(content string) {
 			}
 
 			app.screen.PostEvent(NewMessageErrorEvent(displayError))
-		} else {
-			log.Debug("API CALL: Message send succeeded", "response_content_length", len(response.Content))
-			app.screen.PostEvent(NewMessageResponseEvent(response))
+			return
 		}
 
-		log.Debug("API CALL: Goroutine completing", "content", content)
+		log.Debug("STREAMING: Successfully started streaming, processing updates")
+
+		// Process streaming updates
+		for update := range updates {
+			select {
+			case <-app.cancelSend:
+				log.Debug("STREAMING: Cancelled by user")
+				cancel() // Cancel the context to stop streaming
+				return
+			default:
+			}
+
+			switch update.Type {
+			case controllers.StreamStarted:
+				log.Debug("STREAMING: Stream started", "stream_id", update.StreamID, "model", update.Metadata.Model)
+				app.screen.PostEvent(NewStreamStartEvent(update.StreamID, update.Metadata.Model))
+
+			case controllers.ChunkReceived:
+				log.Debug("STREAMING: Chunk received", "stream_id", update.StreamID, "content_length", len(update.Content))
+				app.screen.PostEvent(NewMessageChunkEvent(update.StreamID, update.Content, false, update.Metadata.ChunkCount))
+
+			case controllers.MessageComplete:
+				log.Debug("STREAMING: Message complete", "stream_id", update.StreamID, "final_length", len(update.Message.Content))
+				app.screen.PostEvent(NewStreamCompleteEvent(update.StreamID, update.Message, update.Metadata.ChunkCount, update.Metadata.Duration))
+
+			case controllers.StreamError:
+				log.Error("STREAMING: Stream error", "stream_id", update.StreamID, "error", update.Error)
+				app.screen.PostEvent(NewStreamErrorEvent(update.StreamID, update.Error))
+
+			case controllers.ToolExecutionStarted:
+				log.Debug("STREAMING: Tool execution started", "stream_id", update.StreamID)
+				// Could add tool execution UI indicators here
+
+			case controllers.ToolExecutionComplete:
+				log.Debug("STREAMING: Tool execution complete", "stream_id", update.StreamID)
+				// Could add tool execution completion indicators here
+			}
+		}
+
+		log.Debug("STREAMING: Streaming completed")
 	}()
 }
 

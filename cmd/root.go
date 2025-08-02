@@ -56,7 +56,7 @@ var rootCmd = &cobra.Command{
 			log.Warn("Invalid timeout format, using default", "timeout", viper.GetString("ollama.timeout"), "error", err)
 			timeoutDuration = 90 * time.Second
 		}
-		client := chat.NewClientWithTimeout(ollamaURL, timeoutDuration)
+		client := chat.NewStreamingClientWithTimeout(ollamaURL, timeoutDuration)
 
 		// Check Ollama server version and model compatibility before initializing tools
 		tester := testing.NewModelCompatibilityTester(ollamaURL)
