@@ -11,10 +11,11 @@ var (
 	ColorToolText      = tcell.NewRGBColor(255, 128, 255) // Soft magenta - for tool outputs
 
 	// UI element colors
-	ColorBorder        = tcell.NewRGBColor(255, 215, 0) // Gold - for borders
-	ColorBorderActive  = tcell.NewRGBColor(255, 165, 0) // Orange - for active borders
-	ColorBorderError   = tcell.NewRGBColor(255, 99, 71) // Tomato - for error borders
-	ColorBorderSuccess = tcell.NewRGBColor(50, 205, 50) // Lime green - for success borders
+	ColorBorder        = tcell.NewRGBColor(255, 215, 0)   // Gold - for borders
+	ColorBorderActive  = tcell.NewRGBColor(255, 165, 0)   // Orange - for active borders
+	ColorBorderError   = tcell.NewRGBColor(255, 99, 71)   // Tomato - for error borders
+	ColorBorderSuccess = tcell.NewRGBColor(50, 205, 50)   // Lime green - for success borders
+	ColorHeaderText    = tcell.NewRGBColor(175, 175, 175) // Light gray - for muted headers
 
 	// Background colors
 	ColorBackground         = tcell.ColorBlack              // Classic terminal black
@@ -47,9 +48,10 @@ var (
 	ColorMetric     = tcell.NewRGBColor(176, 196, 222) // Light steel blue
 
 	// Model-specific colors
-	ColorModelName    = tcell.NewRGBColor(218, 112, 214) // Orchid
-	ColorModelRunning = tcell.NewRGBColor(50, 255, 50)   // Bright green
-	ColorModelOffline = tcell.NewRGBColor(255, 99, 71)   // Tomato
+	ColorModelName     = tcell.NewRGBColor(218, 112, 214) // Orchid
+	ColorModelRunning  = tcell.NewRGBColor(50, 255, 50)   // Bright green
+	ColorModelOffline  = tcell.NewRGBColor(255, 99, 71)   // Tomato
+	ColorModelSelected = tcell.NewRGBColor(221, 160, 221) // Plum - soft lavender for list selection
 )
 
 // Style presets combining colors with text attributes
@@ -62,6 +64,7 @@ var (
 	StyleBorder       = tcell.StyleDefault.Foreground(ColorBorder)
 	StyleBorderActive = tcell.StyleDefault.Foreground(ColorBorderActive)
 	StyleBorderError  = tcell.StyleDefault.Foreground(ColorBorderError)
+	StyleHeaderText   = tcell.StyleDefault.Foreground(ColorHeaderText).Bold(true)
 
 	StyleDimText     = tcell.StyleDefault.Foreground(ColorDimText).Dim(true)
 	StyleHighlight   = tcell.StyleDefault.Foreground(ColorHighlight).Bold(true)
