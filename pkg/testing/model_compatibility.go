@@ -14,7 +14,6 @@ import (
 	"github.com/killallgit/ryan/pkg/tools"
 )
 
-
 // ModelTestResult represents the test results for a specific model
 type ModelTestResult struct {
 	ModelName           string
@@ -55,7 +54,7 @@ func NewModelCompatibilityTester(ollamaURL string) *ModelCompatibilityTester {
 			timeout = cfg.Ollama.Timeout
 		}
 	}()
-	
+
 	return &ModelCompatibilityTester{
 		ollamaURL:    ollamaURL,
 		toolRegistry: toolRegistry,

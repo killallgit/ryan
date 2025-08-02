@@ -31,7 +31,7 @@ type BashTool struct {
 func NewBashTool() *BashTool {
 	home, _ := os.UserHomeDir()
 	wd, _ := os.Getwd()
-	
+
 	// Get timeout from config if available, fallback to default
 	bashTimeout := 30 * time.Second
 	func() {
@@ -44,7 +44,7 @@ func NewBashTool() *BashTool {
 			bashTimeout = cfg.Tools.Bash.Timeout
 		}
 	}()
-	
+
 	return &BashTool{
 		AllowedPaths: []string{
 			home,

@@ -37,12 +37,12 @@ type OllamaConfig struct {
 
 // ToolsConfig holds tool-related configuration
 type ToolsConfig struct {
-	Enabled         bool             `mapstructure:"enabled"`
-	TruncateOutput  bool             `mapstructure:"truncate_output"`
-	Models          []string         `mapstructure:"models"`
-	Bash            BashToolConfig   `mapstructure:"bash"`
-	FileRead        FileReadConfig   `mapstructure:"file_read"`
-	Search          SearchConfig     `mapstructure:"search"`
+	Enabled        bool           `mapstructure:"enabled"`
+	TruncateOutput bool           `mapstructure:"truncate_output"`
+	Models         []string       `mapstructure:"models"`
+	Bash           BashToolConfig `mapstructure:"bash"`
+	FileRead       FileReadConfig `mapstructure:"file_read"`
+	Search         SearchConfig   `mapstructure:"search"`
 }
 
 // BashToolConfig holds bash tool configuration
@@ -94,13 +94,13 @@ func Load(cfgFile string) (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get home directory: %w", err)
 		}
-		
+
 		xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
 		if xdgConfigHome == "" {
 			xdgConfigHome = filepath.Join(home, ".config")
 		}
 		ryanCfgHome := filepath.Join(xdgConfigHome, ".ryan")
-		
+
 		viper.AddConfigPath("./.ryan")   // Check project directory first
 		viper.AddConfigPath(ryanCfgHome) // Then check XDG config location
 		viper.SetConfigType("yaml")
@@ -117,7 +117,7 @@ func Load(cfgFile string) (*Config, error) {
 
 	// Create config instance
 	cfg = &Config{}
-	
+
 	// Unmarshal into struct
 	if err := viper.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
@@ -135,7 +135,7 @@ func Load(cfgFile string) (*Config, error) {
 func setDefaults() {
 	// Ollama defaults
 	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
-	viper.SetDefault("ollama.model", "qwen2.5:7b")
+	viper.SetDefault("ollama.model", "qwen3:latest")
 	viper.SetDefault("ollama.system_prompt", "")
 	viper.SetDefault("ollama.timeout", "90s")
 	viper.SetDefault("ollama.poll_interval", 10)
