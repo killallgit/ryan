@@ -13,7 +13,11 @@ func RenderMessages(screen tcell.Screen, display MessageDisplay, area Rect) {
 	RenderMessagesWithSpinner(screen, display, area, SpinnerComponent{})
 }
 
-func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area Rect, spinner SpinnerComponent) {
+func RenderMessagesWithStreamingState(screen tcell.Screen, display MessageDisplay, area Rect, spinner SpinnerComponent, streamingThinking bool) {
+	RenderMessagesWithSpinnerAndStreaming(screen, display, area, spinner, streamingThinking)
+}
+
+func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageDisplay, area Rect, spinner SpinnerComponent, streamingThinking bool) {
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
@@ -31,76 +35,103 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 	var allLines []MessageLine
 	showThinking := viper.GetBool("show_thinking")
 
-	for _, msg := range display.Messages {
+	for i, msg := range display.Messages {
+		isLastMessage := i == len(display.Messages)-1
+		
 		if msg.Role == chat.RoleAssistant {
-			// Parse thinking blocks for assistant messages
-			parsed := ParseThinkingBlock(msg.Content)
-
-			if parsed.HasThinking && showThinking {
-				// Add "Thinking: " prefix and format thinking block
-				var thinkingText string
-				if parsed.ResponseContent != "" {
-					// Response is complete, truncate thinking to 3 lines
-					thinkingText = "Thinking: " + TruncateThinkingBlock(parsed.ThinkingBlock, 3, chatArea.Width-10)
-				} else {
-					// Response not complete, show full thinking block
-					thinkingText = "Thinking: " + parsed.ThinkingBlock
-				}
-
+			// Check if this is a streaming thinking message (last message + streaming thinking mode)
+			if isLastMessage && streamingThinking && showThinking {
+				// Handle streaming thinking content - apply thinking styling directly
+				thinkingText := "Thinking: " + msg.Content
 				thinkingLines := WrapText(thinkingText, chatArea.Width)
 				for _, line := range thinkingLines {
 					allLines = append(allLines, MessageLine{
 						Text:       line,
 						Role:       msg.Role,
-						IsThinking: true,
+						IsThinking: true, // Force thinking styling
 					})
 				}
+			} else {
+				// Regular assistant message - use normal ParseThinkingBlock logic
+				parsed := ParseThinkingBlock(msg.Content)
 
-				// Add separator line between thinking and response
-				if parsed.ResponseContent != "" {
-					allLines = append(allLines, MessageLine{
-						Text:       "",
-						Role:       "",
-						IsThinking: false,
-					})
+				if parsed.HasThinking && showThinking {
+					// Add "Thinking: " prefix and format thinking block
+					var thinkingText string
+					if parsed.ResponseContent != "" {
+						// Response is complete, truncate thinking to 3 lines
+						thinkingText = "Thinking: " + TruncateThinkingBlock(parsed.ThinkingBlock, 3, chatArea.Width-10)
+					} else {
+						// Response not complete, show full thinking block
+						thinkingText = "Thinking: " + parsed.ThinkingBlock
+					}
+
+					thinkingLines := WrapText(thinkingText, chatArea.Width)
+					for _, line := range thinkingLines {
+						allLines = append(allLines, MessageLine{
+							Text:       line,
+							Role:       msg.Role,
+							IsThinking: true,
+						})
+					}
+
+					// Add separator line between thinking and response
+					if parsed.ResponseContent != "" {
+						allLines = append(allLines, MessageLine{
+							Text:       "",
+							Role:       "",
+							IsThinking: false,
+						})
+					}
 				}
-			}
 
-			// Add response content if present
-			if parsed.ResponseContent != "" {
-				contentLines := WrapText(parsed.ResponseContent, chatArea.Width)
-				if len(contentLines) == 0 {
-					contentLines = []string{""}
+				// Add response content if present
+				var contentToRender string
+				if parsed.HasThinking && showThinking {
+					contentToRender = parsed.ResponseContent
+				} else {
+					contentToRender = msg.Content
 				}
 
-				for _, line := range contentLines {
-					allLines = append(allLines, MessageLine{
-						Text:       line,
-						Role:       msg.Role,
-						IsThinking: false,
-					})
+				if contentToRender != "" {
+					contentLines := WrapText(contentToRender, chatArea.Width)
+					log := logger.WithComponent("render")
+
+					firstLine := ""
+					if len(contentLines) > 0 {
+						firstLine = contentLines[0]
+					}
+					log.Debug("Rendering assistant message lines",
+						"role", msg.Role,
+						"content_length", len(contentToRender),
+						"width", chatArea.Width,
+						"lines", len(contentLines),
+						"first_line", firstLine)
+
+					for _, line := range contentLines {
+						allLines = append(allLines, MessageLine{
+							Text:       line,
+							Role:       msg.Role,
+							IsThinking: false,
+						})
+					}
 				}
 			}
 		} else {
 			// Handle non-assistant messages normally
 			contentLines := WrapText(msg.Content, chatArea.Width)
-			if len(contentLines) == 0 {
-				contentLines = []string{""}
-			}
+			log := logger.WithComponent("render")
 
-			// Log error messages for debugging
-			if msg.Role == chat.RoleError {
-				log := logger.WithComponent("tui_render")
-				firstLine := ""
-				if len(contentLines) > 0 {
-					firstLine = contentLines[0]
-				}
-				log.Debug("Rendering error message",
-					"content", msg.Content,
-					"width", chatArea.Width,
-					"lines", len(contentLines),
-					"first_line", firstLine)
+			firstLine := ""
+			if len(contentLines) > 0 {
+				firstLine = contentLines[0]
 			}
+			log.Debug("Rendering message lines",
+				"role", msg.Role,
+				"content_length", len(msg.Content),
+				"width", chatArea.Width,
+				"lines", len(contentLines),
+				"first_line", firstLine)
 
 			for _, line := range contentLines {
 				allLines = append(allLines, MessageLine{
@@ -127,14 +158,11 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 	// Calculate visible lines for messages (leave space for spinner if visible)
 	availableHeight := chatArea.Height
 	if spinner.IsVisible {
-		availableHeight = chatArea.Height - 1 // Reserve bottom line for spinner
+		availableHeight -= 1
 	}
 
-	// Calculate which lines are visible based on scroll
+	// Calculate which lines to show based on scroll
 	startLine := display.Scroll
-	if startLine >= len(allLines) {
-		startLine = len(allLines) - 1
-	}
 	if startLine < 0 {
 		startLine = 0
 	}
@@ -190,10 +218,16 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 			for x := area.X; x < area.X+area.Width; x++ {
 				screen.SetContent(x, spinnerY, ' ', nil, tcell.StyleDefault)
 			}
-			// Render spinner text with horizontal padding
-			renderText(screen, area.X, spinnerY, spinner.GetDisplayText(), spinner.Style)
+
+			// Render spinner text
+			spinnerText := fmt.Sprintf(" %s %s", spinner.GetCurrentFrame(), spinner.Text)
+			renderText(screen, area.X, spinnerY, spinnerText, StyleDimText)
 		}
 	}
+}
+
+func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area Rect, spinner SpinnerComponent) {
+	RenderMessagesWithSpinnerAndStreaming(screen, display, area, spinner, false)
 }
 
 func RenderInput(screen tcell.Screen, input InputField, area Rect) {
@@ -232,39 +266,64 @@ func RenderInputWithSpinner(screen tcell.Screen, input InputField, area Rect, sp
 		// Render chevron or spinner prefix
 		if spinner.IsVisible {
 			// Show dimmed blue spinner during processing
-			spinnerStyle := StyleStatusBusy
-			renderText(screen, prefixX, inputY, spinner.GetCurrentFrame(), spinnerStyle)
+			renderText(screen, prefixX, inputY, spinner.GetCurrentFrame(), StyleDimText)
 		} else {
-			// Show dimmed yellow chevron when not processing
-			chevronStyle := StylePrompt
-			renderText(screen, prefixX, inputY, ">", chevronStyle)
+			// Show normal chevron when ready
+			renderText(screen, prefixX, inputY, ">", StyleUserText)
 		}
 
-		visibleContent := input.Content
-		cursorPos := input.Cursor
+		// Render input text if we have enough width
+		if inputWidth > 0 {
+			// Calculate display area for input text with cursor
+			inputText := input.Content
+			cursor := input.Cursor
 
-		if len(visibleContent) > inputWidth {
-			start := 0
-			if cursorPos >= inputWidth {
-				start = cursorPos - inputWidth + 1
+			// Ensure cursor is within bounds
+			if cursor < 0 {
+				cursor = 0
 			}
-			end := start + inputWidth
-			if end > len(visibleContent) {
-				end = len(visibleContent)
+			if cursor > len(inputText) {
+				cursor = len(inputText)
 			}
-			visibleContent = visibleContent[start:end]
-			cursorPos = cursorPos - start
-		}
 
-		renderText(screen, inputX, inputY, visibleContent, tcell.StyleDefault)
+			// Calculate visible portion of text that fits in the available width
+			visibleStart := 0
+			visibleText := inputText
 
-		if cursorPos >= 0 && cursorPos <= len(visibleContent) && cursorPos < inputWidth {
-			cursorStyle := tcell.StyleDefault.Reverse(true)
-			if cursorPos < len(visibleContent) {
-				r := rune(visibleContent[cursorPos])
-				screen.SetContent(inputX+cursorPos, inputY, r, nil, cursorStyle)
-			} else {
-				screen.SetContent(inputX+cursorPos, inputY, ' ', nil, cursorStyle)
+			// If text + cursor position is longer than available width, scroll
+			if len(inputText) > inputWidth {
+				// Try to center cursor in visible area, but keep it at least partially visible
+				if cursor >= inputWidth {
+					visibleStart = cursor - inputWidth + 1
+					if visibleStart < 0 {
+						visibleStart = 0
+					}
+				}
+
+				// Adjust visible text
+				visibleEnd := visibleStart + inputWidth
+				if visibleEnd > len(inputText) {
+					visibleEnd = len(inputText)
+				}
+				visibleText = inputText[visibleStart:visibleEnd]
+			}
+
+			// Render the visible text
+			renderText(screen, inputX, inputY, visibleText, StyleUserText)
+
+			// Render cursor if it's in the visible area
+			adjustedCursor := cursor - visibleStart
+			if adjustedCursor >= 0 && adjustedCursor <= len(visibleText) && adjustedCursor < inputWidth {
+				cursorX := inputX + adjustedCursor
+				if cursorX < inputX+inputWidth {
+					// Show cursor as inverse character
+					var cursorChar rune = ' '
+					if adjustedCursor < len(visibleText) {
+						cursorChar = rune(visibleText[adjustedCursor])
+					}
+					cursorStyle := StyleUserText.Reverse(true)
+					screen.SetContent(cursorX, inputY, cursorChar, nil, cursorStyle)
+				}
 			}
 		}
 	}
@@ -277,50 +336,79 @@ func RenderStatus(screen tcell.Screen, status StatusBar, area Rect) {
 
 	clearArea(screen, area)
 
-	if status.IsModelView {
-		// Simplified format for model management page
-		statusStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-		totalSizeGB := float64(status.TotalSize) / (1024 * 1024 * 1024)
-		statusText := fmt.Sprintf(" models: %d | size: %.1f GB ", status.TotalModels, totalSizeGB)
+	// Format status line: [Model: modelname] Status | Tokens: prompt/response
+	statusText := fmt.Sprintf("[Model: %s] %s", status.Model, status.Status)
 
-		// Fill entire row with background
-		for x := area.X; x < area.X+area.Width; x++ {
-			screen.SetContent(x, area.Y, ' ', nil, statusStyle)
+	if status.PromptTokens > 0 || status.ResponseTokens > 0 {
+		tokenText := fmt.Sprintf(" | Tokens: %d/%d", status.PromptTokens, status.ResponseTokens)
+		statusText += tokenText
+	}
+
+	// Truncate if too long
+	if len(statusText) > area.Width {
+		statusText = statusText[:area.Width-3] + "..."
+	}
+
+	renderText(screen, area.X, area.Y, statusText, StyleDimText)
+}
+
+func RenderTokensOnly(screen tcell.Screen, area Rect, promptTokens, responseTokens int) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+
+	clearArea(screen, area)
+
+	tokenText := fmt.Sprintf("Tokens: %d/%d", promptTokens, responseTokens)
+
+	// Right-align the token text
+	startX := area.X + area.Width - len(tokenText)
+	if startX < area.X {
+		startX = area.X
+		// Truncate if necessary
+		if len(tokenText) > area.Width {
+			tokenText = tokenText[:area.Width]
 		}
+	}
 
-		// Right-justify the status text
-		if len(statusText) <= area.Width {
-			startX := area.X + area.Width - len(statusText)
-			for i, r := range statusText {
-				screen.SetContent(startX+i, area.Y, r, nil, statusStyle)
-			}
+	renderText(screen, startX, area.Y, tokenText, StyleTokenCount)
+}
+
+func RenderTokensWithSpinner(screen tcell.Screen, area Rect, promptTokens, responseTokens int, spinnerVisible bool, spinnerFrame string) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+
+	clearArea(screen, area)
+
+	tokenText := fmt.Sprintf("Tokens: %d/%d", promptTokens, responseTokens)
+	fullText := tokenText
+
+	if spinnerVisible {
+		spinnerText := fmt.Sprintf(" %s", spinnerFrame)
+		fullText = tokenText + spinnerText
+	}
+
+	// Right-align the full text
+	startX := area.X + area.Width - len(fullText)
+	if startX < area.X {
+		startX = area.X
+		// Truncate if necessary
+		if len(fullText) > area.Width {
+			fullText = fullText[:area.Width]
+		}
+	}
+
+	if spinnerVisible {
+		// Render token text first
+		renderText(screen, startX, area.Y, tokenText, StyleTokenCount)
+		// Then render spinner
+		spinnerX := startX + len(tokenText)
+		if spinnerX < area.X+area.Width {
+			renderText(screen, spinnerX, area.Y, fmt.Sprintf(" %s", spinnerFrame), StyleDimText)
 		}
 	} else {
-		// Chat view format with reorganized layout
-		readyStyle := StyleStatusReady.Dim(true)
-		modelStyle := StyleDimText
-		if !status.ModelAvailable {
-			modelStyle = StyleStatusOffline
-		}
-
-		// Left-justified Ready text
-		readyText := status.Status
-		for i, r := range readyText {
-			if area.X+i < area.X+area.Width {
-				screen.SetContent(area.X+i, area.Y, r, nil, readyStyle)
-			}
-		}
-
-		// Right-justified model name
-		modelText := status.Model
-		if len(modelText) > 0 {
-			modelStartX := area.X + area.Width - len(modelText)
-			if modelStartX > area.X+len(readyText)+2 { // Ensure spacing
-				for i, r := range modelText {
-					screen.SetContent(modelStartX+i, area.Y, r, nil, modelStyle)
-				}
-			}
-		}
+		renderText(screen, startX, area.Y, tokenText, StyleTokenCount)
 	}
 }
 
@@ -335,103 +423,5 @@ func clearArea(screen tcell.Screen, area Rect) {
 func renderText(screen tcell.Screen, x, y int, text string, style tcell.Style) {
 	for i, r := range text {
 		screen.SetContent(x+i, y, r, nil, style)
-	}
-}
-
-func RenderAlert(screen tcell.Screen, alert AlertDisplay, area Rect) {
-	if area.Width <= 0 || area.Height <= 0 {
-		return
-	}
-
-	clearArea(screen, area)
-
-	displayText := alert.GetDisplayText()
-	if displayText == "" {
-		return
-	}
-
-	// Determine style based on content type
-	var style tcell.Style
-	if alert.ErrorMessage != "" {
-		// Base16 red color for errors
-		style = StyleBorderError
-	} else {
-		// Default gray for spinner
-		style = StyleDimText
-	}
-
-	// Render left-justified
-	renderText(screen, area.X, area.Y, displayText, style)
-}
-
-func RenderAlertWithTokens(screen tcell.Screen, alert AlertDisplay, area Rect, promptTokens, responseTokens int) {
-	if area.Width <= 0 || area.Height <= 0 {
-		return
-	}
-
-	clearArea(screen, area)
-
-	// Render spinner or error on the left
-	displayText := alert.GetDisplayText()
-	if displayText != "" {
-		// Determine style based on content type
-		var style tcell.Style
-		if alert.ErrorMessage != "" {
-			// Base16 red color for errors
-			style = StyleBorderError
-		} else {
-			// Default gray for spinner
-			style = StyleDimText
-		}
-		// Render left-justified
-		renderText(screen, area.X, area.Y, displayText, style)
-	}
-
-	// Render token display on the right if tokens are present
-	totalTokens := promptTokens + responseTokens
-	if totalTokens > 0 {
-		tokenStyle := StyleTokenCount
-		tokenText := fmt.Sprintf("%d", totalTokens)
-
-		// Right-justify the token text
-		tokenStartX := area.X + area.Width - len(tokenText)
-		if tokenStartX > area.X+len(displayText)+2 { // Ensure spacing
-			for i, r := range tokenText {
-				screen.SetContent(tokenStartX+i, area.Y, r, nil, tokenStyle)
-			}
-		}
-	}
-}
-
-func RenderTokensWithSpinner(screen tcell.Screen, area Rect, promptTokens, responseTokens int, isSpinning bool, spinnerFrame int) {
-	if area.Width <= 0 || area.Height <= 0 {
-		return
-	}
-
-	clearArea(screen, area)
-
-	// Render spinner on the left without padding if spinning
-	if isSpinning {
-		spinnerChar := GetSpinnerFrame(spinnerFrame)
-		spinnerStyle := StyleStatusBusy
-		// Remove padding - render directly at area.X
-		renderText(screen, area.X, area.Y, spinnerChar, spinnerStyle)
-	}
-
-	// Render token display on the right if tokens are present
-	totalTokens := promptTokens + responseTokens
-	if totalTokens > 0 {
-		tokenStyle := StyleTokenCount.Dim(true)
-		tokenText := fmt.Sprintf("%d", totalTokens)
-
-		// Right-justify the token text
-		tokenStartX := area.X + area.Width - len(tokenText)
-		// Ensure minimum spacing from spinner area
-		minLeft := area.X + 3 // Space for spinner without padding
-		if tokenStartX > minLeft {
-			for i, r := range tokenText {
-				screen.SetContent(tokenStartX+i, area.Y, r, nil, tokenStyle)
-			}
-		}
 	}
 }

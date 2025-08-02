@@ -89,8 +89,14 @@ func (cv *ChatView) Description() string {
 func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 	messageArea, alertArea, inputArea, statusArea := cv.layout.CalculateAreas()
 
-	RenderMessages(screen, cv.messages, messageArea)
-	RenderTokensWithSpinner(screen, alertArea, cv.status.PromptTokens, cv.status.ResponseTokens, cv.alert.IsSpinnerVisible, cv.alert.SpinnerFrame)
+	// Use streaming-aware render function that can apply thinking styles during streaming
+	spinner := SpinnerComponent{
+		IsVisible: cv.alert.IsSpinnerVisible,
+		Frame:     cv.alert.SpinnerFrame,
+		Text:      cv.alert.SpinnerText,
+	}
+	RenderMessagesWithStreamingState(screen, cv.messages, messageArea, spinner, cv.isStreamingThinking)
+	RenderTokensWithSpinner(screen, alertArea, cv.status.PromptTokens, cv.status.ResponseTokens, cv.alert.IsSpinnerVisible, GetSpinnerFrame(cv.alert.SpinnerFrame))
 	RenderInput(screen, cv.input, inputArea)
 	RenderStatus(screen, cv.status, statusArea)
 
@@ -256,31 +262,6 @@ func (cv *ChatView) updateMessages() {
 	cv.messages = cv.messages.WithMessages(history)
 }
 
-func (cv *ChatView) updateMessagesWithStreaming() {
-	history := cv.controller.GetHistory()
-
-	// If we're streaming, append the streaming content as a temporary message
-	if cv.isStreaming && cv.streamingContent != "" {
-		// Create a copy of history to avoid modifying the original
-		messagesWithStreaming := make([]chat.Message, len(history))
-		copy(messagesWithStreaming, history)
-
-		// Add streaming content as a temporary assistant message
-		streamingMessage := chat.Message{
-			Role:    chat.RoleAssistant,
-			Content: cv.streamingContent + " ▌", // Add cursor to indicate streaming
-		}
-		messagesWithStreaming = append(messagesWithStreaming, streamingMessage)
-
-		cv.messages = cv.messages.WithMessages(messagesWithStreaming)
-
-		// Auto-scroll to bottom during streaming
-		cv.scrollToBottom()
-	} else {
-		// No streaming, show regular messages
-		cv.messages = cv.messages.WithMessages(history)
-	}
-}
 
 func (cv *ChatView) updateMessagesWithStreamingThinking() {
 	history := cv.controller.GetHistory()
