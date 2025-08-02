@@ -22,7 +22,7 @@ func TestLoadDefaults(t *testing.T) {
 
 	// Check defaults
 	assert.Equal(t, "https://ollama.kitty-tetra.ts.net", cfg.Ollama.URL)
-	assert.Equal(t, "qwen2.5:7b", cfg.Ollama.Model)
+	assert.Equal(t, "qwen3:latest", cfg.Ollama.Model)
 	assert.Equal(t, 90*time.Second, cfg.Ollama.Timeout)
 	assert.Equal(t, 10, cfg.Ollama.PollInterval)
 	assert.True(t, cfg.ShowThinking)
@@ -38,7 +38,7 @@ func TestLoadFromFile(t *testing.T) {
 	// Create a temporary config file
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "test-settings.yaml")
-	
+
 	configContent := `
 ollama:
   url: http://test-ollama:11434
@@ -54,7 +54,7 @@ tools:
     timeout: "30s"
     allowed_paths: ["/test", "/tmp"]
 `
-	
+
 	err := os.WriteFile(configFile, []byte(configContent), 0644)
 	require.NoError(t, err)
 

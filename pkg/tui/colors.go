@@ -6,7 +6,7 @@ import "github.com/gdamore/tcell/v2"
 var (
 	// Primary text colors
 	ColorUserText      = tcell.NewRGBColor(255, 176, 0)   // Warm amber/orange - for user messages
-	ColorAssistantText = tcell.NewRGBColor(0, 255, 135)   // Mint green - for assistant messages
+	ColorAssistantText = tcell.NewRGBColor(255, 255, 255) // White - for assistant messages
 	ColorSystemText    = tcell.NewRGBColor(255, 255, 128) // Pale yellow - for system messages
 	ColorToolText      = tcell.NewRGBColor(255, 128, 255) // Soft magenta - for tool outputs
 

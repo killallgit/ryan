@@ -463,4 +463,3 @@ func renderText(screen tcell.Screen, x, y int, text string, style tcell.Style) {
 		screen.SetContent(x+i, y, r, nil, style)
 	}
 }
-

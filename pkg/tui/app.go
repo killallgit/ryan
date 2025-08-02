@@ -116,7 +116,7 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 		layout:            NewLayout(width, height),
 		quit:              false,
 		sending:           false,
-		timeout:           timeoutDuration,
+		timeout:           cfg.Ollama.Timeout,
 		cancelSend:        make(chan bool, 1), // Buffered channel for cancellation
 		viewManager:       viewManager,
 		chatView:          chatView,
