@@ -157,8 +157,8 @@ func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area
 		// Determine style based on message role and thinking status
 		var style tcell.Style
 		if msgLine.IsThinking {
-			// Dimmed white style for thinking blocks
-			style = StyleDimText
+			// Dimmed italic style for thinking blocks
+			style = StyleThinkingText
 		} else {
 			switch msgLine.Role {
 			case chat.RoleUser:

@@ -35,6 +35,11 @@ type ChatView struct {
 	isStreamingThinking bool   // Track if currently streaming thinking content
 	thinkingContent     string // Accumulate thinking content separately
 	responseContent     string // Accumulate response content separately
+
+	// Early detection buffering
+	contentBuffer       string // Buffer for early content type detection
+	contentTypeDetected bool   // Whether we've determined the content type
+	bufferSize          int    // Current buffer size
 }
 
 func NewChatView(controller *controllers.ChatController, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
@@ -62,6 +67,11 @@ func NewChatView(controller *controllers.ChatController, modelsController *contr
 		isStreamingThinking: false,
 		thinkingContent:     "",
 		responseContent:     "",
+
+		// Initialize buffering state
+		contentBuffer:       "",
+		contentTypeDetected: false,
+		bufferSize:          0,
 	}
 
 	view.updateMessages()
@@ -275,22 +285,26 @@ func (cv *ChatView) updateMessagesWithStreaming() {
 func (cv *ChatView) updateMessagesWithStreamingThinking() {
 	history := cv.controller.GetHistory()
 
-	// If we're streaming, append the properly formatted streaming content
-	if cv.isStreaming {
+	// If we're streaming and have detected content type, show streaming content
+	if cv.isStreaming && cv.contentTypeDetected {
 		// Create a copy of history to avoid modifying the original
 		messagesWithStreaming := make([]chat.Message, len(history))
 		copy(messagesWithStreaming, history)
 
 		// Create properly formatted streaming message with thinking detection
 		streamingMessage := cv.createStreamingMessage()
-		messagesWithStreaming = append(messagesWithStreaming, streamingMessage)
+
+		// Only add the streaming message if it has content
+		if streamingMessage.Content != "" {
+			messagesWithStreaming = append(messagesWithStreaming, streamingMessage)
+		}
 
 		cv.messages = cv.messages.WithMessages(messagesWithStreaming)
 
 		// Auto-scroll to bottom during streaming
 		cv.scrollToBottom()
 	} else {
-		// No streaming, show regular messages
+		// No streaming or content type not detected yet, show regular messages
 		cv.messages = cv.messages.WithMessages(history)
 	}
 }
@@ -443,6 +457,32 @@ func (cv *ChatView) detectThinkingStart(content string) bool {
 	return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "<thinking>")
 }
 
+// detectContentTypeFromBuffer analyzes the buffer to determine content type
+// Returns true if content type has been determined, false if more buffering needed
+func (cv *ChatView) detectContentTypeFromBuffer() bool {
+	const minBufferSize = 10 // Need at least 10 chars to detect "<thinking>"
+
+	if cv.bufferSize < minBufferSize && cv.bufferSize < len(cv.streamingContent) {
+		// Still need more characters for reliable detection
+		return false
+	}
+
+	// Check if it starts with thinking tags
+	if cv.detectThinkingStart(cv.contentBuffer) {
+		cv.isStreamingThinking = true
+		// Extract content after the opening tag
+		thinkStartRegex := regexp.MustCompile(`(?i)<think(?:ing)?>`)
+		cv.thinkingContent = strings.TrimSpace(thinkStartRegex.ReplaceAllString(cv.contentBuffer, ""))
+	} else {
+		cv.isStreamingThinking = false
+		// Not thinking content, treat as regular response
+		cv.responseContent = cv.contentBuffer
+	}
+
+	cv.contentTypeDetected = true
+	return true
+}
+
 // processStreamingContent processes the full streaming content and separates thinking from response
 func (cv *ChatView) processStreamingContent() {
 	fullContent := cv.streamingContent
@@ -491,6 +531,14 @@ func (cv *ChatView) processStreamingContent() {
 // createStreamingMessage creates a properly formatted message for streaming display
 func (cv *ChatView) createStreamingMessage() chat.Message {
 	var content string
+
+	// If we haven't detected content type yet, don't show anything
+	if !cv.contentTypeDetected && cv.isStreaming {
+		return chat.Message{
+			Role:    chat.RoleAssistant,
+			Content: "", // Show nothing while buffering
+		}
+	}
 
 	if cv.thinkingContent != "" {
 		// Format thinking content with proper tags so ParseThinkingBlock can style it correctly
@@ -553,6 +601,11 @@ func (cv *ChatView) HandleStreamStart(streamID, model string) {
 	cv.thinkingContent = ""
 	cv.responseContent = ""
 
+	// Initialize buffering state
+	cv.contentBuffer = ""
+	cv.contentTypeDetected = false
+	cv.bufferSize = 0
+
 	// Update status to show streaming
 	cv.status = cv.status.WithStatus("Streaming response...")
 
@@ -566,20 +619,40 @@ func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete 
 		"stream_id", streamID,
 		"content_length", len(content),
 		"is_complete", isComplete,
-		"is_thinking", cv.isStreamingThinking)
+		"content_type_detected", cv.contentTypeDetected,
+		"buffer_size", cv.bufferSize)
 
 	// Update basic streaming state
 	cv.currentStreamID = streamID
 	cv.streamingContent = content
 	cv.isStreaming = !isComplete
 
-	// Process content for thinking detection and separation
-	if cv.streamingContent != "" {
-		cv.processStreamingContent()
+	// Early detection buffering logic
+	if !cv.contentTypeDetected && !isComplete {
+		// Still buffering to detect content type
+		cv.contentBuffer = content
+		cv.bufferSize = len(content)
+
+		// Try to detect content type from buffer
+		if cv.detectContentTypeFromBuffer() {
+			log.Debug("Content type detected",
+				"is_thinking", cv.isStreamingThinking,
+				"thinking_content", cv.thinkingContent,
+				"response_content", cv.responseContent)
+		} else {
+			// Still need more content for detection, don't display anything yet
+			log.Debug("Still buffering for content type detection", "buffer_size", cv.bufferSize)
+			return
+		}
 	}
 
-	// Update the message display to show streaming content with proper formatting
-	cv.updateMessagesWithStreamingThinking()
+	// Content type already detected or stream is complete, process normally
+	if cv.contentTypeDetected || isComplete {
+		cv.processStreamingContent()
+
+		// Update the message display to show streaming content with proper formatting
+		cv.updateMessagesWithStreamingThinking()
+	}
 
 	if !isComplete {
 		// Update spinner text based on current mode
@@ -596,6 +669,12 @@ func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete 
 		cv.isStreamingThinking = false
 		cv.thinkingContent = ""
 		cv.responseContent = ""
+
+		// Clear buffering state
+		cv.contentBuffer = ""
+		cv.contentTypeDetected = false
+		cv.bufferSize = 0
+
 		cv.alert = cv.alert.WithSpinner(false, "")
 	}
 }
@@ -615,6 +694,11 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 	cv.isStreamingThinking = false
 	cv.thinkingContent = ""
 	cv.responseContent = ""
+
+	// Clear buffering state
+	cv.contentBuffer = ""
+	cv.contentTypeDetected = false
+	cv.bufferSize = 0
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
@@ -638,6 +722,11 @@ func (cv *ChatView) HandleStreamError(streamID string, err error) {
 	cv.isStreamingThinking = false
 	cv.thinkingContent = ""
 	cv.responseContent = ""
+
+	// Clear buffering state
+	cv.contentBuffer = ""
+	cv.contentTypeDetected = false
+	cv.bufferSize = 0
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")

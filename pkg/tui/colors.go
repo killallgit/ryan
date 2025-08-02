@@ -67,10 +67,11 @@ var (
 	StyleBorderError  = tcell.StyleDefault.Foreground(ColorBorderError)
 	StyleHeaderText   = tcell.StyleDefault.Foreground(ColorHeaderText).Bold(true)
 
-	StyleDimText     = tcell.StyleDefault.Foreground(ColorDimText).Dim(true)
-	StyleHighlight   = tcell.StyleDefault.Foreground(ColorHighlight).Bold(true)
-	StylePrompt      = tcell.StyleDefault.Foreground(ColorPrompt)
-	StyleInstruction = tcell.StyleDefault.Foreground(ColorInstruction)
+	StyleDimText      = tcell.StyleDefault.Foreground(ColorDimText).Dim(true)
+	StyleThinkingText = tcell.StyleDefault.Foreground(ColorDimText).Dim(true).Italic(true)
+	StyleHighlight    = tcell.StyleDefault.Foreground(ColorHighlight).Bold(true)
+	StylePrompt       = tcell.StyleDefault.Foreground(ColorPrompt)
+	StyleInstruction  = tcell.StyleDefault.Foreground(ColorInstruction)
 
 	StyleMenuSelected = tcell.StyleDefault.Foreground(tcell.ColorBlack).Background(ColorMenuSelected)
 	StyleMenuNormal   = tcell.StyleDefault.Foreground(ColorMenuNormal)
