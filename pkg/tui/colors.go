@@ -81,7 +81,7 @@ var (
 	StyleStatusError   = tcell.StyleDefault.Foreground(ColorStatusError)
 	StyleStatusOffline = tcell.StyleDefault.Foreground(ColorStatusOffline).StrikeThrough(true)
 
-	StyleTokenCount    = tcell.StyleDefault.Foreground(ColorTokenCount)
-	StyleMetric        = tcell.StyleDefault.Foreground(ColorMetric)
-	StyleModelCurrent  = tcell.StyleDefault.Foreground(ColorModelCurrent).Bold(true)
+	StyleTokenCount   = tcell.StyleDefault.Foreground(ColorTokenCount)
+	StyleMetric       = tcell.StyleDefault.Foreground(ColorMetric)
+	StyleModelCurrent = tcell.StyleDefault.Foreground(ColorModelCurrent).Bold(true)
 )

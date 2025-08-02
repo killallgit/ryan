@@ -84,20 +84,20 @@ func (sc *StreamingClient) StreamMessage(ctx context.Context, req ChatRequest) (
 		// Read the error response body for detailed error information
 		errorBody, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		
+
 		if err != nil {
 			return nil, fmt.Errorf("request failed with status %d (failed to read error response: %w)", resp.StatusCode, err)
 		}
-		
+
 		// Try to parse as JSON error response
 		var errorResp struct {
 			Error string `json:"error"`
 		}
-		
+
 		if json.Unmarshal(errorBody, &errorResp) == nil && errorResp.Error != "" {
 			return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, errorResp.Error)
 		}
-		
+
 		// Fallback to raw body if JSON parsing fails
 		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(errorBody))
 	}
