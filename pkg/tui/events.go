@@ -255,6 +255,20 @@ func NewModelNotFoundEvent(modelName string) *ModelNotFoundEvent {
 	}
 }
 
+// ModelChangeEvent is sent when the current model is changed
+type ModelChangeEvent struct {
+	tcell.EventTime
+	ModelName string
+}
+
+// NewModelChangeEvent creates a new model change event
+func NewModelChangeEvent(modelName string) *ModelChangeEvent {
+	return &ModelChangeEvent{
+		EventTime: tcell.EventTime{},
+		ModelName: modelName,
+	}
+}
+
 // Streaming Events
 
 // MessageChunkEvent is sent when a streaming message chunk is received

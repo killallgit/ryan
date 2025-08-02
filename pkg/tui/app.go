@@ -223,6 +223,8 @@ func (app *App) handleEvent(event tcell.Event) {
 		app.handleModelDownloadError(ev)
 	case *ModelNotFoundEvent:
 		app.handleModelNotFound(ev)
+	case *ModelChangeEvent:
+		app.handleModelChange(ev)
 	case *MessageChunkEvent:
 		app.handleMessageChunk(ev)
 	case *StreamStartEvent:
@@ -700,6 +702,19 @@ func (app *App) handleModelNotFound(ev *ModelNotFoundEvent) {
 		log.Debug("Model not found event received", "model_name", ev.ModelName)
 	} else {
 		log.Debug("Current view is not ModelView, ignoring ModelNotFoundEvent", "current_view_type", currentView)
+	}
+}
+
+func (app *App) handleModelChange(ev *ModelChangeEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling ModelChangeEvent", "model_name", ev.ModelName)
+	
+	// Forward the event to ChatView to update its status bar
+	if app.chatView != nil {
+		app.chatView.HandleModelChange(*ev)
+		log.Debug("Forwarded ModelChangeEvent to ChatView")
+	} else {
+		log.Debug("No ChatView available to handle model change")
 	}
 }
 

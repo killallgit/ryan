@@ -481,6 +481,9 @@ func (mv *ModelView) changeModel() {
 		log.Debug("Configuration saved successfully", "new_model", selectedModel.Name)
 		mv.status = mv.status.WithStatus("Model changed to: " + selectedModel.Name)
 		
+		// Post event to notify other views (especially ChatView) that the model changed
+		mv.screen.PostEvent(NewModelChangeEvent(selectedModel.Name))
+		
 		// Trigger screen refresh to update the current model highlighting
 		mv.screen.Show()
 	}
@@ -672,6 +675,9 @@ func (mv *ModelView) HandleModelDownloadComplete(ev ModelDownloadCompleteEvent) 
 	if err := viper.WriteConfig(); err != nil {
 		log.Error("Failed to save configuration after download", "error", err)
 	}
+	
+	// Post event to notify other views that the model changed
+	mv.screen.PostEvent(NewModelChangeEvent(ev.ModelName))
 }
 
 func (mv *ModelView) HandleModelDownloadError(ev ModelDownloadErrorEvent) {

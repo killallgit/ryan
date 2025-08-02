@@ -733,3 +733,12 @@ func (cv *ChatView) UpdateStreamProgress(streamID string, contentLength, chunkCo
 		cv.alert = cv.alert.WithSpinner(true, progressText).NextSpinnerFrame()
 	}
 }
+
+func (cv *ChatView) HandleModelChange(ev ModelChangeEvent) {
+	log := logger.WithComponent("chat_view")
+	log.Debug("Handling ModelChangeEvent in chat view", "model_name", ev.ModelName)
+	
+	// Update the status bar to show the new model
+	cv.status = cv.status.WithModel(ev.ModelName)
+	log.Debug("Updated chat view status bar with new model", "model_name", ev.ModelName)
+}
