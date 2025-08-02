@@ -333,9 +333,12 @@ func (app *App) sendMessage() {
   - Enhanced error messages with actionable suggestions
 - Ready for streaming integration in Phase 3
 
-## Phase 3: Streaming Infrastructure
-**Duration**: 1 week  
-**Goal**: Add streaming without TUI complexity
+## Phase 3: Streaming Infrastructure & Tool System Parity
+**Duration**: 4-6 weeks total (Streaming: ✅ COMPLETED, Tool Parity: IN PROGRESS)  
+**Goal**: Complete streaming implementation + Achieve Claude Code tool system parity
+
+### 3.0: Streaming Implementation ✅ COMPLETED
+Original streaming goals achieved with full HTTP streaming, message accumulation, and TUI integration.
 
 ### 3.1: Streaming Client (`pkg/chat/stream.go`)
 **Purpose**: HTTP streaming implementation, testable in isolation
@@ -468,6 +471,119 @@ var streamTestCmd = &cobra.Command{
 - **Performance Optimizations**: Buffered channels, efficient string building, proper cleanup
 - **Documentation**: Complete implementation guide and API reference
 - Ready for production use with real-time streaming experience
+
+### 3.5: Tool System Parity with Claude Code 🚧 IN PROGRESS
+**Duration**: 4-5 weeks  
+**Goal**: Achieve feature parity with Claude Code's sophisticated tool execution system
+
+#### 3.5A: Advanced Execution Engine (Weeks 1-2)
+**Purpose**: Build concurrent tool orchestration matching Claude Code's "capability to call multiple tools in a single response"
+
+```go
+// Enhanced tool execution architecture
+type ToolOrchestrator struct {
+    executorPool     *goroutine.Pool    // Concurrent execution
+    resultAggregator chan ToolResult    // Result collection
+    progressTracker  *ProgressManager   // Real-time feedback
+    cancelManager    *context.Manager   // Cancellation support
+}
+
+// Batch execution system
+type BatchExecutor struct {
+    tools            []ToolRequest
+    dependencies     DependencyGraph
+    maxConcurrency   int
+    results          map[string]ToolResult
+}
+
+func (be *BatchExecutor) ExecuteParallel(ctx context.Context) (BatchResult, error)
+```
+
+**Key Features**:
+- **Concurrent Tool Execution**: Goroutine pools for parallel tool execution
+- **Batch Processing**: Multiple tools in single request/response cycle
+- **Dependency Resolution**: Tool ordering and prerequisite handling
+- **Resource Management**: Memory limits, timeout controls, cancellation
+- **Progress Tracking**: Real-time feedback in TUI during tool execution
+
+**Tests Required**:
+- Concurrent execution with race detection
+- Batch dependency resolution
+- Resource limit enforcement
+- Error handling and recovery
+- Progress tracking accuracy
+
+**Exit Criteria**: Can execute 10+ tools concurrently with proper orchestration
+
+#### 3.5B: Comprehensive Tool Suite (Weeks 3-4)
+**Purpose**: Expand from 2 basic tools to 15+ production-ready tools matching Claude Code coverage
+
+**Core Tools Implementation**:
+1. **WebFetch Tool**: HTTP requests with caching, rate limiting, redirect handling
+2. **Enhanced Grep Tool**: ripgrep integration with context, syntax highlighting
+3. **Glob Tool**: Advanced pattern matching with sorting and filtering
+4. **Enhanced Read/Write Tools**: Encoding detection, PDF support, image viewing
+5. **Directory Operations**: LS with filtering, mkdir, tree view
+6. **Git Integration**: Status, commit, diff, branch operations with validation
+7. **Package Manager Tools**: npm, go mod, cargo integration
+8. **Process Management**: ps, kill, system monitoring
+9. **Network Tools**: ping, curl, port scanning
+10. **Development Tools**: Build system integration, test runners
+
+**Architecture Enhancements**:
+```go
+// Tool registry with advanced features
+type AdvancedRegistry struct {
+    tools           map[string]Tool
+    categories      map[string][]string    // Tool categorization
+    permissions     map[string][]Permission // Security model
+    dependencies    DependencyGraph        // Tool relationships
+    cache          *ToolResultCache       // Result caching
+    validator      *ToolValidator         // Input validation
+}
+
+// Tool execution context with enhanced features
+type ExecutionContext struct {
+    UserConsent    ConsentManager    // Security consent
+    ResourceLimits ResourceLimiter   // Memory, CPU, time limits
+    ProgressSink   ProgressReporter  // Real-time feedback
+    CancelFunc     context.CancelFunc // Cancellation
+}
+```
+
+**Exit Criteria**: Tool suite coverage matches Claude Code's breadth and capability
+
+#### 3.5C: Multi-Provider Integration (Weeks 5-6)
+**Purpose**: Provider-agnostic tool calling for OpenAI, Anthropic, Ollama
+
+**Provider Abstraction Layer**:
+```go
+// Universal tool calling interface
+type ProviderAdapter interface {
+    ConvertToolDefinition(tool Tool) (ProviderToolDef, error)
+    ParseToolCall(response ProviderResponse) (ToolCall, error)
+    FormatToolResult(result ToolResult) (ProviderResult, error)
+}
+
+// Provider implementations
+type OpenAIAdapter struct{}    // {"type": "function", "function": {...}}
+type AnthropicAdapter struct{} // {"name": ..., "input_schema": {...}}
+type OllamaAdapter struct{}    // OpenAI-compatible format
+
+// Multi-provider client
+type UniversalClient struct {
+    providers map[string]ProviderAdapter
+    router    ProviderRouter
+}
+```
+
+**Streaming Integration**:
+- Tool execution during streaming responses
+- Real-time tool result display in TUI
+- Memory-efficient result streaming
+- Tool progress indicators and cancellation
+
+**Exit Criteria**: Works seamlessly with OpenAI, Anthropic, and Ollama APIs
 
 ## Phase 4: TUI + Streaming Integration
 **Duration**: 1 week  
@@ -658,10 +774,11 @@ func (sa *StreamingApp) safeUpdateStreamingText(content string) {
 - [x] Ollama connectivity validation
 - [x] Escape key cancellation support
 
-### Phase 3: Streaming
-- [ ] Streaming works in isolation
-- [ ] Proper error handling
-- [ ] No resource leaks
+### Phase 3: Streaming & Tool System Parity ✅ STREAMING COMPLETED, TOOL PARITY IN PROGRESS
+- [x] Streaming works in isolation
+- [x] Proper error handling  
+- [x] No resource leaks
+- [ ] **Tool System Parity with Claude Code**: Advanced execution engine and comprehensive tool suite
 
 ### Phase 4: Integration
 - [ ] Real-time streaming in TUI

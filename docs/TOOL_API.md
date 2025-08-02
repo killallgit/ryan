@@ -1,6 +1,6 @@
 # Tool System API Reference
 
-Phase 1 implementation: Universal tool foundation with provider format adapters.
+Current implementation: Universal tool foundation evolving to Claude Code parity with advanced execution engine.
 
 ## Core Interfaces
 
@@ -35,6 +35,7 @@ func (r *Registry) Get(name string) (Tool, bool)
 func (r *Registry) List() []string
 func (r *Registry) Execute(ctx context.Context, req ToolRequest) (ToolResult, error)
 func (r *Registry) ExecuteAsync(ctx context.Context, req ToolRequest) <-chan ToolResult
+func (r *Registry) ExecuteBatch(ctx context.Context, reqs []ToolRequest) (BatchResult, error)
 func (r *Registry) RegisterBuiltinTools() error
 ```
 
@@ -74,7 +75,19 @@ type ToolMetadata struct {
 }
 ```
 
-## Built-in Tools
+### BatchResult
+
+```go
+type BatchResult struct {
+    Results   map[string]ToolResult `json:"results"`
+    Errors    map[string]error      `json:"errors"`
+    StartTime time.Time             `json:"start_time"`
+    EndTime   time.Time             `json:"end_time"`
+    Duration  time.Duration         `json:"duration"`
+}
+```
+
+## Built-in Tools (Phase 3A: Basic Tools)
 
 ### BashTool (`execute_bash`)
 - Parameters: `command` (required), `working_directory` (optional)
@@ -84,15 +97,42 @@ type ToolMetadata struct {
 - Parameters: `path` (required), `start_line`/`end_line` (optional)
 - Safety: Path validation, extension whitelist, size limits
 
+## Advanced Features (Phase 3B+)
+
+### Batch Execution
+Execute multiple tools concurrently with dependency resolution:
+
+```go
+requests := []ToolRequest{
+    {Name: "read_file", Parameters: map[string]interface{}{"path": "config.json"}},
+    {Name: "execute_bash", Parameters: map[string]interface{}{"command": "ls -la"}},
+}
+
+batchResult, err := registry.ExecuteBatch(ctx, requests)
+```
+
+### Progress Tracking
+Monitor tool execution progress in real-time:
+
+```go
+// Progress updates sent via channels during execution
+type ProgressUpdate struct {
+    ToolID   string
+    Progress float64  // 0.0 to 1.0
+    Message  string
+    Status   ProgressStatus
+}
+```
+
 ## Provider Format Conversion
 
-Supports OpenAI, Anthropic, Ollama, MCP formats:
+Supports OpenAI, Anthropic, Ollama formats with universal adapter:
 
 ```go
 // Get tools in provider-specific format
 definitions, err := registry.GetDefinitions("openai")
 definitions, err := registry.GetDefinitions("anthropic") 
-definitions, err := registry.GetDefinitions("mcp")
+definitions, err := registry.GetDefinitions("ollama")
 ```
 
 ## Error Handling

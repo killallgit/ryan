@@ -14,9 +14,10 @@ Ryan is a responsive terminal-based chat interface for AI assistants, starting w
 ⌨️ **Escape Key Cancellation** - Cancel operations with Escape key  
 📱 **Responsive Layout** - Adapts gracefully to terminal resizing  
 🎨 **Clean Architecture** - Functional programming with immutable data structures  
-🛠️ **Universal Tool System** - Industry-standard tool calling compatible with all major LLM providers  
-🔧 **Built-in Tools** - Bash command execution and file reading with safety constraints  
+🛠️ **Advanced Tool System** - Claude Code-level tool execution with concurrent orchestration  
+🔧 **Comprehensive Tool Suite** - 15+ production-ready tools with batch execution capability  
 🔒 **Security First** - Comprehensive safety validation and sandboxing for tool execution  
+🔄 **Multi-Provider Support** - Universal tool calling for OpenAI, Anthropic, and Ollama  
 
 ## UI Layout
 
@@ -46,7 +47,8 @@ ryan/
 │   ├── chat/          # Core chat domain logic
 │   ├── controllers/   # Business logic orchestration  
 │   ├── ollama/        # Ollama API client
-│   ├── tools/         # Universal tool system
+│   ├── providers/     # Multi-provider adapters (OpenAI, Anthropic)
+│   ├── tools/         # Advanced tool execution system
 │   └── tui/           # Terminal user interface
 ├── docs/              # Architecture and design docs
 ├── examples/          # Tool system demos and examples
@@ -111,19 +113,24 @@ Ryan was built using an incremental complexity approach:
 - Ollama connectivity validation
 - Escape key cancellation support
 
-### 🚧 Phase 3: Streaming Infrastructure (CURRENT)
-- HTTP streaming client
-- Message chunk accumulation
-- Streaming controller with channels
+### ✅ Phase 3: Streaming & Tool System Parity (STREAMING COMPLETED, TOOL PARITY IN PROGRESS)
+- ✅ HTTP streaming client with chunk processing
+- ✅ Message accumulation and real-time display
+- ✅ Thread-safe streaming updates in TUI
+- 🚧 Advanced tool execution engine with concurrent orchestration
+- 🚧 Comprehensive tool suite expansion (15+ tools)
+- 🚧 Multi-provider integration (OpenAI, Anthropic, Ollama)
 
-### 📋 Phase 4: TUI + Streaming Integration (PLANNED)
-- Real-time message streaming in TUI
-- Progressive message display
-- Thread-safe streaming updates
+### 📋 Phase 4: Production Features (PLANNED)
+- Tool execution sandboxing and resource limits
+- User consent system for dangerous operations
+- Audit logging and execution tracking
+- Tool execution history and replay capabilities
 
-### 🎨 Phase 5: Polish & Production (PLANNED)
+### 🎨 Phase 5: Polish & Advanced Features (PLANNED)
+- MCP protocol support
 - Advanced UI features (syntax highlighting, themes)
-- Performance optimization
+- Performance optimization and caching strategies
 - Configuration and customization options
 
 ## Testing Strategy

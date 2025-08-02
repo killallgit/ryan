@@ -6,6 +6,7 @@ This project implements an interactive command-line chat interface for Claude-li
 
 ### Core Goals
 - **Responsive Streaming**: Real-time message streaming without UI blocking
+- **Advanced Tool System**: Production-ready tool execution matching Claude Code capabilities
 - **Clean Separation**: TUI, business logic, and API layers remain independent  
 - **Testable Design**: Every component can be tested in isolation
 - **Functional Approach**: Immutable data, pure functions, channel-based communication
@@ -21,21 +22,24 @@ This project implements an interactive command-line chat interface for Claude-li
 
 ### 2. Separation of Concerns
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   TUI Layer     │    │  Controller     │    │   Chat Core     │
-│   (tcell)       │────│    Layer        │────│   (business)    │
-│                 │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        │                       │                       │
-        ▼                       ▼                       ▼
-   UI Events              Orchestration            API Calls
-   Rendering              State Management         Message Logic
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   TUI Layer     │    │  Controller     │    │   Chat Core     │    │   Tool System   │
+│   (tcell)       │────│    Layer        │────│   (business)    │────│  (execution)    │
+│                 │    │                 │    │                 │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
+        │                       │                       │                       │
+        ▼                       ▼                       ▼                       ▼
+   UI Events              Orchestration            API Calls              Tool Execution
+   Rendering              State Management         Message Logic          Batch Processing
+   Progress Display       Tool Coordination        Streaming              Provider Adapters
 ```
 
 ### 3. Threading Model
 - **Main Thread**: tcell event loop + UI rendering
 - **Coordinator Thread**: Message lifecycle management
 - **Stream Readers**: HTTP streaming (created per request)
+- **Tool Executors**: Concurrent tool execution via goroutine pools
+- **Progress Trackers**: Real-time tool progress monitoring
 - **Input Handlers**: User input processing
 
 ## Component Architecture
@@ -99,8 +103,51 @@ func RenderInput(screen tcell.Screen, input string, area Rect)
 func RenderAlert(screen tcell.Screen, alert AlertDisplay, area Rect)
 ```
 
-#### 4. Controllers (`pkg/controllers/`)
-**Purpose**: Orchestrate between TUI and chat domain
+#### 4. Tool System (`pkg/tools/`)
+**Purpose**: Advanced tool execution engine with Claude Code parity
+
+```go
+// Universal tool interface
+type Tool interface {
+    Name() string
+    Description() string
+    JSONSchema() map[string]interface{}
+    Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error)
+}
+
+// Advanced tool orchestration
+type ToolOrchestrator struct {
+    executorPool     *goroutine.Pool    // Concurrent execution
+    resultAggregator chan ToolResult    // Result collection
+    progressTracker  *ProgressManager   // Real-time feedback
+    cancelManager    *context.Manager   // Cancellation support
+}
+
+// Batch execution matching Claude Code's "multiple tools in single response"
+type BatchExecutor struct {
+    tools            []ToolRequest
+    dependencies     DependencyGraph
+    maxConcurrency   int
+    results          map[string]ToolResult
+}
+```
+
+#### 5. Provider Adapters (`pkg/providers/`)
+**Purpose**: Multi-provider tool calling (OpenAI, Anthropic, Ollama)
+
+```go
+type Provider interface {
+    Name() string
+    ConvertTool(tool tools.Tool) (ProviderTool, error)
+    ParseToolCall(response []byte) ([]ToolCall, error)
+    FormatToolResult(result tools.ToolResult) (ProviderResult, error)
+    SupportsStreaming() bool
+    SupportsBatchExecution() bool
+}
+```
+
+#### 6. Controllers (`pkg/controllers/`)
+**Purpose**: Orchestrate between TUI, chat domain, and tool system
 
 ```go
 type ChatController struct {
