@@ -387,9 +387,18 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 					tools[j] = def.Definition
 				}
 
-				req = chat.CreateStreamingChatRequestWithTools(cc.conversation, userMessage, tools)
+				req = chat.ChatRequest{
+					Model:    cc.conversation.Model,
+					Messages: cc.conversation.Messages,
+					Stream:   true,
+					Tools:    tools,
+				}
 			} else {
-				req = chat.CreateStreamingChatRequest(cc.conversation, userMessage)
+				req = chat.ChatRequest{
+					Model:    cc.conversation.Model,
+					Messages: cc.conversation.Messages,
+					Stream:   true,
+				}
 			}
 
 			// Start streaming

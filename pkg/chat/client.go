@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
@@ -81,7 +82,23 @@ func (c *Client) SendMessageWithResponse(req ChatRequest) (ChatResponse, error) 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return ChatResponse{}, fmt.Errorf("request failed with status %d", resp.StatusCode)
+		// Read the error response body for detailed error information
+		errorBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return ChatResponse{}, fmt.Errorf("request failed with status %d (failed to read error response: %w)", resp.StatusCode, err)
+		}
+		
+		// Try to parse as JSON error response
+		var errorResp struct {
+			Error string `json:"error"`
+		}
+		
+		if json.Unmarshal(errorBody, &errorResp) == nil && errorResp.Error != "" {
+			return ChatResponse{}, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, errorResp.Error)
+		}
+		
+		// Fallback to raw body if JSON parsing fails
+		return ChatResponse{}, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(errorBody))
 	}
 
 	var chatResp ChatResponse
