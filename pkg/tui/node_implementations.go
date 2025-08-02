@@ -257,6 +257,8 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 				style := StyleThinkingText
 				if state.Selected {
 					style = style.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+				} else if state.Focused {
+					style = style.Background(tcell.ColorGray)
 				}
 				lines = append(lines, RenderedLine{
 					Text:   line,
@@ -288,6 +290,8 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 				style := StyleAssistantText
 				if state.Selected {
 					style = style.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+				} else if state.Focused {
+					style = style.Background(tcell.ColorGray)
 				}
 				lines = append(lines, RenderedLine{
 					Text:   line,
@@ -437,6 +441,8 @@ func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLin
 				style := StyleAssistantText.Foreground(tcell.ColorGreen)
 				if state.Selected {
 					style = style.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+				} else if state.Focused {
+					style = style.Background(tcell.ColorGray)
 				}
 				lines = append(lines, RenderedLine{
 					Text:   line,
