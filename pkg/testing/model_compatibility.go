@@ -2,25 +2,18 @@ package testing
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/controllers"
+	"github.com/killallgit/ryan/pkg/models"
 	"github.com/killallgit/ryan/pkg/tools"
-	"github.com/spf13/viper"
 )
 
-// OllamaVersion represents version information from Ollama server
-type OllamaVersion struct {
-	Version string `json:"version"`
-}
 
 // ModelTestResult represents the test results for a specific model
 type ModelTestResult struct {
@@ -50,59 +43,29 @@ func NewModelCompatibilityTester(ollamaURL string) *ModelCompatibilityTester {
 	if err := toolRegistry.RegisterBuiltinTools(); err != nil {
 		log.Printf("Failed to register built-in tools: %v", err)
 	}
-	ollamaTimeout := viper.GetDuration("ollama.timeout")
+	// Get timeout from config or use default
+	timeout := 90 * time.Second
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Config not initialized, use default
+			}
+		}()
+		if cfg := config.Get(); cfg != nil {
+			timeout = cfg.Ollama.Timeout
+		}
+	}()
+	
 	return &ModelCompatibilityTester{
 		ollamaURL:    ollamaURL,
 		toolRegistry: toolRegistry,
-		timeout:      ollamaTimeout,
+		timeout:      timeout,
 	}
 }
 
 // CheckOllamaVersion checks if the Ollama server supports tool calling
 func (mct *ModelCompatibilityTester) CheckOllamaVersion() (string, bool, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/api/version", mct.ollamaURL))
-	if err != nil {
-		return "", false, fmt.Errorf("failed to check Ollama version: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var version OllamaVersion
-	if err := json.NewDecoder(resp.Body).Decode(&version); err != nil {
-		return "", false, fmt.Errorf("failed to decode version response: %w", err)
-	}
-
-	// Tool calling was introduced in Ollama 0.4.x, became more stable in 1.0+
-	supported := mct.versionSupportsTools(version.Version)
-	return version.Version, supported, nil
-}
-
-// versionSupportsTools checks if a version string indicates tool calling support
-func (mct *ModelCompatibilityTester) versionSupportsTools(version string) bool {
-	// Extract major and minor version numbers
-	re := regexp.MustCompile(`^(\d+)\.(\d+)`)
-	matches := re.FindStringSubmatch(version)
-	if len(matches) < 3 {
-		return false // Can't parse version, assume no support
-	}
-
-	major, err1 := strconv.Atoi(matches[1])
-	minor, err2 := strconv.Atoi(matches[2])
-	if err1 != nil || err2 != nil {
-		return false
-	}
-
-	// Tool calling support introduced in 0.4.x, more stable in 1.0+
-	if major > 1 {
-		return true
-	}
-	if major == 1 {
-		return true
-	}
-	if major == 0 && minor >= 4 {
-		return true
-	}
-
-	return false
+	return models.CheckOllamaVersion(mct.ollamaURL)
 }
 
 // TestModel runs comprehensive compatibility tests on a specific model
@@ -377,7 +340,7 @@ func (mct *ModelCompatibilityTester) PrintResults(results []ModelTestResult) {
 	// Show Ollama version info if available
 	if len(results) > 0 && results[0].OllamaVersion != "" {
 		fmt.Printf("\n🔗 Ollama Server: v%s\n", results[0].OllamaVersion)
-		versionSupported := mct.versionSupportsTools(results[0].OllamaVersion)
+		versionSupported := models.VersionSupportsTools(results[0].OllamaVersion)
 		if versionSupported {
 			fmt.Printf("   Tool Support: ✅ Compatible (v0.4.0+ required)\n")
 		} else {

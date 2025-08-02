@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/spf13/viper"
 )
 
 type Logger struct {
@@ -21,13 +19,14 @@ func init() {
 }
 
 func InitLogger() error {
-	logFile := viper.GetString("logging.file")
+	// For now, use defaults until we refactor to pass config
+	return InitLoggerWithConfig(".ryan/debug.log", false, "info")
+}
+
+func InitLoggerWithConfig(logFile string, preserve bool, level string) error {
 	if logFile == "" {
 		logFile = ".ryan/debug.log"
 	}
-
-	preserve := viper.GetBool("logging.preserve")
-	level := viper.GetString("logging.level")
 
 	// Ensure directory exists
 	dir := filepath.Dir(logFile)

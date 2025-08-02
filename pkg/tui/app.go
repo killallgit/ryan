@@ -9,10 +9,10 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
-	"github.com/spf13/viper"
 )
 
 type App struct {
@@ -81,22 +81,17 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	width, height := screen.Size()
 	log.Debug("Screen initialized", "width", width, "height", height)
 
-	ollamaURL := viper.GetString("ollama.url")
-	log.Debug("Creating ollama client for models", "url", ollamaURL)
+	cfg := config.Get()
+	log.Debug("Creating ollama client for models", "url", cfg.Ollama.URL)
 
 	// Check Ollama connectivity before proceeding
 	var connectivityError error
-	if err := checkOllamaConnectivity(ollamaURL); err != nil {
+	if err := checkOllamaConnectivity(cfg.Ollama.URL); err != nil {
 		log.Error("Ollama connectivity check failed", "error", err)
 		connectivityError = err
 	}
 
-	timeoutDuration, err := time.ParseDuration(viper.GetString("ollama.timeout"))
-	if err != nil {
-		log.Warn("Invalid timeout format, using default", "timeout", viper.GetString("ollama.timeout"), "error", err)
-		timeoutDuration = 90 * time.Second
-	}
-	ollamaClient := ollama.NewClientWithTimeout(ollamaURL, timeoutDuration)
+	ollamaClient := ollama.NewClientWithTimeout(cfg.Ollama.URL, cfg.Ollama.Timeout)
 	modelsController := controllers.NewModelsController(ollamaClient)
 
 	// Connect ollama client to chat controller for model validation
@@ -143,7 +138,7 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	if connectivityError != nil {
 		app.modal = app.modal.WithError("Ollama Connection Error",
 			fmt.Sprintf("Cannot connect to Ollama at %s\n\n%v\n\nPress any key to continue with limited functionality.",
-				ollamaURL, connectivityError))
+				cfg.Ollama.URL, connectivityError))
 	}
 
 	// Start spinner animation timer
@@ -383,7 +378,18 @@ func (app *App) sendMessageWithContent(content string) {
 		log.Debug("STREAMING: Starting streaming for message", "content", content)
 
 		// Create context with timeout
-		timeout := viper.GetDuration("ollama.timeout")
+		// Get timeout from config or use default
+		timeout := 90 * time.Second
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// Config not initialized, use default
+				}
+			}()
+			if cfg := config.Get(); cfg != nil {
+				timeout = cfg.Ollama.Timeout
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 

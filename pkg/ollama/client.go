@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/logger"
-	"github.com/spf13/viper"
 )
 
 type ProgressCallback func(status string, completed, total int64)
@@ -101,7 +101,18 @@ func (c *Client) Ps() (*PsResponse, error) {
 func (c *Client) Pull(modelName string) error {
 	log := logger.WithComponent("ollama_client")
 	url := fmt.Sprintf("%s/api/pull", c.baseURL)
-	ollamaTimeout := viper.GetDuration("ollama.timeout")
+	// Get timeout from config or use default
+	ollamaTimeout := 90 * time.Second
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Config not initialized, use default
+			}
+		}()
+		if cfg := config.Get(); cfg != nil {
+			ollamaTimeout = cfg.Ollama.Timeout
+		}
+	}()
 
 	pullRequest := PullRequest{
 		Name: modelName,
@@ -167,7 +178,18 @@ func (c *Client) Pull(modelName string) error {
 func (c *Client) PullWithProgress(ctx context.Context, modelName string, progressCallback ProgressCallback) error {
 	log := logger.WithComponent("ollama_client")
 	url := fmt.Sprintf("%s/api/pull", c.baseURL)
-	ollamaTimeout := viper.GetDuration("ollama.timeout")
+	// Get timeout from config or use default
+	ollamaTimeout := 90 * time.Second
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Config not initialized, use default
+			}
+		}()
+		if cfg := config.Get(); cfg != nil {
+			ollamaTimeout = cfg.Ollama.Timeout
+		}
+	}()
 	pullRequest := PullRequest{
 		Name: modelName,
 	}
