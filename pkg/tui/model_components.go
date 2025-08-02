@@ -153,12 +153,13 @@ func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDispl
 		Height: area.Height - 2,
 	}
 
-	headerStyle := StyleHighlight
+	headerStyle := StyleHeaderText
 	normalStyle := StyleMenuNormal
-	selectedStyle := tcell.StyleDefault.Background(ColorProgressBar).Foreground(ColorMenuNormal)
+	selectedStyle := tcell.StyleDefault.Background(ColorModelSelected).Foreground(tcell.ColorBlack)
 	currentModelStyle := tcell.StyleDefault.Foreground(ColorHighlight)
 
-	header := fmt.Sprintf("%-32s %10s %12s %15s", "NAME", "SIZE", "PARAMETERS", "QUANTIZATION")
+	// Fixed header with consistent column widths
+	header := fmt.Sprintf("%-35s %10s %12s %15s", "NAME", "SIZE", "PARAMETERS", "QUANTIZATION")
 	if len(header) > contentArea.Width {
 		header = header[:contentArea.Width]
 	}
@@ -180,28 +181,29 @@ func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDispl
 
 		sizeGB := float64(model.Size) / (1024 * 1024 * 1024)
 
-		// Add status indicator
-		statusIcon := "⚪" // stopped
+		// Add status indicator (ASCII characters for better compatibility)
+		statusIcon := "o" // stopped
 		if model.IsRunning {
-			statusIcon = "🟢" // running
+			statusIcon = "*" // running
 		}
 
-		// Add tool compatibility indicator
-		toolIcon := ""
+		// Add tool compatibility indicator (ASCII characters)
+		toolIcon := " "
 		if models.IsRecommendedForTools(model.Name) {
 			modelInfo := models.GetModelInfo(model.Name)
 			switch modelInfo.ToolCompatibility {
 			case models.ToolCompatibilityExcellent:
-				toolIcon = "🔧" // Excellent tool support
+				toolIcon = "+" // Excellent tool support
 			case models.ToolCompatibilityGood:
-				toolIcon = "⚙️" // Good tool support
+				toolIcon = "~" // Good tool support
 			case models.ToolCompatibilityBasic:
-				toolIcon = "🔩" // Basic tool support
+				toolIcon = "-" // Basic tool support
 			}
 		}
 
-		nameWithIndicators := statusIcon + toolIcon + " " + truncateString(model.Name, 26)
-		line := fmt.Sprintf("%-30s %8.1fGB %12s %15s",
+		// Build name with fixed-width indicators (2 chars: status + tool)
+		nameWithIndicators := statusIcon + toolIcon + " " + truncateString(model.Name, 31)
+		line := fmt.Sprintf("%-35s %8.1fGB %12s %15s",
 			nameWithIndicators,
 			sizeGB,
 			model.ParameterSize,
