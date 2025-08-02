@@ -75,7 +75,7 @@ var streamDebugCmd = &cobra.Command{
 		fmt.Println("\n🎉 Streaming Integration Test Summary")
 		fmt.Println("=====================================")
 		fmt.Println("✅ StreamingClient creation: PASS")
-		fmt.Println("✅ ChatController integration: PASS") 
+		fmt.Println("✅ ChatController integration: PASS")
 		fmt.Println("✅ Interface implementation: PASS")
 		fmt.Println("✅ Method invocation: PASS")
 		fmt.Println("\n📋 Next Steps:")

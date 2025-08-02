@@ -385,7 +385,7 @@ func (app *App) sendMessageWithContent(content string) {
 		updates, err := app.controller.StartStreaming(ctx, content)
 		if err != nil {
 			log.Error("STREAMING: Failed to start streaming", "error", err)
-			
+
 			// Provide more specific error messages
 			var displayError error
 			if strings.Contains(err.Error(), "connection refused") {
