@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/controllers"
@@ -71,29 +72,26 @@ func (mv *ModelView) Activate() {
 }
 
 func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
-	statsHeight := 6
-	if !mv.showStats {
-		statsHeight = 0
-	}
 	helpHeight := 1
+	modelInfoHeight := 1 // Height for model count and selected model info
 
 	listArea := Rect{
 		X:      area.X,
 		Y:      area.Y,
 		Width:  area.Width,
-		Height: area.Height - statsHeight - helpHeight - 2, // -2 for status bar, -1 for help
+		Height: area.Height - helpHeight - modelInfoHeight - 1, // -1 for spacing
 	}
 
-	statusArea := Rect{
+	modelInfoArea := Rect{
 		X:      area.X,
-		Y:      area.Y + area.Height - 1,
+		Y:      listArea.Y + listArea.Height,
 		Width:  area.Width,
-		Height: 1,
+		Height: modelInfoHeight,
 	}
 
 	helpArea := Rect{
 		X:      area.X,
-		Y:      area.Y + area.Height - 2, // Just above status bar
+		Y:      area.Y + area.Height - 1, // Bottom row
 		Width:  area.Width,
 		Height: helpHeight,
 	}
@@ -101,20 +99,11 @@ func (mv *ModelView) Render(screen tcell.Screen, area Rect) {
 	currentModel := mv.chatController.GetModel()
 	RenderModelListWithCurrentModel(screen, mv.modelList, listArea, currentModel)
 
-	if mv.showStats {
-		statsArea := Rect{
-			X:      area.X,
-			Y:      listArea.Y + listArea.Height,
-			Width:  area.Width,
-			Height: statsHeight - 1,
-		}
-		RenderModelStats(screen, mv.modelStats, statsArea)
-	}
+	// Render model info row (count on left, selected model on right)
+	mv.renderModelInfo(screen, modelInfoArea)
 
 	// Render help text
 	mv.renderHelpText(screen, helpArea)
-
-	RenderStatus(screen, mv.status, statusArea)
 
 	mv.pullModal.Render(screen, area)
 	mv.confirmationModal.Render(screen, area)
@@ -212,9 +201,6 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 				mv.refreshModels()
 				return true
 
-			case 's', 'S':
-				mv.toggleStats()
-				return true
 
 			case 'n', 'N':
 				mv.showPullModal()
@@ -233,13 +219,10 @@ func (mv *ModelView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 func (mv *ModelView) HandleResize(width, height int) {
 	mv.layout = NewLayout(width, height)
 
-	statsHeight := 6
-	if !mv.showStats {
-		statsHeight = 0
-	}
+	helpHeight := 1
+	modelInfoHeight := 1
 
-	mv.modelList = mv.modelList.WithSize(width, height-statsHeight-2)
-	mv.modelStats = mv.modelStats.WithSize(width, statsHeight-1)
+	mv.modelList = mv.modelList.WithSize(width, height-helpHeight-modelInfoHeight-1)
 	mv.status = mv.status.WithWidth(width)
 }
 
@@ -444,11 +427,6 @@ func (mv *ModelView) ensureSelectionVisible() {
 	}
 }
 
-func (mv *ModelView) toggleStats() {
-	mv.showStats = !mv.showStats
-	width, height := mv.screen.Size()
-	mv.HandleResize(width, height)
-}
 
 func (mv *ModelView) changeModel() {
 	if len(mv.modelList.Models) == 0 || mv.modelList.Selected < 0 || mv.modelList.Selected >= len(mv.modelList.Models) {
@@ -539,6 +517,49 @@ func (mv *ModelView) deleteModel() {
 	}()
 }
 
+func (mv *ModelView) renderModelInfo(screen tcell.Screen, area Rect) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+
+	// Clear the area
+	for x := area.X; x < area.X+area.Width; x++ {
+		for y := area.Y; y < area.Y+area.Height; y++ {
+			screen.SetContent(x, y, ' ', nil, tcell.StyleDefault)
+		}
+	}
+
+	// Left side: Model count
+	totalSizeGB := float64(mv.modelStats.Stats.TotalSize) / (1024 * 1024 * 1024)
+	leftText := fmt.Sprintf("models: %d | size: %.1f GB", mv.modelStats.Stats.TotalModels, totalSizeGB)
+	leftStyle := StyleDimText
+
+	for i, r := range leftText {
+		if area.X+i < area.X+area.Width {
+			screen.SetContent(area.X+i, area.Y, r, nil, leftStyle)
+		}
+	}
+
+	// Right side: Selected model name
+	var selectedModelName string
+	if len(mv.modelList.Models) > 0 && mv.modelList.Selected >= 0 && mv.modelList.Selected < len(mv.modelList.Models) {
+		selectedModelName = mv.modelList.Models[mv.modelList.Selected].Name
+	}
+
+	if selectedModelName != "" {
+		rightText := fmt.Sprintf("selected: %s", selectedModelName)
+		rightStyle := StyleDimText
+
+		// Right-justify the selected model text
+		if len(rightText) <= area.Width && len(leftText)+len(rightText)+4 <= area.Width { // Ensure spacing
+			startX := area.X + area.Width - len(rightText)
+			for i, r := range rightText {
+				screen.SetContent(startX+i, area.Y, r, nil, rightStyle)
+			}
+		}
+	}
+}
+
 func (mv *ModelView) renderHelpText(screen tcell.Screen, area Rect) {
 	if area.Width <= 0 || area.Height <= 0 {
 		return
@@ -551,7 +572,7 @@ func (mv *ModelView) renderHelpText(screen tcell.Screen, area Rect) {
 		}
 	}
 
-	helpText := " n: pull new model  •  ctrl-d: delete model  •  🔧: excellent tools  •  ⚙️: good tools  •  🔩: basic tools "
+	helpText := "[n] new model | [ctrl-d] delete | [enter] select | [r] refresh | [j/k] navigate"
 	helpStyle := StyleDimText
 
 	// Center the help text
