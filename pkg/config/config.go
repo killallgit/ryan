@@ -204,3 +204,51 @@ func processDurations(cfg *Config) error {
 func GetConfigFileUsed() string {
 	return viper.ConfigFileUsed()
 }
+
+// InitializeDefaults creates a default .ryan/settings.yaml file if it doesn't exist
+func InitializeDefaults() error {
+	// Check if .ryan/settings.yaml already exists
+	if _, err := os.Stat(".ryan/settings.yaml"); err == nil {
+		// File exists, nothing to do
+		return nil
+	}
+
+	// Create .ryan directory if it doesn't exist
+	if err := os.MkdirAll(".ryan", 0755); err != nil {
+		return fmt.Errorf("failed to create .ryan directory: %w", err)
+	}
+
+	// Create a new viper instance for writing defaults
+	v := viper.New()
+	v.SetConfigType("yaml")
+
+	// Set all the defaults
+	v.SetDefault("logging.file", "./.ryan/debug.log")
+	v.SetDefault("logging.preserve", false)
+	v.SetDefault("logging.level", "info")
+
+	v.SetDefault("show_thinking", true)
+	v.SetDefault("streaming", true)
+
+	v.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
+	v.SetDefault("ollama.model", "qwen3:latest")
+	v.SetDefault("ollama.system_prompt", "")
+	v.SetDefault("ollama.timeout", "90s")
+	v.SetDefault("ollama.poll_interval", 10)
+
+	v.SetDefault("tools.enabled", true)
+	v.SetDefault("tools.truncate_output", true)
+	v.SetDefault("tools.bash.enabled", true)
+	v.SetDefault("tools.bash.timeout", "90s")
+	v.SetDefault("tools.file_read.enabled", true)
+	v.SetDefault("tools.search.enabled", true)
+	v.SetDefault("tools.search.timeout", "10s")
+
+	// Write the default configuration to .ryan/settings.yaml
+	if err := v.SafeWriteConfigAs(".ryan/settings.yaml"); err != nil {
+		return fmt.Errorf("failed to write default configuration: %w", err)
+	}
+
+	fmt.Printf("Created default configuration file: .ryan/settings.yaml\n")
+	return nil
+}
