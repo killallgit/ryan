@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -28,9 +29,12 @@ type ChatView struct {
 	modelsController *controllers.ModelsController
 
 	// Streaming state
-	isStreaming      bool
-	streamingContent string
-	currentStreamID  string
+	isStreaming         bool
+	streamingContent    string
+	currentStreamID     string
+	isStreamingThinking bool   // Track if currently streaming thinking content
+	thinkingContent     string // Accumulate thinking content separately
+	responseContent     string // Accumulate response content separately
 }
 
 func NewChatView(controller *controllers.ChatController, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
@@ -52,9 +56,12 @@ func NewChatView(controller *controllers.ChatController, modelsController *contr
 		modelsController: modelsController,
 
 		// Initialize streaming state
-		isStreaming:      false,
-		streamingContent: "",
-		currentStreamID:  "",
+		isStreaming:         false,
+		streamingContent:    "",
+		currentStreamID:     "",
+		isStreamingThinking: false,
+		thinkingContent:     "",
+		responseContent:     "",
 	}
 
 	view.updateMessages()
@@ -265,6 +272,29 @@ func (cv *ChatView) updateMessagesWithStreaming() {
 	}
 }
 
+func (cv *ChatView) updateMessagesWithStreamingThinking() {
+	history := cv.controller.GetHistory()
+
+	// If we're streaming, append the properly formatted streaming content
+	if cv.isStreaming {
+		// Create a copy of history to avoid modifying the original
+		messagesWithStreaming := make([]chat.Message, len(history))
+		copy(messagesWithStreaming, history)
+
+		// Create properly formatted streaming message with thinking detection
+		streamingMessage := cv.createStreamingMessage()
+		messagesWithStreaming = append(messagesWithStreaming, streamingMessage)
+
+		cv.messages = cv.messages.WithMessages(messagesWithStreaming)
+
+		// Auto-scroll to bottom during streaming
+		cv.scrollToBottom()
+	} else {
+		// No streaming, show regular messages
+		cv.messages = cv.messages.WithMessages(history)
+	}
+}
+
 func (cv *ChatView) scrollUp() {
 	if cv.messages.Scroll > 0 {
 		cv.messages = cv.messages.WithScroll(cv.messages.Scroll - 1)
@@ -405,6 +435,98 @@ func (cv *ChatView) HandleModelDownloadError(ev ModelDownloadErrorEvent) {
 	}
 }
 
+// Streaming Helper Methods
+
+// detectThinkingStart checks if content begins with <think> or <thinking> tags
+func (cv *ChatView) detectThinkingStart(content string) bool {
+	trimmed := strings.TrimSpace(strings.ToLower(content))
+	return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "<thinking>")
+}
+
+// processStreamingContent processes the full streaming content and separates thinking from response
+func (cv *ChatView) processStreamingContent() {
+	fullContent := cv.streamingContent
+
+	// If we haven't detected thinking yet, check for thinking tags at the start
+	if !cv.isStreamingThinking && len(cv.thinkingContent) == 0 && len(cv.responseContent) == 0 {
+		if cv.detectThinkingStart(fullContent) {
+			cv.isStreamingThinking = true
+		}
+	}
+
+	// Process the content based on current state
+	if cv.isStreamingThinking {
+		// Check if thinking block ends
+		thinkEndRegex := regexp.MustCompile(`(?i)</think(?:ing)?>`)
+		if thinkEndRegex.MatchString(fullContent) {
+			// Split at the end of thinking block
+			parts := thinkEndRegex.Split(fullContent, 2)
+			if len(parts) == 2 {
+				// Extract thinking content (remove opening tags)
+				thinkStartRegex := regexp.MustCompile(`(?i)<think(?:ing)?>`)
+				thinkingRaw := thinkStartRegex.ReplaceAllString(parts[0], "")
+				cv.thinkingContent = strings.TrimSpace(thinkingRaw)
+
+				// Start response content
+				cv.responseContent = strings.TrimSpace(parts[1])
+				cv.isStreamingThinking = false
+			}
+		} else {
+			// Still in thinking block, accumulate thinking content
+			thinkStartRegex := regexp.MustCompile(`(?i)<think(?:ing)?>`)
+			cv.thinkingContent = strings.TrimSpace(thinkStartRegex.ReplaceAllString(fullContent, ""))
+		}
+	} else {
+		// In response mode or no thinking detected
+		if len(cv.thinkingContent) == 0 {
+			// No thinking content detected, treat as regular response
+			cv.responseContent = fullContent
+		} else {
+			// Already have thinking content, this is response content
+			cv.responseContent = fullContent
+		}
+	}
+}
+
+// createStreamingMessage creates a properly formatted message for streaming display
+func (cv *ChatView) createStreamingMessage() chat.Message {
+	var content string
+
+	if cv.thinkingContent != "" {
+		// Add thinking content with proper formatting
+		thinkingFormatted := "Thinking: " + cv.thinkingContent
+		content = thinkingFormatted
+
+		if cv.responseContent != "" {
+			// Add separator and response
+			content += "\n\n" + cv.responseContent
+		}
+	} else if cv.responseContent != "" {
+		// Only response content
+		content = cv.responseContent
+	} else if cv.isStreamingThinking {
+		// Currently streaming thinking content
+		content = "Thinking: " + cv.streamingContent
+	} else {
+		// Regular content without thinking
+		content = cv.streamingContent
+	}
+
+	// Add cursor indicator for active streaming
+	if cv.isStreaming {
+		if cv.isStreamingThinking {
+			content += " ▌" // Cursor in thinking content
+		} else {
+			content += " ▌" // Cursor in response content
+		}
+	}
+
+	return chat.Message{
+		Role:    chat.RoleAssistant,
+		Content: content,
+	}
+}
+
 // Streaming Methods
 
 func (cv *ChatView) HandleStreamStart(streamID, model string) {
@@ -415,6 +537,9 @@ func (cv *ChatView) HandleStreamStart(streamID, model string) {
 	cv.isStreaming = true
 	cv.currentStreamID = streamID
 	cv.streamingContent = ""
+	cv.isStreamingThinking = false
+	cv.thinkingContent = ""
+	cv.responseContent = ""
 
 	// Update status to show streaming
 	cv.status = cv.status.WithStatus("Streaming response...")
@@ -428,24 +553,37 @@ func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete 
 	log.Debug("Updating streaming content in chat view",
 		"stream_id", streamID,
 		"content_length", len(content),
-		"is_complete", isComplete)
+		"is_complete", isComplete,
+		"is_thinking", cv.isStreamingThinking)
 
-	// Update streaming state
+	// Update basic streaming state
 	cv.currentStreamID = streamID
 	cv.streamingContent = content
 	cv.isStreaming = !isComplete
 
-	// Update the message display to show streaming content
-	cv.updateMessagesWithStreaming()
+	// Process content for thinking detection and separation
+	if cv.streamingContent != "" {
+		cv.processStreamingContent()
+	}
+
+	// Update the message display to show streaming content with proper formatting
+	cv.updateMessagesWithStreamingThinking()
 
 	if !isComplete {
-		// Update spinner text to show progress
-		cv.alert = cv.alert.WithSpinner(true, "Streaming...").NextSpinnerFrame()
+		// Update spinner text based on current mode
+		spinnerText := "Streaming..."
+		if cv.isStreamingThinking {
+			spinnerText = "Thinking..."
+		}
+		cv.alert = cv.alert.WithSpinner(true, spinnerText).NextSpinnerFrame()
 	} else {
 		// Clear streaming state when complete
 		cv.isStreaming = false
 		cv.streamingContent = ""
 		cv.currentStreamID = ""
+		cv.isStreamingThinking = false
+		cv.thinkingContent = ""
+		cv.responseContent = ""
 		cv.alert = cv.alert.WithSpinner(false, "")
 	}
 }
@@ -462,6 +600,9 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 	cv.isStreaming = false
 	cv.streamingContent = ""
 	cv.currentStreamID = ""
+	cv.isStreamingThinking = false
+	cv.thinkingContent = ""
+	cv.responseContent = ""
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
@@ -482,6 +623,9 @@ func (cv *ChatView) HandleStreamError(streamID string, err error) {
 	cv.isStreaming = false
 	cv.streamingContent = ""
 	cv.currentStreamID = ""
+	cv.isStreamingThinking = false
+	cv.thinkingContent = ""
+	cv.responseContent = ""
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
