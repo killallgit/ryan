@@ -666,3 +666,156 @@ func renderText(screen tcell.Screen, x, y int, text string, style tcell.Style) {
 		screen.SetContent(x+i, y, r, nil, style)
 	}
 }
+
+// Node-based rendering functions
+
+// RenderMessagesWithNodes renders messages using the node-based system
+func RenderMessagesWithNodes(screen tcell.Screen, display MessageDisplay, area Rect) {
+	RenderMessagesWithNodesAndSpinner(screen, display, area, SpinnerComponent{})
+}
+
+// RenderMessagesWithNodesAndSpinner renders messages using the node-based system with spinner support
+func RenderMessagesWithNodesAndSpinner(screen tcell.Screen, display MessageDisplay, area Rect, spinner SpinnerComponent) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+
+	// If not using nodes, fall back to legacy rendering
+	if !display.UseNodes || display.NodeManager == nil {
+		RenderMessagesWithSpinner(screen, display, area, spinner)
+		return
+	}
+
+	clearArea(screen, area)
+
+	// Get nodes from the node manager
+	nodes := display.NodeManager.GetNodes()
+	if len(nodes) == 0 {
+		return
+	}
+
+	// Calculate available height (accounting for spinner)
+	availableHeight := area.Height
+	if spinner.IsVisible {
+		availableHeight -= 1
+	}
+
+	// Calculate total content height and determine which nodes to render
+	var visibleNodes []MessageNode
+	var nodeYPositions []int
+	currentY := 0
+	startY := area.Y
+
+	// Apply scroll offset
+	scrollOffset := display.Scroll
+	
+	for i, node := range nodes {
+		nodeHeight := node.CalculateHeight(area.Width)
+		
+		// Check if this node is visible after scrolling
+		nodeEndY := currentY + nodeHeight
+		if nodeEndY > scrollOffset && currentY < scrollOffset+availableHeight {
+			// Node is at least partially visible
+			adjustedY := startY + (currentY - scrollOffset)
+			
+			// Only include if it fits in the display area
+			if adjustedY < startY+availableHeight {
+				visibleNodes = append(visibleNodes, node)
+				nodeYPositions = append(nodeYPositions, adjustedY)
+			}
+		}
+		
+		currentY += nodeHeight
+		
+		// Add spacing between nodes (except after the last one)
+		if i < len(nodes)-1 {
+			currentY += 1
+		}
+	}
+
+	// Render each visible node
+	for i, node := range visibleNodes {
+		nodeY := nodeYPositions[i]
+		nodeHeight := node.CalculateHeight(area.Width)
+		
+		// Calculate the area for this node
+		nodeArea := Rect{
+			X:      area.X,
+			Y:      nodeY,
+			Width:  area.Width,
+			Height: nodeHeight,
+		}
+		
+		// Clip to available area
+		if nodeArea.Y+nodeArea.Height > startY+availableHeight {
+			nodeArea.Height = (startY + availableHeight) - nodeArea.Y
+		}
+		
+		if nodeArea.Height > 0 {
+			// Update node bounds for click handling
+			nodeBounds := NodeBounds{
+				X:      nodeArea.X,
+				Y:      nodeArea.Y,
+				Width:  nodeArea.Width,
+				Height: nodeArea.Height,
+			}
+			display.NodeManager.UpdateNodeBounds(node.ID(), nodeBounds)
+			
+			// Render the node
+			renderedLines := node.Render(nodeArea, node.State())
+			
+			// Render each line of the node
+			for lineIndex, renderedLine := range renderedLines {
+				lineY := nodeArea.Y + lineIndex
+				if lineY >= startY && lineY < startY+availableHeight {
+					// Apply indentation
+					lineX := nodeArea.X + renderedLine.Indent
+					
+					// Ensure we don't exceed the area width
+					maxWidth := nodeArea.Width - renderedLine.Indent
+					if maxWidth > 0 {
+						text := renderedLine.Text
+						if len(text) > maxWidth {
+							text = text[:maxWidth]
+						}
+						renderText(screen, lineX, lineY, text, renderedLine.Style)
+					}
+				}
+			}
+		}
+	}
+
+	// Render spinner at the bottom if visible
+	if spinner.IsVisible {
+		spinnerY := area.Y + area.Height - 1
+		if spinnerY >= area.Y && spinnerY < area.Y+area.Height {
+			// Clear the spinner line first
+			for x := area.X; x < area.X+area.Width; x++ {
+				screen.SetContent(x, spinnerY, ' ', nil, tcell.StyleDefault)
+			}
+
+			// Render spinner text
+			spinnerText := fmt.Sprintf(" %s %s", spinner.GetCurrentFrame(), spinner.Text)
+			renderText(screen, area.X, spinnerY, spinnerText, StyleDimText)
+		}
+	}
+}
+
+// CalculateNodesHeight calculates the total height needed for node-based rendering
+func CalculateNodesHeight(display MessageDisplay, width int) int {
+	if !display.UseNodes || display.NodeManager == nil {
+		// Fall back to legacy calculation
+		return CalculateMessageLines(display.Messages, width, false)
+	}
+	
+	return display.NodeManager.CalculateTotalHeight(width)
+}
+
+// RenderWithNodeDetection automatically chooses between node and legacy rendering
+func RenderWithNodeDetection(screen tcell.Screen, display MessageDisplay, area Rect, spinner SpinnerComponent) {
+	if display.UseNodes && display.NodeManager != nil {
+		RenderMessagesWithNodesAndSpinner(screen, display, area, spinner)
+	} else {
+		RenderMessagesWithSpinner(screen, display, area, spinner)
+	}
+}
