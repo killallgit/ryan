@@ -13,6 +13,25 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
+// ChatViewMode represents the current interaction mode
+type ChatViewMode int
+
+const (
+	ModeInput ChatViewMode = iota // Text input mode (default)
+	ModeNodes                     // Node selection/navigation mode
+)
+
+func (m ChatViewMode) String() string {
+	switch m {
+	case ModeInput:
+		return "Input"
+	case ModeNodes:
+		return "Select"
+	default:
+		return "Unknown"
+	}
+}
+
 type ChatView struct {
 	controller       *controllers.ChatController
 	input            InputField
@@ -23,10 +42,14 @@ type ChatView struct {
 	alert            AlertDisplay
 	downloadModal    DownloadPromptModal
 	progressModal    ProgressModal
+	helpModal        HelpModal
 	downloadCtx      context.Context
 	downloadCancel   context.CancelFunc
 	pendingMessage   string
 	modelsController *controllers.ModelsController
+
+	// Interaction mode
+	mode ChatViewMode // Current interaction mode
 
 	// Streaming state
 	isStreaming         bool
@@ -55,10 +78,14 @@ func NewChatView(controller *controllers.ChatController, modelsController *contr
 		alert:            NewAlertDisplay(width),
 		downloadModal:    NewDownloadPromptModal(),
 		progressModal:    NewProgressModal(),
+		helpModal:        NewHelpModal(),
 		downloadCtx:      nil,
 		downloadCancel:   nil,
 		pendingMessage:   "",
 		modelsController: modelsController,
+
+		// Initialize interaction mode
+		mode: ModeInput, // Start in input mode
 
 		// Initialize streaming state
 		isStreaming:         false,
@@ -103,10 +130,17 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 	// Render modals on top
 	cv.downloadModal.Render(screen, area)
 	cv.progressModal.Render(screen, area)
+	cv.helpModal.Render(screen, area)
 }
 
 func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 	// Handle modal events first
+	if cv.helpModal.Visible {
+		modal, handled := cv.helpModal.HandleKeyEvent(ev)
+		cv.helpModal = modal
+		return handled
+	}
+
 	if cv.progressModal.Visible {
 		modal, cancel := cv.progressModal.HandleKeyEvent(ev)
 		cv.progressModal = modal
@@ -125,6 +159,92 @@ func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 		return true
 	}
 
+	// Handle help key (?) in any mode  
+	if cv.handleHelpKey(ev) {
+		return true
+	}
+
+	// Handle mode switching (Ctrl+N)
+	if cv.handleModeSwitch(ev) {
+		return true
+	}
+
+	// Handle keys based on current mode
+	switch cv.mode {
+	case ModeInput:
+		return cv.handleInputModeKeys(ev, sending)
+	case ModeNodes:
+		return cv.handleNodeModeKeys(ev, sending)
+	default:
+		return cv.handleInputModeKeys(ev, sending) // Fallback to input mode
+	}
+}
+
+func (cv *ChatView) handleHelpKey(ev *tcell.EventKey) bool {
+	// ? key to show help modal
+	if ev.Rune() == '?' {
+		cv.helpModal = cv.helpModal.Show()
+		return true
+	}
+	return false
+}
+
+func (cv *ChatView) handleModeSwitch(ev *tcell.EventKey) bool {
+	// Ctrl+N to switch modes - use tcell's built-in KeyCtrlN constant
+	if ev.Key() == tcell.KeyCtrlN {
+		cv.switchMode()
+		return true
+	}
+	return false
+}
+
+func (cv *ChatView) switchMode() {
+	log := logger.WithComponent("chat_view")
+	
+	switch cv.mode {
+	case ModeInput:
+		cv.mode = ModeNodes
+		// Enable node-based rendering if not already enabled
+		cv.messages = cv.messages.EnableNodes()
+		// Auto-focus first node if none focused
+		if cv.messages.NodeManager != nil && cv.messages.NodeManager.GetFocusedNode() == "" {
+			cv.messages.MoveFocusDown() // This will focus the first node
+		}
+		log.Debug("Switched to node selection mode")
+	case ModeNodes:
+		cv.mode = ModeInput
+		// Clear any node focus when switching back to input
+		if cv.messages.NodeManager != nil {
+			cv.messages.NodeManager.SetFocusedNode("")
+		}
+		log.Debug("Switched to input mode")
+	}
+	
+	// Update status bar to show current mode
+	cv.updateStatusForMode()
+}
+
+func (cv *ChatView) updateStatusForMode() {
+	// Update the status to show the current mode with enhanced visual indicators
+	var modeText string
+	if cv.mode == ModeNodes {
+		focusedNode := ""
+		if cv.messages.NodeManager != nil {
+			focusedNode = cv.messages.NodeManager.GetFocusedNode()
+		}
+		
+		if focusedNode != "" {
+			modeText = fmt.Sprintf("🎯 Node Select | Focused: %s | j/k=nav, Tab=expand, Space=select, Esc/i=input", focusedNode[:8])
+		} else {
+			modeText = "🎯 Node Select | j/k=navigate, Tab=expand, Space=select, Esc/i=input"
+		}
+	} else {
+		modeText = "✏️ Input | Ctrl+N=node mode, ?=help"
+	}
+	cv.status = cv.status.WithStatus(modeText)
+}
+
+func (cv *ChatView) handleInputModeKeys(ev *tcell.EventKey, sending bool) bool {
 	switch ev.Key() {
 	case tcell.KeyEnter:
 		if !sending {
@@ -227,6 +347,98 @@ func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 	return false
 }
 
+func (cv *ChatView) handleNodeModeKeys(ev *tcell.EventKey, sending bool) bool {
+	// In node mode, most keys are for navigation and selection
+	switch ev.Key() {
+	case tcell.KeyEnter:
+		// Enter toggles selection of focused node
+		if cv.handleNodeToggleSelection() {
+			return true
+		}
+
+	case tcell.KeyTab:
+		// Tab toggles expansion of focused node
+		if cv.handleNodeToggleExpansion() {
+			return true
+		}
+
+	case tcell.KeyUp:
+		// Up arrow moves focus up
+		if cv.handleNodeNavigation(true) {
+			return true
+		}
+
+	case tcell.KeyDown:
+		// Down arrow moves focus down
+		if cv.handleNodeNavigation(false) {
+			return true
+		}
+
+	case tcell.KeyPgUp:
+		cv.pageUp()
+		return true
+
+	case tcell.KeyPgDn:
+		cv.pageDown()
+		return true
+
+	case tcell.KeyEscape:
+		// Escape switches back to input mode
+		cv.mode = ModeInput
+		if cv.messages.NodeManager != nil {
+			cv.messages.NodeManager.SetFocusedNode("")
+		}
+		cv.updateStatusForMode()
+		return true
+
+	default:
+		if ev.Rune() != 0 {
+			switch ev.Rune() {
+			case 'j', 'J':
+				// j key moves focus down (vim-style)
+				if cv.handleNodeNavigation(false) {
+					return true
+				}
+
+			case 'k', 'K':
+				// k key moves focus up (vim-style)
+				if cv.handleNodeNavigation(true) {
+					return true
+				}
+
+			case ' ':
+				// Space toggles selection of focused node
+				if cv.handleNodeToggleSelection() {
+					return true
+				}
+
+			case 'a', 'A':
+				// a to select all nodes
+				if cv.handleSelectAllNodes() {
+					return true
+				}
+
+			case 'c', 'C':
+				// c to clear selection
+				if cv.handleClearNodeSelection() {
+					return true
+				}
+
+			case 'i', 'I':
+				// i to switch to input mode (vim-style)
+				cv.mode = ModeInput
+				if cv.messages.NodeManager != nil {
+					cv.messages.NodeManager.SetFocusedNode("")
+				}
+				cv.updateStatusForMode()
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func (cv *ChatView) HandleMouseEvent(ev *tcell.EventMouse) bool {
 	log := logger.WithComponent("chat_view")
 	
@@ -253,6 +465,16 @@ func (cv *ChatView) HandleMouseEvent(ev *tcell.EventMouse) bool {
 			nodeID, handled := cv.messages.HandleClick(x, y)
 			if handled {
 				log.Debug("Node click handled", "node_id", nodeID, "x", x, "y", y)
+				
+				// Switch to node mode when a node is clicked
+				if cv.mode == ModeInput {
+					cv.mode = ModeNodes
+					cv.updateStatusForMode()
+					log.Debug("Switched to node mode due to mouse click on node")
+				}
+				
+				// Focus the clicked node
+				cv.messages.NodeManager.SetFocusedNode(nodeID)
 				
 				// Post node click event for further processing if needed
 				cv.screen.PostEvent(NewMessageNodeClickEvent(nodeID, x-messageArea.X, y-messageArea.Y))
@@ -866,6 +1088,9 @@ func (cv *ChatView) handleNodeNavigation(up bool) bool {
 		// Post focus change event
 		focusedNodeID := cv.messages.NodeManager.GetFocusedNode()
 		cv.screen.PostEvent(NewMessageNodeFocusEvent(focusedNodeID))
+		
+		// Update status bar to show focused node
+		cv.updateStatusForMode()
 		
 		// TODO: Auto-scroll to keep focused node visible
 		cv.autoScrollToFocusedNode()

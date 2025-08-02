@@ -1255,3 +1255,150 @@ func (pm ProgressModal) Render(screen tcell.Screen, area Rect) {
 		renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
 	}
 }
+
+// HelpModal displays keyboard shortcuts and help information
+type HelpModal struct {
+	Visible bool
+	Width   int
+	Height  int
+}
+
+func NewHelpModal() HelpModal {
+	return HelpModal{
+		Visible: false,
+		Width:   70,
+		Height:  25,
+	}
+}
+
+func (hm HelpModal) Show() HelpModal {
+	return HelpModal{
+		Visible: true,
+		Width:   hm.Width,
+		Height:  hm.Height,
+	}
+}
+
+func (hm HelpModal) Hide() HelpModal {
+	return HelpModal{
+		Visible: false,
+		Width:   hm.Width,
+		Height:  hm.Height,
+	}
+}
+
+func (hm HelpModal) HandleKeyEvent(ev *tcell.EventKey) (HelpModal, bool) {
+	if !hm.Visible {
+		return hm, false
+	}
+
+	switch ev.Key() {
+	case tcell.KeyEscape:
+		return hm.Hide(), true
+	default:
+		if ev.Rune() != 0 {
+			switch ev.Rune() {
+			case '?', 'q', 'Q':
+				return hm.Hide(), true
+			}
+		}
+	}
+	return hm, false
+}
+
+func (hm HelpModal) Render(screen tcell.Screen, area Rect) {
+	if !hm.Visible {
+		return
+	}
+
+	// Calculate modal position (centered)
+	modalWidth := hm.Width
+	modalHeight := hm.Height
+	if modalWidth > area.Width-4 {
+		modalWidth = area.Width - 4
+	}
+	if modalHeight > area.Height-4 {
+		modalHeight = area.Height - 4
+	}
+
+	startX := area.X + (area.Width-modalWidth)/2
+	startY := area.Y + (area.Height-modalHeight)/2
+
+	modalArea := Rect{
+		X:      startX,
+		Y:      startY,
+		Width:  modalWidth,
+		Height: modalHeight,
+	}
+
+	// Draw modal background with border
+	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
+	contentStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
+	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(tcell.ColorBlue).Bold(true)
+
+	// Clear modal area
+	for y := modalArea.Y; y < modalArea.Y+modalArea.Height; y++ {
+		for x := modalArea.X; x < modalArea.X+modalArea.Width; x++ {
+			screen.SetContent(x, y, ' ', nil, contentStyle)
+		}
+	}
+
+	// Draw border
+	drawBorder(screen, modalArea, borderStyle)
+
+	// Help content
+	helpLines := []string{
+		"RYAN - Keyboard Shortcuts & Commands",
+		"",
+		"GENERAL:",
+		"  ?           Show/hide this help",
+		"  Esc         Cancel/quit current operation",
+		"  Tab         Switch between chat and model views",
+		"",
+		"INPUT MODE (✏️):",
+		"  Enter       Send message",
+		"  Ctrl+N      Switch to node selection mode",
+		"  ↑/↓         Scroll chat history",
+		"  PgUp/PgDn   Page up/down in chat",
+		"",
+		"NODE SELECTION MODE (🎯):",
+		"  j/k         Navigate up/down between nodes (vim-style)",
+		"  ↑/↓         Navigate up/down between nodes (arrow keys)",
+		"  Tab         Expand/collapse focused node",
+		"  Space       Select/deselect focused node",
+		"  Enter       Toggle selection of focused node",
+		"  a           Select all nodes",
+		"  c           Clear all selections",
+		"  i/Esc       Return to input mode",
+		"  Click       Focus node and switch to node mode",
+		"",
+		"Press ? or Esc to close this help",
+	}
+
+	// Render title
+	title := helpLines[0]
+	titleX := modalArea.X + (modalArea.Width-len(title))/2
+	if titleX < modalArea.X+1 {
+		titleX = modalArea.X + 1
+	}
+	renderTextWithLimit(screen, titleX, modalArea.Y+1, modalArea.Width-2, title, titleStyle)
+
+	// Render help lines
+	startLineY := modalArea.Y + 3
+	for i, line := range helpLines[1:] {
+		if startLineY+i >= modalArea.Y+modalArea.Height-2 {
+			break // Don't overflow modal
+		}
+		
+		style := contentStyle
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
+			// Indent command lines slightly differently
+			style = contentStyle
+		} else if strings.HasSuffix(line, ":") {
+			// Section headers
+			style = titleStyle
+		}
+		
+		renderTextWithLimit(screen, modalArea.X+2, startLineY+i, modalArea.Width-4, line, style)
+	}
+}
