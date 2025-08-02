@@ -387,9 +387,9 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 					tools[j] = def.Definition
 				}
 
-				req = chat.CreateStreamingChatRequestWithTools(cc.conversation, "", tools)
+				req = chat.CreateStreamingChatRequestWithTools(cc.conversation, userMessage, tools)
 			} else {
-				req = chat.CreateStreamingChatRequest(cc.conversation, "")
+				req = chat.CreateStreamingChatRequest(cc.conversation, userMessage)
 			}
 
 			// Start streaming
