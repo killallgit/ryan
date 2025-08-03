@@ -60,7 +60,24 @@ var rootCmd = &cobra.Command{
 			"config_file", config.GetConfigFileUsed(),
 		)
 
-		client := chat.NewStreamingClientWithTimeout(cfg.Ollama.URL, cfg.Ollama.Timeout)
+		// Create client based on configuration
+		var client chat.StreamingChatClient
+		if cfg.Ollama.UseLangChain {
+			log.Debug("Using LangChain Go client", "base_url", cfg.Ollama.URL, "model", model)
+			clientConfig := chat.LangChainStreamingConfig(cfg.Ollama.URL, model)
+			clientConfig.Timeout = cfg.Ollama.Timeout
+
+			var err error
+			client, err = chat.NewStreamingChatClient(clientConfig)
+			if err != nil {
+				log.Error("Failed to create LangChain streaming client", "error", err)
+				fmt.Printf("Failed to create LangChain client: %v\n", err)
+				return
+			}
+		} else {
+			log.Debug("Using original streaming client", "base_url", cfg.Ollama.URL)
+			client = chat.NewStreamingClientWithTimeout(cfg.Ollama.URL, cfg.Ollama.Timeout)
+		}
 
 		// Check Ollama server version and model compatibility before initializing tools
 		version, versionSupported, err := models.CheckOllamaVersion(cfg.Ollama.URL)
@@ -107,6 +124,8 @@ var rootCmd = &cobra.Command{
 			log.Debug("Initialized tool registry with built-in tools")
 		}
 
+		// Create controller - for now, keep using standard controllers
+		// TODO: Add LangChain controller support with proper interface design
 		var controller *controllers.ChatController
 		if systemPrompt != "" {
 			controller = controllers.NewChatControllerWithSystem(client, model, systemPrompt, toolRegistry)

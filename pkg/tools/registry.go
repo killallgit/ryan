@@ -67,6 +67,13 @@ func (r *Registry) List() []string {
 	return names
 }
 
+// HasTools returns true if the registry has any tools registered
+func (r *Registry) HasTools() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.tools) > 0
+}
+
 // GetTools returns all registered tools
 func (r *Registry) GetTools() map[string]Tool {
 	r.mu.RLock()

@@ -11,6 +11,10 @@ ollama:
     url: https://ollama.kitty-tetra.ts.net
     poll_interval: 10
     timeout: "1h"
+    # Enable LangChain Go integration (optional, defaults to false)
+    # This provides standardized LLM interface, better error handling,
+    # and foundation for multi-provider support
+    use_langchain: false
 
 tools:
     enabled: true
