@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
@@ -651,6 +652,111 @@ func RenderTokensWithSpinner(screen tcell.Screen, area Rect, promptTokens, respo
 
 	// Always render just the token text, no spinner
 	renderText(screen, startX, area.Y, tokenText, StyleDimText)
+}
+
+// RenderStatusRow renders the new enhanced status row with format:
+// <SPINNER> <FEEDBACK_TEXT> (<DURATION> | <NUM_TOKENS> | <bold>esc</bold> to interject)
+func RenderStatusRow(screen tcell.Screen, area Rect, statusRow StatusRowDisplay) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+
+	clearArea(screen, area)
+
+	x := area.X
+
+	// 1. Spinner (if visible)
+	if statusRow.IsSpinnerVisible {
+		spinnerFrame := GetSpinnerFrame(statusRow.SpinnerFrame)
+		renderText(screen, x, area.Y, spinnerFrame, StyleDimText)
+		x += len(spinnerFrame) + 1 // Add space after spinner
+	}
+
+	// 2. Feedback text
+	if statusRow.FeedbackText != "" {
+		// Calculate available width for feedback text
+		remainingWidth := area.Width - (x - area.X)
+		feedbackText := statusRow.FeedbackText
+		
+		// Reserve space for the status info in parentheses (estimate ~30 chars)
+		maxFeedbackWidth := remainingWidth - 35
+		if maxFeedbackWidth > 0 && len(feedbackText) > maxFeedbackWidth {
+			feedbackText = feedbackText[:maxFeedbackWidth-3] + "..."
+		}
+		
+		renderText(screen, x, area.Y, feedbackText, tcell.StyleDefault)
+		x += len(feedbackText) + 1 // Add space after feedback text
+	}
+
+	// 3. Build status info in parentheses: (DURATION | NUM_TOKENS | esc to interject)
+	var statusInfo []string
+	
+	// Duration
+	if statusRow.CurrentDuration > 0 {
+		duration := statusRow.CurrentDuration
+		if statusRow.IsSpinnerVisible && !statusRow.StartTime.IsZero() {
+			duration = time.Since(statusRow.StartTime)
+		}
+		
+		// Format duration nicely
+		var durationStr string
+		if duration < time.Second {
+			durationStr = fmt.Sprintf("%.0fms", float64(duration.Nanoseconds())/1e6)
+		} else if duration < time.Minute {
+			durationStr = fmt.Sprintf("%.1fs", duration.Seconds())
+		} else {
+			durationStr = fmt.Sprintf("%.1fm", duration.Minutes())
+		}
+		statusInfo = append(statusInfo, durationStr)
+	}
+	
+	// Token count
+	if statusRow.TokenCount > 0 {
+		statusInfo = append(statusInfo, fmt.Sprintf("%d", statusRow.TokenCount))
+	}
+	
+	// "esc to interject" (only when spinner is visible)
+	if statusRow.IsSpinnerVisible {
+		statusInfo = append(statusInfo, "esc to interject")
+	}
+	
+	// Render status info if we have any
+	if len(statusInfo) > 0 {
+		statusText := "(" + strings.Join(statusInfo, " | ") + ")"
+		
+		// Calculate position (try to right-align, but ensure it fits)
+		textWidth := len(statusText)
+		availableWidth := area.Width - (x - area.X)
+		
+		if textWidth <= availableWidth {
+			// Can fit the status text
+			statusX := x
+			if availableWidth > textWidth {
+				// Right-align within available space
+				statusX = area.X + area.Width - textWidth
+			}
+			
+			// Render with proper styling - make "esc" bold if present
+			if statusRow.IsSpinnerVisible && strings.Contains(statusText, "esc to interject") {
+				// Split the text to make "esc" bold
+				beforeEsc := strings.Split(statusText, "esc to interject")[0]
+				afterEsc := strings.Split(statusText, "esc to interject")[1]
+				
+				// Render before "esc"
+				renderText(screen, statusX, area.Y, beforeEsc, StyleDimText)
+				escX := statusX + len(beforeEsc)
+				
+				// Render "esc" in bold
+				renderText(screen, escX, area.Y, "esc", StyleDimText.Bold(true))
+				
+				// Render rest
+				renderText(screen, escX+3, area.Y, " to interject"+afterEsc, StyleDimText)
+			} else {
+				// Regular rendering
+				renderText(screen, statusX, area.Y, statusText, StyleDimText)
+			}
+		}
+	}
 }
 
 func clearArea(screen tcell.Screen, area Rect) {

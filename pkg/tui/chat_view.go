@@ -39,7 +39,8 @@ type ChatView struct {
 	status           StatusBar
 	layout           Layout
 	screen           tcell.Screen
-	alert            AlertDisplay
+	alert            AlertDisplay    // Legacy field for compatibility
+	statusRow        StatusRowDisplay // New enhanced status row
 	downloadModal    DownloadPromptModal
 	progressModal    ProgressModal
 	helpModal        HelpModal
@@ -76,6 +77,7 @@ func NewChatView(controller *controllers.ChatController, modelsController *contr
 		layout:           NewLayout(width, height),
 		screen:           screen,
 		alert:            NewAlertDisplay(width),
+		statusRow:        NewStatusRowDisplay(width),
 		downloadModal:    NewDownloadPromptModal(),
 		progressModal:    NewProgressModal(),
 		helpModal:        NewHelpModal(),
@@ -123,7 +125,11 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 		Text:      cv.alert.SpinnerText,
 	}
 	RenderMessagesWithStreamingState(screen, cv.messages, messageArea, spinner, cv.isStreamingThinking)
-	RenderTokensWithSpinner(screen, alertArea, cv.status.PromptTokens, cv.status.ResponseTokens, cv.alert.IsSpinnerVisible, GetSpinnerFrame(cv.alert.SpinnerFrame))
+	
+	// Update status row with current token count and render it
+	cv.statusRow = cv.statusRow.WithTokens(cv.status.PromptTokens + cv.status.ResponseTokens).UpdateDuration()
+	RenderStatusRow(screen, alertArea, cv.statusRow)
+	
 	RenderInput(screen, cv.input, inputArea)
 	RenderStatus(screen, cv.status, statusArea)
 
@@ -559,14 +565,17 @@ func (cv *ChatView) SyncWithAppState(sending bool) {
 
 	if sending {
 		cv.alert = cv.alert.WithSpinner(true, "")
+		cv.statusRow = cv.statusRow.WithSpinner(true, "Sending...")
 	} else {
 		// Always clear alert since errors only show in chat messages now
 		cv.alert = cv.alert.Clear()
+		cv.statusRow = cv.statusRow.Clear()
 	}
 }
 
 func (cv *ChatView) UpdateSpinnerFrame() {
 	cv.alert = cv.alert.NextSpinnerFrame()
+	cv.statusRow = cv.statusRow.NextSpinnerFrame()
 }
 
 func (cv *ChatView) updateMessages() {
@@ -932,6 +941,7 @@ func (cv *ChatView) HandleStreamStart(streamID, model string) {
 
 	// Show spinner with streaming indicator
 	cv.alert = cv.alert.WithSpinner(true, "Streaming...")
+	cv.statusRow = cv.statusRow.WithSpinner(true, "Streaming response...")
 }
 
 func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete bool) {
@@ -982,6 +992,7 @@ func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete 
 			spinnerText = "Thinking..."
 		}
 		cv.alert = cv.alert.WithSpinner(true, spinnerText).NextSpinnerFrame()
+		cv.statusRow = cv.statusRow.WithSpinner(true, spinnerText).NextSpinnerFrame()
 	} else {
 		// Clear streaming state when complete
 		cv.isStreaming = false
@@ -997,6 +1008,7 @@ func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete 
 		cv.bufferSize = 0
 
 		cv.alert = cv.alert.WithSpinner(false, "")
+		cv.statusRow = cv.statusRow.Clear()
 	}
 }
 
@@ -1036,9 +1048,14 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
+	cv.statusRow = cv.statusRow.Clear()
 
 	// Update status
 	cv.status = cv.status.WithStatus("Ready")
+
+	// Update token information
+	promptTokens, responseTokens := cv.controller.GetTokenUsage()
+	cv.status = cv.status.WithTokens(promptTokens, responseTokens)
 
 	// Update messages display with final content (no streaming)
 	cv.updateMessages()
@@ -1064,6 +1081,7 @@ func (cv *ChatView) HandleStreamError(streamID string, err error) {
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
+	cv.statusRow = cv.statusRow.Clear()
 
 	// Update status with error
 	cv.status = cv.status.WithStatus("Streaming failed: " + err.Error())
@@ -1084,6 +1102,7 @@ func (cv *ChatView) UpdateStreamProgress(streamID string, contentLength, chunkCo
 	if duration > 3*time.Second {
 		progressText := fmt.Sprintf("Streaming... %d chars", contentLength)
 		cv.alert = cv.alert.WithSpinner(true, progressText).NextSpinnerFrame()
+		cv.statusRow = cv.statusRow.WithSpinner(true, progressText).WithDuration(duration).NextSpinnerFrame()
 	}
 }
 
