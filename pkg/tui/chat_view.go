@@ -1056,6 +1056,10 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 	// Update token information
 	promptTokens, responseTokens := cv.controller.GetTokenUsage()
 	cv.status = cv.status.WithTokens(promptTokens, responseTokens)
+	
+	// Update status row with token count (persist after streaming)
+	totalTokens := promptTokens + responseTokens
+	cv.statusRow = cv.statusRow.WithTokens(totalTokens)
 
 	// Update messages display with final content (no streaming)
 	cv.updateMessages()
