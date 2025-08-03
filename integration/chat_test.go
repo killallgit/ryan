@@ -43,7 +43,11 @@ var _ = Describe("Chat Integration Tests", func() {
 			Skip("Integration tests skipped by SKIP_INTEGRATION environment variable")
 		}
 
-		client = chat.NewClient(ollamaURL)
+		var err error
+		client, err = chat.NewClient(ollamaURL, testModel)
+		if err != nil {
+			Skip("Failed to create client: " + err.Error())
+		}
 		controller = controllers.NewChatController(client, testModel, nil)
 	})
 
@@ -174,7 +178,10 @@ var _ = Describe("Configuration Integration", func() {
 		viper.Set("ollama.model", "qwen2.5-coder:1.5b-base")
 
 		// Create client using viper config
-		client := chat.NewClient(viper.GetString("ollama.url"))
+		client, err := chat.NewClient(viper.GetString("ollama.url"), viper.GetString("ollama.model"))
+		if err != nil {
+			Skip("Failed to create client with viper config: " + err.Error())
+		}
 		controller := controllers.NewChatController(client, viper.GetString("ollama.model"), nil)
 
 		// Should work with viper configuration

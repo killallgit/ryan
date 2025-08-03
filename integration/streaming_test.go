@@ -36,12 +36,19 @@ var _ = Describe("Streaming Integration Tests", func() {
 		testModel = viper.GetString("ollama.model")
 
 		// Create streaming client
-		client = chat.NewStreamingClient(ollamaURL)
+		var err error
+		client, err = chat.NewStreamingClient(ollamaURL, testModel)
+		if err != nil {
+			Skip("Failed to create streaming client: " + err.Error())
+		}
 		controller = controllers.NewChatController(client, testModel, nil)
 
 		// Basic connectivity check
-		basicClient := chat.NewClient(ollamaURL)
-		_, err := basicClient.SendMessage(chat.ChatRequest{
+		basicClient, err := chat.NewClient(ollamaURL, testModel)
+		if err != nil {
+			Skip("Failed to create basic client: " + err.Error())
+		}
+		_, err = basicClient.SendMessage(chat.ChatRequest{
 			Model:    testModel,
 			Messages: []chat.Message{{Role: "user", Content: "test"}},
 			Stream:   false,

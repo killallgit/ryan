@@ -14,22 +14,19 @@ func TestLangChainIntegration(t *testing.T) {
 	}
 
 	t.Run("should create LangChain client without errors", func(t *testing.T) {
-		config := chat.LangChainConfig("http://localhost:11434", "llama2")
-		client, err := chat.NewChatClient(config)
+		client, err := chat.NewClient("http://localhost:11434", "llama2")
 		require.NoError(t, err)
 		assert.NotNil(t, client)
 	})
 
 	t.Run("should create LangChain streaming client without errors", func(t *testing.T) {
-		config := chat.LangChainStreamingConfig("http://localhost:11434", "llama2")
-		streamingClient, err := chat.NewStreamingChatClient(config)
+		streamingClient, err := chat.NewStreamingClient("http://localhost:11434", "llama2")
 		require.NoError(t, err)
 		assert.NotNil(t, streamingClient)
 	})
 
 	t.Run("should handle invalid server URLs gracefully", func(t *testing.T) {
-		config := chat.LangChainConfig("http://invalid-server:11434", "llama2")
-		client, err := chat.NewChatClient(config)
+		client, err := chat.NewClient("http://invalid-server:11434", "llama2")
 		require.NoError(t, err)
 		assert.NotNil(t, client)
 

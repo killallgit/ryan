@@ -87,7 +87,11 @@ func (mct *ModelCompatibilityTester) TestModel(modelName string) ModelTestResult
 		return result
 	}
 
-	client := chat.NewClient(mct.ollamaURL)
+	client, err := chat.NewClient(mct.ollamaURL, modelName)
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("Failed to create client: %v", err))
+		return result
+	}
 	controller := controllers.NewChatController(client, modelName, mct.toolRegistry)
 
 	ctx, cancel := context.WithTimeout(context.Background(), mct.timeout)
