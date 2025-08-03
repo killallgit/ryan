@@ -11,13 +11,50 @@ import (
 	"github.com/spf13/viper"
 )
 
+// LangChainConfig holds LangChain-specific configuration
+type LangChainConfig struct {
+	Enabled   bool                    `mapstructure:"enabled"`
+	Streaming LangChainStreamConfig   `mapstructure:"streaming"`
+	Tools     LangChainToolsConfig    `mapstructure:"tools"`
+	Memory    LangChainMemoryConfig   `mapstructure:"memory"`
+	Prompts   LangChainPromptConfig   `mapstructure:"prompts"`
+}
+
+// LangChainStreamConfig holds streaming configuration
+type LangChainStreamConfig struct {
+	UseLangChain         bool `mapstructure:"use_langchain"`
+	ProviderOptimization bool `mapstructure:"provider_optimization"`
+}
+
+// LangChainToolsConfig holds tool integration configuration
+type LangChainToolsConfig struct {
+	UseAgentFramework   bool `mapstructure:"use_agent_framework"`
+	AutonomousExecution bool `mapstructure:"autonomous_execution"`
+	MaxIterations       int  `mapstructure:"max_iterations"`
+}
+
+// LangChainMemoryConfig holds memory configuration
+type LangChainMemoryConfig struct {
+	Type              string `mapstructure:"type"`
+	WindowSize        int    `mapstructure:"window_size"`
+	MaxTokens         int    `mapstructure:"max_tokens"`
+	SummaryThreshold  int    `mapstructure:"summary_threshold"`
+}
+
+// LangChainPromptConfig holds prompt template configuration
+type LangChainPromptConfig struct {
+	UseTemplates     bool `mapstructure:"use_templates"`
+	ContextInjection bool `mapstructure:"context_injection"`
+}
+
 // Config represents the application configuration
 type Config struct {
-	Logging      LoggingConfig `mapstructure:"logging"`
-	ShowThinking bool          `mapstructure:"show_thinking"`
-	Streaming    bool          `mapstructure:"streaming"`
-	Ollama       OllamaConfig  `mapstructure:"ollama"`
-	Tools        ToolsConfig   `mapstructure:"tools"`
+	Logging      LoggingConfig   `mapstructure:"logging"`
+	ShowThinking bool            `mapstructure:"show_thinking"`
+	Streaming    bool            `mapstructure:"streaming"`
+	Ollama       OllamaConfig    `mapstructure:"ollama"`
+	Tools        ToolsConfig     `mapstructure:"tools"`
+	LangChain    LangChainConfig `mapstructure:"langchain"`
 }
 
 // LoggingConfig holds logging-related configuration
@@ -66,7 +103,8 @@ type FileReadConfig struct {
 type SearchConfig struct {
 	Enabled    bool          `mapstructure:"enabled"`
 	Timeout    time.Duration `mapstructure:"timeout"`
-	TimeoutStr string        `mapstructure:"timeout"` // For parsing string duration
+	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
+	UseLangchain bool          `mapstructure:"use_langchain"`
 }
 
 var (
@@ -142,6 +180,7 @@ func setDefaults() {
 	viper.SetDefault("ollama.system_prompt", "")
 	viper.SetDefault("ollama.timeout", "90s")
 	viper.SetDefault("ollama.poll_interval", 10)
+	viper.SetDefault("ollama.use_langchain", false)
 
 	// General defaults
 	viper.SetDefault("show_thinking", true)
@@ -160,6 +199,20 @@ func setDefaults() {
 	viper.SetDefault("tools.file_read.enabled", true)
 	viper.SetDefault("tools.search.enabled", true)
 	viper.SetDefault("tools.search.timeout", "10s")
+
+	// LangChain defaults
+	viper.SetDefault("langchain.enabled", false)
+	viper.SetDefault("langchain.streaming.use_langchain", false)
+	viper.SetDefault("langchain.streaming.provider_optimization", true)
+	viper.SetDefault("langchain.tools.use_agent_framework", false)
+	viper.SetDefault("langchain.tools.autonomous_execution", true)
+	viper.SetDefault("langchain.tools.max_iterations", 5)
+	viper.SetDefault("langchain.memory.type", "buffer")
+	viper.SetDefault("langchain.memory.window_size", 10)
+	viper.SetDefault("langchain.memory.max_tokens", 4000)
+	viper.SetDefault("langchain.memory.summary_threshold", 1000)
+	viper.SetDefault("langchain.prompts.use_templates", false)
+	viper.SetDefault("langchain.prompts.context_injection", true)
 }
 
 // processDurations converts string durations to time.Duration
@@ -251,6 +304,20 @@ func InitializeDefaults() error {
 	v.SetDefault("tools.file_read.enabled", true)
 	v.SetDefault("tools.search.enabled", true)
 	v.SetDefault("tools.search.timeout", "10s")
+
+	// LangChain defaults
+	v.SetDefault("langchain.enabled", false)
+	v.SetDefault("langchain.streaming.use_langchain", false)
+	v.SetDefault("langchain.streaming.provider_optimization", true)
+	v.SetDefault("langchain.tools.use_agent_framework", false)
+	v.SetDefault("langchain.tools.autonomous_execution", true)
+	v.SetDefault("langchain.tools.max_iterations", 5)
+	v.SetDefault("langchain.memory.type", "buffer")
+	v.SetDefault("langchain.memory.window_size", 10)
+	v.SetDefault("langchain.memory.max_tokens", 4000)
+	v.SetDefault("langchain.memory.summary_threshold", 1000)
+	v.SetDefault("langchain.prompts.use_templates", false)
+	v.SetDefault("langchain.prompts.context_injection", true)
 
 	// Write the default configuration to .ryan/settings.yaml
 	if err := v.SafeWriteConfigAs(".ryan/settings.yaml"); err != nil {

@@ -26,7 +26,7 @@ task test:all
 ## Environment Variables
 
 - `OLLAMA_URL`: Override the Ollama server URL (default: https://ollama.kitty-tetra.ts.net)
-- `OLLAMA_TEST_MODEL`: Override the test model (default: qwen2.5-coder:1.5b-base)
+- `OLLAMA_TEST_MODEL`: Override the test model (default: qwen3:latest)
 - `SKIP_INTEGRATION`: Set to any value to skip integration tests
 
 ## Test Results
