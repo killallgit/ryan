@@ -506,6 +506,7 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 						// Update token tracking from last chunk
 						cc.lastPromptTokens = chunk.PromptEvalCount
 						cc.lastResponseTokens = chunk.EvalCount
+						// Note: These are currently 0 due to LangChain Go not exposing usage info
 
 						// Add assistant message to conversation (with only response content, thinking is excluded)
 						cc.conversation = chat.AddMessage(cc.conversation, assistantMessage)
