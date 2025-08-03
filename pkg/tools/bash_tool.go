@@ -116,17 +116,22 @@ func (bt *BashTool) Execute(ctx context.Context, params map[string]interface{}) 
 		return bt.createErrorResult(startTime, "command cannot be empty"), nil
 	}
 
-	// Validate command safety
-	if err := bt.validateCommand(command); err != nil {
-		return bt.createErrorResult(startTime, err.Error()), nil
+	// Validate command safety (unless permissions are skipped)
+	if !bt.shouldSkipPermissions() {
+		if err := bt.validateCommand(command); err != nil {
+			return bt.createErrorResult(startTime, err.Error()), nil
+		}
 	}
 
 	// Get working directory
 	workingDir := bt.WorkingDirectory
 	if wdInterface, exists := params["working_directory"]; exists {
 		if wd, ok := wdInterface.(string); ok && wd != "" {
-			if err := bt.validatePath(wd); err != nil {
-				return bt.createErrorResult(startTime, fmt.Sprintf("invalid working directory: %v", err)), nil
+			// Validate path unless permissions are skipped
+			if !bt.shouldSkipPermissions() {
+				if err := bt.validatePath(wd); err != nil {
+					return bt.createErrorResult(startTime, fmt.Sprintf("invalid working directory: %v", err)), nil
+				}
 			}
 			workingDir = wd
 		}
@@ -235,6 +240,20 @@ func (bt *BashTool) validatePath(path string) error {
 	}
 
 	return fmt.Errorf("path not within allowed directories: %s", absPath)
+}
+
+// shouldSkipPermissions returns true if permissions should be skipped based on config
+func (bt *BashTool) shouldSkipPermissions() bool {
+	defer func() {
+		if r := recover(); r != nil {
+			// Config not initialized, default to secure behavior
+		}
+	}()
+	
+	if cfg := config.Get(); cfg != nil {
+		return cfg.Tools.Bash.SkipPermissions
+	}
+	return false
 }
 
 // createErrorResult creates a ToolResult for an error case

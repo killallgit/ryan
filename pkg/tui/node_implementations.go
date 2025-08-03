@@ -2,9 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/config"
 )
 
 // BaseNode provides common functionality for all node types
@@ -186,7 +188,35 @@ type ThinkingMessageNode struct {
 }
 
 func NewThinkingMessageNode(msg chat.Message, id string) *ThinkingMessageNode {
-	parsed := ParseThinkingBlock(msg.Content)
+	// Use new separated thinking structure if available, fallback to parsing
+	var parsed ParsedContent
+	var showThinking bool
+	
+	if msg.HasThinking() {
+		// Use separated thinking data
+		parsed = ParsedContent{
+			ThinkingBlock:   msg.Thinking.Content,
+			ResponseContent: msg.Content,
+			HasThinking:     true,
+		}
+		showThinking = msg.Thinking.Visible
+	} else {
+		// Fallback to old parsing method for backwards compatibility
+		parsed = ParseThinkingBlock(msg.Content)
+		
+		// Get showThinking from config
+		showThinking = true
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// Config not initialized, use default
+				}
+			}()
+			if cfg := config.Get(); cfg != nil {
+				showThinking = cfg.ShowThinking
+			}
+		}()
+	}
 
 	return &ThinkingMessageNode{
 		BaseNode: BaseNode{
@@ -198,7 +228,7 @@ func NewThinkingMessageNode(msg chat.Message, id string) *ThinkingMessageNode {
 			cache:    NodeRenderCache{},
 		},
 		parsed:       parsed,
-		showThinking: true, // Default to showing thinking
+		showThinking: showThinking,
 	}
 }
 
@@ -373,6 +403,206 @@ func (tmn *ThinkingMessageNode) GetPreviewText() string {
 	return tmn.message.Content
 }
 
+// ToolResultMessageNode handles tool execution results with special formatting
+type ToolResultMessageNode struct {
+	BaseNode
+	truncatedOutput  string
+	fullOutput       string
+	showFullOutput   bool
+}
+
+func NewToolResultMessageNode(msg chat.Message, id string) *ToolResultMessageNode {
+	// Parse the tool result to separate tool name and output
+	fullOutput := msg.Content
+	truncatedOutput := fullOutput
+	
+	// Truncate long outputs for better UX
+	const maxPreviewLength = 300
+	if len(fullOutput) > maxPreviewLength {
+		truncatedOutput = fullOutput[:maxPreviewLength] + "..."
+	}
+
+	return &ToolResultMessageNode{
+		BaseNode: BaseNode{
+			id:       id,
+			message:  msg,
+			nodeType: NodeTypeToolResult,
+			state:    NewNodeState(),
+			bounds:   NodeBounds{},
+			cache:    NodeRenderCache{},
+		},
+		truncatedOutput: truncatedOutput,
+		fullOutput:      fullOutput,
+		showFullOutput:  false, // Start collapsed for long outputs
+	}
+}
+
+func (trn *ToolResultMessageNode) WithState(state NodeState) MessageNode {
+	updated := *trn
+	updated.state = state
+	updated.cache.Valid = false
+	return &updated
+}
+
+func (trn *ToolResultMessageNode) WithBounds(bounds NodeBounds) MessageNode {
+	updated := *trn
+	updated.bounds = bounds
+	return &updated
+}
+
+func (trn *ToolResultMessageNode) Render(area Rect, state NodeState) []RenderedLine {
+	trn.invalidateCache(area.Width)
+
+	if !trn.cache.Valid {
+		var lines []RenderedLine
+
+		// Tool header with name from message ToolName field
+		toolName := trn.message.ToolName
+		if toolName == "" {
+			toolName = "Tool" // Fallback
+		}
+		
+		headerText := fmt.Sprintf("▶ %s", toolName)
+		if state.Expanded && trn.IsCollapsible() {
+			headerText = fmt.Sprintf("▼ %s", toolName)
+		} else if trn.IsCollapsible() {
+			headerText = fmt.Sprintf("▶ %s (click to expand)", toolName)
+		}
+
+		// Render tool header
+		headerLines := WrapText(headerText, area.Width)
+		for _, line := range headerLines {
+			style := StyleToolText.Bold(true)
+			if state.Selected {
+				style = style.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+			} else if state.Focused {
+				style = style.Background(tcell.ColorGray)
+			}
+			lines = append(lines, RenderedLine{
+				Text:   line,
+				Style:  style,
+				Indent: 0,
+			})
+		}
+
+		// Render tool output with proper formatting
+		outputToShow := trn.truncatedOutput
+		if state.Expanded || !trn.IsCollapsible() {
+			outputToShow = trn.fullOutput
+		}
+
+		if outputToShow != "" {
+			// Add indentation to show this is tool output
+			outputLines := WrapText(outputToShow, area.Width-2) // Reserve 2 chars for indent
+			for _, line := range outputLines {
+				style := StyleToolText
+				if state.Selected {
+					style = style.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+				} else if state.Focused {
+					style = style.Background(tcell.ColorGray)
+				}
+				lines = append(lines, RenderedLine{
+					Text:   "  " + line, // 2-space indent
+					Style:  style,
+					Indent: 2,
+				})
+			}
+		}
+
+		trn.cache.Lines = make([]string, len(lines))
+		trn.cache.Styles = make([]tcell.Style, len(lines))
+		for i, line := range lines {
+			trn.cache.Lines[i] = line.Text
+			trn.cache.Styles[i] = line.Style
+		}
+		trn.cache.Valid = true
+
+		return lines
+	}
+
+	// Convert cached data to RenderedLine format
+	result := make([]RenderedLine, len(trn.cache.Lines))
+	for i, line := range trn.cache.Lines {
+		// Determine indent from the line content
+		indent := 0
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "▶") && !strings.HasPrefix(line, "▼") {
+			indent = 2
+		}
+		result[i] = RenderedLine{
+			Text:   line,
+			Style:  trn.cache.Styles[i],
+			Indent: indent,
+		}
+	}
+
+	return result
+}
+
+func (trn *ToolResultMessageNode) CalculateHeight(width int) int {
+	height := 0
+	
+	// Header height
+	toolName := trn.message.ToolName
+	if toolName == "" {
+		toolName = "Tool"
+	}
+	headerText := fmt.Sprintf("▶ %s", toolName)
+	headerLines := WrapText(headerText, width)
+	height += len(headerLines)
+
+	// Output height
+	outputToShow := trn.truncatedOutput
+	if trn.state.Expanded || !trn.IsCollapsible() {
+		outputToShow = trn.fullOutput
+	}
+
+	if outputToShow != "" {
+		outputLines := WrapText(outputToShow, width-2)
+		height += len(outputLines)
+	}
+
+	return height
+}
+
+func (trn *ToolResultMessageNode) HandleClick(x, y int) (bool, NodeState) {
+	// Click toggles expansion if collapsible, otherwise toggles selection
+	if trn.IsCollapsible() {
+		return true, trn.state.ToggleExpanded()
+	}
+	return true, trn.state.ToggleSelected()
+}
+
+func (trn *ToolResultMessageNode) HandleKeyEvent(ev *tcell.EventKey) (bool, NodeState) {
+	switch ev.Key() {
+	case tcell.KeyEnter:
+		// Enter toggles selection
+		return true, trn.state.ToggleSelected()
+	case tcell.KeyTab:
+		// Tab toggles expansion if collapsible
+		if trn.IsCollapsible() {
+			return true, trn.state.ToggleExpanded()
+		}
+	}
+	return false, trn.state
+}
+
+func (trn *ToolResultMessageNode) IsCollapsible() bool {
+	// Collapsible if output is longer than truncated version
+	return len(trn.fullOutput) > len(trn.truncatedOutput)
+}
+
+func (trn *ToolResultMessageNode) HasDetailView() bool {
+	return trn.IsCollapsible()
+}
+
+func (trn *ToolResultMessageNode) GetPreviewText() string {
+	toolName := trn.message.ToolName
+	if toolName == "" {
+		toolName = "Tool"
+	}
+	return fmt.Sprintf("%s: %s", toolName, trn.truncatedOutput)
+}
+
 // ToolCallMessageNode handles messages with tool calls
 type ToolCallMessageNode struct {
 	BaseNode
@@ -411,19 +641,41 @@ func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLin
 	if !tcn.cache.Valid {
 		var lines []RenderedLine
 
-		// Render tool calls
+		// Render tool calls in the format requested: Shell(docker ps -a) or Search("https://...")
 		for i, toolCall := range tcn.message.ToolCalls {
-			toolText := fmt.Sprintf("🔧 Tool: %s", toolCall.Function.Name)
+			var toolText string
+			
+			// Format tool call based on tool type
+			toolName := tcn.formatToolName(toolCall.Function.Name)
+			
 			if state.Expanded {
-				// Show arguments if expanded
+				// Show full arguments when expanded
 				if len(toolCall.Function.Arguments) > 0 {
-					toolText += fmt.Sprintf(" (args: %v)", toolCall.Function.Arguments)
+					// Format arguments nicely
+					var argStr string
+					if cmd, ok := toolCall.Function.Arguments["command"].(string); ok {
+						argStr = fmt.Sprintf("(%s)", tcn.truncateCommand(cmd, 50))
+					} else {
+						argStr = fmt.Sprintf("(%v)", toolCall.Function.Arguments)
+					}
+					toolText = fmt.Sprintf("%s%s", toolName, argStr)
+				} else {
+					toolText = fmt.Sprintf("%s()", toolName)
+				}
+			} else {
+				// Show truncated version when collapsed
+				if cmd, ok := toolCall.Function.Arguments["command"].(string); ok {
+					toolText = fmt.Sprintf("%s(%s)", toolName, tcn.truncateCommand(cmd, 30))
+				} else if len(toolCall.Function.Arguments) > 0 {
+					toolText = fmt.Sprintf("%s(...)", toolName)
+				} else {
+					toolText = fmt.Sprintf("%s()", toolName)
 				}
 			}
 
 			toolLines := WrapText(toolText, area.Width)
 			for _, line := range toolLines {
-				style := StyleAssistantText.Foreground(tcell.ColorGreen)
+				style := StyleToolText.Bold(true)
 				if state.Selected {
 					style = style.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
 				} else if state.Focused {
@@ -466,13 +718,59 @@ func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLin
 	return result
 }
 
+// formatToolName converts tool names to user-friendly display names
+func (tcn *ToolCallMessageNode) formatToolName(toolName string) string {
+	switch toolName {
+	case "execute_bash":
+		return "Shell"
+	case "read_file":
+		return "ReadFile"
+	case "write_file":
+		return "WriteFile"
+	case "search_web":
+		return "Search"
+	default:
+		// Capitalize first letter and keep the rest
+		if len(toolName) > 0 {
+			return strings.ToUpper(toolName[:1]) + toolName[1:]
+		}
+		return toolName
+	}
+}
+
+// truncateCommand truncates a command string for display
+func (tcn *ToolCallMessageNode) truncateCommand(cmd string, maxLen int) string {
+	if len(cmd) <= maxLen {
+		return cmd
+	}
+	return cmd[:maxLen-3] + "..."
+}
+
 func (tcn *ToolCallMessageNode) CalculateHeight(width int) int {
 	height := 0
 	for i, toolCall := range tcn.message.ToolCalls {
-		toolText := fmt.Sprintf("🔧 Tool: %s", toolCall.Function.Name)
+		var toolText string
+		toolName := tcn.formatToolName(toolCall.Function.Name)
+		
 		if tcn.state.Expanded {
 			if len(toolCall.Function.Arguments) > 0 {
-				toolText += fmt.Sprintf(" (args: %v)", toolCall.Function.Arguments)
+				var argStr string
+				if cmd, ok := toolCall.Function.Arguments["command"].(string); ok {
+					argStr = fmt.Sprintf("(%s)", tcn.truncateCommand(cmd, 50))
+				} else {
+					argStr = fmt.Sprintf("(%v)", toolCall.Function.Arguments)
+				}
+				toolText = fmt.Sprintf("%s%s", toolName, argStr)
+			} else {
+				toolText = fmt.Sprintf("%s()", toolName)
+			}
+		} else {
+			if cmd, ok := toolCall.Function.Arguments["command"].(string); ok {
+				toolText = fmt.Sprintf("%s(%s)", toolName, tcn.truncateCommand(cmd, 30))
+			} else if len(toolCall.Function.Arguments) > 0 {
+				toolText = fmt.Sprintf("%s(...)", toolName)
+			} else {
+				toolText = fmt.Sprintf("%s()", toolName)
 			}
 		}
 
@@ -524,10 +822,20 @@ func (tnf *TextNodeFactory) CanHandle(msg chat.Message) bool {
 	}
 
 	if msg.Role == chat.RoleAssistant {
-		// Check if it has thinking blocks or tool calls
-		parsed := ParseThinkingBlock(msg.Content)
+		// Check if it has separated thinking first
+		if msg.HasThinking() {
+			return false
+		}
+		
+		// Check if it has tool calls
 		hasTools := len(msg.ToolCalls) > 0
-		return !parsed.HasThinking && !hasTools
+		if hasTools {
+			return false
+		}
+		
+		// Fallback: check if content has thinking blocks for backwards compatibility
+		parsed := ParseThinkingBlock(msg.Content)
+		return !parsed.HasThinking
 	}
 
 	return false
@@ -544,6 +852,12 @@ func (tnf *ThinkingNodeFactory) CanHandle(msg chat.Message) bool {
 		return false
 	}
 
+	// Check if message has separated thinking first
+	if msg.HasThinking() {
+		return true
+	}
+
+	// Fallback to parsing content for backwards compatibility
 	parsed := ParseThinkingBlock(msg.Content)
 	return parsed.HasThinking
 }
@@ -561,9 +875,7 @@ func (tcf *ToolCallNodeFactory) CanHandle(msg chat.Message) bool {
 type ToolResultNodeFactory struct{}
 
 func (trf *ToolResultNodeFactory) CreateNode(msg chat.Message, id string) MessageNode {
-	// For now, tool results are handled as text nodes
-	// Could be extended later for specialized rendering
-	return NewTextMessageNode(msg, id)
+	return NewToolResultMessageNode(msg, id)
 }
 
 func (trf *ToolResultNodeFactory) CanHandle(msg chat.Message) bool {
