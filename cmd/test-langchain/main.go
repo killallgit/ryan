@@ -25,10 +25,7 @@ func main() {
 		log.Fatal("Failed to load config:", err)
 	}
 
-	// Enable LangChain agent framework
-	cfg.LangChain.Enabled = true
-	cfg.LangChain.Tools.UseAgentFramework = true
-	cfg.LangChain.Tools.AutonomousExecution = true
+	// Configure LangChain
 	cfg.LangChain.Tools.MaxIterations = 5
 
 	// Initialize logger
@@ -44,17 +41,17 @@ func main() {
 
 	fmt.Printf("✅ Tools registered: %v\n", toolRegistry.List())
 
-	// Create enhanced LangChain client
-	client, err := langchain.NewEnhancedClient(
+	// Create LangChain client
+	client, err := langchain.NewClient(
 		cfg.Ollama.URL,  // http://localhost:11434
 		cfg.Ollama.Model, // Use configured model
 		toolRegistry,
 	)
 	if err != nil {
-		log.Fatal("Failed to create enhanced client:", err)
+		log.Fatal("Failed to create LangChain client:", err)
 	}
 
-	fmt.Printf("✅ Enhanced LangChain client created\n")
+	fmt.Printf("✅ LangChain client created\n")
 	fmt.Printf("🔧 Available tools: %v\n", client.GetTools())
 
 	// Test scenarios

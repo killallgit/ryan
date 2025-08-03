@@ -17,8 +17,8 @@ import (
 	langchaintools "github.com/tmc/langchaingo/tools"
 )
 
-// EnhancedClient provides full LangChain integration for Ryan
-type EnhancedClient struct {
+// Client provides full LangChain integration for Ryan
+type Client struct {
 	llm           llms.Model
 	memory        schema.Memory
 	toolRegistry  *tools.Registry
@@ -29,8 +29,8 @@ type EnhancedClient struct {
 	log           *logger.Logger
 }
 
-// NewEnhancedClient creates a new LangChain-powered client
-func NewEnhancedClient(baseURL, model string, toolRegistry *tools.Registry) (*EnhancedClient, error) {
+// NewClient creates a new LangChain-powered client
+func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, error) {
 	cfg := config.Get()
 	log := logger.WithComponent("langchain_enhanced")
 
@@ -51,7 +51,7 @@ func NewEnhancedClient(baseURL, model string, toolRegistry *tools.Registry) (*En
 		mem = memory.NewConversationBuffer()
 	}
 
-	client := &EnhancedClient{
+	client := &Client{
 		llm:          llm,
 		memory:       mem,
 		toolRegistry: toolRegistry,
@@ -59,8 +59,8 @@ func NewEnhancedClient(baseURL, model string, toolRegistry *tools.Registry) (*En
 		log:          log,
 	}
 
-	// Initialize tools and agent if enabled
-	if cfg.LangChain.Tools.UseAgentFramework && toolRegistry != nil {
+	// Initialize tools and agent (always enabled now)
+	if toolRegistry != nil {
 		if err := client.initializeAgent(); err != nil {
 			log.Warn("Failed to initialize agent, falling back to direct mode", "error", err)
 		}
@@ -150,50 +150,50 @@ func extractValue(input, prefix string) string {
 }
 
 // initializeAgent sets up the LangChain agent with adapted tools
-func (ec *EnhancedClient) initializeAgent() error {
-	if ec.toolRegistry == nil {
+func (c *Client) initializeAgent() error {
+	if c.toolRegistry == nil {
 		return fmt.Errorf("no tool registry available")
 	}
 
 	// Convert Ryan tools to LangChain tools
-	ryanTools := ec.toolRegistry.GetTools()
-	ec.langchainTools = make([]langchaintools.Tool, 0, len(ryanTools))
+	ryanTools := c.toolRegistry.GetTools()
+	c.langchainTools = make([]langchaintools.Tool, 0, len(ryanTools))
 
 	for _, tool := range ryanTools {
 		adapter := NewToolAdapter(tool)
-		ec.langchainTools = append(ec.langchainTools, adapter)
-		ec.log.Debug("Adapted tool", "name", tool.Name())
+		c.langchainTools = append(c.langchainTools, adapter)
+		c.log.Debug("Adapted tool", "name", tool.Name())
 	}
 
 	// Create conversational agent
-	ec.agent = agents.NewConversationalAgent(ec.llm, ec.langchainTools,
-		agents.WithMemory(ec.memory))
+	c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
+		agents.WithMemory(c.memory))
 
 	// Create executor
-	ec.executor = agents.NewExecutor(ec.agent)
+	c.executor = agents.NewExecutor(c.agent)
 
-	ec.log.Info("LangChain agent initialized", "tools_count", len(ec.langchainTools))
+	c.log.Info("LangChain agent initialized", "tools_count", len(c.langchainTools))
 	return nil
 }
 
 // SendMessage sends a message using LangChain chains or agents
-func (ec *EnhancedClient) SendMessage(ctx context.Context, userInput string) (string, error) {
-	ec.log.Debug("Processing message", "input_length", len(userInput), "agent_enabled", ec.executor != nil)
+func (c *Client) SendMessage(ctx context.Context, userInput string) (string, error) {
+	c.log.Debug("Processing message", "input_length", len(userInput), "agent_enabled", c.executor != nil)
 
-	// Use agent if available and enabled
-	if ec.executor != nil && ec.config.LangChain.Tools.UseAgentFramework {
-		return ec.sendWithAgent(ctx, userInput)
+	// Use agent if available (always enabled now)
+	if c.executor != nil {
+		return c.sendWithAgent(ctx, userInput)
 	}
 
 	// Use conversation chain for direct LLM interaction
-	return ec.sendWithChain(ctx, userInput)
+	return c.sendWithChain(ctx, userInput)
 }
 
 // sendWithAgent uses the LangChain agent for autonomous tool calling
-func (ec *EnhancedClient) sendWithAgent(ctx context.Context, userInput string) (string, error) {
-	ec.log.Debug("Using agent framework for message processing")
+func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, error) {
+	c.log.Debug("Using agent framework for message processing")
 
-	result, err := ec.executor.Call(ctx, map[string]any{
+	result, err := c.executor.Call(ctx, map[string]any{
 		"input": userInput,
 	})
 	if err != nil {
@@ -209,8 +209,8 @@ func (ec *EnhancedClient) sendWithAgent(ctx context.Context, userInput string) (
 }
 
 // sendWithChain uses conversation chain for direct LLM interaction
-func (ec *EnhancedClient) sendWithChain(ctx context.Context, userInput string) (string, error) {
-	ec.log.Debug("Using conversation chain for message processing")
+func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, error) {
+	c.log.Debug("Using conversation chain for message processing")
 
 	// Convert input to LangChain message format
 	messages := []llms.MessageContent{
@@ -218,8 +218,8 @@ func (ec *EnhancedClient) sendWithChain(ctx context.Context, userInput string) (
 	}
 
 	// Add memory context if available
-	if ec.memory != nil {
-		memoryVars, err := ec.memory.LoadMemoryVariables(ctx, map[string]any{})
+	if c.memory != nil {
+		memoryVars, err := c.memory.LoadMemoryVariables(ctx, map[string]any{})
 		if err == nil {
 			if history, ok := memoryVars["history"].(string); ok && history != "" {
 				// Prepend history as system message
@@ -231,7 +231,7 @@ func (ec *EnhancedClient) sendWithChain(ctx context.Context, userInput string) (
 	}
 
 	// Generate response
-	response, err := ec.llm.GenerateContent(ctx, messages)
+	response, err := c.llm.GenerateContent(ctx, messages)
 	if err != nil {
 		return "", fmt.Errorf("content generation failed: %w", err)
 	}
@@ -243,8 +243,8 @@ func (ec *EnhancedClient) sendWithChain(ctx context.Context, userInput string) (
 	result := response.Choices[0].Content
 
 	// Save to memory
-	if ec.memory != nil {
-		ec.memory.SaveContext(ctx, 
+	if c.memory != nil {
+		c.memory.SaveContext(ctx, 
 			map[string]any{"input": userInput},
 			map[string]any{"output": result},
 		)
@@ -254,8 +254,8 @@ func (ec *EnhancedClient) sendWithChain(ctx context.Context, userInput string) (
 }
 
 // StreamMessage provides streaming responses using LangChain's streaming
-func (ec *EnhancedClient) StreamMessage(ctx context.Context, userInput string, outputChan chan<- string) error {
-	ec.log.Debug("Starting streaming message processing")
+func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan chan<- string) error {
+	c.log.Debug("Starting streaming message processing")
 
 	// Convert input to LangChain message format
 	messages := []llms.MessageContent{
@@ -263,8 +263,8 @@ func (ec *EnhancedClient) StreamMessage(ctx context.Context, userInput string, o
 	}
 
 	// Add memory context if available
-	if ec.memory != nil {
-		memoryVars, err := ec.memory.LoadMemoryVariables(ctx, map[string]any{})
+	if c.memory != nil {
+		memoryVars, err := c.memory.LoadMemoryVariables(ctx, map[string]any{})
 		if err == nil {
 			if history, ok := memoryVars["history"].(string); ok && history != "" {
 				// Prepend history as system message
@@ -276,7 +276,7 @@ func (ec *EnhancedClient) StreamMessage(ctx context.Context, userInput string, o
 	}
 
 	// Use LangChain's streaming
-	_, err := ec.llm.GenerateContent(ctx, messages,
+	_, err := c.llm.GenerateContent(ctx, messages,
 		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
 			select {
 			case outputChan <- string(chunk):
@@ -292,10 +292,10 @@ func (ec *EnhancedClient) StreamMessage(ctx context.Context, userInput string, o
 	}
 
 	// Save to memory after streaming completes
-	if ec.memory != nil {
+	if c.memory != nil {
 		// Note: In a real implementation, you'd want to accumulate the full response
 		// and save both user input and AI response to memory
-		ec.memory.SaveContext(ctx, 
+		c.memory.SaveContext(ctx, 
 			map[string]any{"input": userInput},
 			map[string]any{"output": ""}, // Placeholder - in real implementation, accumulate chunks
 		)
@@ -305,25 +305,25 @@ func (ec *EnhancedClient) StreamMessage(ctx context.Context, userInput string, o
 }
 
 // GetMemory returns the current conversation memory
-func (ec *EnhancedClient) GetMemory() schema.Memory {
-	return ec.memory
+func (c *Client) GetMemory() schema.Memory {
+	return c.memory
 }
 
 // GetTools returns the available LangChain tools
-func (ec *EnhancedClient) GetTools() []langchaintools.Tool {
-	return ec.langchainTools
+func (c *Client) GetTools() []langchaintools.Tool {
+	return c.langchainTools
 }
 
 // ClearMemory clears the conversation memory
-func (ec *EnhancedClient) ClearMemory(ctx context.Context) error {
-	if ec.memory != nil {
-		return ec.memory.Clear(ctx)
+func (c *Client) ClearMemory(ctx context.Context) error {
+	if c.memory != nil {
+		return c.memory.Clear(ctx)
 	}
 	return nil
 }
 
 // WithPromptTemplate creates a response using a custom prompt template
-func (ec *EnhancedClient) WithPromptTemplate(ctx context.Context, templateStr string, vars map[string]any) (string, error) {
+func (c *Client) WithPromptTemplate(ctx context.Context, templateStr string, vars map[string]any) (string, error) {
 	template := prompts.NewPromptTemplate(templateStr, extractVarNames(vars))
 	
 	prompt, err := template.Format(vars)
@@ -335,7 +335,7 @@ func (ec *EnhancedClient) WithPromptTemplate(ctx context.Context, templateStr st
 		llms.TextParts(llms.ChatMessageTypeHuman, prompt),
 	}
 
-	response, err := ec.llm.GenerateContent(ctx, messages)
+	response, err := c.llm.GenerateContent(ctx, messages)
 	if err != nil {
 		return "", fmt.Errorf("content generation failed: %w", err)
 	}
