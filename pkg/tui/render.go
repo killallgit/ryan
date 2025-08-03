@@ -370,11 +370,9 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 		allLines = allLines[:len(allLines)-1]
 	}
 
-	// Calculate visible lines for messages (leave space for spinner if visible)
+	// Calculate visible lines for messages 
+	// Note: Spinner is now handled by RenderStatusRow, no need to reserve space here
 	availableHeight := chatArea.Height
-	if spinner.IsVisible {
-		availableHeight -= 1
-	}
 
 	// Calculate which lines to show based on scroll
 	startLine := display.Scroll
@@ -436,20 +434,8 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 		renderText(screen, chatArea.X, chatArea.Y+i, msgLine.Text, style)
 	}
 
-	// Render spinner at the bottom if visible (use original area for full width)
-	if spinner.IsVisible {
-		spinnerY := area.Y + area.Height - 1
-		if spinnerY >= area.Y && spinnerY < area.Y+area.Height {
-			// Clear the spinner line first
-			for x := area.X; x < area.X+area.Width; x++ {
-				screen.SetContent(x, spinnerY, ' ', nil, tcell.StyleDefault)
-			}
-
-			// Render spinner text
-			spinnerText := fmt.Sprintf(" %s %s", spinner.GetCurrentFrame(), spinner.Text)
-			renderText(screen, area.X, spinnerY, spinnerText, StyleDimText)
-		}
-	}
+	// Note: Spinner rendering is now handled by RenderStatusRow in the alert area
+	// This eliminates duplicate spinners and provides better status information
 }
 
 func RenderMessagesWithSpinner(screen tcell.Screen, display MessageDisplay, area Rect, spinner SpinnerComponent) {
@@ -891,20 +877,8 @@ func RenderMessagesWithNodesAndSpinner(screen tcell.Screen, display MessageDispl
 		}
 	}
 
-	// Render spinner at the bottom if visible
-	if spinner.IsVisible {
-		spinnerY := area.Y + area.Height - 1
-		if spinnerY >= area.Y && spinnerY < area.Y+area.Height {
-			// Clear the spinner line first
-			for x := area.X; x < area.X+area.Width; x++ {
-				screen.SetContent(x, spinnerY, ' ', nil, tcell.StyleDefault)
-			}
-
-			// Render spinner text
-			spinnerText := fmt.Sprintf(" %s %s", spinner.GetCurrentFrame(), spinner.Text)
-			renderText(screen, area.X, spinnerY, spinnerText, StyleDimText)
-		}
-	}
+	// Note: Spinner rendering is now handled by RenderStatusRow in the alert area
+	// This eliminates duplicate spinners and provides better status information
 }
 
 // CalculateNodesHeight calculates the total height needed for node-based rendering
