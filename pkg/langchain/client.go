@@ -202,6 +202,13 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 		if strings.Contains(err.Error(), "unable to parse agent output") && strings.Contains(err.Error(), "<think>") {
 			c.log.Warn("Agent failed due to thinking blocks, falling back to direct LLM", "error", err)
 			// Fall back to direct LLM interaction when agent parsing fails due to thinking blocks
+			// But first, ensure memory consistency by saving the user input
+			if c.memory != nil {
+				c.memory.SaveContext(ctx, 
+					map[string]any{"input": userInput},
+					map[string]any{"output": ""},
+				)
+			}
 			return c.sendWithChain(ctx, userInput)
 		}
 		return "", fmt.Errorf("agent execution failed: %w", err)
@@ -210,17 +217,55 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 	// Log all available keys for debugging
 	c.log.Debug("Agent execution result keys", "keys", getMapKeys(result))
 
+	// Log the full result structure for debugging
+	c.log.Debug("Full agent result", "result", result)
+
 	// Check for intermediate steps
 	if intermediateSteps, ok := result["intermediate_steps"]; ok {
 		c.log.Debug("Found intermediate steps", "steps", intermediateSteps)
 	}
 
+	// Check for agent scratchpad
+	if scratchpad, ok := result["agent_scratchpad"]; ok {
+		c.log.Debug("Found agent scratchpad", "scratchpad", scratchpad)
+	}
+
+	// Check for thinking or reasoning fields
+	if thinking, ok := result["thinking"]; ok {
+		c.log.Debug("Found thinking field", "thinking", thinking)
+	}
+
+	// Check for any field that might contain raw LLM output
+	for key, value := range result {
+		if key != "output" && key != "input" {
+			c.log.Debug("Additional result field", "key", key, "value", value)
+		}
+	}
+
 	// Extract the final output
 	if output, ok := result["output"].(string); ok {
+		// Log raw agent output to check for thinking blocks
+		c.log.Debug("Raw agent output", "content", output, "has_think_tags", strings.Contains(output, "<think"))
+		
+		// Save to memory for consistency with chain mode
+		if c.memory != nil {
+			c.memory.SaveContext(ctx, 
+				map[string]any{"input": userInput},
+				map[string]any{"output": output},
+			)
+		}
 		return output, nil
 	}
 
-	return fmt.Sprintf("%v", result), nil
+	// Fallback output
+	finalOutput := fmt.Sprintf("%v", result)
+	if c.memory != nil {
+		c.memory.SaveContext(ctx, 
+			map[string]any{"input": userInput},
+			map[string]any{"output": finalOutput},
+		)
+	}
+	return finalOutput, nil
 }
 
 // getMapKeys extracts keys from a map for debugging
@@ -280,6 +325,9 @@ func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, e
 	}
 
 	result := response.Choices[0].Content
+	
+	// Log raw LLM output to check for thinking blocks
+	c.log.Debug("Raw LLM output (chain mode)", "content", result, "has_think_tags", strings.Contains(result, "<think"))
 
 	// Save to memory
 	if c.memory != nil {

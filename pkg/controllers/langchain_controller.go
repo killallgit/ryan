@@ -2,7 +2,10 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,6 +23,7 @@ type LangChainController struct {
 	toolRegistry *tools.Registry
 	conversation chat.Conversation
 	log          *logger.Logger
+	historyFile  string
 }
 
 // NewLangChainController creates a new controller using the LangChain client
@@ -31,13 +35,21 @@ func NewLangChainController(baseURL, model string, toolRegistry *tools.Registry)
 
 	log := logger.WithComponent("langchain_controller")
 
-	return &LangChainController{
+	controller := &LangChainController{
 		client:       client,
 		model:        model,
 		toolRegistry: toolRegistry,
 		conversation: chat.NewConversation(model),
 		log:          log,
-	}, nil
+		historyFile:  ".ryan/chat_history.json",
+	}
+
+	// Load existing chat history if available
+	if err := controller.loadHistory(); err != nil {
+		log.Debug("Could not load chat history", "error", err)
+	}
+
+	return controller, nil
 }
 
 // NewLangChainControllerWithSystem creates a new controller with system prompt
@@ -91,6 +103,11 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 	// Create assistant message from response
 	assistantMsg := chat.NewAssistantMessage(response)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
+
+	// Save history to disk after each interaction
+	if err := lc.saveHistory(); err != nil {
+		lc.log.Error("Failed to save chat history", "error", err)
+	}
 
 	lc.log.Debug("Enhanced LangChain agent response received", 
 		"response_length", len(response))
@@ -149,6 +166,11 @@ func (lc *LangChainController) SendUserMessageWithStreamingContext(ctx context.C
 	assistantMsg := chat.NewAssistantMessage(response)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
 
+	// Save history to disk after each interaction
+	if err := lc.saveHistory(); err != nil {
+		lc.log.Error("Failed to save chat history", "error", err)
+	}
+
 	lc.log.Debug("Streaming response completed", "response_length", len(response))
 
 	return assistantMsg, nil
@@ -202,6 +224,11 @@ func (lc *LangChainController) AddUserMessage(content string) {
 	userMsg := chat.NewOptimisticUserMessage(content)
 	lc.conversation = chat.AddMessage(lc.conversation, userMsg)
 	
+	// Save history to disk after adding user message
+	if err := lc.saveHistory(); err != nil {
+		lc.log.Error("Failed to save chat history", "error", err)
+	}
+	
 	lc.log.Debug("Added optimistic user message", "content_length", len(content))
 }
 
@@ -209,6 +236,11 @@ func (lc *LangChainController) AddUserMessage(content string) {
 func (lc *LangChainController) AddErrorMessage(errorMsg string) {
 	errMsg := chat.NewErrorMessage(errorMsg)
 	lc.conversation = chat.AddMessage(lc.conversation, errMsg)
+	
+	// Save history to disk after adding error message
+	if err := lc.saveHistory(); err != nil {
+		lc.log.Error("Failed to save chat history", "error", err)
+	}
 }
 
 // GetModel returns the model name
@@ -483,5 +515,65 @@ func (lc *LangChainController) streamResponseInChunks(response string, updates c
 		// Small delay between chunks
 		time.Sleep(30 * time.Millisecond)
 	}
+}
+
+// saveHistory saves the current conversation to disk
+func (lc *LangChainController) saveHistory() error {
+	// Ensure the directory exists
+	dir := filepath.Dir(lc.historyFile)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create history directory: %w", err)
+	}
+
+	// Get all messages from the conversation
+	messages := chat.GetMessages(lc.conversation)
+	
+	// Save to JSON file (overwrite each time)
+	data, err := json.MarshalIndent(messages, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal chat history: %w", err)
+	}
+
+	if err := os.WriteFile(lc.historyFile, data, 0644); err != nil {
+		return fmt.Errorf("failed to write chat history: %w", err)
+	}
+
+	lc.log.Debug("Chat history saved", "file", lc.historyFile, "messages", len(messages))
+	return nil
+}
+
+// loadHistory loads chat history from disk
+func (lc *LangChainController) loadHistory() error {
+	// Check if history file exists
+	if _, err := os.Stat(lc.historyFile); os.IsNotExist(err) {
+		lc.log.Debug("No existing chat history found", "file", lc.historyFile)
+		return nil
+	}
+
+	// Read the history file
+	data, err := os.ReadFile(lc.historyFile)
+	if err != nil {
+		return fmt.Errorf("failed to read chat history: %w", err)
+	}
+
+	// Parse JSON
+	var messages []chat.Message
+	if err := json.Unmarshal(data, &messages); err != nil {
+		return fmt.Errorf("failed to unmarshal chat history: %w", err)
+	}
+
+	// Reconstruct conversation
+	lc.conversation = chat.NewConversation(lc.model)
+	for _, msg := range messages {
+		lc.conversation = chat.AddMessage(lc.conversation, msg)
+	}
+
+	lc.log.Debug("Chat history loaded", "file", lc.historyFile, "messages", len(messages))
+	return nil
+}
+
+// SaveHistoryToDisk saves the current conversation state to disk
+func (lc *LangChainController) SaveHistoryToDisk() error {
+	return lc.saveHistory()
 }
 
