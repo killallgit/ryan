@@ -7,14 +7,6 @@ import (
 	"github.com/killallgit/ryan/pkg/chat"
 )
 
-// Helper function for minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // BaseNode provides common functionality for all node types
 type BaseNode struct {
 	id       string
@@ -230,33 +222,23 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 	if !tmn.cache.Valid {
 		var lines []RenderedLine
 
-		// Render thinking block if present
-		if tmn.parsed.HasThinking && tmn.showThinking {
+		// Render thinking block if present and expanded
+		if tmn.parsed.HasThinking && tmn.showThinking && state.Expanded {
 			var thinkingText string
 
-			if state.Expanded {
-				// Show full thinking content when expanded
-				thinkingText = "Thinking: " + tmn.parsed.ThinkingBlock
-				if tmn.parsed.ResponseContent != "" {
-					// Still truncate if there's response content to save space
-					thinkingText = "Thinking: " + TruncateThinkingBlock(tmn.parsed.ThinkingBlock, 3, area.Width-10)
-				}
-			} else {
-				// Show collapsed preview when collapsed
-				thinkingText = "💭 Thinking... (Tab to expand)"
-				if tmn.parsed.ResponseContent != "" {
-					thinkingText = "💭 Thinking... (Tab to expand) | " + tmn.parsed.ResponseContent[:min(50, len(tmn.parsed.ResponseContent))]
-					if len(tmn.parsed.ResponseContent) > 50 {
-						thinkingText += "..."
-					}
-				}
+			// Show full thinking content when expanded
+			thinkingText = "Thinking: " + tmn.parsed.ThinkingBlock
+			if tmn.parsed.ResponseContent != "" {
+				// Still truncate if there's response content to save space
+				thinkingText = "Thinking: " + TruncateThinkingBlock(tmn.parsed.ThinkingBlock, 3, area.Width-10)
 			}
 
 			thinkingLines := WrapText(thinkingText, area.Width)
 			for _, line := range thinkingLines {
 				style := StyleThinkingText
 				if state.Selected {
-					style = style.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+					// Keep the dimmed color but add blue background for selection
+					style = style.Background(tcell.ColorBlue)
 				} else if state.Focused {
 					style = style.Background(tcell.ColorGray)
 				}
@@ -267,22 +249,21 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 				})
 			}
 
-			// Add separator if response content follows and expanded
-			if tmn.parsed.ResponseContent != "" && state.Expanded {
+			// Add separator if response content follows
+			if tmn.parsed.ResponseContent != "" {
 				lines = append(lines, RenderedLine{Text: "", Style: tcell.StyleDefault, Indent: 0})
 			}
 		}
 
-		// Render response content (only when expanded or when no thinking block)
+		// Render response content
 		var contentToRender string
 		if !tmn.parsed.HasThinking {
 			// No thinking block, always show content
 			contentToRender = tmn.message.Content
-		} else if state.Expanded {
-			// Has thinking block and expanded, show response content separately
+		} else {
+			// Has thinking block, always show response content (both when collapsed and expanded)
 			contentToRender = tmn.parsed.ResponseContent
 		}
-		// If collapsed and has thinking, response content is shown in the thinking preview above
 
 		if contentToRender != "" {
 			responseLines := WrapText(contentToRender, area.Width)
@@ -329,6 +310,7 @@ func (tmn *ThinkingMessageNode) CalculateHeight(width int) int {
 	// This is a simplified calculation - for performance we might cache this
 	totalHeight := 0
 
+	// Calculate height for thinking block (only when expanded)
 	if tmn.parsed.HasThinking && tmn.showThinking && tmn.state.Expanded {
 		thinkingText := "Thinking: " + tmn.parsed.ThinkingBlock
 		if tmn.parsed.ResponseContent != "" {
@@ -342,9 +324,12 @@ func (tmn *ThinkingMessageNode) CalculateHeight(width int) int {
 		}
 	}
 
-	contentToRender := tmn.parsed.ResponseContent
+	// Calculate height for response content (always shown)
+	var contentToRender string
 	if !tmn.parsed.HasThinking {
 		contentToRender = tmn.message.Content
+	} else {
+		contentToRender = tmn.parsed.ResponseContent
 	}
 
 	if contentToRender != "" {

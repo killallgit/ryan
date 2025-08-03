@@ -178,18 +178,17 @@ func TestThinkingMessageNode_Rendering(t *testing.T) {
 		t.Error("Should render at least one line when collapsed")
 	}
 
-	// Should show collapsed preview
-	hasCollapsedIndicator := false
+	// Should show response content in collapsed mode (not thinking indicator)
+	hasResponseContent := false
 	for _, line := range collapsedLines {
-		if line.Text != "" && (line.Text == "💭 Thinking... (Tab to expand) | Final response content" ||
-			line.Text == "💭 Thinking... (Tab to expand)") {
-			hasCollapsedIndicator = true
+		if line.Text != "" && line.Text == "Final response content" {
+			hasResponseContent = true
 			break
 		}
 	}
 
-	if !hasCollapsedIndicator {
-		t.Error("Collapsed view should show thinking indicator")
+	if !hasResponseContent {
+		t.Error("Collapsed view should show response content")
 	}
 
 	// Collapsed should generally be shorter than expanded (fewer lines)
