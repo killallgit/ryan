@@ -623,6 +623,19 @@ func (srd StatusRowDisplay) Clear() StatusRowDisplay {
 	}
 }
 
+// ClearSpinnerOnly clears only the spinner and feedback text, preserving token count
+func (srd StatusRowDisplay) ClearSpinnerOnly() StatusRowDisplay {
+	return StatusRowDisplay{
+		IsSpinnerVisible: false,
+		SpinnerFrame:     srd.SpinnerFrame,
+		FeedbackText:     "",
+		StartTime:        time.Time{},
+		CurrentDuration:  0,
+		TokenCount:       srd.TokenCount, // Preserve token count
+		Width:            srd.Width,
+	}
+}
+
 type ModalDialog struct {
 	Visible bool
 	Title   string
