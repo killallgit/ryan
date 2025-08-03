@@ -251,6 +251,5 @@ func InitializeDefaults() error {
 		return fmt.Errorf("failed to write default configuration: %w", err)
 	}
 
-	fmt.Printf("Created default configuration file: .ryan/settings.yaml\n")
 	return nil
 }

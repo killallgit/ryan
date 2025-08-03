@@ -21,7 +21,7 @@ func TestLangChainIntegration(t *testing.T) {
 	})
 
 	t.Run("should create LangChain streaming client without errors", func(t *testing.T) {
-		config := chat.LangChainStreamingConfig("http://localhost:11434", "llama2") 
+		config := chat.LangChainStreamingConfig("http://localhost:11434", "llama2")
 		streamingClient, err := chat.NewStreamingChatClient(config)
 		require.NoError(t, err)
 		assert.NotNil(t, streamingClient)

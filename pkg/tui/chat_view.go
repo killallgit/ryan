@@ -571,11 +571,26 @@ func (cv *ChatView) UpdateSpinnerFrame() {
 
 func (cv *ChatView) updateMessages() {
 	history := cv.controller.GetHistory()
-	cv.messages = cv.messages.WithMessages(history)
+	// Filter out system messages - they should not be displayed to the user
+	var filteredHistory []chat.Message
+	for _, msg := range history {
+		if msg.Role != chat.RoleSystem {
+			filteredHistory = append(filteredHistory, msg)
+		}
+	}
+	cv.messages = cv.messages.WithMessages(filteredHistory)
 }
 
 func (cv *ChatView) updateMessagesWithStreamingThinking() {
 	history := cv.controller.GetHistory()
+	// Filter out system messages - they should not be displayed to the user
+	var filteredHistory []chat.Message
+	for _, msg := range history {
+		if msg.Role != chat.RoleSystem {
+			filteredHistory = append(filteredHistory, msg)
+		}
+	}
+	history = filteredHistory
 
 	// If we're streaming and have detected content type, show streaming content
 	if cv.isStreaming && cv.contentTypeDetected {

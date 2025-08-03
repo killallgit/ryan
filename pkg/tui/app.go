@@ -589,7 +589,14 @@ func (app *App) handleSpinnerAnimation(ev *SpinnerAnimationEvent) {
 
 func (app *App) updateMessages() {
 	history := app.controller.GetHistory()
-	app.messages = app.messages.WithMessages(history)
+	// Filter out system messages - they should not be displayed to the user
+	var filteredHistory []chat.Message
+	for _, msg := range history {
+		if msg.Role != chat.RoleSystem {
+			filteredHistory = append(filteredHistory, msg)
+		}
+	}
+	app.messages = app.messages.WithMessages(filteredHistory)
 }
 
 func (app *App) scrollUp() {
