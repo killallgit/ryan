@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -16,6 +18,7 @@ type ModelInfo struct {
 	QuantizationLevel string
 	ModifiedAt        time.Time
 	IsRunning         bool
+	IsDownloaded      bool
 }
 
 type RunningModelInfo struct {
@@ -157,6 +160,7 @@ func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDispl
 	normalStyle := StyleMenuNormal
 	selectedStyle := tcell.StyleDefault.Background(ColorModelSelected).Foreground(tcell.ColorBlack)
 	currentModelStyle := tcell.StyleDefault.Foreground(ColorHighlight)
+	availableStyle := StyleDimText
 
 	// Fixed header with consistent column widths
 	header := fmt.Sprintf("%-35s %10s %12s %15s", "NAME", "SIZE", "PARAMETERS", "QUANTIZATION")
@@ -173,9 +177,12 @@ func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDispl
 		y := startY + (i - display.Scroll)
 
 		style := normalStyle
+		if !model.IsDownloaded {
+			style = availableStyle
+		}
 		if i == display.Selected {
 			style = selectedStyle
-		} else if model.Name == currentModel {
+		} else if model.Name == currentModel && model.IsDownloaded {
 			style = currentModelStyle
 		}
 
@@ -183,7 +190,9 @@ func RenderModelListWithCurrentModel(screen tcell.Screen, display ModelListDispl
 
 		// Add status indicator (ASCII characters for better compatibility)
 		statusIcon := "o" // stopped
-		if model.IsRunning {
+		if !model.IsDownloaded {
+			statusIcon = "." // available for download
+		} else if model.IsRunning {
 			statusIcon = "*" // running
 		}
 
@@ -279,6 +288,7 @@ func convertOllamaModelsToModelInfoWithStatus(models []ollama.Model, runningMode
 			QuantizationLevel: model.Details.QuantizationLevel,
 			ModifiedAt:        time.Now(), // Use current time since ModifiedAt isn't available
 			IsRunning:         runningModels[model.Name],
+			IsDownloaded:      true, // These are models from ollama.tags() so they're downloaded
 		}
 	}
 	return result
@@ -297,6 +307,53 @@ func convertOllamaPsToRunningModelInfo(models []ollama.Model) []RunningModelInfo
 	return result
 }
 
+func createAvailableModelInfo() []ModelInfo {
+	// Model information with estimated sizes and compatibility info
+	availableModels := []struct {
+		name              string
+		estimatedSizeGB   float64
+		parameterSize     string
+		quantizationLevel string
+	}{
+		{"llama3.2:3b", 2.0, "3B", "Q4_0"},
+		{"llama3.2:1b", 0.8, "1B", "Q4_0"},
+		{"llama3.2-vision:latest", 7.9, "9.8B", "Q4_K_M"},
+		{"qwen2.5:7b", 4.1, "7B", "Q4_0"},
+		{"qwen2.5:3b", 1.9, "3B", "Q4_0"},
+		{"qwen2.5:1.5b", 0.9, "1.5B", "Q4_0"},
+		{"qwen2.5vl:latest", 6.0, "8.3B", "Q4_K_M"},
+		{"qwen3:latest", 5.2, "8.2B", "Q4_K_M"},
+		{"mistral:7b", 4.1, "7B", "Q4_0"},
+		{"deepseek-coder:1.3b", 0.9, "1.3B", "Q4_0"},
+		{"deepseek-r1:latest", 5.2, "8.2B", "Q4_K_M"},
+		{"codellama:7b", 3.8, "7B", "Q4_0"},
+		{"llama3.1:8b", 4.7, "8B", "Q4_0"},
+		{"command-r", 20.0, "35B", "Q4_0"},
+		{"qwen2.5-coder:7b", 4.1, "7B", "Q4_0"},
+		{"granite3.2:8b", 4.7, "8B", "Q4_0"},
+	}
+
+	result := make([]ModelInfo, 0, len(availableModels))
+	for _, model := range availableModels {
+		// Get rich model information from the models package
+		modelInfo := models.GetModelInfo(model.name)
+
+		// Only include models that have good tool support
+		if modelInfo.RecommendedForTools {
+			result = append(result, ModelInfo{
+				Name:              model.name,
+				Size:              int64(model.estimatedSizeGB * 1024 * 1024 * 1024), // Convert GB to bytes
+				ParameterSize:     model.parameterSize,
+				QuantizationLevel: model.quantizationLevel,
+				ModifiedAt:        time.Time{},
+				IsRunning:         false,
+				IsDownloaded:      false,
+			})
+		}
+	}
+	return result
+}
+
 func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
@@ -305,4 +362,57 @@ func truncateString(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// normalizeModelNameForComparison normalizes model names for comparison
+// This helps match models that might have slight variations in naming
+func normalizeModelNameForComparison(name string) string {
+	// Convert to lowercase and trim whitespace
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	
+	// Remove common suffixes that don't affect the core model identity
+	suffixes := []string{"-q4_0", "-q4_k_m", "-q8_0", "-fp16", "-instruct", "-chat"}
+	for _, suffix := range suffixes {
+		if strings.HasSuffix(normalized, suffix) {
+			normalized = strings.TrimSuffix(normalized, suffix)
+		}
+	}
+	
+	return normalized
+}
+
+// isModelAlreadyDownloaded checks if a model is already downloaded using normalized matching
+func isModelAlreadyDownloaded(availableModelName string, downloadedModelNames map[string]bool) bool {
+	// First try exact match
+	if downloadedModelNames[availableModelName] {
+		return true
+	}
+	
+	// Then try normalized matching
+	normalizedAvailable := normalizeModelNameForComparison(availableModelName)
+	for downloadedName := range downloadedModelNames {
+		normalizedDownloaded := normalizeModelNameForComparison(downloadedName)
+		if normalizedAvailable == normalizedDownloaded {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// sortModelsByDownloadStatus sorts models with downloaded models first, then available models
+// Within each group, models are sorted alphabetically by name
+func sortModelsByDownloadStatus(models []ModelInfo) {
+	sort.Slice(models, func(i, j int) bool {
+		modelA := models[i]
+		modelB := models[j]
+		
+		// Primary sort: Downloaded models come first
+		if modelA.IsDownloaded != modelB.IsDownloaded {
+			return modelA.IsDownloaded // true comes before false
+		}
+		
+		// Secondary sort: Within each group, sort alphabetically by name
+		return strings.ToLower(modelA.Name) < strings.ToLower(modelB.Name)
+	})
 }
