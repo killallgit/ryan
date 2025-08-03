@@ -127,7 +127,8 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 	RenderMessagesWithStreamingState(screen, cv.messages, messageArea, spinner, cv.isStreamingThinking)
 	
 	// Update status row with current token count and render it
-	cv.statusRow = cv.statusRow.WithTokens(cv.status.PromptTokens + cv.status.ResponseTokens).UpdateDuration()
+	totalTokens := cv.status.PromptTokens + cv.status.ResponseTokens
+	cv.statusRow = cv.statusRow.WithTokens(totalTokens).UpdateDuration()
 	RenderStatusRow(screen, alertArea, cv.statusRow)
 	
 	RenderInput(screen, cv.input, inputArea)
@@ -1056,10 +1057,7 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 	// Update token information
 	promptTokens, responseTokens := cv.controller.GetTokenUsage()
 	cv.status = cv.status.WithTokens(promptTokens, responseTokens)
-	
-	// Update status row with token count (persist after streaming)
-	totalTokens := promptTokens + responseTokens
-	cv.statusRow = cv.statusRow.WithTokens(totalTokens)
+	// Note: Token counts are currently 0 due to LangChain Go not exposing usage info
 
 	// Update messages display with final content (no streaming)
 	cv.updateMessages()
