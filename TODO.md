@@ -1,6 +1,10 @@
 
-# Support for more than just agent models
-- We need to create an idea of "modes" modes 
+# Context
+- store context to disk per session.
+
+
+# Integrate langchain.
+- context management
 
 # Log handling
 - debug logging does not need to report every keypress. only core events and errors

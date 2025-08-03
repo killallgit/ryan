@@ -1,0 +1,44 @@
+# Example configuration for LangChain Go Memory Integration (Phase 2)
+# This demonstrates enhanced memory capabilities while maintaining full compatibility
+
+logging:
+    file: ./.ryan/debug.log
+    preserve: false
+
+show_thinking: true
+streaming: true
+
+ollama:
+    model: qwen3:latest
+    system_prompt: examples/SYSTEM_PROMPT.md
+    url: http://localhost:11434
+    poll_interval: 10
+    timeout: "30s"
+    # Enable LangChain Go integration for enhanced memory management
+    use_langchain: true
+
+tools:
+    enabled: true
+    truncate_output: true
+    models:
+    - qwen3:latest
+    - llama3.1:latest
+    - deepseek-r1:latest
+    bash:
+        enabled: true
+        timeout: "90s"
+        allowed_paths: [".", "/tmp"]
+    file_read:
+        enabled: true
+        max_file_size: "10MB"
+        allowed_extensions: [".txt", ".md", ".go", ".json"]
+    search:
+        enabled: true
+        timeout: "10s"
+        
+# Phase 2 Features Enabled:
+# ✅ LangChain Go memory.ConversationBuffer for enhanced memory management
+# ✅ Automatic message history synchronization between systems
+# ✅ Foundation for chains and agents (Phase 3)
+# ✅ Better token management and conversation state handling
+# ✅ Compatibility with LangChain ecosystem
