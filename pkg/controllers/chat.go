@@ -493,16 +493,24 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 					// Get final message
 					finalMessage, exists := accumulator.GetCompleteMessage(chunk.StreamID)
 					if exists {
-						assistantMessage = finalMessage
+						// Parse thinking content and extract only the response content for conversation storage
+						responseContent := chat.ExtractResponseContent(finalMessage.Content)
+
+						assistantMessage = chat.Message{
+							Role:      finalMessage.Role,
+							Content:   responseContent, // Store only response content, not thinking
+							Timestamp: finalMessage.Timestamp,
+							ToolCalls: finalMessage.ToolCalls,
+						}
 
 						// Update token tracking from last chunk
 						cc.lastPromptTokens = chunk.PromptEvalCount
 						cc.lastResponseTokens = chunk.EvalCount
 
-						// Add assistant message to conversation
+						// Add assistant message to conversation (with only response content, thinking is excluded)
 						cc.conversation = chat.AddMessage(cc.conversation, assistantMessage)
 
-						// Send completion event
+						// Send completion event (with only response content, thinking is excluded)
 						finalStats, _ := accumulator.GetStreamStats(chunk.StreamID)
 						updates <- StreamingUpdate{
 							Type:     MessageComplete,
