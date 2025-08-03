@@ -1,9 +1,11 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -214,6 +216,11 @@ func InitializeDefaults() error {
 		return nil
 	}
 
+	// Prompt user to create settings file
+	if !promptUserForSettingsCreation() {
+		return nil // User declined, continue without creating file
+	}
+
 	// Create .ryan directory if it doesn't exist
 	if err := os.MkdirAll(".ryan", 0755); err != nil {
 		return fmt.Errorf("failed to create .ryan directory: %w", err)
@@ -250,5 +257,20 @@ func InitializeDefaults() error {
 		return fmt.Errorf("failed to write default configuration: %w", err)
 	}
 
+	fmt.Printf("Created default settings file at .ryan/settings.yaml\n")
 	return nil
+}
+
+// promptUserForSettingsCreation prompts the user to create a settings file
+func promptUserForSettingsCreation() bool {
+	fmt.Print("No .ryan/settings.yaml file found. Would you like to create one with default settings? (y/N): ")
+	
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return false
+	}
+	
+	response = strings.TrimSpace(strings.ToLower(response))
+	return response == "y" || response == "yes"
 }
