@@ -9,12 +9,12 @@ import (
 )
 
 type MessageDisplay struct {
-	Messages    []chat.Message        // Legacy field for backward compatibility
-	NodeManager *MessageNodeManager   // New node-based message management
+	Messages    []chat.Message      // Legacy field for backward compatibility
+	NodeManager *MessageNodeManager // New node-based message management
 	Width       int
 	Height      int
 	Scroll      int
-	UseNodes    bool                  // Flag to enable node-based rendering
+	UseNodes    bool // Flag to enable node-based rendering
 }
 
 func NewMessageDisplay(width, height int) MessageDisplay {
@@ -49,12 +49,12 @@ func (md MessageDisplay) WithMessages(messages []chat.Message) MessageDisplay {
 		Scroll:      md.Scroll,
 		UseNodes:    md.UseNodes,
 	}
-	
+
 	// If using nodes, update the node manager
 	if updated.UseNodes && updated.NodeManager != nil {
 		updated.NodeManager.SetMessages(messages)
 	}
-	
+
 	return updated
 }
 
@@ -84,12 +84,12 @@ func (md MessageDisplay) WithScroll(scroll int) MessageDisplay {
 func (md MessageDisplay) EnableNodes() MessageDisplay {
 	updated := md
 	updated.UseNodes = true
-	
+
 	// Sync current messages to node manager
 	if updated.NodeManager != nil && len(updated.Messages) > 0 {
 		updated.NodeManager.SetMessages(updated.Messages)
 	}
-	
+
 	return updated
 }
 
@@ -159,7 +159,7 @@ func (md MessageDisplay) WithStreamingMessage(messages []chat.Message, streaming
 		Scroll:      md.Scroll,
 		UseNodes:    md.UseNodes,
 	}
-	
+
 	// If using nodes, update with streaming support
 	if updated.UseNodes && updated.NodeManager != nil {
 		updated.NodeManager.SetMessagesWithStreaming(messages, streamingMessage)
@@ -172,7 +172,7 @@ func (md MessageDisplay) WithStreamingMessage(messages []chat.Message, streaming
 			updated.Messages = messagesWithStreaming
 		}
 	}
-	
+
 	return updated
 }
 
@@ -182,12 +182,12 @@ func (md MessageDisplay) UpdateStreamingContent(content string) MessageDisplay {
 		// For legacy mode, this would need to be handled at the chat view level
 		return md
 	}
-	
+
 	streamingNodeID := md.NodeManager.GetStreamingNodeID()
 	if streamingNodeID != "" {
 		md.NodeManager.UpdateStreamingMessage(streamingNodeID, content)
 	}
-	
+
 	return md
 }
 
@@ -196,12 +196,12 @@ func (md MessageDisplay) ClearStreamingMessage() MessageDisplay {
 	if !md.UseNodes || md.NodeManager == nil {
 		return md
 	}
-	
+
 	streamingNodeID := md.NodeManager.GetStreamingNodeID()
 	if streamingNodeID != "" {
 		md.NodeManager.RemoveStreamingMessage(streamingNodeID)
 	}
-	
+
 	return md
 }
 
@@ -210,7 +210,7 @@ func (md MessageDisplay) HasStreamingMessage() bool {
 	if !md.UseNodes || md.NodeManager == nil {
 		return false
 	}
-	
+
 	return md.NodeManager.HasStreamingMessage()
 }
 
@@ -1389,7 +1389,7 @@ func (hm HelpModal) Render(screen tcell.Screen, area Rect) {
 		if startLineY+i >= modalArea.Y+modalArea.Height-2 {
 			break // Don't overflow modal
 		}
-		
+
 		style := contentStyle
 		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") {
 			// Indent command lines slightly differently
@@ -1398,7 +1398,7 @@ func (hm HelpModal) Render(screen tcell.Screen, area Rect) {
 			// Section headers
 			style = titleStyle
 		}
-		
+
 		renderTextWithLimit(screen, modalArea.X+2, startLineY+i, modalArea.Width-4, line, style)
 	}
 }

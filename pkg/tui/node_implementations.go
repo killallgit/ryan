@@ -17,21 +17,21 @@ func min(a, b int) int {
 
 // BaseNode provides common functionality for all node types
 type BaseNode struct {
-	id        string
-	message   chat.Message
-	nodeType  MessageNodeType
-	state     NodeState
-	bounds    NodeBounds
-	cache     NodeRenderCache
+	id       string
+	message  chat.Message
+	nodeType MessageNodeType
+	state    NodeState
+	bounds   NodeBounds
+	cache    NodeRenderCache
 }
 
 // Common interface implementations for BaseNode
 
-func (bn *BaseNode) ID() string                    { return bn.id }
-func (bn *BaseNode) Message() chat.Message         { return bn.message }
-func (bn *BaseNode) NodeType() MessageNodeType     { return bn.nodeType }
-func (bn *BaseNode) State() NodeState              { return bn.state }
-func (bn *BaseNode) Bounds() NodeBounds            { return bn.bounds }
+func (bn *BaseNode) ID() string                { return bn.id }
+func (bn *BaseNode) Message() chat.Message     { return bn.message }
+func (bn *BaseNode) NodeType() MessageNodeType { return bn.nodeType }
+func (bn *BaseNode) State() NodeState          { return bn.state }
+func (bn *BaseNode) Bounds() NodeBounds        { return bn.bounds }
 
 // WithBounds will be implemented by each concrete type
 
@@ -84,7 +84,7 @@ func (tmn *TextMessageNode) WithBounds(bounds NodeBounds) MessageNode {
 
 func (tmn *TextMessageNode) Render(area Rect, state NodeState) []RenderedLine {
 	tmn.invalidateCache(area.Width)
-	
+
 	if !tmn.cache.Valid {
 		// Determine style based on message role and state
 		baseStyle := tmn.getBaseStyle()
@@ -93,13 +93,13 @@ func (tmn *TextMessageNode) Render(area Rect, state NodeState) []RenderedLine {
 		} else if state.Focused {
 			baseStyle = baseStyle.Background(tcell.ColorGray)
 		}
-		
+
 		var lines []string
-		
+
 		// Check if message is long and handle expansion/collapse
 		allLines := WrapText(tmn.message.Content, area.Width)
 		const maxCollapsedLines = 5 // Maximum lines to show when collapsed
-		
+
 		if len(allLines) > maxCollapsedLines && !state.Expanded {
 			// Show truncated version with expand indicator
 			lines = allLines[:maxCollapsedLines]
@@ -107,7 +107,7 @@ func (tmn *TextMessageNode) Render(area Rect, state NodeState) []RenderedLine {
 		} else {
 			lines = allLines
 		}
-		
+
 		tmn.cache.Lines = lines
 		tmn.cache.Styles = make([]tcell.Style, len(lines))
 		for i := range tmn.cache.Styles {
@@ -115,7 +115,7 @@ func (tmn *TextMessageNode) Render(area Rect, state NodeState) []RenderedLine {
 		}
 		tmn.cache.Valid = true
 	}
-	
+
 	// Convert to RenderedLine format
 	result := make([]RenderedLine, len(tmn.cache.Lines))
 	for i, line := range tmn.cache.Lines {
@@ -125,7 +125,7 @@ func (tmn *TextMessageNode) Render(area Rect, state NodeState) []RenderedLine {
 			Indent: 0,
 		}
 	}
-	
+
 	return result
 }
 
@@ -167,18 +167,18 @@ func (tmn *TextMessageNode) HandleKeyEvent(ev *tcell.EventKey) (bool, NodeState)
 	return false, tmn.state
 }
 
-func (tmn *TextMessageNode) IsCollapsible() bool { 
+func (tmn *TextMessageNode) IsCollapsible() bool {
 	// Message is collapsible if it's more than 5 lines when wrapped
 	const maxCollapsedLines = 5
 	lines := WrapText(tmn.message.Content, 80) // Use a standard width for estimation
 	return len(lines) > maxCollapsedLines
 }
 
-func (tmn *TextMessageNode) HasDetailView() bool { 
+func (tmn *TextMessageNode) HasDetailView() bool {
 	return tmn.IsCollapsible()
 }
 
-func (tmn *TextMessageNode) GetPreviewText() string  { 
+func (tmn *TextMessageNode) GetPreviewText() string {
 	// Return first 100 characters for preview
 	if len(tmn.message.Content) > 100 {
 		return tmn.message.Content[:100] + "..."
@@ -189,13 +189,13 @@ func (tmn *TextMessageNode) GetPreviewText() string  {
 // ThinkingMessageNode handles assistant messages with thinking blocks
 type ThinkingMessageNode struct {
 	BaseNode
-	parsed          ParsedContent
-	showThinking    bool
+	parsed       ParsedContent
+	showThinking bool
 }
 
 func NewThinkingMessageNode(msg chat.Message, id string) *ThinkingMessageNode {
 	parsed := ParseThinkingBlock(msg.Content)
-	
+
 	return &ThinkingMessageNode{
 		BaseNode: BaseNode{
 			id:       id,
@@ -226,14 +226,14 @@ func (tmn *ThinkingMessageNode) WithBounds(bounds NodeBounds) MessageNode {
 
 func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLine {
 	tmn.invalidateCache(area.Width)
-	
+
 	if !tmn.cache.Valid {
 		var lines []RenderedLine
-		
+
 		// Render thinking block if present
 		if tmn.parsed.HasThinking && tmn.showThinking {
 			var thinkingText string
-			
+
 			if state.Expanded {
 				// Show full thinking content when expanded
 				thinkingText = "Thinking: " + tmn.parsed.ThinkingBlock
@@ -251,7 +251,7 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 					}
 				}
 			}
-			
+
 			thinkingLines := WrapText(thinkingText, area.Width)
 			for _, line := range thinkingLines {
 				style := StyleThinkingText
@@ -266,13 +266,13 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 					Indent: 0,
 				})
 			}
-			
+
 			// Add separator if response content follows and expanded
 			if tmn.parsed.ResponseContent != "" && state.Expanded {
 				lines = append(lines, RenderedLine{Text: "", Style: tcell.StyleDefault, Indent: 0})
 			}
 		}
-		
+
 		// Render response content (only when expanded or when no thinking block)
 		var contentToRender string
 		if !tmn.parsed.HasThinking {
@@ -283,7 +283,7 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 			contentToRender = tmn.parsed.ResponseContent
 		}
 		// If collapsed and has thinking, response content is shown in the thinking preview above
-		
+
 		if contentToRender != "" {
 			responseLines := WrapText(contentToRender, area.Width)
 			for _, line := range responseLines {
@@ -300,7 +300,7 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 				})
 			}
 		}
-		
+
 		tmn.cache.Lines = make([]string, len(lines))
 		tmn.cache.Styles = make([]tcell.Style, len(lines))
 		for i, line := range lines {
@@ -308,10 +308,10 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 			tmn.cache.Styles[i] = line.Style
 		}
 		tmn.cache.Valid = true
-		
+
 		return lines
 	}
-	
+
 	// Convert cached data to RenderedLine format
 	result := make([]RenderedLine, len(tmn.cache.Lines))
 	for i, line := range tmn.cache.Lines {
@@ -321,14 +321,14 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 			Indent: 0,
 		}
 	}
-	
+
 	return result
 }
 
 func (tmn *ThinkingMessageNode) CalculateHeight(width int) int {
 	// This is a simplified calculation - for performance we might cache this
 	totalHeight := 0
-	
+
 	if tmn.parsed.HasThinking && tmn.showThinking && tmn.state.Expanded {
 		thinkingText := "Thinking: " + tmn.parsed.ThinkingBlock
 		if tmn.parsed.ResponseContent != "" {
@@ -336,22 +336,22 @@ func (tmn *ThinkingMessageNode) CalculateHeight(width int) int {
 		}
 		thinkingLines := WrapText(thinkingText, width)
 		totalHeight += len(thinkingLines)
-		
+
 		if tmn.parsed.ResponseContent != "" {
 			totalHeight += 1 // separator line
 		}
 	}
-	
+
 	contentToRender := tmn.parsed.ResponseContent
 	if !tmn.parsed.HasThinking {
 		contentToRender = tmn.message.Content
 	}
-	
+
 	if contentToRender != "" {
 		responseLines := WrapText(contentToRender, width)
 		totalHeight += len(responseLines)
 	}
-	
+
 	return totalHeight
 }
 
@@ -422,10 +422,10 @@ func (tcn *ToolCallMessageNode) WithBounds(bounds NodeBounds) MessageNode {
 
 func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLine {
 	tcn.invalidateCache(area.Width)
-	
+
 	if !tcn.cache.Valid {
 		var lines []RenderedLine
-		
+
 		// Render tool calls
 		for i, toolCall := range tcn.message.ToolCalls {
 			toolText := fmt.Sprintf("🔧 Tool: %s", toolCall.Function.Name)
@@ -435,7 +435,7 @@ func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLin
 					toolText += fmt.Sprintf(" (args: %v)", toolCall.Function.Arguments)
 				}
 			}
-			
+
 			toolLines := WrapText(toolText, area.Width)
 			for _, line := range toolLines {
 				style := StyleAssistantText.Foreground(tcell.ColorGreen)
@@ -450,13 +450,13 @@ func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLin
 					Indent: 0,
 				})
 			}
-			
+
 			// Add spacing between tool calls
 			if i < len(tcn.message.ToolCalls)-1 {
 				lines = append(lines, RenderedLine{Text: "", Style: tcell.StyleDefault, Indent: 0})
 			}
 		}
-		
+
 		tcn.cache.Lines = make([]string, len(lines))
 		tcn.cache.Styles = make([]tcell.Style, len(lines))
 		for i, line := range lines {
@@ -464,10 +464,10 @@ func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLin
 			tcn.cache.Styles[i] = line.Style
 		}
 		tcn.cache.Valid = true
-		
+
 		return lines
 	}
-	
+
 	// Convert cached data to RenderedLine format
 	result := make([]RenderedLine, len(tcn.cache.Lines))
 	for i, line := range tcn.cache.Lines {
@@ -477,7 +477,7 @@ func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLin
 			Indent: 0,
 		}
 	}
-	
+
 	return result
 }
 
@@ -490,10 +490,10 @@ func (tcn *ToolCallMessageNode) CalculateHeight(width int) int {
 				toolText += fmt.Sprintf(" (args: %v)", toolCall.Function.Arguments)
 			}
 		}
-		
+
 		lines := WrapText(toolText, width)
 		height += len(lines)
-		
+
 		if i < len(tcn.message.ToolCalls)-1 {
 			height += 1 // spacing
 		}
@@ -515,8 +515,8 @@ func (tcn *ToolCallMessageNode) HandleKeyEvent(ev *tcell.EventKey) (bool, NodeSt
 	return false, tcn.state
 }
 
-func (tcn *ToolCallMessageNode) IsCollapsible() bool    { return true }
-func (tcn *ToolCallMessageNode) HasDetailView() bool    { return true }
+func (tcn *ToolCallMessageNode) IsCollapsible() bool { return true }
+func (tcn *ToolCallMessageNode) HasDetailView() bool { return true }
 func (tcn *ToolCallMessageNode) GetPreviewText() string {
 	if len(tcn.message.ToolCalls) > 0 {
 		return fmt.Sprintf("Tool: %s", tcn.message.ToolCalls[0].Function.Name)
@@ -537,14 +537,14 @@ func (tnf *TextNodeFactory) CanHandle(msg chat.Message) bool {
 	if msg.Role == chat.RoleUser || msg.Role == chat.RoleSystem || msg.Role == chat.RoleError {
 		return true
 	}
-	
+
 	if msg.Role == chat.RoleAssistant {
 		// Check if it has thinking blocks or tool calls
 		parsed := ParseThinkingBlock(msg.Content)
 		hasTools := len(msg.ToolCalls) > 0
 		return !parsed.HasThinking && !hasTools
 	}
-	
+
 	return false
 }
 
@@ -558,7 +558,7 @@ func (tnf *ThinkingNodeFactory) CanHandle(msg chat.Message) bool {
 	if msg.Role != chat.RoleAssistant {
 		return false
 	}
-	
+
 	parsed := ParseThinkingBlock(msg.Content)
 	return parsed.HasThinking
 }

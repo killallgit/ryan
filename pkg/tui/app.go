@@ -318,20 +318,20 @@ func (app *App) handleKeyEvent(ev *tcell.EventKey) {
 
 func (app *App) handleMouseEvent(ev *tcell.EventMouse) {
 	log := logger.WithComponent("tui_app")
-	
+
 	// Get mouse coordinates
 	x, y := ev.Position()
 	buttons := ev.Buttons()
-	
+
 	log.Debug("Mouse event received", "x", x, "y", y, "buttons", buttons)
-	
+
 	// Handle modal first - if modal is visible, consume the click
 	if app.modal.Visible {
 		app.modal = app.modal.Hide()
 		log.Debug("Modal dismissed by mouse click")
 		return
 	}
-	
+
 	// Handle menu clicks
 	if app.viewManager.IsMenuVisible() {
 		// Let the menu handle the mouse event
@@ -339,7 +339,7 @@ func (app *App) handleMouseEvent(ev *tcell.EventMouse) {
 			return
 		}
 	}
-	
+
 	// Only handle left mouse button clicks for now
 	if buttons&tcell.ButtonPrimary != 0 {
 		// Let the current view handle the mouse event

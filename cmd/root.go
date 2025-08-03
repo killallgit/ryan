@@ -139,6 +139,11 @@ var rootCmd = &cobra.Command{
 		}
 
 		log.Info("Application shutting down")
+
+		// Close log files
+		if err := logger.Close(); err != nil {
+			fmt.Printf("Failed to close log files: %v\n", err)
+		}
 	},
 }
 

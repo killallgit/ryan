@@ -112,7 +112,8 @@ func Load(cfgFile string) (*Config, error) {
 
 	// Read config file if it exists
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		// Log config file usage instead of printing to stderr
+		// This prevents cluttering TUI output
 	}
 
 	// Create config instance
@@ -134,7 +135,7 @@ func Load(cfgFile string) (*Config, error) {
 // setDefaults sets all default configuration values
 func setDefaults() {
 	// Ollama defaults
-	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
+	viper.SetDefault("ollama.url", "http://localhost:11434")
 	viper.SetDefault("ollama.model", "qwen3:latest")
 	viper.SetDefault("ollama.system_prompt", "")
 	viper.SetDefault("ollama.timeout", "90s")
@@ -230,7 +231,7 @@ func InitializeDefaults() error {
 	v.SetDefault("show_thinking", true)
 	v.SetDefault("streaming", true)
 
-	v.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
+	v.SetDefault("ollama.url", "http://localhost:11434")
 	v.SetDefault("ollama.model", "qwen3:latest")
 	v.SetDefault("ollama.system_prompt", "")
 	v.SetDefault("ollama.timeout", "90s")

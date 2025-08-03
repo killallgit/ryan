@@ -66,7 +66,7 @@ func TestMessageNodeManager_Selection(t *testing.T) {
 
 	manager.SetMessages([]chat.Message{userMsg})
 	nodes := manager.GetNodes()
-	
+
 	if len(nodes) == 0 {
 		t.Fatal("Expected at least 1 node")
 	}
