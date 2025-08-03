@@ -136,22 +136,28 @@ var rootCmd = &cobra.Command{
 			log.Debug("Initialized tool registry with built-in tools")
 		}
 
-		// Create controller - for now, keep using standard controllers
-		// TODO: Add LangChain controller support with proper interface design
+		// Create controller - use enhanced LangChain controller if enabled
 		var controller *controllers.ChatController
-		if systemPrompt != "" {
-			controller = controllers.NewChatControllerWithSystem(client, model, systemPrompt, toolRegistry)
-			if toolRegistry != nil {
-				log.Debug("Created chat controller with system prompt and tools")
+		
+		// TODO: Integrate enhanced LangChain controller when interface refactoring is complete
+		// For now, using standard controller to maintain compatibility
+		
+		// Fallback to standard controller if enhanced controller not used/failed
+		if controller == nil {
+			if systemPrompt != "" {
+				controller = controllers.NewChatControllerWithSystem(client, model, systemPrompt, toolRegistry)
+				if toolRegistry != nil {
+					log.Debug("Created standard chat controller with system prompt and tools")
+				} else {
+					log.Debug("Created standard chat controller with system prompt but without tools")
+				}
 			} else {
-				log.Debug("Created chat controller with system prompt but without tools")
-			}
-		} else {
-			controller = controllers.NewChatController(client, model, toolRegistry)
-			if toolRegistry != nil {
-				log.Debug("Created chat controller without system prompt but with tools")
-			} else {
-				log.Debug("Created chat controller without system prompt or tools")
+				controller = controllers.NewChatController(client, model, toolRegistry)
+				if toolRegistry != nil {
+					log.Debug("Created standard chat controller without system prompt but with tools")
+				} else {
+					log.Debug("Created standard chat controller without system prompt or tools")
+				}
 			}
 		}
 
