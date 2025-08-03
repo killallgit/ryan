@@ -16,23 +16,22 @@ import (
 )
 
 type App struct {
-	screen            tcell.Screen
-	controller        *controllers.ChatController
-	input             InputField
-	messages          MessageDisplay
-	status            StatusBar
-	layout            Layout
-	quit              bool
-	sending           bool          // Track if we're currently sending a message
-	sendStartTime     time.Time     // Track when message sending started
-	timeout           time.Duration // Request timeout duration
-	cancelSend        chan bool     // Channel to cancel current send operation
-	viewManager       *ViewManager
-	chatView          *ChatView
-	downloadModalView *DownloadModalView
-	spinnerTicker     *time.Ticker
-	spinnerStop       chan bool
-	modal             ModalDialog
+	screen        tcell.Screen
+	controller    *controllers.ChatController
+	input         InputField
+	messages      MessageDisplay
+	status        StatusBar
+	layout        Layout
+	quit          bool
+	sending       bool          // Track if we're currently sending a message
+	sendStartTime time.Time     // Track when message sending started
+	timeout       time.Duration // Request timeout duration
+	cancelSend    chan bool     // Channel to cancel current send operation
+	viewManager   *ViewManager
+	chatView      *ChatView
+	spinnerTicker *time.Ticker
+	spinnerStop   chan bool
+	modal         ModalDialog
 
 	// Streaming state
 	streaming         bool                     // Track if we're currently streaming
@@ -100,30 +99,26 @@ func NewApp(controller *controllers.ChatController) (*App, error) {
 	viewManager := NewViewManager()
 	chatView := NewChatView(controller, modelsController, screen)
 	modelView := NewModelView(modelsController, controller, screen)
-	downloadModalView := NewDownloadModalView(modelsController, controller, screen)
-
 	viewManager.RegisterView("chat", chatView)
 	viewManager.RegisterView("models", modelView)
-	viewManager.RegisterView("download", downloadModalView)
-	log.Debug("Registered views with view manager", "views", []string{"chat", "models", "download"})
+	log.Debug("Registered views with view manager", "views", []string{"chat", "models"})
 
 	app := &App{
-		screen:            screen,
-		controller:        controller,
-		input:             NewInputField(width),
-		messages:          NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
-		status:            NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
-		layout:            NewLayout(width, height),
-		quit:              false,
-		sending:           false,
-		timeout:           cfg.Ollama.Timeout,
-		cancelSend:        make(chan bool, 1), // Buffered channel for cancellation
-		viewManager:       viewManager,
-		chatView:          chatView,
-		downloadModalView: downloadModalView,
-		spinnerTicker:     time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
-		spinnerStop:       make(chan bool),
-		modal:             NewModalDialog(),
+		screen:        screen,
+		controller:    controller,
+		input:         NewInputField(width),
+		messages:      NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
+		status:        NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
+		layout:        NewLayout(width, height),
+		quit:          false,
+		sending:       false,
+		timeout:       cfg.Ollama.Timeout,
+		cancelSend:    make(chan bool, 1), // Buffered channel for cancellation
+		viewManager:   viewManager,
+		chatView:      chatView,
+		spinnerTicker: time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
+		spinnerStop:   make(chan bool),
+		modal:         NewModalDialog(),
 
 		// Initialize streaming state
 		streaming:         false,
@@ -716,9 +711,6 @@ func (app *App) handleModelDownloadProgress(ev *ModelDownloadProgressEvent) {
 	} else if chatView, ok := currentView.(*ChatView); ok {
 		chatView.HandleModelDownloadProgress(*ev)
 		log.Debug("Forwarded ModelDownloadProgressEvent to ChatView")
-	} else if downloadModalView, ok := currentView.(*DownloadModalView); ok {
-		downloadModalView.HandleModelDownloadProgress(*ev)
-		log.Debug("Forwarded ModelDownloadProgressEvent to DownloadModalView")
 	} else {
 		log.Debug("Current view does not support download progress, ignoring ModelDownloadProgressEvent", "current_view_type", currentView)
 	}
@@ -734,9 +726,6 @@ func (app *App) handleModelDownloadComplete(ev *ModelDownloadCompleteEvent) {
 	} else if chatView, ok := currentView.(*ChatView); ok {
 		chatView.HandleModelDownloadComplete(*ev)
 		log.Debug("Forwarded ModelDownloadCompleteEvent to ChatView")
-	} else if downloadModalView, ok := currentView.(*DownloadModalView); ok {
-		downloadModalView.HandleModelDownloadComplete(*ev)
-		log.Debug("Forwarded ModelDownloadCompleteEvent to DownloadModalView")
 	} else {
 		log.Debug("Current view does not support download complete, ignoring ModelDownloadCompleteEvent", "current_view_type", currentView)
 	}
@@ -752,9 +741,6 @@ func (app *App) handleModelDownloadError(ev *ModelDownloadErrorEvent) {
 	} else if chatView, ok := currentView.(*ChatView); ok {
 		chatView.HandleModelDownloadError(*ev)
 		log.Debug("Forwarded ModelDownloadErrorEvent to ChatView")
-	} else if downloadModalView, ok := currentView.(*DownloadModalView); ok {
-		downloadModalView.HandleModelDownloadError(*ev)
-		log.Debug("Forwarded ModelDownloadErrorEvent to DownloadModalView")
 	} else {
 		log.Debug("Current view does not support download error, ignoring ModelDownloadErrorEvent", "current_view_type", currentView)
 	}

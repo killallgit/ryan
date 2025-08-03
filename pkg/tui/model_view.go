@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/killallgit/ryan/pkg/models"
 	"github.com/spf13/viper"
 )
 
@@ -28,6 +29,7 @@ type ModelView struct {
 	downloadCancel    context.CancelFunc
 	showingDetails    bool
 	detailsModel      ModelInfo
+	selectAfterRefresh string // Model name to select after next refresh
 }
 
 func NewModelView(controller *controllers.ModelsController, chatController *controllers.ChatController, screen tcell.Screen) *ModelView {
@@ -54,6 +56,7 @@ func NewModelView(controller *controllers.ModelsController, chatController *cont
 		downloadCancel:    nil,
 		showingDetails:    false,
 		detailsModel:      ModelInfo{},
+		selectAfterRefresh: "",
 	}
 
 	// Don't auto-refresh on creation - wait until view becomes active
@@ -283,8 +286,33 @@ func (mv *ModelView) refreshModels() {
 		}
 
 		// Convert models and set running status
-		models := convertOllamaModelsToModelInfoWithStatus(response.Models, runningModelNames)
-		log.Debug("Converted models to UI format", "total_models", len(models))
+		downloadedModels := convertOllamaModelsToModelInfoWithStatus(response.Models, runningModelNames)
+
+		// Get available models and merge with downloaded ones
+		availableModels := createAvailableModelInfo()
+		downloadedModelNames := make(map[string]bool)
+		for _, model := range downloadedModels {
+			downloadedModelNames[model.Name] = true
+			log.Debug("Downloaded model found", "name", model.Name)
+		}
+
+		// Filter out available models that are already downloaded
+		var filteredAvailable []ModelInfo
+		for _, available := range availableModels {
+			if !isModelAlreadyDownloaded(available.Name, downloadedModelNames) {
+				filteredAvailable = append(filteredAvailable, available)
+				log.Debug("Available model added to list", "name", available.Name)
+			} else {
+				log.Debug("Available model filtered out (already downloaded)", "name", available.Name)
+			}
+		}
+
+		// Combine downloaded and available models
+		models := append(downloadedModels, filteredAvailable...)
+		
+		// Sort models: downloaded first, then available, alphabetically within each group
+		sortModelsByDownloadStatus(models)
+		log.Debug("Converted models to UI format", "downloaded_models", len(downloadedModels), "available_models", len(filteredAvailable), "total_models", len(models))
 
 		log.Debug("Posting ModelListUpdateEvent")
 		mv.screen.PostEvent(NewModelListUpdateEvent(models))
@@ -312,6 +340,20 @@ func (mv *ModelView) HandleModelListUpdate(ev ModelListUpdateEvent) {
 
 	mv.loading = false
 	mv.modelList = mv.modelList.WithModels(ev.Models)
+
+	// If we have a model to select after refresh, find and select it
+	if mv.selectAfterRefresh != "" {
+		for i, model := range ev.Models {
+			if model.Name == mv.selectAfterRefresh {
+				mv.modelList = mv.modelList.WithSelection(i)
+				mv.ensureSelectionVisible()
+				log.Debug("Selected newly downloaded model in UI", "model", mv.selectAfterRefresh, "index", i)
+				break
+			}
+		}
+		// Clear the selection flag
+		mv.selectAfterRefresh = ""
+	}
 
 	// Check if current model is available
 	currentModel := mv.chatController.GetModel()
@@ -353,7 +395,90 @@ func (mv *ModelView) HandleModelDeleted(ev ModelDeletedEvent) {
 
 	mv.loading = false
 	mv.status = mv.status.WithStatus("Model deleted: " + ev.ModelName)
-	mv.refreshModels()
+	
+	// Instead of full refresh, update the deleted model in place
+	mv.markModelAsAvailable(ev.ModelName)
+}
+
+// markModelAsAvailable finds a model by name and marks it as available for download
+func (mv *ModelView) markModelAsAvailable(modelName string) {
+	log := logger.WithComponent("model_view")
+	
+	// Find the model in the current list
+	models := mv.modelList.Models
+	var wasSelected bool = false
+	var originalIndex int = -1
+	
+	for i, model := range models {
+		if model.Name == modelName {
+			originalIndex = i
+			wasSelected = (i == mv.modelList.Selected)
+			
+			// Mark as not downloaded and update properties
+			models[i].IsDownloaded = false
+			models[i].IsRunning = false
+			models[i].Size = 0 // Reset size since it's not downloaded
+			
+			// Get estimated size from available models info
+			availableModels := createAvailableModelInfo()
+			for _, available := range availableModels {
+				if available.Name == modelName {
+					models[i].Size = available.Size
+					models[i].ParameterSize = available.ParameterSize
+					models[i].QuantizationLevel = available.QuantizationLevel
+					break
+				}
+			}
+			
+			log.Debug("Marked model as available for download", "model", modelName)
+			break
+		}
+	}
+	
+	if originalIndex >= 0 {
+		// Sort the models to move the newly available model to the correct position
+		sortModelsByDownloadStatus(models)
+		
+		// If the deleted model was selected, find its new position and select it
+		newSelection := mv.modelList.Selected
+		if wasSelected {
+			for i, model := range models {
+				if model.Name == modelName {
+					newSelection = i
+					break
+				}
+			}
+		}
+		
+		// Update the model list with the modified models and preserve selection
+		mv.modelList = mv.modelList.WithModels(models).WithSelection(newSelection)
+		mv.ensureSelectionVisible()
+		
+		// Trigger screen refresh to update the display
+		mv.screen.Show()
+		return
+	}
+	
+	// If model wasn't found in current list, add it as available
+	availableModels := createAvailableModelInfo()
+	for _, available := range availableModels {
+		if available.Name == modelName {
+			// Add the model back to the list as available
+			updatedModels := append(models, available)
+			
+			// Sort the models to place the newly added model in the correct position
+			sortModelsByDownloadStatus(updatedModels)
+			
+			mv.modelList = mv.modelList.WithModels(updatedModels)
+			log.Debug("Added deleted model back to list as available", "model", modelName)
+			
+			// Trigger screen refresh
+			mv.screen.Show()
+			return
+		}
+	}
+	
+	log.Warn("Could not find deleted model to mark as available", "model", modelName)
 }
 
 func (mv *ModelView) selectNext() {
@@ -458,12 +583,11 @@ func (mv *ModelView) changeModel() {
 
 	selectedModel := mv.modelList.Models[mv.modelList.Selected]
 	log := logger.WithComponent("model_view")
-	log.Debug("Changing model", "selected_model", selectedModel.Name)
+	log.Debug("Changing model", "selected_model", selectedModel.Name, "is_downloaded", selectedModel.IsDownloaded)
 
-	// Check if model exists locally, if not, show download prompt
-	err := mv.chatController.ValidateModel(selectedModel.Name)
-	if err != nil {
-		log.Debug("Model not found locally, showing download prompt", "model", selectedModel.Name, "error", err)
+	// Check if model is downloaded
+	if !selectedModel.IsDownloaded {
+		log.Debug("Model not downloaded, showing download prompt", "model", selectedModel.Name)
 		mv.downloadModal = mv.downloadModal.Show(selectedModel.Name)
 		return
 	}
@@ -596,7 +720,7 @@ func (mv *ModelView) renderHelpText(screen tcell.Screen, area Rect) {
 		}
 	}
 
-	helpText := "[n] new model | [ctrl-d] delete | [d] details | [enter] select | [r] refresh | [j/k] navigate"
+	helpText := "[n] new model | [ctrl-d] delete | [d] details | [enter] select/download | [r] refresh | [j/k] navigate"
 	helpStyle := StyleDimText
 
 	// Center the help text
@@ -612,6 +736,9 @@ func (mv *ModelView) startModelDownload(modelName string) {
 	log := logger.WithComponent("model_view")
 	log.Debug("Starting model download", "model_name", modelName)
 
+	// Hide download modal and show progress modal
+	mv.downloadModal = mv.downloadModal.Hide()
+
 	// Create cancellable context
 	mv.downloadCtx, mv.downloadCancel = context.WithCancel(context.Background())
 
@@ -620,6 +747,7 @@ func (mv *ModelView) startModelDownload(modelName string) {
 
 	// Start download in goroutine
 	go func() {
+		var lastProgress float64 = 0.0
 		err := mv.controller.PullWithProgress(mv.downloadCtx, modelName, func(status string, completed, total int64) {
 			// Calculate progress
 			progress := 0.0
@@ -627,8 +755,13 @@ func (mv *ModelView) startModelDownload(modelName string) {
 				progress = float64(completed) / float64(total)
 			}
 
-			// Post progress event
-			mv.screen.PostEvent(NewModelDownloadProgressEvent(modelName, status, progress))
+			// Smooth out progress updates - only update if progress is actually advancing
+			// This prevents the modal from jumping back to 0% during different download phases
+			if progress > lastProgress || status == "success" {
+				lastProgress = progress
+				// Post progress event
+				mv.screen.PostEvent(NewModelDownloadProgressEvent(modelName, status, progress))
+			}
 		})
 
 		if err != nil {
@@ -657,13 +790,16 @@ func (mv *ModelView) HandleModelDownloadComplete(ev ModelDownloadCompleteEvent) 
 	log := logger.WithComponent("model_view")
 	log.Debug("Handling ModelDownloadCompleteEvent", "model", ev.ModelName)
 
-	// Hide progress modal
+	// Hide progress modal (download modal already hidden when download started)
 	mv.progressModal = mv.progressModal.Hide()
 	mv.downloadCtx = nil
 	mv.downloadCancel = nil
 
 	// Update status
 	mv.status = mv.status.WithStatus("Model downloaded successfully: " + ev.ModelName)
+
+	// Mark this model to be selected after the refresh
+	mv.selectAfterRefresh = ev.ModelName
 
 	// Refresh models list to show the new model
 	mv.refreshModels()
@@ -683,7 +819,7 @@ func (mv *ModelView) HandleModelDownloadError(ev ModelDownloadErrorEvent) {
 	log := logger.WithComponent("model_view")
 	log.Error("Handling ModelDownloadErrorEvent", "model", ev.ModelName, "error", ev.Error)
 
-	// Hide progress modal
+	// Hide progress modal (download modal already hidden when download started)
 	mv.progressModal = mv.progressModal.Hide()
 	mv.downloadCtx = nil
 	mv.downloadCancel = nil
@@ -748,20 +884,60 @@ func (mv *ModelView) renderModelDetailsView(screen tcell.Screen, area Rect) {
 	// Basic information
 	sizeGB := float64(mv.detailsModel.Size) / (1024 * 1024 * 1024)
 
+	// Get rich model information
+	modelInfo := models.GetModelInfo(mv.detailsModel.Name)
+
 	details := []struct {
 		label string
 		value string
 		style tcell.Style
 	}{
 		{"Name:", mv.detailsModel.Name, valueStyle},
-		{"Size:", fmt.Sprintf("%.2f GB (%d bytes)", sizeGB, mv.detailsModel.Size), valueStyle},
+		{"Size:", func() string {
+			if mv.detailsModel.Size > 0 {
+				return fmt.Sprintf("%.2f GB (%d bytes)", sizeGB, mv.detailsModel.Size)
+			}
+			return "Unknown (not downloaded)"
+		}(), valueStyle},
 		{"Parameters:", mv.detailsModel.ParameterSize, valueStyle},
 		{"Quantization:", mv.detailsModel.QuantizationLevel, valueStyle},
+		{"Tool Support:", func() string {
+			if modelInfo.ToolCompatibility != models.ToolCompatibilityUnknown {
+				return modelInfo.ToolCompatibility.String()
+			}
+			return "Unknown"
+		}(), func() tcell.Style {
+			switch modelInfo.ToolCompatibility {
+			case models.ToolCompatibilityExcellent:
+				return tcell.StyleDefault.Foreground(tcell.ColorGreen)
+			case models.ToolCompatibilityGood:
+				return tcell.StyleDefault.Foreground(tcell.ColorYellow)
+			case models.ToolCompatibilityBasic:
+				return tcell.StyleDefault.Foreground(tcell.ColorOrange)
+			case models.ToolCompatibilityNone:
+				return tcell.StyleDefault.Foreground(tcell.ColorRed)
+			default:
+				return valueStyle
+			}
+		}()},
+		{"Recommended:", func() string {
+			if modelInfo.RecommendedForTools {
+				return "Yes"
+			}
+			return "No"
+		}(), func() tcell.Style {
+			if modelInfo.RecommendedForTools {
+				return tcell.StyleDefault.Foreground(tcell.ColorGreen)
+			}
+			return valueStyle
+		}()},
 		{"Status:", func() string {
-			if mv.detailsModel.IsRunning {
+			if !mv.detailsModel.IsDownloaded {
+				return "Available for download"
+			} else if mv.detailsModel.IsRunning {
 				return "Running"
 			}
-			return "Stopped"
+			return "Downloaded"
 		}(), valueStyle},
 		{"Current Model:", func() string {
 			if isCurrentModel {
@@ -774,7 +950,12 @@ func (mv *ModelView) renderModelDetailsView(screen tcell.Screen, area Rect) {
 			}
 			return valueStyle
 		}()},
-		{"Modified:", mv.detailsModel.ModifiedAt.Format("2006-01-02 15:04:05"), valueStyle},
+		{"Modified:", func() string {
+			if mv.detailsModel.IsDownloaded && !mv.detailsModel.ModifiedAt.IsZero() {
+				return mv.detailsModel.ModifiedAt.Format("2006-01-02 15:04:05")
+			}
+			return "Not downloaded"
+		}(), valueStyle},
 	}
 
 	for _, detail := range details {
@@ -792,6 +973,43 @@ func (mv *ModelView) renderModelDetailsView(screen tcell.Screen, area Rect) {
 		}
 
 		y += 2
+	}
+
+	// Add model notes if available
+	if modelInfo.Notes != "" && y < contentArea.Y+contentArea.Height-3 {
+		y++ // Add spacing
+		notesTitle := "Notes:"
+		renderText(screen, contentArea.X, y, notesTitle, labelStyle)
+		y++
+
+		// Wrap notes text to fit content area
+		notesStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
+		maxWidth := contentArea.Width - 4
+		notes := modelInfo.Notes
+
+		for len(notes) > 0 && y < contentArea.Y+contentArea.Height-2 {
+			lineLength := maxWidth
+			if len(notes) < lineLength {
+				lineLength = len(notes)
+			} else {
+				// Find last space before max width to avoid breaking words
+				for lineLength > 0 && notes[lineLength] != ' ' {
+					lineLength--
+				}
+				if lineLength == 0 {
+					lineLength = maxWidth // Fallback if no space found
+				}
+			}
+
+			line := notes[:lineLength]
+			notes = notes[lineLength:]
+			if len(notes) > 0 && notes[0] == ' ' {
+				notes = notes[1:] // Remove leading space
+			}
+
+			renderText(screen, contentArea.X+2, y, line, notesStyle)
+			y++
+		}
 	}
 
 	// Instructions at bottom

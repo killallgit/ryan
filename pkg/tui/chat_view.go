@@ -675,6 +675,7 @@ func (cv *ChatView) startModelDownload(modelName string) {
 
 	// Start download in goroutine
 	go func() {
+		var lastProgress float64 = 0.0
 		err := cv.modelsController.PullWithProgress(cv.downloadCtx, modelName, func(status string, completed, total int64) {
 			// Calculate progress
 			progress := 0.0
@@ -682,8 +683,13 @@ func (cv *ChatView) startModelDownload(modelName string) {
 				progress = float64(completed) / float64(total)
 			}
 
-			// Post progress event
-			cv.screen.PostEvent(NewModelDownloadProgressEvent(modelName, status, progress))
+			// Smooth out progress updates - only update if progress is actually advancing
+			// This prevents the modal from jumping back to 0% during different download phases
+			if progress > lastProgress || status == "success" {
+				lastProgress = progress
+				// Post progress event
+				cv.screen.PostEvent(NewModelDownloadProgressEvent(modelName, status, progress))
+			}
 		})
 
 		if err != nil {
@@ -724,6 +730,9 @@ func (cv *ChatView) HandleModelDownloadComplete(ev ModelDownloadCompleteEvent) {
 	cv.controller.SetModel(ev.ModelName)
 	cv.status = cv.status.WithModel(ev.ModelName)
 
+	// Force screen refresh to update UI immediately (hide modal)
+	cv.screen.Show()
+
 	// Send the pending message if we have one
 	if cv.pendingMessage != "" {
 		log.Debug("Sending pending message after download", "message", cv.pendingMessage)
@@ -750,6 +759,9 @@ func (cv *ChatView) HandleModelDownloadError(ev ModelDownloadErrorEvent) {
 	} else {
 		cv.status = cv.status.WithStatus("Model download failed: " + ev.Error.Error())
 	}
+
+	// Force screen refresh to update UI immediately (hide modal)
+	cv.screen.Show()
 }
 
 // Streaming Helper Methods

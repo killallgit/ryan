@@ -573,7 +573,8 @@ func (md ModalDialog) Render(screen tcell.Screen, area Rect) {
 		Height: modalHeight,
 	}
 
-	// Draw modal background and border
+	// Clear modal background and draw border
+	clearArea(screen, modalArea)
 	borderStyle := StyleBorderError
 	drawBorder(screen, modalArea, borderStyle)
 
@@ -719,7 +720,8 @@ func (tim TextInputModal) Render(screen tcell.Screen, area Rect) {
 		Height: modalHeight,
 	}
 
-	// Draw modal background and border
+	// Clear modal background and draw border
+	clearArea(screen, modalArea)
 	borderStyle := StyleBorder
 	drawBorder(screen, modalArea, borderStyle)
 
@@ -880,7 +882,8 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 		Height: modalHeight,
 	}
 
-	// Draw modal background and border
+	// Clear modal background and draw border
+	clearArea(screen, modalArea)
 	borderStyle := StyleBorderError
 	drawBorder(screen, modalArea, borderStyle)
 
@@ -924,36 +927,40 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 }
 
 type DownloadPromptModal struct {
-	Visible   bool
-	ModelName string
-	Width     int
-	Height    int
+	Visible        bool
+	ModelName      string
+	Width          int
+	Height         int
+	SelectedButton int // 0 = Cancel, 1 = Download
 }
 
 func NewDownloadPromptModal() DownloadPromptModal {
 	return DownloadPromptModal{
-		Visible:   false,
-		ModelName: "",
-		Width:     60,
-		Height:    10,
+		Visible:        false,
+		ModelName:      "",
+		Width:          60,
+		Height:         12, // Increased height for buttons
+		SelectedButton: 1,  // Default to Download button
 	}
 }
 
 func (dpm DownloadPromptModal) Show(modelName string) DownloadPromptModal {
 	return DownloadPromptModal{
-		Visible:   true,
-		ModelName: modelName,
-		Width:     dpm.Width,
-		Height:    dpm.Height,
+		Visible:        true,
+		ModelName:      modelName,
+		Width:          dpm.Width,
+		Height:         dpm.Height,
+		SelectedButton: 1, // Default to Download button
 	}
 }
 
 func (dpm DownloadPromptModal) Hide() DownloadPromptModal {
 	return DownloadPromptModal{
-		Visible:   false,
-		ModelName: dpm.ModelName,
-		Width:     dpm.Width,
-		Height:    dpm.Height,
+		Visible:        false,
+		ModelName:      dpm.ModelName,
+		Width:          dpm.Width,
+		Height:         dpm.Height,
+		SelectedButton: dpm.SelectedButton,
 	}
 }
 
@@ -966,11 +973,34 @@ func (dpm DownloadPromptModal) HandleKeyEvent(ev *tcell.EventKey) (DownloadPromp
 	case tcell.KeyEscape:
 		return dpm.Hide(), false, false
 	case tcell.KeyEnter:
-		return dpm.Hide(), true, false
+		// Enter confirms the selected button
+		confirmed := dpm.SelectedButton == 1 // 1 = Download button
+		return dpm.Hide(), confirmed, false
+	case tcell.KeyTab:
+		// Tab cycles between buttons
+		newButton := (dpm.SelectedButton + 1) % 2
+		return DownloadPromptModal{
+			Visible:        dpm.Visible,
+			ModelName:      dpm.ModelName,
+			Width:          dpm.Width,
+			Height:         dpm.Height,
+			SelectedButton: newButton,
+		}, false, false
+	case tcell.KeyLeft, tcell.KeyRight:
+		// Arrow keys also switch between buttons
+		newButton := (dpm.SelectedButton + 1) % 2
+		return DownloadPromptModal{
+			Visible:        dpm.Visible,
+			ModelName:      dpm.ModelName,
+			Width:          dpm.Width,
+			Height:         dpm.Height,
+			SelectedButton: newButton,
+		}, false, false
 	default:
 		if ev.Rune() != 0 {
 			switch ev.Rune() {
 			case 'y', 'Y':
+				// Keep Y/N functionality but don't document it
 				return dpm.Hide(), true, false
 			case 'n', 'N':
 				return dpm.Hide(), false, false
@@ -1005,7 +1035,8 @@ func (dpm DownloadPromptModal) Render(screen tcell.Screen, area Rect) {
 		Height: modalHeight,
 	}
 
-	// Draw modal background and border
+	// Clear modal background and draw border
+	clearArea(screen, modalArea)
 	borderStyle := StyleBorder
 	drawBorder(screen, modalArea, borderStyle)
 
@@ -1013,7 +1044,6 @@ func (dpm DownloadPromptModal) Render(screen tcell.Screen, area Rect) {
 	titleStyle := StyleHighlight
 	messageStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
 	modelStyle := tcell.StyleDefault.Foreground(ColorModelName).Bold(true)
-	instructionStyle := StyleDimText
 
 	// Render title
 	title := "Download Model"
@@ -1042,13 +1072,85 @@ func (dpm DownloadPromptModal) Render(screen tcell.Screen, area Rect) {
 	}
 	renderTextWithLimit(screen, message2X, modalArea.Y+6, modalArea.Width-2, message2, messageStyle)
 
-	// Render instructions
-	instruction := "[Y]es / [N]o / [Esc] to cancel"
-	instrX := modalArea.X + (modalArea.Width-len(instruction))/2
-	if instrX < modalArea.X+1 {
-		instrX = modalArea.X + 1
+	// Render buttons
+	buttonY := modalArea.Y + modalArea.Height - 3
+	buttonWidth := 12  // Slightly wider for better appearance
+	buttonHeight := 3
+	buttonSpacing := 6
+	totalButtonWidth := (buttonWidth * 2) + buttonSpacing
+	startX := modalArea.X + (modalArea.Width-totalButtonWidth)/2
+
+	// Cancel button (left)
+	cancelX := startX
+	cancelStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
+	cancelBgStyle := tcell.StyleDefault.Background(tcell.ColorDefault)
+	
+	if dpm.SelectedButton == 0 {
+		// Selected: thin solid border
+		cancelBgStyle = tcell.StyleDefault.Background(tcell.ColorDefault)
+		// Draw thin border around button
+		for x := cancelX - 1; x <= cancelX + buttonWidth; x++ {
+			screen.SetContent(x, buttonY-1, '─', nil, cancelStyle)
+			screen.SetContent(x, buttonY+buttonHeight, '─', nil, cancelStyle)
+		}
+		for y := buttonY; y < buttonY+buttonHeight; y++ {
+			screen.SetContent(cancelX-1, y, '│', nil, cancelStyle)
+			screen.SetContent(cancelX+buttonWidth, y, '│', nil, cancelStyle)
+		}
+		// Corner pieces
+		screen.SetContent(cancelX-1, buttonY-1, '┌', nil, cancelStyle)
+		screen.SetContent(cancelX+buttonWidth, buttonY-1, '┐', nil, cancelStyle)
+		screen.SetContent(cancelX-1, buttonY+buttonHeight, '└', nil, cancelStyle)
+		screen.SetContent(cancelX+buttonWidth, buttonY+buttonHeight, '┘', nil, cancelStyle)
 	}
-	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+
+	// Fill button background
+	for y := buttonY; y < buttonY+buttonHeight; y++ {
+		for x := cancelX; x < cancelX+buttonWidth; x++ {
+			screen.SetContent(x, y, ' ', nil, cancelBgStyle)
+		}
+	}
+
+	// Cancel text
+	cancelText := "Cancel"
+	cancelTextX := cancelX + (buttonWidth-len(cancelText))/2
+	renderTextWithLimit(screen, cancelTextX, buttonY+1, buttonWidth, cancelText, cancelStyle)
+
+	// Download button (right)
+	downloadX := startX + buttonWidth + buttonSpacing
+	downloadStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
+	downloadBgStyle := tcell.StyleDefault.Background(tcell.ColorDefault)
+	
+	if dpm.SelectedButton == 1 {
+		// Selected: thin solid border
+		downloadBgStyle = tcell.StyleDefault.Background(tcell.ColorDefault)
+		// Draw thin border around button
+		for x := downloadX - 1; x <= downloadX + buttonWidth; x++ {
+			screen.SetContent(x, buttonY-1, '─', nil, downloadStyle)
+			screen.SetContent(x, buttonY+buttonHeight, '─', nil, downloadStyle)
+		}
+		for y := buttonY; y < buttonY+buttonHeight; y++ {
+			screen.SetContent(downloadX-1, y, '│', nil, downloadStyle)
+			screen.SetContent(downloadX+buttonWidth, y, '│', nil, downloadStyle)
+		}
+		// Corner pieces
+		screen.SetContent(downloadX-1, buttonY-1, '┌', nil, downloadStyle)
+		screen.SetContent(downloadX+buttonWidth, buttonY-1, '┐', nil, downloadStyle)
+		screen.SetContent(downloadX-1, buttonY+buttonHeight, '└', nil, downloadStyle)
+		screen.SetContent(downloadX+buttonWidth, buttonY+buttonHeight, '┘', nil, downloadStyle)
+	}
+
+	// Fill button background
+	for y := buttonY; y < buttonY+buttonHeight; y++ {
+		for x := downloadX; x < downloadX+buttonWidth; x++ {
+			screen.SetContent(x, y, ' ', nil, downloadBgStyle)
+		}
+	}
+
+	// Download text
+	downloadText := "Download"
+	downloadTextX := downloadX + (buttonWidth-len(downloadText))/2
+	renderTextWithLimit(screen, downloadTextX, buttonY+1, buttonWidth, downloadText, downloadStyle)
 }
 
 type ProgressModal struct {
@@ -1177,7 +1279,8 @@ func (pm ProgressModal) Render(screen tcell.Screen, area Rect) {
 		Height: modalHeight,
 	}
 
-	// Draw modal background and border
+	// Clear modal background and draw border
+	clearArea(screen, modalArea)
 	borderStyle := tcell.StyleDefault.Foreground(ColorProgressBar)
 	drawBorder(screen, modalArea, borderStyle)
 
