@@ -187,8 +187,8 @@ func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 }
 
 func (cv *ChatView) handleHelpKey(ev *tcell.EventKey) bool {
-	// ? key to show help modal
-	if ev.Rune() == '?' {
+	// F2 key to show help modal
+	if ev.Key() == tcell.KeyF2 {
 		cv.helpModal = cv.helpModal.Show()
 		return true
 	}
@@ -249,7 +249,7 @@ func (cv *ChatView) updateStatusForMode() {
 			modeText = "🎯 Node Select | j/k=navigate, Tab=expand, Space=select, Esc/i=input"
 		}
 	} else {
-		modeText = "✏️ Input | Ctrl+N=node mode, ?=help"
+		modeText = "✏️ Input | Ctrl+N=node mode, F2=help"
 	}
 	cv.status = cv.status.WithStatus(modeText)
 }
