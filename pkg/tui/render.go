@@ -104,14 +104,14 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 						formatter := NewSimpleFormatter(chatWidth)
 						segments := ParseContentSegments(contentToRender)
 						formattedLines := formatter.FormatContentSegments(segments)
-						
+
 						for _, formattedLine := range formattedLines {
 							// Apply indentation
 							content := formattedLine.Content
 							if formattedLine.Indent > 0 {
 								content = strings.Repeat(" ", formattedLine.Indent) + content
 							}
-							
+
 							allLines = append(allLines, MessageLine{
 								Text:       content,
 								Role:       msg.Role,
@@ -282,14 +282,14 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 						formatter := NewSimpleFormatter(chatArea.Width)
 						segments := ParseContentSegments(contentToRender)
 						formattedLines := formatter.FormatContentSegments(segments)
-						
+
 						for _, formattedLine := range formattedLines {
 							// Apply indentation
 							content := formattedLine.Content
 							if formattedLine.Indent > 0 {
 								content = strings.Repeat(" ", formattedLine.Indent) + content
 							}
-							
+
 							allLines = append(allLines, MessageLine{
 								Text:       content,
 								Role:       msg.Role,
@@ -708,25 +708,25 @@ func RenderMessagesWithNodesAndSpinner(screen tcell.Screen, display MessageDispl
 
 	// Apply scroll offset
 	scrollOffset := display.Scroll
-	
+
 	for i, node := range nodes {
 		nodeHeight := node.CalculateHeight(area.Width)
-		
+
 		// Check if this node is visible after scrolling
 		nodeEndY := currentY + nodeHeight
 		if nodeEndY > scrollOffset && currentY < scrollOffset+availableHeight {
 			// Node is at least partially visible
 			adjustedY := startY + (currentY - scrollOffset)
-			
+
 			// Only include if it fits in the display area
 			if adjustedY < startY+availableHeight {
 				visibleNodes = append(visibleNodes, node)
 				nodeYPositions = append(nodeYPositions, adjustedY)
 			}
 		}
-		
+
 		currentY += nodeHeight
-		
+
 		// Add spacing between nodes (except after the last one)
 		if i < len(nodes)-1 {
 			currentY += 1
@@ -737,7 +737,7 @@ func RenderMessagesWithNodesAndSpinner(screen tcell.Screen, display MessageDispl
 	for i, node := range visibleNodes {
 		nodeY := nodeYPositions[i]
 		nodeHeight := node.CalculateHeight(area.Width)
-		
+
 		// Calculate the area for this node
 		nodeArea := Rect{
 			X:      area.X,
@@ -745,12 +745,12 @@ func RenderMessagesWithNodesAndSpinner(screen tcell.Screen, display MessageDispl
 			Width:  area.Width,
 			Height: nodeHeight,
 		}
-		
+
 		// Clip to available area
 		if nodeArea.Y+nodeArea.Height > startY+availableHeight {
 			nodeArea.Height = (startY + availableHeight) - nodeArea.Y
 		}
-		
+
 		if nodeArea.Height > 0 {
 			// Update node bounds for click handling
 			nodeBounds := NodeBounds{
@@ -760,17 +760,17 @@ func RenderMessagesWithNodesAndSpinner(screen tcell.Screen, display MessageDispl
 				Height: nodeArea.Height,
 			}
 			display.NodeManager.UpdateNodeBounds(node.ID(), nodeBounds)
-			
+
 			// Render the node
 			renderedLines := node.Render(nodeArea, node.State())
-			
+
 			// Render each line of the node
 			for lineIndex, renderedLine := range renderedLines {
 				lineY := nodeArea.Y + lineIndex
 				if lineY >= startY && lineY < startY+availableHeight {
 					// Apply indentation
 					lineX := nodeArea.X + renderedLine.Indent
-					
+
 					// Ensure we don't exceed the area width
 					maxWidth := nodeArea.Width - renderedLine.Indent
 					if maxWidth > 0 {
@@ -807,7 +807,7 @@ func CalculateNodesHeight(display MessageDisplay, width int) int {
 		// Fall back to legacy calculation
 		return CalculateMessageLines(display.Messages, width, false)
 	}
-	
+
 	return display.NodeManager.CalculateTotalHeight(width)
 }
 

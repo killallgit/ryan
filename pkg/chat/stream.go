@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
@@ -198,8 +199,11 @@ func (sc *StreamingClient) readStream(ctx context.Context, body io.ReadCloser, c
 }
 
 // generateStreamID creates a unique identifier for this stream
+var streamCounter int64
+
 func generateStreamID() string {
-	return fmt.Sprintf("stream-%d", time.Now().UnixNano())
+	id := atomic.AddInt64(&streamCounter, 1)
+	return fmt.Sprintf("stream-%d-%d", time.Now().UnixNano(), id)
 }
 
 // CreateStreamingChatRequest creates a streaming-enabled chat request
