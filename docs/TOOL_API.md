@@ -1,6 +1,6 @@
 # Tool System API Reference
 
-Current implementation: Universal tool foundation evolving to Claude Code parity with advanced execution engine.
+✅ **Status**: Production ready with Docker tool calling validated
 
 ## Core Interfaces
 
@@ -18,6 +18,20 @@ type Tool interface {
 **Methods:**
 - `Name()` - Returns the unique identifier for the tool
 - `Description()` - Returns human/LLM-readable description
+- `JSONSchema()` - Returns parameter schema for provider conversion
+- `Execute()` - Executes the tool with context and parameters
+
+### ToolResult Structure
+
+```go
+type ToolResult struct {
+    Success  bool                   `json:"success"`
+    Content  string                 `json:"content"`
+    Data     map[string]interface{} `json:"data,omitempty"`
+    Error    string                 `json:"error,omitempty"`
+    Metadata ToolMetadata           `json:"metadata"`
+}
+```
 - `JSONSchema()` - Returns JSON Schema for parameter validation
 - `Execute()` - Runs the tool with provided parameters
 

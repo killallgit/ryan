@@ -13,23 +13,35 @@ ollama:
     timeout: "1h"
 
 tools:
-    enabled: true
-    truncate_output: true
-    models:
+    enabled: true                    # Enable/disable tool calling system
+    truncate_output: true           # Truncate long tool outputs in TUI
+    models:                         # Models that support tool calling
     - deepseek-r1:latest
     - qwen3:latest
     - llama3.1:latest
     - qwen2.5-coder:7b
     - mistral-small:latest
+    
     bash:
-        enabled: true
-        timeout: "90s"
-        allowed_paths: [".", "/tmp"]
+        enabled: true               # Enable bash command execution
+        timeout: "90s"              # Maximum execution time per command
+        allowed_paths: [".", "/tmp"] # Directories where commands can run
+        
     file_read:
-        enabled: true
-        max_file_size: "10MB"
-        allowed_extensions: [".txt", ".md", ".go", ".json"]
+        enabled: true               # Enable file reading
+        max_file_size: "10MB"       # Maximum file size to read
+        allowed_extensions:         # Allowed file extensions
+            - ".txt"
+            - ".md"
+            - ".go"
+            - ".json"
+            - ".yaml"
+            - ".yml"
+            - ".py"
+            - ".js"
+            - ".ts"
+            
     search:
-        enabled: true
-        timeout: "10s"
+        enabled: true               # Enable search functionality (future)
+        timeout: "10s"              # Search operation timeout
         
