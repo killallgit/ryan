@@ -5,35 +5,36 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/tmc/langchaingo/llms"
 )
 
-// LangChainStreamingClient implements both ChatClient and StreamingChatClient using LangChain Go
-type LangChainStreamingClient struct {
-	*LangChainClient
+// StreamingClient implements both ChatClient and StreamingChatClient using LangChain Go
+type StreamingClient struct {
+	*Client
 }
 
-// NewLangChainStreamingClient creates a new LangChain-based streaming chat client
-func NewLangChainStreamingClient(baseURL, model string) (*LangChainStreamingClient, error) {
-	return NewLangChainStreamingClientWithTimeout(baseURL, model, 60*time.Second)
+// NewStreamingClient creates a new LangChain-based streaming chat client
+func NewStreamingClient(baseURL, model string) (*StreamingClient, error) {
+	return NewStreamingClientWithTimeout(baseURL, model, 60*time.Second)
 }
 
-// NewLangChainStreamingClientWithTimeout creates a new LangChain-based streaming chat client with custom timeout
-func NewLangChainStreamingClientWithTimeout(baseURL, model string, timeout time.Duration) (*LangChainStreamingClient, error) {
-	client, err := NewLangChainClientWithTimeout(baseURL, model, timeout)
+// NewStreamingClientWithTimeout creates a new LangChain-based streaming chat client with custom timeout
+func NewStreamingClientWithTimeout(baseURL, model string, timeout time.Duration) (*StreamingClient, error) {
+	client, err := NewClientWithTimeout(baseURL, model, timeout)
 	if err != nil {
 		return nil, err
 	}
 
-	return &LangChainStreamingClient{
-		LangChainClient: client,
+	return &StreamingClient{
+		Client: client,
 	}, nil
 }
 
 // StreamMessage implements StreamingChatClient interface using LangChain Go's streaming
-func (lsc *LangChainStreamingClient) StreamMessage(ctx context.Context, req ChatRequest) (<-chan MessageChunk, error) {
+func (sc *StreamingClient) StreamMessage(ctx context.Context, req ChatRequest) (<-chan MessageChunk, error) {
 	// Convert chat messages to LangChain format
 	messages := make([]llms.MessageContent, 0, len(req.Messages))
 	for _, msg := range req.Messages {
@@ -97,7 +98,7 @@ func (lsc *LangChainStreamingClient) StreamMessage(ctx context.Context, req Chat
 		}
 
 		// Call LangChain Go with streaming
-		response, err := lsc.llm.GenerateContent(ctx, messages, llms.WithStreamingFunc(streamingFunc))
+		response, err := sc.llm.GenerateContent(ctx, messages, llms.WithStreamingFunc(streamingFunc))
 		if err != nil {
 			// Send error chunk
 			errorChunk := MessageChunk{
@@ -171,5 +172,36 @@ func (lsc *LangChainStreamingClient) StreamMessage(ctx context.Context, req Chat
 	return outputChan, nil
 }
 
+// CreateStreamingChatRequest creates a streaming-enabled chat request
+func CreateStreamingChatRequest(conversation Conversation, userMessage string) ChatRequest {
+	conv := AddMessage(conversation, NewUserMessage(userMessage))
+
+	return ChatRequest{
+		Model:    conv.Model,
+		Messages: conv.Messages,
+		Stream:   true,
+	}
+}
+
+// CreateStreamingChatRequestWithTools creates a streaming-enabled chat request with tools
+func CreateStreamingChatRequestWithTools(conversation Conversation, userMessage string, tools []map[string]any) ChatRequest {
+	conv := AddMessage(conversation, NewUserMessage(userMessage))
+
+	return ChatRequest{
+		Model:    conv.Model,
+		Messages: conv.Messages,
+		Stream:   true,
+		Tools:    tools,
+	}
+}
+
+// generateStreamID creates a unique identifier for this stream
+var streamCounter int64
+
+func generateStreamID() string {
+	id := atomic.AddInt64(&streamCounter, 1)
+	return fmt.Sprintf("stream-%d-%d", time.Now().UnixNano(), id)
+}
+
 // Verify interface compliance
-var _ StreamingChatClient = (*LangChainStreamingClient)(nil)
+var _ StreamingChatClient = (*StreamingClient)(nil)

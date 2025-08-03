@@ -177,14 +177,16 @@ func TestStreamingChatRequest(t *testing.T) {
 
 func TestStreamingClient(t *testing.T) {
 	t.Run("should create streaming client", func(t *testing.T) {
-		client := NewStreamingClient("http://localhost:11434")
+		client, err := NewStreamingClient("http://localhost:11434", "llama2")
+		require.NoError(t, err)
 		assert.NotNil(t, client)
 		assert.NotNil(t, client.Client)
 	})
 
 	t.Run("should create streaming client with timeout", func(t *testing.T) {
 		timeout := 30 * time.Second
-		client := NewStreamingClientWithTimeout("http://localhost:11434", timeout)
+		client, err := NewStreamingClientWithTimeout("http://localhost:11434", "llama2", timeout)
+		require.NoError(t, err)
 		assert.NotNil(t, client)
 		assert.NotNil(t, client.Client)
 	})

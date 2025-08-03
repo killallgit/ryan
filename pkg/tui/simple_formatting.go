@@ -119,7 +119,7 @@ func (sf *SimpleFormatter) formatThinkingBlock(content string) []FormattedLine {
 		paddedLine := "│ " + line + strings.Repeat(" ", contentWidth-len(line)) + " │"
 		lines = append(lines, FormattedLine{
 			Content: paddedLine,
-			Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Italic(true),
+			Style:   StyleThinkingText,
 			Indent:  1,
 		})
 	}

@@ -21,9 +21,9 @@ var streamDebugCmd = &cobra.Command{
 
 		// Test 1: Client Creation
 		fmt.Println("\n1. Testing StreamingClient creation...")
-		client := chat.NewStreamingClientWithTimeout("http://localhost:11434", 30*time.Second)
-		if client == nil {
-			log.Fatal("❌ Failed to create StreamingClient")
+		client, err := chat.NewStreamingClientWithTimeout("http://localhost:11434", "llama3.1:8b", 30*time.Second)
+		if err != nil {
+			log.Fatalf("❌ Failed to create StreamingClient: %v", err)
 		}
 		fmt.Println("✅ StreamingClient created successfully")
 

@@ -33,7 +33,6 @@ type OllamaConfig struct {
 	PollInterval int           `mapstructure:"poll_interval"`
 	Timeout      time.Duration `mapstructure:"timeout"`
 	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
-	UseLangChain bool          `mapstructure:"use_langchain"`
 }
 
 // ToolsConfig holds tool-related configuration

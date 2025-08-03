@@ -15,28 +15,19 @@ type ControllerConfig struct {
 	Model        string
 	SystemPrompt string
 	ToolRegistry *tools.Registry
-	UseLangChain bool
-	LLM          llms.Model // Required if UseLangChain is true
+	LLM          llms.Model // LLM model for LangChain controller
 }
 
-// NewChatControllerFromConfig creates the appropriate chat controller based on configuration
+// NewChatControllerFromConfig creates a LangChain chat controller based on configuration
 func NewChatControllerFromConfig(cfg ControllerConfig) (ChatControllerInterface, error) {
-	if cfg.UseLangChain {
-		if cfg.LLM == nil {
-			return nil, fmt.Errorf("LLM model is required for LangChain controller")
-		}
-
-		if cfg.SystemPrompt != "" {
-			return NewLangChainChatControllerWithSystem(cfg.Client, cfg.LLM, cfg.Model, cfg.SystemPrompt, cfg.ToolRegistry)
-		}
-		return NewLangChainChatController(cfg.Client, cfg.LLM, cfg.Model, cfg.ToolRegistry)
+	if cfg.LLM == nil {
+		return nil, fmt.Errorf("LLM model is required for LangChain controller")
 	}
 
-	// Use standard controller
 	if cfg.SystemPrompt != "" {
-		return NewChatControllerWithSystem(cfg.Client, cfg.Model, cfg.SystemPrompt, cfg.ToolRegistry), nil
+		return NewLangChainChatControllerWithSystem(cfg.Client, cfg.LLM, cfg.Model, cfg.SystemPrompt, cfg.ToolRegistry)
 	}
-	return NewChatController(cfg.Client, cfg.Model, cfg.ToolRegistry), nil
+	return NewLangChainChatController(cfg.Client, cfg.LLM, cfg.Model, cfg.ToolRegistry)
 }
 
 // ChatControllerInterface defines the common interface for all chat controllers

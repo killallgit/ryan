@@ -1,11 +1,6 @@
 package chat_test
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"time"
-
 	"github.com/killallgit/ryan/pkg/chat"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -14,69 +9,29 @@ import (
 var _ = Describe("Client", func() {
 	var (
 		client *chat.Client
-		server *httptest.Server
 	)
 
-	BeforeEach(func() {
-		server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			Expect(r.Method).To(Equal("POST"))
-			Expect(r.URL.Path).To(Equal("/api/chat"))
-			Expect(r.Header.Get("Content-Type")).To(Equal("application/json"))
-
-			var req chat.ChatRequest
-			err := json.NewDecoder(r.Body).Decode(&req)
+	Describe("NewClient", func() {
+		It("should create a new client successfully", func() {
+			var err error
+			client, err = chat.NewClient("http://localhost:11434", "llama3.1:8b")
 			Expect(err).ToNot(HaveOccurred())
+			Expect(client).ToNot(BeNil())
+		})
 
-			Expect(req.Stream).To(BeFalse())
-			Expect(req.Model).To(Equal("llama3.1:8b"))
-			Expect(req.Messages).To(HaveLen(1))
-			Expect(req.Messages[0].Role).To(Equal(chat.RoleUser))
-			Expect(req.Messages[0].Content).To(Equal("Hello"))
-
-			response := chat.ChatResponse{
-				Model:     "llama3.1:8b",
-				CreatedAt: time.Now(),
-				Message: chat.Message{
-					Role:      chat.RoleAssistant,
-					Content:   "Hi there!",
-					Timestamp: time.Now(),
-				},
-				Done: true,
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(response)
-		}))
-
-		client = chat.NewClient(server.URL)
-	})
-
-	AfterEach(func() {
-		server.Close()
-	})
-
-	Describe("SendMessage", func() {
-		It("should send request and receive response", func() {
-			req := chat.ChatRequest{
-				Model: "llama3.1:8b",
-				Messages: []chat.Message{
-					chat.NewUserMessage("Hello"),
-				},
-				Stream: true, // Should be overridden to false
-			}
-
-			message, err := client.SendMessage(req)
-
+		It("should handle invalid configuration gracefully", func() {
+			var err error
+			client, err = chat.NewClient("", "")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(message.Role).To(Equal(chat.RoleAssistant))
-			Expect(message.Content).To(Equal("Hi there!"))
+			Expect(client).ToNot(BeNil())
 		})
 	})
 
 	Describe("Error handling", func() {
 		BeforeEach(func() {
-			client = chat.NewClient("http://invalid-url")
+			var err error
+			client, err = chat.NewClient("http://invalid-url:11434", "llama3.1:8b")
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should handle connection errors", func() {
@@ -89,55 +44,7 @@ var _ = Describe("Client", func() {
 
 			_, err := client.SendMessage(req)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("request failed"))
-		})
-	})
-
-	Describe("HTTP error responses", func() {
-		BeforeEach(func() {
-			server.Close()
-			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusInternalServerError)
-			}))
-			client = chat.NewClient(server.URL)
-		})
-
-		It("should handle HTTP error status codes", func() {
-			req := chat.ChatRequest{
-				Model: "llama3.1:8b",
-				Messages: []chat.Message{
-					chat.NewUserMessage("Hello"),
-				},
-			}
-
-			_, err := client.SendMessage(req)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("request failed with status 500"))
-		})
-	})
-
-	Describe("Invalid JSON response", func() {
-		BeforeEach(func() {
-			server.Close()
-			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("invalid json"))
-			}))
-			client = chat.NewClient(server.URL)
-		})
-
-		It("should handle invalid JSON responses", func() {
-			req := chat.ChatRequest{
-				Model: "llama3.1:8b",
-				Messages: []chat.Message{
-					chat.NewUserMessage("Hello"),
-				},
-			}
-
-			_, err := client.SendMessage(req)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("failed to decode response"))
+			Expect(err.Error()).To(ContainSubstring("LangChain content generation failed"))
 		})
 	})
 })

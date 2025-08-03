@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/config"
@@ -48,35 +50,45 @@ var rootCmd = &cobra.Command{
 			model = cfg.Ollama.Model
 		}
 
-		systemPrompt, _ := cmd.Flags().GetString("ollama.system_prompt")
-		if systemPrompt == "" {
-			systemPrompt = cfg.Ollama.SystemPrompt
+		systemPromptPath, _ := cmd.Flags().GetString("ollama.system_prompt")
+		if systemPromptPath == "" {
+			systemPromptPath = cfg.Ollama.SystemPrompt
+		}
+
+		// Read system prompt from file if specified
+		var systemPrompt string
+		if systemPromptPath != "" {
+			// Handle relative paths
+			if !filepath.IsAbs(systemPromptPath) {
+				systemPromptPath = filepath.Join(".", systemPromptPath)
+			}
+
+			content, err := os.ReadFile(systemPromptPath)
+			if err != nil {
+				log.Warn("Failed to read system prompt file", "path", systemPromptPath, "error", err)
+				fmt.Printf("Warning: Could not read system prompt file '%s': %v\n", systemPromptPath, err)
+				systemPrompt = "" // Continue without system prompt
+			} else {
+				systemPrompt = strings.TrimSpace(string(content))
+				log.Debug("Loaded system prompt from file", "path", systemPromptPath, "length", len(systemPrompt))
+			}
 		}
 
 		log.Debug("Configuration loaded",
 			"ollama_url", cfg.Ollama.URL,
 			"model", model,
 			"has_system_prompt", systemPrompt != "",
+			"system_prompt_file", systemPromptPath,
 			"config_file", config.GetConfigFileUsed(),
 		)
 
-		// Create client based on configuration
-		var client chat.StreamingChatClient
-		if cfg.Ollama.UseLangChain {
-			log.Debug("Using LangChain Go client", "base_url", cfg.Ollama.URL, "model", model)
-			clientConfig := chat.LangChainStreamingConfig(cfg.Ollama.URL, model)
-			clientConfig.Timeout = cfg.Ollama.Timeout
-
-			var err error
-			client, err = chat.NewStreamingChatClient(clientConfig)
-			if err != nil {
-				log.Error("Failed to create LangChain streaming client", "error", err)
-				fmt.Printf("Failed to create LangChain client: %v\n", err)
-				return
-			}
-		} else {
-			log.Debug("Using original streaming client", "base_url", cfg.Ollama.URL)
-			client = chat.NewStreamingClientWithTimeout(cfg.Ollama.URL, cfg.Ollama.Timeout)
+		// Create LangChain streaming client
+		log.Debug("Creating LangChain streaming client", "base_url", cfg.Ollama.URL, "model", model)
+		client, err := chat.NewStreamingClientWithTimeout(cfg.Ollama.URL, model, cfg.Ollama.Timeout)
+		if err != nil {
+			log.Error("Failed to create streaming client", "error", err)
+			fmt.Printf("Failed to create streaming client: %v\n", err)
+			return
 		}
 
 		// Check Ollama server version and model compatibility before initializing tools

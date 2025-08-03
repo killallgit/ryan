@@ -14,8 +14,6 @@ ollama:
     url: http://localhost:11434
     poll_interval: 10
     timeout: "30s"
-    # Enable LangChain Go integration for enhanced memory management
-    use_langchain: true
 
 tools:
     enabled: true
