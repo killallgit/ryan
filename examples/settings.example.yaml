@@ -11,6 +11,7 @@ ollama:
     url: https://ollama.kitty-tetra.ts.net
     poll_interval: 10
     timeout: "1h"
+    use_langchain: true             # Use LangChain for enhanced agent capabilities
 
 tools:
     enabled: true                    # Enable/disable tool calling system

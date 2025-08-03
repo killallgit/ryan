@@ -34,11 +34,18 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 	cfg := config.Get()
 	log := logger.WithComponent("langchain_enhanced")
 
-	// Create Ollama LLM
+	// Create Ollama LLM with additional debugging options
+	log.Debug("Creating Ollama LLM", "base_url", baseURL, "model", model)
+	
+	// Try to create with additional options that might preserve raw output
+	// Let's try with basic options first and add experimental ones progressively
 	llm, err := ollama.New(
 		ollama.WithServerURL(baseURL),
 		ollama.WithModel(model),
 	)
+	
+	// Log what ollama package functions are available for debugging
+	log.Debug("Ollama client created successfully with basic options")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Ollama LLM: %w", err)
 	}
@@ -244,6 +251,14 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 
 	// Extract the final output
 	if output, ok := result["output"].(string); ok {
+		// LOG AGENT OUTPUT DEBUGGING
+		c.log.Debug("=== AGENT OUTPUT DEBUG ===")
+		c.log.Debug("Agent result keys", "keys", getMapKeys(result))
+		for key, value := range result {
+			c.log.Debug("Agent result field", "key", key, "value_type", fmt.Sprintf("%T", value), "value", value)
+		}
+		c.log.Debug("=== END AGENT OUTPUT DEBUG ===")
+		
 		// Log raw agent output to check for thinking blocks
 		c.log.Debug("Raw agent output", "content", output, "has_think_tags", strings.Contains(output, "<think"))
 		
@@ -324,6 +339,27 @@ func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, e
 		return "", fmt.Errorf("no response choices available")
 	}
 
+	// LOG FULL RESPONSE STRUCTURE FOR DEBUGGING
+	c.log.Debug("=== FULL RESPONSE STRUCTURE DEBUG ===")
+	c.log.Debug("Response choices count", "count", len(response.Choices))
+	
+	for i, choice := range response.Choices {
+		c.log.Debug("Choice details", "index", i, "content_length", len(choice.Content))
+		c.log.Debug("Choice content", "index", i, "content", choice.Content)
+		
+		// Log any other fields that might be available in the choice
+		c.log.Debug("Choice struct inspection", "index", i, "choice_type", fmt.Sprintf("%T", choice))
+		
+		// Try to see if there are additional fields we're missing
+		if choice.Content != "" {
+			c.log.Debug("Choice has content", "index", i, "has_think_tags", strings.Contains(choice.Content, "<think"))
+		}
+	}
+	
+	// Log the entire response struct to see what else might be available
+	c.log.Debug("Full response struct", "response_type", fmt.Sprintf("%T", response))
+	c.log.Debug("=== END RESPONSE STRUCTURE DEBUG ===")
+
 	result := response.Choices[0].Content
 	
 	// Log raw LLM output to check for thinking blocks
@@ -363,16 +399,36 @@ func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan
 	}
 
 	// Use LangChain's streaming
+	var allChunks []string
 	_, err := c.llm.GenerateContent(ctx, messages,
 		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+			chunkStr := string(chunk)
+			allChunks = append(allChunks, chunkStr)
+			
+			// LOG STREAMING CHUNK DEBUG
+			c.log.Debug("=== STREAMING CHUNK DEBUG ===")
+			c.log.Debug("Received chunk", "length", len(chunk), "content", chunkStr)
+			c.log.Debug("Chunk has thinking", "has_think_tags", strings.Contains(chunkStr, "<think"))
+			c.log.Debug("=== END STREAMING CHUNK DEBUG ===")
+			
 			select {
-			case outputChan <- string(chunk):
+			case outputChan <- chunkStr:
 				return nil
 			case <-ctx.Done():
 				return ctx.Err()
 			}
 		}),
 	)
+	
+	// Log accumulated chunks
+	if len(allChunks) > 0 {
+		accumulated := strings.Join(allChunks, "")
+		c.log.Debug("=== ACCUMULATED STREAMING DEBUG ===")
+		c.log.Debug("Total chunks received", "count", len(allChunks))
+		c.log.Debug("Accumulated content", "length", len(accumulated), "content", accumulated)
+		c.log.Debug("Accumulated has thinking", "has_think_tags", strings.Contains(accumulated, "<think"))
+		c.log.Debug("=== END ACCUMULATED STREAMING DEBUG ===")
+	}
 
 	if err != nil {
 		return fmt.Errorf("streaming failed: %w", err)

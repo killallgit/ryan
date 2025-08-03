@@ -100,8 +100,20 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 		return errMsg, fmt.Errorf("failed to send message: %w", err)
 	}
 
-	// Create assistant message from response
-	assistantMsg := chat.NewAssistantMessage(response)
+	// Create assistant message from response with thinking parsing
+	showThinking := true
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Config not initialized, use default
+			}
+		}()
+		if cfg := config.Get(); cfg != nil {
+			showThinking = cfg.ShowThinking
+		}
+	}()
+	
+	assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
 
 	// Save history to disk after each interaction
@@ -161,9 +173,21 @@ func (lc *LangChainController) SendUserMessageWithStreamingContext(ctx context.C
 		return chat.Message{}, ctx.Err()
 	}
 
-	// Create assistant message from full response
+	// Create assistant message from full response with thinking parsing
 	response := fullResponse.String()
-	assistantMsg := chat.NewAssistantMessage(response)
+	showThinking := true
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Config not initialized, use default
+			}
+		}()
+		if cfg := config.Get(); cfg != nil {
+			showThinking = cfg.ShowThinking
+		}
+	}()
+	
+	assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
 
 	// Save history to disk after each interaction
