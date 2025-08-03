@@ -1550,12 +1550,12 @@ func (hm HelpModal) HandleKeyEvent(ev *tcell.EventKey) (HelpModal, bool) {
 	}
 
 	switch ev.Key() {
-	case tcell.KeyEscape:
+	case tcell.KeyEscape, tcell.KeyF2:
 		return hm.Hide(), true
 	default:
 		if ev.Rune() != 0 {
 			switch ev.Rune() {
-			case '?', 'q', 'Q':
+			case 'q', 'Q':
 				return hm.Hide(), true
 			}
 		}
@@ -1588,37 +1588,34 @@ func (hm HelpModal) Render(screen tcell.Screen, area Rect) {
 		Height: modalHeight,
 	}
 
-	// Draw modal background with border
-	borderStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
-	contentStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
-	titleStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Background(tcell.ColorBlue).Bold(true)
-
-	// Clear modal area
-	for y := modalArea.Y; y < modalArea.Y+modalArea.Height; y++ {
-		for x := modalArea.X; x < modalArea.X+modalArea.Width; x++ {
-			screen.SetContent(x, y, ' ', nil, contentStyle)
-		}
-	}
-
-	// Draw border
+	// Clear modal background and draw border (same as other modals)
+	clearArea(screen, modalArea)
+	borderStyle := StyleBorder
 	drawBorder(screen, modalArea, borderStyle)
+
+	// Styles
+	titleStyle := StyleHighlight
+	contentStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
 
 	// Help content
 	helpLines := []string{
 		"RYAN - Keyboard Shortcuts & Commands",
 		"",
 		"GENERAL:",
-		"  ?           Show/hide this help",
-		"  Esc         Cancel/quit current operation",
+		"  F2          Show/hide this help",
+		"  Esc         Cancel/quit current operation/modal",
 		"  Tab         Switch between chat and model views",
+		"  Ctrl+C      Quit application",
+		"  Ctrl+R      Reset/clear conversation",
 		"",
-		"INPUT MODE (✏️):",
+		"CHAT VIEW - INPUT MODE (✏️):",
 		"  Enter       Send message",
 		"  Ctrl+N      Switch to node selection mode",
 		"  ↑/↓         Scroll chat history",
 		"  PgUp/PgDn   Page up/down in chat",
+		"  Esc         Interrupt streaming response",
 		"",
-		"NODE SELECTION MODE (🎯):",
+		"CHAT VIEW - NODE SELECTION MODE (🎯):",
 		"  j/k         Navigate up/down between nodes (vim-style)",
 		"  ↑/↓         Navigate up/down between nodes (arrow keys)",
 		"  Tab         Expand/collapse focused node",
@@ -1629,7 +1626,23 @@ func (hm HelpModal) Render(screen tcell.Screen, area Rect) {
 		"  i/Esc       Return to input mode",
 		"  Click       Focus node and switch to node mode",
 		"",
-		"Press ? or Esc to close this help",
+		"MODEL MANAGEMENT VIEW:",
+		"  ↑/↓         Navigate model list",
+		"  j/k         Navigate model list (vim-style)",
+		"  Enter       Select/download/switch to model",
+		"  d           Show model details",
+		"  Ctrl+D      Delete selected model",
+		"  r           Refresh model list",
+		"  Home/End    Jump to first/last model",
+		"  PgUp/PgDn   Page up/down in model list",
+		"",
+		"MODALS:",
+		"  Tab/←/→     Navigate between buttons",
+		"  Enter       Confirm selected button",
+		"  Esc         Close modal/cancel",
+		"  y/n         Quick yes/no in confirmation modals",
+		"",
+		"Press F2, Q, or Esc to close this help",
 	}
 
 	// Render title
