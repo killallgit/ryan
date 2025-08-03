@@ -87,15 +87,15 @@ func (ef *EnhancedFormatter) FormatThinkingBlock(content string) string {
 
 	// Add "Thinking:" prefix and format with box
 	thinkingText := "Thinking: " + strings.TrimSpace(content)
-	
+
 	// Apply the thinking box style with proper width handling
 	boxWidth := ef.width - 4 // Account for margins and padding
 	if boxWidth < 20 {
 		boxWidth = 20 // Minimum width
 	}
-	
+
 	formatted := ef.thinkingBoxStyle.Width(boxWidth).Render(thinkingText)
-	
+
 	log.Debug("FormatThinkingBlock result", "formatted_length", len(formatted))
 	return formatted
 }
@@ -107,8 +107,8 @@ func (ef *EnhancedFormatter) FormatCodeBlock(content, language string) string {
 	}
 
 	log := logger.WithComponent("enhanced_formatting")
-	log.Debug("FormatCodeBlock called", 
-		"content_length", len(content), 
+	log.Debug("FormatCodeBlock called",
+		"content_length", len(content),
 		"language", language)
 
 	// Get lexer for the specified language
@@ -147,7 +147,7 @@ func (ef *EnhancedFormatter) FormatCodeBlock(content, language string) string {
 	}
 
 	formatted := ef.codeBlockStyle.Width(boxWidth).Render(highlightedContent)
-	
+
 	log.Debug("FormatCodeBlock result", "formatted_length", len(formatted))
 	return formatted
 }
@@ -157,7 +157,7 @@ func (ef *EnhancedFormatter) FormatInlineCode(content string) string {
 	if content == "" {
 		return ""
 	}
-	
+
 	return ef.inlineCodeStyle.Render(content)
 }
 
@@ -166,7 +166,7 @@ func (ef *EnhancedFormatter) FormatHeader(content string, level int) string {
 	if content == "" {
 		return ""
 	}
-	
+
 	// Adjust styling based on header level
 	style := ef.headerStyle
 	switch level {
@@ -179,7 +179,7 @@ func (ef *EnhancedFormatter) FormatHeader(content string, level int) string {
 	default:
 		style = style.Foreground(lipgloss.Color("#FFFF99")) // Pale yellow
 	}
-	
+
 	return style.Render(content)
 }
 
@@ -188,14 +188,14 @@ func (ef *EnhancedFormatter) FormatList(content string, level int) string {
 	if content == "" {
 		return ""
 	}
-	
+
 	// Add bullet point and apply styling
 	bullet := "•"
 	listText := bullet + " " + content
-	
+
 	// Adjust indentation based on nesting level
 	style := ef.listStyle.MarginLeft(level * 2)
-	
+
 	return style.Render(listText)
 }
 
@@ -205,10 +205,10 @@ func (ef *EnhancedFormatter) FormatContentSegments(segments []ContentSegment) []
 	log.Debug("FormatContentSegments called", "segments_count", len(segments))
 
 	var formattedLines []string
-	
+
 	for _, segment := range segments {
 		var formatted string
-		
+
 		switch segment.Type {
 		case ContentTypeThinking:
 			formatted = ef.FormatThinkingBlock(segment.Content)
@@ -225,14 +225,14 @@ func (ef *EnhancedFormatter) FormatContentSegments(segments []ContentSegment) []
 		default:
 			formatted = segment.Content
 		}
-		
+
 		if formatted != "" {
 			// Split multi-line formatted content
 			lines := strings.Split(formatted, "\n")
 			formattedLines = append(formattedLines, lines...)
 		}
 	}
-	
+
 	log.Debug("FormatContentSegments result", "formatted_lines_count", len(formattedLines))
 	return formattedLines
 }
@@ -249,8 +249,8 @@ func ConvertLipglossToTcell(lipglossOutput string) (string, tcell.Style) {
 // based on content types detected
 func ShouldUseEnhancedFormatting(contentTypes map[ContentType]bool) bool {
 	// Use enhanced formatting if we have code blocks, headers, or complex content
-	return contentTypes[ContentTypeCodeBlock] || 
-		   contentTypes[ContentTypeHeader] || 
-		   contentTypes[ContentTypeList] ||
-		   (contentTypes[ContentTypeInlineCode] && len(contentTypes) > 1)
+	return contentTypes[ContentTypeCodeBlock] ||
+		contentTypes[ContentTypeHeader] ||
+		contentTypes[ContentTypeList] ||
+		(contentTypes[ContentTypeInlineCode] && len(contentTypes) > 1)
 }

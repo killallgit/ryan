@@ -145,7 +145,7 @@ func (vm *ViewManager) HandleMenuMouseEvent(ev *tcell.EventMouse) bool {
 	if !vm.menuVisible {
 		return false
 	}
-	
+
 	// For now, just hide menu on any click - could be enhanced later
 	// to handle specific menu item clicks
 	vm.menuVisible = false

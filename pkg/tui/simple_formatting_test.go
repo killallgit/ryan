@@ -83,7 +83,7 @@ func TestSimpleFormatter_FormatContentSegments(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatter.FormatContentSegments(tt.segments)
 			assert.Len(t, result, tt.expected, "Unexpected number of formatted lines")
-			
+
 			// Verify that all lines have content or are intentionally empty
 			for i, line := range result {
 				assert.NotNil(t, line.Style, "Line %d should have a style", i)
@@ -144,7 +144,7 @@ func TestDetectContentTypes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := DetectContentTypes(tt.content)
-			
+
 			for expectedType, shouldBePresent := range tt.expected {
 				if shouldBePresent {
 					assert.True(t, result[expectedType], "Content type %v should be detected", expectedType)

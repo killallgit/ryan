@@ -131,15 +131,15 @@ func ParseContentSegments(content string) []ContentSegment {
 
 	var segments []ContentSegment
 	lines := strings.Split(content, "\n")
-	
+
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
-		
+
 		// Check for fenced code blocks (```)
 		if strings.HasPrefix(strings.TrimSpace(line), "```") {
 			// Extract language if specified
 			language := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "```"))
-			
+
 			// Collect all lines until closing ```
 			var codeLines []string
 			i++ // Skip the opening ```
@@ -150,7 +150,7 @@ func ParseContentSegments(content string) []ContentSegment {
 				codeLines = append(codeLines, lines[i])
 				i++
 			}
-			
+
 			segments = append(segments, ContentSegment{
 				Type:     ContentTypeCodeBlock,
 				Content:  strings.Join(codeLines, "\n"),
@@ -158,7 +158,7 @@ func ParseContentSegments(content string) []ContentSegment {
 			})
 			continue
 		}
-		
+
 		// Check for headers (# ## ###)
 		if strings.HasPrefix(strings.TrimSpace(line), "#") {
 			level := 0
@@ -171,7 +171,7 @@ func ParseContentSegments(content string) []ContentSegment {
 				}
 			}
 			headerText := strings.TrimSpace(strings.TrimPrefix(trimmed, strings.Repeat("#", level)))
-			
+
 			segments = append(segments, ContentSegment{
 				Type:    ContentTypeHeader,
 				Content: headerText,
@@ -179,7 +179,7 @@ func ParseContentSegments(content string) []ContentSegment {
 			})
 			continue
 		}
-		
+
 		// Check for list items (- * +)
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "+ ") {
@@ -191,7 +191,7 @@ func ParseContentSegments(content string) []ContentSegment {
 			})
 			continue
 		}
-		
+
 		// Check for inline code and regular text
 		if strings.Contains(line, "`") {
 			// Parse inline code within the line
@@ -206,7 +206,7 @@ func ParseContentSegments(content string) []ContentSegment {
 			}
 		}
 	}
-	
+
 	log.Debug("ParseContentSegments result", "segments_count", len(segments))
 	return segments
 }
@@ -215,7 +215,7 @@ func ParseContentSegments(content string) []ContentSegment {
 func parseInlineCode(line string, segments *[]ContentSegment) {
 	inlineCodeRegex := regexp.MustCompile("`([^`]+)`")
 	lastEnd := 0
-	
+
 	matches := inlineCodeRegex.FindAllStringSubmatchIndex(line, -1)
 	for _, match := range matches {
 		// Add text before the code
@@ -228,17 +228,17 @@ func parseInlineCode(line string, segments *[]ContentSegment) {
 				})
 			}
 		}
-		
+
 		// Add the inline code
 		codeContent := line[match[2]:match[3]] // Group 1 content
 		*segments = append(*segments, ContentSegment{
 			Type:    ContentTypeInlineCode,
 			Content: codeContent,
 		})
-		
+
 		lastEnd = match[1]
 	}
-	
+
 	// Add remaining text after last code
 	if lastEnd < len(line) {
 		textAfter := line[lastEnd:]
@@ -254,36 +254,36 @@ func parseInlineCode(line string, segments *[]ContentSegment) {
 // DetectContentTypes analyzes content and returns detected content types for formatting decisions
 func DetectContentTypes(content string) map[ContentType]bool {
 	types := make(map[ContentType]bool)
-	
+
 	// Check for code blocks
 	if strings.Contains(content, "```") {
 		types[ContentTypeCodeBlock] = true
 	}
-	
+
 	// Check for inline code
 	if regexp.MustCompile("`[^`]+`").MatchString(content) {
 		types[ContentTypeInlineCode] = true
 	}
-	
+
 	// Check for headers
 	if regexp.MustCompile(`(?m)^\s*#+\s`).MatchString(content) {
 		types[ContentTypeHeader] = true
 	}
-	
+
 	// Check for lists
 	if regexp.MustCompile(`(?m)^\s*[-*+]\s`).MatchString(content) {
 		types[ContentTypeList] = true
 	}
-	
+
 	// Check for thinking blocks
 	if strings.Contains(content, "<think") {
 		types[ContentTypeThinking] = true
 	}
-	
+
 	// Always has text if content is not empty
 	if strings.TrimSpace(content) != "" {
 		types[ContentTypeText] = true
 	}
-	
+
 	return types
 }

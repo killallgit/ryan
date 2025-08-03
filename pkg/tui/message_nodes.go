@@ -8,52 +8,52 @@ import (
 // NodeBounds represents the screen coordinates and dimensions of a rendered node
 type NodeBounds struct {
 	X      int // Left coordinate
-	Y      int // Top coordinate  
+	Y      int // Top coordinate
 	Width  int // Width in characters
 	Height int // Height in lines
 }
 
 // NodeState represents the interactive state of a message node
 type NodeState struct {
-	Selected  bool // Whether this node is currently selected
-	Expanded  bool // Whether this node is expanded (for collapsible content)
-	Focused   bool // Whether this node has keyboard focus
-	Hovered   bool // Whether mouse is hovering over this node
+	Selected bool // Whether this node is currently selected
+	Expanded bool // Whether this node is expanded (for collapsible content)
+	Focused  bool // Whether this node has keyboard focus
+	Hovered  bool // Whether mouse is hovering over this node
 }
 
 // NodeRenderCache stores pre-computed rendering data for performance
 type NodeRenderCache struct {
-	Lines      []string     // Pre-wrapped text lines
-	Styles     []tcell.Style // Style for each line
-	Valid      bool         // Whether cache is valid
-	LastWidth  int         // Width used for last cache computation
+	Lines     []string      // Pre-wrapped text lines
+	Styles    []tcell.Style // Style for each line
+	Valid     bool          // Whether cache is valid
+	LastWidth int           // Width used for last cache computation
 }
 
 // MessageNode represents a renderable, interactive message with its own state
 type MessageNode interface {
 	// Core properties
-	ID() string                    // Unique identifier for this node
-	Message() chat.Message         // The underlying chat message
-	NodeType() MessageNodeType     // Type of node (text, thinking, tool, etc.)
-	
+	ID() string                // Unique identifier for this node
+	Message() chat.Message     // The underlying chat message
+	NodeType() MessageNodeType // Type of node (text, thinking, tool, etc.)
+
 	// State management
-	State() NodeState              // Current interactive state
+	State() NodeState                      // Current interactive state
 	WithState(state NodeState) MessageNode // Return new node with updated state
-	
+
 	// Rendering
 	Render(area Rect, state NodeState) []RenderedLine // Render node content within area
-	CalculateHeight(width int) int     // Calculate required height for given width
-	Bounds() NodeBounds               // Current screen bounds (set by renderer)
-	WithBounds(bounds NodeBounds) MessageNode // Update bounds after rendering
-	
+	CalculateHeight(width int) int                    // Calculate required height for given width
+	Bounds() NodeBounds                               // Current screen bounds (set by renderer)
+	WithBounds(bounds NodeBounds) MessageNode         // Update bounds after rendering
+
 	// Event handling
-	HandleClick(x, y int) (handled bool, newState NodeState) // Handle mouse click
+	HandleClick(x, y int) (handled bool, newState NodeState)              // Handle mouse click
 	HandleKeyEvent(ev *tcell.EventKey) (handled bool, newState NodeState) // Handle keyboard
-	
+
 	// Content queries
-	IsCollapsible() bool          // Whether this node can be collapsed
-	HasDetailView() bool          // Whether this node has expandable details
-	GetPreviewText() string       // Short preview text for collapsed state
+	IsCollapsible() bool    // Whether this node can be collapsed
+	HasDetailView() bool    // Whether this node has expandable details
+	GetPreviewText() string // Short preview text for collapsed state
 }
 
 // MessageNodeType represents different types of message nodes
@@ -91,7 +91,7 @@ func NewNodeRegistry() *NodeRegistry {
 	registry := &NodeRegistry{
 		factories: make(map[MessageNodeType]NodeFactory),
 	}
-	
+
 	// Register default node factories
 	registry.RegisterFactory(NodeTypeText, &TextNodeFactory{})
 	registry.RegisterFactory(NodeTypeThinking, &ThinkingNodeFactory{})
@@ -99,7 +99,7 @@ func NewNodeRegistry() *NodeRegistry {
 	registry.RegisterFactory(NodeTypeToolResult, &ToolResultNodeFactory{})
 	registry.RegisterFactory(NodeTypeSystem, &SystemNodeFactory{})
 	registry.RegisterFactory(NodeTypeError, &ErrorNodeFactory{})
-	
+
 	return registry
 }
 
@@ -116,7 +116,7 @@ func (nr *NodeRegistry) CreateNode(msg chat.Message, id string) MessageNode {
 			return factory.CreateNode(msg, id)
 		}
 	}
-	
+
 	// Fallback to text node
 	return nr.factories[NodeTypeText].CreateNode(msg, id)
 }

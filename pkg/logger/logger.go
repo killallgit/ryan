@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -10,12 +11,15 @@ import (
 
 type Logger struct {
 	*slog.Logger
+	errorLogger *slog.Logger
 }
 
 var defaultLogger *Logger
+var errorFile *os.File
+var stdoutFile *os.File
 
 func init() {
-	defaultLogger = &Logger{slog.Default()}
+	defaultLogger = &Logger{slog.Default(), slog.Default()}
 }
 
 func InitLogger() error {
@@ -34,7 +38,16 @@ func InitLoggerWithConfig(logFile string, preserve bool, level string) error {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 
-	// Open log file
+	// Open stdout log file (always truncated)
+	stdoutPath := filepath.Join(dir, "stdout.log")
+	var err error
+	stdoutFile, err = os.OpenFile(stdoutPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open stdout log file: %w", err)
+	}
+
+	// Open error log file
+	errorPath := filepath.Join(dir, "error.log")
 	flag := os.O_CREATE | os.O_WRONLY
 	if preserve {
 		flag |= os.O_APPEND
@@ -42,9 +55,10 @@ func InitLoggerWithConfig(logFile string, preserve bool, level string) error {
 		flag |= os.O_TRUNC
 	}
 
-	file, err := os.OpenFile(logFile, flag, 0644)
+	errorFile, err = os.OpenFile(errorPath, flag, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to open log file: %w", err)
+		stdoutFile.Close()
+		return fmt.Errorf("failed to open error log file: %w", err)
 	}
 
 	// Parse log level
@@ -76,15 +90,28 @@ func InitLoggerWithConfig(logFile string, preserve bool, level string) error {
 		},
 	}
 
-	// Only write to file for TUI applications to avoid interfering with display
-	handler := slog.NewTextHandler(file, opts)
+	// Error logger options (only errors)
+	errorOpts := &slog.HandlerOptions{
+		Level:       slog.LevelError,
+		ReplaceAttr: opts.ReplaceAttr,
+	}
 
-	logger := slog.New(handler)
-	defaultLogger = &Logger{logger}
+	// Create multi-writer for stdout log
+	multiWriter := io.MultiWriter(stdoutFile)
+
+	// Create handlers
+	stdoutHandler := slog.NewTextHandler(multiWriter, opts)
+	errorHandler := slog.NewTextHandler(errorFile, errorOpts)
+
+	logger := slog.New(stdoutHandler)
+	errLogger := slog.New(errorHandler)
+
+	defaultLogger = &Logger{logger, errLogger}
 
 	// Log initialization
 	defaultLogger.Info("Logger initialized",
-		"file", logFile,
+		"stdout", stdoutPath,
+		"error", errorPath,
 		"preserve", preserve,
 		"level", level,
 	)
@@ -97,11 +124,23 @@ func Get() *Logger {
 }
 
 func (l *Logger) WithComponent(component string) *Logger {
-	return &Logger{l.Logger.With("component", component)}
+	return &Logger{
+		l.Logger.With("component", component),
+		l.errorLogger.With("component", component),
+	}
 }
 
 func (l *Logger) WithContext(key string, value any) *Logger {
-	return &Logger{l.Logger.With(key, value)}
+	return &Logger{
+		l.Logger.With(key, value),
+		l.errorLogger.With(key, value),
+	}
+}
+
+// Override Error method to write to both loggers
+func (l *Logger) Error(msg string, args ...any) {
+	l.Logger.Error(msg, args...)
+	l.errorLogger.Error(msg, args...)
 }
 
 // Convenience functions
@@ -118,7 +157,10 @@ func Warn(msg string, args ...any) {
 }
 
 func Error(msg string, args ...any) {
-	defaultLogger.Error(msg, args...)
+	if defaultLogger.errorLogger != nil {
+		defaultLogger.errorLogger.Error(msg, args...)
+	}
+	defaultLogger.Logger.Error(msg, args...)
 }
 
 func WithComponent(component string) *Logger {
@@ -127,4 +169,27 @@ func WithComponent(component string) *Logger {
 
 func WithContext(key string, value any) *Logger {
 	return defaultLogger.WithContext(key, value)
+}
+
+// Close closes the log files
+func Close() error {
+	var errs []error
+
+	if stdoutFile != nil {
+		if err := stdoutFile.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close stdout log: %w", err))
+		}
+	}
+
+	if errorFile != nil {
+		if err := errorFile.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close error log: %w", err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("errors closing log files: %v", errs)
+	}
+
+	return nil
 }
