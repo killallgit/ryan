@@ -1,5 +1,9 @@
-# UI/UX
-- Our "status row" or the row above the chat input that holds the tokens and spinner should be refactored into this style: <SPINNER> <FEEDBACK_TEXT> (<DURATION> | <NUM_TOKENS> | <bold>esc</bold> to interject)
-- BUG: Token count is not properly reported
-- Buttons for download modal currently overflow the container. they need to be inside the solid line border and both buttons should fill the avail space. The inside of the buttons needs less padding around the text as well
-- The delete model modal needs to use the same buttons as the other modals that have buttons.
+# CLEANUP
+- Do a full review of the code and find any interfaces that might be duplicated, any dead code, or code that can be logically combined with existing so interfaces and logic is unified.
+- Many of our package files are very long. Lets identify where these can be split up for readibility. Packages and files should be "single purpose" and easy to test.
+- Cleanup the .ryan settings dir. We now need a .ryan/logs/<log related files>. We now also need a .ryan/contexts dir where we can persist raw context that langchain is using. We need to make sure we're in line with how langchain handles this and use their primitives for managing context. If langchain does not have a built in way to persist context to file, we can reasses this
+- cleanup all the test commands. Put into their own namespace and optimize them
+
+
+# CONTEXT
+- Lets being integrating more full featured context. We will start by storing our context to disk. Be

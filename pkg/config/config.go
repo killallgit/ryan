@@ -13,37 +13,26 @@ import (
 
 // LangChainConfig holds LangChain-specific configuration
 type LangChainConfig struct {
-	Enabled   bool                    `mapstructure:"enabled"`
-	Streaming LangChainStreamConfig   `mapstructure:"streaming"`
-	Tools     LangChainToolsConfig    `mapstructure:"tools"`
-	Memory    LangChainMemoryConfig   `mapstructure:"memory"`
-	Prompts   LangChainPromptConfig   `mapstructure:"prompts"`
-}
-
-// LangChainStreamConfig holds streaming configuration
-type LangChainStreamConfig struct {
-	UseLangChain         bool `mapstructure:"use_langchain"`
-	ProviderOptimization bool `mapstructure:"provider_optimization"`
+	Tools   LangChainToolsConfig  `mapstructure:"tools"`
+	Memory  LangChainMemoryConfig `mapstructure:"memory"`
+	Prompts LangChainPromptConfig `mapstructure:"prompts"`
 }
 
 // LangChainToolsConfig holds tool integration configuration
 type LangChainToolsConfig struct {
-	UseAgentFramework   bool `mapstructure:"use_agent_framework"`
-	AutonomousExecution bool `mapstructure:"autonomous_execution"`
-	MaxIterations       int  `mapstructure:"max_iterations"`
+	MaxIterations int `mapstructure:"max_iterations"`
 }
 
 // LangChainMemoryConfig holds memory configuration
 type LangChainMemoryConfig struct {
-	Type              string `mapstructure:"type"`
-	WindowSize        int    `mapstructure:"window_size"`
-	MaxTokens         int    `mapstructure:"max_tokens"`
-	SummaryThreshold  int    `mapstructure:"summary_threshold"`
+	Type             string `mapstructure:"type"`
+	WindowSize       int    `mapstructure:"window_size"`
+	MaxTokens        int    `mapstructure:"max_tokens"`
+	SummaryThreshold int    `mapstructure:"summary_threshold"`
 }
 
 // LangChainPromptConfig holds prompt template configuration
 type LangChainPromptConfig struct {
-	UseTemplates     bool `mapstructure:"use_templates"`
 	ContextInjection bool `mapstructure:"context_injection"`
 }
 
@@ -201,17 +190,11 @@ func setDefaults() {
 	viper.SetDefault("tools.search.timeout", "10s")
 
 	// LangChain defaults
-	viper.SetDefault("langchain.enabled", false)
-	viper.SetDefault("langchain.streaming.use_langchain", false)
-	viper.SetDefault("langchain.streaming.provider_optimization", true)
-	viper.SetDefault("langchain.tools.use_agent_framework", false)
-	viper.SetDefault("langchain.tools.autonomous_execution", true)
 	viper.SetDefault("langchain.tools.max_iterations", 5)
 	viper.SetDefault("langchain.memory.type", "buffer")
 	viper.SetDefault("langchain.memory.window_size", 10)
 	viper.SetDefault("langchain.memory.max_tokens", 4000)
 	viper.SetDefault("langchain.memory.summary_threshold", 1000)
-	viper.SetDefault("langchain.prompts.use_templates", false)
 	viper.SetDefault("langchain.prompts.context_injection", true)
 }
 
@@ -306,17 +289,11 @@ func InitializeDefaults() error {
 	v.SetDefault("tools.search.timeout", "10s")
 
 	// LangChain defaults
-	v.SetDefault("langchain.enabled", false)
-	v.SetDefault("langchain.streaming.use_langchain", false)
-	v.SetDefault("langchain.streaming.provider_optimization", true)
-	v.SetDefault("langchain.tools.use_agent_framework", false)
-	v.SetDefault("langchain.tools.autonomous_execution", true)
 	v.SetDefault("langchain.tools.max_iterations", 5)
 	v.SetDefault("langchain.memory.type", "buffer")
 	v.SetDefault("langchain.memory.window_size", 10)
 	v.SetDefault("langchain.memory.max_tokens", 4000)
 	v.SetDefault("langchain.memory.summary_threshold", 1000)
-	v.SetDefault("langchain.prompts.use_templates", false)
 	v.SetDefault("langchain.prompts.context_injection", true)
 
 	// Write the default configuration to .ryan/settings.yaml
