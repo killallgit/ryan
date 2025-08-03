@@ -127,7 +127,17 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 	RenderMessagesWithStreamingState(screen, cv.messages, messageArea, spinner, cv.isStreamingThinking)
 	
 	// Update status row with current token count and render it
-	totalTokens := cv.status.PromptTokens + cv.status.ResponseTokens
+	// Get the most current token count from both status and controller
+	statusTokens := cv.status.PromptTokens + cv.status.ResponseTokens
+	promptTokens, responseTokens := cv.controller.GetTokenUsage()
+	controllerTokens := promptTokens + responseTokens
+	
+	// Use whichever is higher (more recent)
+	totalTokens := statusTokens
+	if controllerTokens > statusTokens {
+		totalTokens = controllerTokens
+	}
+	
 	cv.statusRow = cv.statusRow.WithTokens(totalTokens).UpdateDuration()
 	RenderStatusRow(screen, alertArea, cv.statusRow)
 	
@@ -570,7 +580,7 @@ func (cv *ChatView) SyncWithAppState(sending bool) {
 	} else {
 		// Always clear alert since errors only show in chat messages now
 		cv.alert = cv.alert.Clear()
-		cv.statusRow = cv.statusRow.Clear()
+		cv.statusRow = cv.statusRow.ClearSpinnerOnly() // Preserve token count
 	}
 }
 
@@ -939,10 +949,14 @@ func (cv *ChatView) HandleStreamStart(streamID, model string) {
 
 	// Update status to show streaming
 	cv.status = cv.status.WithStatus("Streaming response...")
+	
+	// Initialize status row with current token count and streaming spinner
+	promptTokens, responseTokens := cv.controller.GetTokenUsage()
+	totalTokens := promptTokens + responseTokens
+	cv.statusRow = cv.statusRow.WithSpinner(true, "Streaming...").WithTokens(totalTokens)
 
-	// Show spinner with streaming indicator
+	// Show alert spinner
 	cv.alert = cv.alert.WithSpinner(true, "Streaming...")
-	cv.statusRow = cv.statusRow.WithSpinner(true, "Streaming response...")
 }
 
 func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete bool) {
@@ -1009,7 +1023,7 @@ func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete 
 		cv.bufferSize = 0
 
 		cv.alert = cv.alert.WithSpinner(false, "")
-		cv.statusRow = cv.statusRow.Clear()
+		cv.statusRow = cv.statusRow.ClearSpinnerOnly() // Preserve token count
 	}
 }
 
@@ -1049,7 +1063,7 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
-	cv.statusRow = cv.statusRow.Clear()
+	cv.statusRow = cv.statusRow.ClearSpinnerOnly() // Preserve token count
 
 	// Update status
 	cv.status = cv.status.WithStatus("Ready")
@@ -1083,7 +1097,7 @@ func (cv *ChatView) HandleStreamError(streamID string, err error) {
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
-	cv.statusRow = cv.statusRow.Clear()
+	cv.statusRow = cv.statusRow.ClearSpinnerOnly() // Preserve token count
 
 	// Update status with error
 	cv.status = cv.status.WithStatus("Streaming failed: " + err.Error())
