@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
@@ -416,6 +417,19 @@ type AlertDisplay struct {
 	SpinnerText      string
 	ErrorMessage     string
 	Width            int
+	StartTime        time.Time // Track when operation started
+	CurrentDuration  time.Duration // Current operation duration
+}
+
+// Enhanced status row component that replaces alert area
+type StatusRowDisplay struct {
+	IsSpinnerVisible bool
+	SpinnerFrame     int
+	FeedbackText     string
+	StartTime        time.Time
+	CurrentDuration  time.Duration
+	TokenCount       int
+	Width            int
 }
 
 func NewAlertDisplay(width int) AlertDisplay {
@@ -500,6 +514,115 @@ func (ad AlertDisplay) GetDisplayText() string {
 	return ""
 }
 
+// StatusRowDisplay methods
+func NewStatusRowDisplay(width int) StatusRowDisplay {
+	return StatusRowDisplay{
+		IsSpinnerVisible: false,
+		SpinnerFrame:     0,
+		FeedbackText:     "",
+		StartTime:        time.Time{},
+		CurrentDuration:  0,
+		TokenCount:       0,
+		Width:            width,
+	}
+}
+
+func (srd StatusRowDisplay) WithSpinner(visible bool, feedbackText string) StatusRowDisplay {
+	startTime := srd.StartTime
+	if visible && srd.StartTime.IsZero() {
+		startTime = time.Now()
+	} else if !visible {
+		startTime = time.Time{}
+	}
+	
+	return StatusRowDisplay{
+		IsSpinnerVisible: visible,
+		SpinnerFrame:     srd.SpinnerFrame,
+		FeedbackText:     feedbackText,
+		StartTime:        startTime,
+		CurrentDuration:  srd.CurrentDuration,
+		TokenCount:       srd.TokenCount,
+		Width:            srd.Width,
+	}
+}
+
+func (srd StatusRowDisplay) WithTokens(tokenCount int) StatusRowDisplay {
+	return StatusRowDisplay{
+		IsSpinnerVisible: srd.IsSpinnerVisible,
+		SpinnerFrame:     srd.SpinnerFrame,
+		FeedbackText:     srd.FeedbackText,
+		StartTime:        srd.StartTime,
+		CurrentDuration:  srd.CurrentDuration,
+		TokenCount:       tokenCount,
+		Width:            srd.Width,
+	}
+}
+
+func (srd StatusRowDisplay) WithDuration(duration time.Duration) StatusRowDisplay {
+	return StatusRowDisplay{
+		IsSpinnerVisible: srd.IsSpinnerVisible,
+		SpinnerFrame:     srd.SpinnerFrame,
+		FeedbackText:     srd.FeedbackText,
+		StartTime:        srd.StartTime,
+		CurrentDuration:  duration,
+		TokenCount:       srd.TokenCount,
+		Width:            srd.Width,
+	}
+}
+
+func (srd StatusRowDisplay) WithWidth(width int) StatusRowDisplay {
+	return StatusRowDisplay{
+		IsSpinnerVisible: srd.IsSpinnerVisible,
+		SpinnerFrame:     srd.SpinnerFrame,
+		FeedbackText:     srd.FeedbackText,
+		StartTime:        srd.StartTime,
+		CurrentDuration:  srd.CurrentDuration,
+		TokenCount:       srd.TokenCount,
+		Width:            width,
+	}
+}
+
+func (srd StatusRowDisplay) NextSpinnerFrame() StatusRowDisplay {
+	return StatusRowDisplay{
+		IsSpinnerVisible: srd.IsSpinnerVisible,
+		SpinnerFrame:     (srd.SpinnerFrame + 1) % GetSpinnerFrameCount(),
+		FeedbackText:     srd.FeedbackText,
+		StartTime:        srd.StartTime,
+		CurrentDuration:  srd.CurrentDuration,
+		TokenCount:       srd.TokenCount,
+		Width:            srd.Width,
+	}
+}
+
+func (srd StatusRowDisplay) UpdateDuration() StatusRowDisplay {
+	duration := srd.CurrentDuration
+	if srd.IsSpinnerVisible && !srd.StartTime.IsZero() {
+		duration = time.Since(srd.StartTime)
+	}
+	
+	return StatusRowDisplay{
+		IsSpinnerVisible: srd.IsSpinnerVisible,
+		SpinnerFrame:     srd.SpinnerFrame,
+		FeedbackText:     srd.FeedbackText,
+		StartTime:        srd.StartTime,
+		CurrentDuration:  duration,
+		TokenCount:       srd.TokenCount,
+		Width:            srd.Width,
+	}
+}
+
+func (srd StatusRowDisplay) Clear() StatusRowDisplay {
+	return StatusRowDisplay{
+		IsSpinnerVisible: false,
+		SpinnerFrame:     srd.SpinnerFrame,
+		FeedbackText:     "",
+		StartTime:        time.Time{},
+		CurrentDuration:  0,
+		TokenCount:       srd.TokenCount,
+		Width:            srd.Width,
+	}
+}
+
 type ModalDialog struct {
 	Visible bool
 	Title   string
@@ -581,7 +704,6 @@ func (md ModalDialog) Render(screen tcell.Screen, area Rect) {
 	// Styles
 	titleStyle := StyleBorderError.Bold(true)
 	messageStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
-	instructionStyle := StyleInstruction
 
 	// Render title
 	if md.Title != "" {
@@ -610,7 +732,7 @@ func (md ModalDialog) Render(screen tcell.Screen, area Rect) {
 	if instrX < modalArea.X+1 {
 		instrX = modalArea.X + 1
 	}
-	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, StyleInstruction)
 }
 
 type TextInputModal struct {
@@ -728,7 +850,6 @@ func (tim TextInputModal) Render(screen tcell.Screen, area Rect) {
 	// Styles
 	titleStyle := StyleHighlight
 	promptStyle := StylePrompt
-	instructionStyle := StyleDimText
 
 	// Render title
 	if tim.Title != "" {
@@ -793,44 +914,48 @@ func (tim TextInputModal) Render(screen tcell.Screen, area Rect) {
 	if instrX < modalArea.X+1 {
 		instrX = modalArea.X + 1
 	}
-	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, StyleInstruction)
 }
 
 type ConfirmationModal struct {
-	Visible bool
-	Title   string
-	Message string
-	Width   int
-	Height  int
+	Visible        bool
+	Title          string
+	Message        string
+	Width          int
+	Height         int
+	SelectedButton int // 0 = Cancel, 1 = Confirm
 }
 
 func NewConfirmationModal() ConfirmationModal {
 	return ConfirmationModal{
-		Visible: false,
-		Title:   "",
-		Message: "",
-		Width:   50,
-		Height:  8,
+		Visible:        false,
+		Title:          "",
+		Message:        "",
+		Width:          50,
+		Height:         8,
+		SelectedButton: 1, // Default to Confirm button
 	}
 }
 
 func (cm ConfirmationModal) Show(title, message string) ConfirmationModal {
 	return ConfirmationModal{
-		Visible: true,
-		Title:   title,
-		Message: message,
-		Width:   cm.Width,
-		Height:  cm.Height,
+		Visible:        true,
+		Title:          title,
+		Message:        message,
+		Width:          cm.Width,
+		Height:         cm.Height,
+		SelectedButton: 1, // Default to Confirm button
 	}
 }
 
 func (cm ConfirmationModal) Hide() ConfirmationModal {
 	return ConfirmationModal{
-		Visible: false,
-		Title:   cm.Title,
-		Message: cm.Message,
-		Width:   cm.Width,
-		Height:  cm.Height,
+		Visible:        false,
+		Title:          cm.Title,
+		Message:        cm.Message,
+		Width:          cm.Width,
+		Height:         cm.Height,
+		SelectedButton: cm.SelectedButton,
 	}
 }
 
@@ -843,11 +968,36 @@ func (cm ConfirmationModal) HandleKeyEvent(ev *tcell.EventKey) (ConfirmationModa
 	case tcell.KeyEscape:
 		return cm.Hide(), false, false
 	case tcell.KeyEnter:
-		return cm.Hide(), true, false
+		// Enter confirms the selected button
+		confirmed := cm.SelectedButton == 1 // 1 = Confirm button
+		return cm.Hide(), confirmed, false
+	case tcell.KeyTab:
+		// Tab cycles between buttons
+		newButton := (cm.SelectedButton + 1) % 2
+		return ConfirmationModal{
+			Visible:        cm.Visible,
+			Title:          cm.Title,
+			Message:        cm.Message,
+			Width:          cm.Width,
+			Height:         cm.Height,
+			SelectedButton: newButton,
+		}, false, false
+	case tcell.KeyLeft, tcell.KeyRight:
+		// Arrow keys also switch between buttons
+		newButton := (cm.SelectedButton + 1) % 2
+		return ConfirmationModal{
+			Visible:        cm.Visible,
+			Title:          cm.Title,
+			Message:        cm.Message,
+			Width:          cm.Width,
+			Height:         cm.Height,
+			SelectedButton: newButton,
+		}, false, false
 	default:
 		if ev.Rune() != 0 {
 			switch ev.Rune() {
 			case 'y', 'Y':
+				// Keep Y/N functionality but don't document it
 				return cm.Hide(), true, false
 			case 'n', 'N':
 				return cm.Hide(), false, false
@@ -890,7 +1040,6 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 	// Styles
 	titleStyle := StyleBorderError.Bold(true)
 	messageStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
-	instructionStyle := StyleInstruction
 
 	// Render title
 	if cm.Title != "" {
@@ -917,13 +1066,52 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 		}
 	}
 
-	// Render instruction
-	instruction := "<enter> to confirm. <esc> to cancel."
-	instrX := modalArea.X + (modalArea.Width-len(instruction))/2
-	if instrX < modalArea.X+1 {
-		instrX = modalArea.X + 1
+	// Render buttons inside the modal border (similar to DownloadPromptModal)
+	contentArea := Rect{
+		X:      modalArea.X + 1,
+		Y:      modalArea.Y + 1,
+		Width:  modalArea.Width - 2,
+		Height: modalArea.Height - 2,
 	}
-	renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+	
+	buttonY := contentArea.Y + contentArea.Height - 2  // Inside border, from bottom
+	buttonSpacing := 2
+	availableWidth := contentArea.Width - buttonSpacing
+	buttonWidth := availableWidth / 2  // Each button gets half the available width
+
+	// Cancel button (left)
+	cancelX := contentArea.X
+	cancelStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
+	if cm.SelectedButton == 0 {
+		cancelStyle = cancelStyle.Bold(true)
+	}
+	
+	// Fill button background and render text
+	for x := cancelX; x < cancelX+buttonWidth; x++ {
+		screen.SetContent(x, buttonY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDefault))
+	}
+	
+	// Cancel text (centered in button)
+	cancelText := "Cancel"
+	cancelTextX := cancelX + (buttonWidth-len(cancelText))/2
+	renderTextWithLimit(screen, cancelTextX, buttonY, buttonWidth, cancelText, cancelStyle)
+
+	// Confirm button (right)
+	confirmX := contentArea.X + buttonWidth + buttonSpacing
+	confirmStyle := StyleBorderError // Use error style for confirm button to match delete action
+	if cm.SelectedButton == 1 {
+		confirmStyle = confirmStyle.Bold(true)
+	}
+	
+	// Fill button background and render text
+	for x := confirmX; x < confirmX+buttonWidth; x++ {
+		screen.SetContent(x, buttonY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDefault))
+	}
+	
+	// Confirm text (centered in button)
+	confirmText := "Confirm"
+	confirmTextX := confirmX + (buttonWidth-len(confirmText))/2
+	renderTextWithLimit(screen, confirmTextX, buttonY, buttonWidth, confirmText, confirmStyle)
 }
 
 type DownloadPromptModal struct {
@@ -1072,85 +1260,52 @@ func (dpm DownloadPromptModal) Render(screen tcell.Screen, area Rect) {
 	}
 	renderTextWithLimit(screen, message2X, modalArea.Y+6, modalArea.Width-2, message2, messageStyle)
 
-	// Render buttons
-	buttonY := modalArea.Y + modalArea.Height - 3
-	buttonWidth := 12  // Slightly wider for better appearance
-	buttonHeight := 3
-	buttonSpacing := 6
-	totalButtonWidth := (buttonWidth * 2) + buttonSpacing
-	startX := modalArea.X + (modalArea.Width-totalButtonWidth)/2
+	// Render buttons inside the modal border
+	contentArea := Rect{
+		X:      modalArea.X + 1,
+		Y:      modalArea.Y + 1,
+		Width:  modalArea.Width - 2,
+		Height: modalArea.Height - 2,
+	}
+	
+	buttonY := contentArea.Y + contentArea.Height - 2  // Inside border, from bottom
+	buttonSpacing := 2
+	availableWidth := contentArea.Width - buttonSpacing
+	buttonWidth := availableWidth / 2  // Each button gets half the available width
 
 	// Cancel button (left)
-	cancelX := startX
+	cancelX := contentArea.X
 	cancelStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
-	cancelBgStyle := tcell.StyleDefault.Background(tcell.ColorDefault)
-	
 	if dpm.SelectedButton == 0 {
-		// Selected: thin solid border
-		cancelBgStyle = tcell.StyleDefault.Background(tcell.ColorDefault)
-		// Draw thin border around button
-		for x := cancelX - 1; x <= cancelX + buttonWidth; x++ {
-			screen.SetContent(x, buttonY-1, '─', nil, cancelStyle)
-			screen.SetContent(x, buttonY+buttonHeight, '─', nil, cancelStyle)
-		}
-		for y := buttonY; y < buttonY+buttonHeight; y++ {
-			screen.SetContent(cancelX-1, y, '│', nil, cancelStyle)
-			screen.SetContent(cancelX+buttonWidth, y, '│', nil, cancelStyle)
-		}
-		// Corner pieces
-		screen.SetContent(cancelX-1, buttonY-1, '┌', nil, cancelStyle)
-		screen.SetContent(cancelX+buttonWidth, buttonY-1, '┐', nil, cancelStyle)
-		screen.SetContent(cancelX-1, buttonY+buttonHeight, '└', nil, cancelStyle)
-		screen.SetContent(cancelX+buttonWidth, buttonY+buttonHeight, '┘', nil, cancelStyle)
+		cancelStyle = cancelStyle.Bold(true)
 	}
-
-	// Fill button background
-	for y := buttonY; y < buttonY+buttonHeight; y++ {
-		for x := cancelX; x < cancelX+buttonWidth; x++ {
-			screen.SetContent(x, y, ' ', nil, cancelBgStyle)
-		}
+	
+	// Fill button background and render text
+	for x := cancelX; x < cancelX+buttonWidth; x++ {
+		screen.SetContent(x, buttonY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDefault))
 	}
-
-	// Cancel text
+	
+	// Cancel text (centered in button)
 	cancelText := "Cancel"
 	cancelTextX := cancelX + (buttonWidth-len(cancelText))/2
-	renderTextWithLimit(screen, cancelTextX, buttonY+1, buttonWidth, cancelText, cancelStyle)
+	renderTextWithLimit(screen, cancelTextX, buttonY, buttonWidth, cancelText, cancelStyle)
 
 	// Download button (right)
-	downloadX := startX + buttonWidth + buttonSpacing
+	downloadX := contentArea.X + buttonWidth + buttonSpacing
 	downloadStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
-	downloadBgStyle := tcell.StyleDefault.Background(tcell.ColorDefault)
-	
 	if dpm.SelectedButton == 1 {
-		// Selected: thin solid border
-		downloadBgStyle = tcell.StyleDefault.Background(tcell.ColorDefault)
-		// Draw thin border around button
-		for x := downloadX - 1; x <= downloadX + buttonWidth; x++ {
-			screen.SetContent(x, buttonY-1, '─', nil, downloadStyle)
-			screen.SetContent(x, buttonY+buttonHeight, '─', nil, downloadStyle)
-		}
-		for y := buttonY; y < buttonY+buttonHeight; y++ {
-			screen.SetContent(downloadX-1, y, '│', nil, downloadStyle)
-			screen.SetContent(downloadX+buttonWidth, y, '│', nil, downloadStyle)
-		}
-		// Corner pieces
-		screen.SetContent(downloadX-1, buttonY-1, '┌', nil, downloadStyle)
-		screen.SetContent(downloadX+buttonWidth, buttonY-1, '┐', nil, downloadStyle)
-		screen.SetContent(downloadX-1, buttonY+buttonHeight, '└', nil, downloadStyle)
-		screen.SetContent(downloadX+buttonWidth, buttonY+buttonHeight, '┘', nil, downloadStyle)
+		downloadStyle = downloadStyle.Bold(true)
 	}
-
-	// Fill button background
-	for y := buttonY; y < buttonY+buttonHeight; y++ {
-		for x := downloadX; x < downloadX+buttonWidth; x++ {
-			screen.SetContent(x, y, ' ', nil, downloadBgStyle)
-		}
+	
+	// Fill button background and render text
+	for x := downloadX; x < downloadX+buttonWidth; x++ {
+		screen.SetContent(x, buttonY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDefault))
 	}
-
-	// Download text
+	
+	// Download text (centered in button)
 	downloadText := "Download"
 	downloadTextX := downloadX + (buttonWidth-len(downloadText))/2
-	renderTextWithLimit(screen, downloadTextX, buttonY+1, buttonWidth, downloadText, downloadStyle)
+	renderTextWithLimit(screen, downloadTextX, buttonY, buttonWidth, downloadText, downloadStyle)
 }
 
 type ProgressModal struct {
@@ -1289,7 +1444,6 @@ func (pm ProgressModal) Render(screen tcell.Screen, area Rect) {
 	modelStyle := tcell.StyleDefault.Foreground(ColorModelName).Bold(true)
 	statusStyle := tcell.StyleDefault.Foreground(ColorMenuNormal)
 	progressStyle := tcell.StyleDefault.Background(ColorProgressBar).Foreground(ColorMenuNormal)
-	instructionStyle := StyleDimText
 
 	// Render title with spinner
 	spinnerChar := pm.Spinner.GetCurrentFrame()
@@ -1355,7 +1509,7 @@ func (pm ProgressModal) Render(screen tcell.Screen, area Rect) {
 		if instrX < modalArea.X+1 {
 			instrX = modalArea.X + 1
 		}
-		renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, instructionStyle)
+		renderTextWithLimit(screen, instrX, modalArea.Y+modalArea.Height-2, modalArea.Width-2, instruction, StyleInstruction)
 	}
 }
 

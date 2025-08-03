@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Enhanced Status Row**: Improved status information display with format `<SPINNER> <FEEDBACK_TEXT> (<DURATION> | <NUM_TOKENS> | <bold>esc</bold> to interject)`
+  - Real-time duration tracking during operations
+  - Integrated token count display in status row
+  - Interactive "esc to interject" hint during streaming
+- **Improved Modal Buttons**: Consistent button styling across all modals
+  - Download modal buttons now properly contained within border
+  - Equal-width buttons that fill available space
+  - Reduced padding for cleaner appearance
+  - Delete confirmation modal now uses proper buttons instead of instruction text
+  - Tab and arrow key navigation between buttons
+
+### Fixed
+- **Token Count Reporting**: Fixed bug where token counts were not updated after streaming completion
+- **Modal Button Overflow**: Fixed download modal buttons overflowing container boundaries
+- **Status Row Layout**: Improved status row positioning and content layout
+
 - **Tool Calling System (Phase 2)**: Complete Ollama integration with tool calling support
   - Universal tool interface with JSON Schema validation
   - Built-in tools: `execute_bash` and `read_file` with security constraints
