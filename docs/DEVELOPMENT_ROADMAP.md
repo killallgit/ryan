@@ -472,118 +472,98 @@ var streamTestCmd = &cobra.Command{
 - **Documentation**: Complete implementation guide and API reference
 - Ready for production use with real-time streaming experience
 
-### 3.5: Tool System Parity with Claude Code 🚧 IN PROGRESS
+### 3.5: Tool System Parity with Claude Code ✅ FOUNDATION COMPLETED 🚧 EXPANSION IN PROGRESS
 **Duration**: 4-5 weeks  
 **Goal**: Achieve feature parity with Claude Code's sophisticated tool execution system
 
-#### 3.5A: Advanced Execution Engine (Weeks 1-2)
-**Purpose**: Build concurrent tool orchestration matching Claude Code's "capability to call multiple tools in a single response"
+#### 3.5A: Core Tool Infrastructure ✅ COMPLETED
+**Purpose**: Basic tool execution system with safety and provider support
 
+**Implemented Features** ✅:
+- **Tool Registry**: Thread-safe tool registration and management
+- **Provider Adapters**: OpenAI/Ollama, Anthropic, and MCP format support
+- **Safety Framework**: Path restrictions, command filtering, timeout controls
+- **Core Tools**: `execute_bash` and `read_file` with comprehensive safety
+- **Chat Integration**: Tool execution loops with streaming support
+- **Test Coverage**: Unit and integration tests for tool system
+
+**Current Architecture**:
 ```go
-// Enhanced tool execution architecture
-type ToolOrchestrator struct {
-    executorPool     *goroutine.Pool    // Concurrent execution
-    resultAggregator chan ToolResult    // Result collection
-    progressTracker  *ProgressManager   // Real-time feedback
-    cancelManager    *context.Manager   // Cancellation support
+// Implemented tool system - pkg/tools/
+type Tool interface {
+    Name() string
+    Description() string  
+    JSONSchema() map[string]interface{}
+    Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error)
 }
 
-// Batch execution system
-type BatchExecutor struct {
-    tools            []ToolRequest
-    dependencies     DependencyGraph
-    maxConcurrency   int
-    results          map[string]ToolResult
+type Registry struct {
+    tools map[string]Tool
+    mu    sync.RWMutex
 }
 
-func (be *BatchExecutor) ExecuteParallel(ctx context.Context) (BatchResult, error)
+// Provider conversion completed
+func ConvertToProvider(tool Tool, provider string) (map[string]interface{}, error)
 ```
 
-**Key Features**:
-- **Concurrent Tool Execution**: Goroutine pools for parallel tool execution
-- **Batch Processing**: Multiple tools in single request/response cycle
-- **Dependency Resolution**: Tool ordering and prerequisite handling
-- **Resource Management**: Memory limits, timeout controls, cancellation
-- **Progress Tracking**: Real-time feedback in TUI during tool execution
+**Current Tools**:
+1. ✅ **execute_bash**: Shell command execution with safety constraints
+2. ✅ **read_file**: File reading with extension and size limitations
 
-**Tests Required**:
-- Concurrent execution with race detection
-- Batch dependency resolution
-- Resource limit enforcement
-- Error handling and recovery
-- Progress tracking accuracy
+#### 3.5B: Tool Expansion & Docker Integration 🚧 CURRENT PHASE
+**Purpose**: Expand tool suite and validate with Docker use case
 
-**Exit Criteria**: Can execute 10+ tools concurrently with proper orchestration
+**Docker Integration MVP** (Week 1):
+- Test current `execute_bash` tool with "How many docker images are on the system?"
+- Validate tool calling flow: Question → Tool call → `docker images | wc -l` → Response
+- Ensure proper error handling for Docker not installed/running
+- Add Docker-specific examples to documentation
 
-#### 3.5B: Comprehensive Tool Suite (Weeks 3-4)
-**Purpose**: Expand from 2 basic tools to 15+ production-ready tools matching Claude Code coverage
-
-**Core Tools Implementation**:
-1. **WebFetch Tool**: HTTP requests with caching, rate limiting, redirect handling
-2. **Enhanced Grep Tool**: ripgrep integration with context, syntax highlighting
-3. **Glob Tool**: Advanced pattern matching with sorting and filtering
-4. **Enhanced Read/Write Tools**: Encoding detection, PDF support, image viewing
-5. **Directory Operations**: LS with filtering, mkdir, tree view
-6. **Git Integration**: Status, commit, diff, branch operations with validation
-7. **Package Manager Tools**: npm, go mod, cargo integration
-8. **Process Management**: ps, kill, system monitoring
-9. **Network Tools**: ping, curl, port scanning
-10. **Development Tools**: Build system integration, test runners
+**Additional Tools** (Weeks 2-3):
+1. **Enhanced Directory Operations**: Better `ls`, `find`, file system navigation
+2. **Process Management**: `ps`, process monitoring, system information
+3. **Network Tools**: Basic connectivity testing, port checking
+4. **Development Tools**: Build system integration, test runners
+5. **File Operations**: Write, move, copy operations with safety
 
 **Architecture Enhancements**:
 ```go
-// Tool registry with advanced features
-type AdvancedRegistry struct {
-    tools           map[string]Tool
-    categories      map[string][]string    // Tool categorization
-    permissions     map[string][]Permission // Security model
-    dependencies    DependencyGraph        // Tool relationships
-    cache          *ToolResultCache       // Result caching
-    validator      *ToolValidator         // Input validation
+// Tool categorization and permissions
+type CategoryRegistry struct {
+    categories map[string][]string    // "system", "file", "network", etc.
+    permissions map[string]Permission // Tool-specific permissions
 }
 
-// Tool execution context with enhanced features
+// Enhanced execution context
 type ExecutionContext struct {
-    UserConsent    ConsentManager    // Security consent
-    ResourceLimits ResourceLimiter   // Memory, CPU, time limits
-    ProgressSink   ProgressReporter  // Real-time feedback
-    CancelFunc     context.CancelFunc // Cancellation
+    Timeout        time.Duration
+    WorkingDir     string
+    EnvironmentVars map[string]string
+    ResourceLimits ResourceLimiter
 }
 ```
 
-**Exit Criteria**: Tool suite coverage matches Claude Code's breadth and capability
+**Current Priority**: Validate Docker tool calling integration before expanding
 
-#### 3.5C: Multi-Provider Integration (Weeks 5-6)
-**Purpose**: Provider-agnostic tool calling for OpenAI, Anthropic, Ollama
+#### 3.5C: Advanced Features (Weeks 4-5)
+**Purpose**: Advanced execution patterns and optimization
 
-**Provider Abstraction Layer**:
-```go
-// Universal tool calling interface
-type ProviderAdapter interface {
-    ConvertToolDefinition(tool Tool) (ProviderToolDef, error)
-    ParseToolCall(response ProviderResponse) (ToolCall, error)
-    FormatToolResult(result ToolResult) (ProviderResult, error)
-}
+**Concurrent Execution**:
+- Batch tool execution with dependency resolution
+- Progress tracking for long-running tools
+- Cancellation support during streaming
 
-// Provider implementations
-type OpenAIAdapter struct{}    // {"type": "function", "function": {...}}
-type AnthropicAdapter struct{} // {"name": ..., "input_schema": {...}}
-type OllamaAdapter struct{}    // OpenAI-compatible format
+**Enhanced UX**:
+- Real-time tool progress in TUI
+- Tool result formatting and syntax highlighting
+- Error recovery and suggestions
 
-// Multi-provider client
-type UniversalClient struct {
-    providers map[string]ProviderAdapter
-    router    ProviderRouter
-}
-```
+**Multi-Provider Support**:
+- Provider-specific optimizations
+- Tool compatibility matrix
+- Provider fallback mechanisms
 
-**Streaming Integration**:
-- Tool execution during streaming responses
-- Real-time tool result display in TUI
-- Memory-efficient result streaming
-- Tool progress indicators and cancellation
-
-**Exit Criteria**: Works seamlessly with OpenAI, Anthropic, and Ollama APIs
+**Exit Criteria**: Production-ready tool system with Claude Code feature parity
 
 ## Phase 4: TUI + Streaming Integration
 **Duration**: 1 week  
