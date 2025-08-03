@@ -26,6 +26,7 @@ tools:
         enabled: true               # Enable bash command execution
         timeout: "90s"              # Maximum execution time per command
         allowed_paths: [".", "/tmp"] # Directories where commands can run
+        skip_permissions: false     # Skip all safety checks (dangerous!)
         
     file_read:
         enabled: true               # Enable file reading

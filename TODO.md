@@ -6,5 +6,5 @@
 - cleanup all the test commands. Put into their own namespace and optimize them
 
 
-# CONTEXT
-- Lets being integrating more full featured context. We will start by storing our context to disk. Be
+# UI/UX
+- I want to give proper feedback that a tool is being called. Lets show feedback in the chat that looks like: <TOOL>(<truncated-command>). example. "Shell(docker ps -a)" or "Search("https://www.wikipedia.com")"

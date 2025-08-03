@@ -13,7 +13,7 @@ import (
 
 type ModelView struct {
 	controller        *controllers.ModelsController
-	chatController    *controllers.ChatController
+	chatController    ControllerInterface
 	modelList         ModelListDisplay
 	modelStats        ModelStatsDisplay
 	status            StatusBar
@@ -32,7 +32,7 @@ type ModelView struct {
 	selectAfterRefresh string // Model name to select after next refresh
 }
 
-func NewModelView(controller *controllers.ModelsController, chatController *controllers.ChatController, screen tcell.Screen) *ModelView {
+func NewModelView(controller *controllers.ModelsController, chatController ControllerInterface, screen tcell.Screen) *ModelView {
 	width, height := screen.Size()
 
 	log := logger.WithComponent("model_view")

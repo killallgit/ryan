@@ -75,10 +75,11 @@ type ToolsConfig struct {
 
 // BashToolConfig holds bash tool configuration
 type BashToolConfig struct {
-	Enabled      bool          `mapstructure:"enabled"`
-	Timeout      time.Duration `mapstructure:"timeout"`
-	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
-	AllowedPaths []string      `mapstructure:"allowed_paths"`
+	Enabled         bool          `mapstructure:"enabled"`
+	Timeout         time.Duration `mapstructure:"timeout"`
+	TimeoutStr      string        `mapstructure:"timeout"` // For parsing string duration
+	AllowedPaths    []string      `mapstructure:"allowed_paths"`
+	SkipPermissions bool          `mapstructure:"skip_permissions"`
 }
 
 // FileReadConfig holds file read tool configuration

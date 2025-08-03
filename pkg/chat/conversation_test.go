@@ -271,4 +271,101 @@ var _ = Describe("Conversation", func() {
 			Expect(chat.GetMessageCount(conv)).To(Equal(2))
 		})
 	})
+
+	// New tests for enhanced conversation management
+	
+	Describe("Message deduplication", func() {
+		It("should remove optimistic messages when adding final ones", func() {
+			conv := chat.NewConversation("test-model")
+			
+			// Add optimistic message
+			optimisticMsg := chat.NewOptimisticUserMessage("Hello")
+			conv = chat.AddMessage(conv, optimisticMsg)
+			Expect(chat.GetMessageCount(conv)).To(Equal(1))
+			
+			// Add final message with same content - should replace optimistic
+			finalMsg := chat.NewUserMessage("Hello")
+			conv = chat.AddMessageWithDeduplication(conv, finalMsg)
+			
+			Expect(chat.GetMessageCount(conv)).To(Equal(1))
+			messages := chat.GetMessages(conv)
+			Expect(messages[0].GetSource()).To(Equal(chat.MessageSourceFinal))
+			Expect(messages[0].IsOptimistic()).To(BeFalse())
+		})
+		
+		It("should not remove optimistic messages with different content", func() {
+			conv := chat.NewConversation("test-model")
+			
+			// Add optimistic message
+			optimisticMsg := chat.NewOptimisticUserMessage("Hello")
+			conv = chat.AddMessage(conv, optimisticMsg)
+			
+			// Add final message with different content
+			finalMsg := chat.NewUserMessage("Goodbye")
+			conv = chat.AddMessageWithDeduplication(conv, finalMsg)
+			
+			Expect(chat.GetMessageCount(conv)).To(Equal(2))
+		})
+		
+		It("should replace optimistic messages correctly", func() {
+			conv := chat.NewConversation("test-model")
+			
+			// Add some messages
+			conv = chat.AddMessage(conv, chat.NewSystemMessage("System"))
+			conv = chat.AddMessage(conv, chat.NewOptimisticUserMessage("Hello"))
+			conv = chat.AddMessage(conv, chat.NewAssistantMessage("Hi"))
+			
+			// Replace optimistic message
+			finalMsg := chat.NewUserMessage("Hello")
+			conv = chat.ReplaceOptimisticMessage(conv, "Hello", finalMsg)
+			
+			messages := chat.GetMessages(conv)
+			Expect(len(messages)).To(Equal(3))
+			Expect(messages[1].GetSource()).To(Equal(chat.MessageSourceFinal))
+		})
+	})
+	
+	Describe("Streaming message management", func() {
+		It("should remove streaming messages by stream ID", func() {
+			conv := chat.NewConversation("test-model")
+			
+			// Add regular and streaming messages
+			conv = chat.AddMessage(conv, chat.NewUserMessage("User"))
+			conv = chat.AddMessage(conv, chat.NewStreamingMessage(chat.RoleAssistant, "Chunk1", "stream-123", 1))
+			conv = chat.AddMessage(conv, chat.NewStreamingMessage(chat.RoleAssistant, "Chunk2", "stream-123", 2))
+			conv = chat.AddMessage(conv, chat.NewStreamingMessage(chat.RoleAssistant, "Other", "stream-456", 1))
+			
+			Expect(chat.GetMessageCount(conv)).To(Equal(4))
+			
+			// Remove streaming messages from specific stream
+			conv = chat.RemoveStreamingMessages(conv, "stream-123")
+			
+			messages := chat.GetMessages(conv)
+			Expect(len(messages)).To(Equal(2))
+			Expect(messages[0].Content).To(Equal("User"))
+			Expect(messages[1].Content).To(Equal("Other"))
+		})
+		
+		It("should get streaming messages", func() {
+			conv := chat.NewConversation("test-model")
+			
+			conv = chat.AddMessage(conv, chat.NewUserMessage("User"))
+			conv = chat.AddMessage(conv, chat.NewStreamingMessage(chat.RoleAssistant, "Chunk", "stream-123", 1))
+			
+			streamingMsgs := chat.GetStreamingMessages(conv)
+			Expect(len(streamingMsgs)).To(Equal(1))
+			Expect(streamingMsgs[0].Content).To(Equal("Chunk"))
+		})
+		
+		It("should get optimistic messages", func() {
+			conv := chat.NewConversation("test-model")
+			
+			conv = chat.AddMessage(conv, chat.NewOptimisticUserMessage("Optimistic"))
+			conv = chat.AddMessage(conv, chat.NewUserMessage("Final"))
+			
+			optimisticMsgs := chat.GetOptimisticMessages(conv)
+			Expect(len(optimisticMsgs)).To(Equal(1))
+			Expect(optimisticMsgs[0].Content).To(Equal("Optimistic"))
+		})
+	})
 })

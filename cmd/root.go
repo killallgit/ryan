@@ -1,12 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
@@ -15,6 +15,28 @@ import (
 	"github.com/killallgit/ryan/pkg/tui"
 	"github.com/spf13/cobra"
 )
+
+// LangChainControllerAdapter adapts LangChainController to ChatController interface
+type LangChainControllerAdapter struct {
+	*controllers.LangChainController
+}
+
+// Implement any missing methods needed by the TUI
+func (lca *LangChainControllerAdapter) StartStreaming(ctx context.Context, content string) (<-chan controllers.StreamingUpdate, error) {
+	return lca.LangChainController.StartStreaming(ctx, content)
+}
+
+func (lca *LangChainControllerAdapter) SetOllamaClient(client interface{}) {
+	lca.LangChainController.SetOllamaClient(client)
+}
+
+func (lca *LangChainControllerAdapter) ValidateModel(model string) error {
+	return lca.LangChainController.ValidateModel(model)
+}
+
+func (lca *LangChainControllerAdapter) GetTokenUsage() (promptTokens, responseTokens int) {
+	return lca.LangChainController.GetTokenUsage()
+}
 
 var cfgFile string
 
@@ -82,14 +104,8 @@ var rootCmd = &cobra.Command{
 			"config_file", config.GetConfigFileUsed(),
 		)
 
-		// Create LangChain streaming client
-		log.Debug("Creating LangChain streaming client", "base_url", cfg.Ollama.URL, "model", model)
-		client, err := chat.NewStreamingClientWithTimeout(cfg.Ollama.URL, model, cfg.Ollama.Timeout)
-		if err != nil {
-			log.Error("Failed to create streaming client", "error", err)
-			fmt.Printf("Failed to create streaming client: %v\n", err)
-			return
-		}
+		// Create LangChain agent client
+		log.Debug("Creating LangChain agent client", "base_url", cfg.Ollama.URL, "model", model)
 
 		// Check Ollama server version and model compatibility before initializing tools
 		version, versionSupported, err := models.CheckOllamaVersion(cfg.Ollama.URL)
@@ -136,27 +152,38 @@ var rootCmd = &cobra.Command{
 			log.Debug("Initialized tool registry with built-in tools")
 		}
 
-		// Create controller using standard ChatController with LangChain backend
-		var controller *controllers.ChatController
+		// Create LangChain controller with agent framework
+		var langchainController *controllers.LangChainController
 		
 		if systemPrompt != "" {
-			controller = controllers.NewChatControllerWithSystem(client, model, systemPrompt, toolRegistry)
+			langchainController, err = controllers.NewLangChainControllerWithSystem(cfg.Ollama.URL, model, systemPrompt, toolRegistry)
+			if err != nil {
+				log.Error("Failed to create LangChain controller with system prompt", "error", err)
+				fmt.Printf("Failed to create LangChain controller: %v\n", err)
+				return
+			}
 			if toolRegistry != nil {
-				log.Debug("Created chat controller with system prompt and tools")
+				log.Debug("Created LangChain controller with system prompt and tools")
 			} else {
-				log.Debug("Created chat controller with system prompt but without tools")
+				log.Debug("Created LangChain controller with system prompt but without tools")
 			}
 		} else {
-			controller = controllers.NewChatController(client, model, toolRegistry)
+			langchainController, err = controllers.NewLangChainController(cfg.Ollama.URL, model, toolRegistry)
+			if err != nil {
+				log.Error("Failed to create LangChain controller", "error", err)
+				fmt.Printf("Failed to create LangChain controller: %v\n", err)
+				return
+			}
 			if toolRegistry != nil {
-				log.Debug("Created chat controller without system prompt but with tools")
+				log.Debug("Created LangChain controller without system prompt but with tools")
 			} else {
-				log.Debug("Created chat controller without system prompt or tools")
+				log.Debug("Created LangChain controller without system prompt or tools")
 			}
 		}
 
 		log.Info("Creating TUI application")
-		app, err := tui.NewApp(controller)
+		// Convert LangChain controller to interface that TUI expects
+		app, err := tui.NewApp(&LangChainControllerAdapter{langchainController})
 		if err != nil {
 			log.Error("Failed to create TUI application", "error", err)
 			fmt.Printf("Failed to create TUI application: %v\n", err)

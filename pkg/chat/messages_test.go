@@ -125,4 +125,85 @@ var _ = Describe("Messages", func() {
 			Expect(chat.RoleSystem).To(Equal("system"))
 		})
 	})
+
+	// New tests for enhanced message architecture
+	
+	Describe("ThinkingBlock", func() {
+		It("should create messages with thinking blocks", func() {
+			msg := chat.NewAssistantMessageWithThinking("Response", "My thinking", true)
+			
+			Expect(msg.HasThinking()).To(BeTrue())
+			Expect(msg.IsThinkingVisible()).To(BeTrue())
+			Expect(msg.Thinking.Content).To(Equal("My thinking"))
+			Expect(msg.Thinking.Visible).To(BeTrue())
+			Expect(msg.Content).To(Equal("Response"))
+		})
+		
+		It("should handle invisible thinking blocks", func() {
+			msg := chat.NewAssistantMessageWithThinking("Response", "Hidden thinking", false)
+			
+			Expect(msg.HasThinking()).To(BeTrue())
+			Expect(msg.IsThinkingVisible()).To(BeFalse())
+			Expect(msg.Thinking.Visible).To(BeFalse())
+		})
+		
+		It("should handle messages without thinking blocks", func() {
+			msg := chat.NewAssistantMessage("Simple response")
+			
+			Expect(msg.HasThinking()).To(BeFalse())
+			Expect(msg.IsThinkingVisible()).To(BeFalse())
+		})
+	})
+	
+	Describe("MessageMetadata", func() {
+		It("should create optimistic messages", func() {
+			msg := chat.NewOptimisticUserMessage("Test message")
+			
+			Expect(msg.IsOptimistic()).To(BeTrue())
+			Expect(msg.GetSource()).To(Equal(chat.MessageSourceOptimistic))
+			Expect(msg.HasMetadata()).To(BeTrue())
+		})
+		
+		It("should create streaming messages", func() {
+			msg := chat.NewStreamingMessage(chat.RoleAssistant, "Chunk", "stream-123", 5)
+			
+			Expect(msg.IsStreaming()).To(BeTrue())
+			Expect(msg.GetStreamID()).To(Equal("stream-123"))
+			Expect(msg.GetSource()).To(Equal(chat.MessageSourceStreaming))
+			Expect(msg.Metadata.ChunkIndex).To(Equal(5))
+		})
+		
+		It("should handle final messages", func() {
+			msg := chat.NewUserMessage("Final message")
+			
+			Expect(msg.IsOptimistic()).To(BeFalse())
+			Expect(msg.IsStreaming()).To(BeFalse())
+			Expect(msg.GetSource()).To(Equal(chat.MessageSourceFinal))
+		})
+	})
+	
+	Describe("Message helpers", func() {
+		It("should add thinking to existing messages", func() {
+			msg := chat.NewAssistantMessage("Response")
+			updated := msg.WithThinking("Added thinking", true)
+			
+			Expect(updated.HasThinking()).To(BeTrue())
+			Expect(updated.Thinking.Content).To(Equal("Added thinking"))
+			Expect(updated.Thinking.Visible).To(BeTrue())
+			
+			// Original should be unchanged
+			Expect(msg.HasThinking()).To(BeFalse())
+		})
+		
+		It("should update message source", func() {
+			msg := chat.NewUserMessage("Test")
+			updated := msg.WithSource(chat.MessageSourceOptimistic)
+			
+			Expect(updated.GetSource()).To(Equal(chat.MessageSourceOptimistic))
+			Expect(updated.IsOptimistic()).To(BeTrue())
+			
+			// Original should be unchanged
+			Expect(msg.GetSource()).To(Equal(chat.MessageSourceFinal))
+		})
+	})
 })

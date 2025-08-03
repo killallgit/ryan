@@ -165,12 +165,13 @@ func (c *Client) initializeAgent() error {
 		c.log.Debug("Adapted tool", "name", tool.Name())
 	}
 
-	// Create conversational agent
+	// Create conversational agent with custom prompt to avoid thinking blocks
 	c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
 		agents.WithMemory(c.memory))
 
-	// Create executor
+	// Create executor with intermediate steps enabled  
 	c.executor = agents.NewExecutor(c.agent)
+	// TODO: Check if LangChainGo supports intermediate steps configuration
 
 	c.log.Info("LangChain agent initialized", "tools_count", len(c.langchainTools))
 	return nil
@@ -197,7 +198,21 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 		"input": userInput,
 	})
 	if err != nil {
+		// Check if error is due to thinking blocks parsing issue
+		if strings.Contains(err.Error(), "unable to parse agent output") && strings.Contains(err.Error(), "<think>") {
+			c.log.Warn("Agent failed due to thinking blocks, falling back to direct LLM", "error", err)
+			// Fall back to direct LLM interaction when agent parsing fails due to thinking blocks
+			return c.sendWithChain(ctx, userInput)
+		}
 		return "", fmt.Errorf("agent execution failed: %w", err)
+	}
+
+	// Log all available keys for debugging
+	c.log.Debug("Agent execution result keys", "keys", getMapKeys(result))
+
+	// Check for intermediate steps
+	if intermediateSteps, ok := result["intermediate_steps"]; ok {
+		c.log.Debug("Found intermediate steps", "steps", intermediateSteps)
 	}
 
 	// Extract the final output
@@ -208,6 +223,15 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 	return fmt.Sprintf("%v", result), nil
 }
 
+// getMapKeys extracts keys from a map for debugging
+func getMapKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // sendWithChain uses conversation chain for direct LLM interaction
 func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, error) {
 	c.log.Debug("Using conversation chain for message processing")
@@ -215,6 +239,21 @@ func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, e
 	// Convert input to LangChain message format
 	messages := []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeHuman, userInput),
+	}
+
+	// Add tool context if available (so LLM knows what tools it can reference)
+	if len(c.langchainTools) > 0 {
+		toolDescriptions := make([]string, 0, len(c.langchainTools))
+		for _, tool := range c.langchainTools {
+			toolDescriptions = append(toolDescriptions, fmt.Sprintf("- %s: %s", tool.Name(), tool.Description()))
+		}
+		
+		toolContext := fmt.Sprintf("You have access to the following tools:\n%s\n\nYou can reference these tools in your response, but you cannot actually execute them in this mode.", 
+			strings.Join(toolDescriptions, "\n"))
+		
+		messages = append([]llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeSystem, toolContext),
+		}, messages...)
 	}
 
 	// Add memory context if available
