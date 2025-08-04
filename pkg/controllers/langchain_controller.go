@@ -307,11 +307,38 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 		finalUserMsg := chat.NewUserMessage(content)
 		lc.conversation = chat.AddMessageWithDeduplication(lc.conversation, finalUserMsg)
 		
-		// Signal tool execution started (agents will use tools autonomously)
-		updates <- StreamingUpdate{
-			Type:     ToolExecutionStarted,
-			StreamID: "langchain-stream",
-		}
+		// Set up tool execution callbacks for the LangChain client
+		lc.client.SetToolCallbacks(
+			func(toolName string, args map[string]any) {
+				// Tool start callback
+				displayName := FormatToolDisplay(toolName, args)
+				updates <- StreamingUpdate{
+					Type:            ToolCallStarted,
+					StreamID:        "langchain-stream",
+					ToolName:        toolName,
+					ToolArgs:        args,
+					ToolDisplayName: displayName,
+				}
+			},
+			func(toolName string, result tools.ToolResult) {
+				// Tool complete callback
+				displayName := FormatToolDisplay(toolName, map[string]any{})
+				updates <- StreamingUpdate{
+					Type:            ToolExecutionComplete,
+					StreamID:        "langchain-stream",
+					ToolName:        toolName,
+					ToolDisplayName: displayName,
+					ToolResult:      result.Content,
+				}
+			},
+			func(toolName string, err error) {
+				// Tool error callback
+				updates <- StreamingUpdate{
+					Type:  StreamError,
+					Error: fmt.Errorf("tool %s failed: %w", toolName, err),
+				}
+			},
+		)
 		
 		// Use LangChain agent (non-streaming to get complete result with tool execution)
 		response, err := lc.client.SendMessage(ctx, content)
@@ -322,12 +349,6 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 			case <-ctx.Done():
 			}
 			return
-		}
-		
-		// Signal tool execution completed
-		updates <- StreamingUpdate{
-			Type:     ToolExecutionComplete,
-			StreamID: "langchain-stream",
 		}
 		
 		// Parse response to detect tool usage and create appropriate messages

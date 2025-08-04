@@ -16,6 +16,7 @@ type ChatController struct {
 	client             chat.ChatClient
 	conversation       chat.Conversation
 	toolRegistry       *tools.Registry
+	toolTracker        *tools.ToolExecutionTracker
 	lastPromptTokens   int
 	lastResponseTokens int
 	ollamaClient       OllamaClient
@@ -26,10 +27,16 @@ type OllamaClient interface {
 }
 
 func NewChatController(client chat.ChatClient, model string, toolRegistry *tools.Registry) *ChatController {
+	var toolTracker *tools.ToolExecutionTracker
+	if toolRegistry != nil {
+		toolTracker = tools.NewToolExecutionTracker(toolRegistry)
+	}
+	
 	return &ChatController{
 		client:             client,
 		conversation:       chat.NewConversation(model),
 		toolRegistry:       toolRegistry,
+		toolTracker:        toolTracker,
 		lastPromptTokens:   0,
 		lastResponseTokens: 0,
 		ollamaClient:       nil, // Will be set via SetOllamaClient
@@ -37,10 +44,16 @@ func NewChatController(client chat.ChatClient, model string, toolRegistry *tools
 }
 
 func NewChatControllerWithSystem(client chat.ChatClient, model, systemPrompt string, toolRegistry *tools.Registry) *ChatController {
+	var toolTracker *tools.ToolExecutionTracker
+	if toolRegistry != nil {
+		toolTracker = tools.NewToolExecutionTracker(toolRegistry)
+	}
+	
 	return &ChatController{
 		client:             client,
 		conversation:       chat.NewConversationWithSystem(model, systemPrompt),
 		toolRegistry:       toolRegistry,
+		toolTracker:        toolTracker,
 		lastPromptTokens:   0,
 		lastResponseTokens: 0,
 		ollamaClient:       nil, // Will be set via SetOllamaClient
@@ -153,23 +166,78 @@ func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessag
 }
 
 func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat.ToolCall) error {
+	return cc.executeToolCallsWithUpdates(ctx, toolCalls, nil, "")
+}
+
+// executeToolCallsWithUpdates executes tool calls with optional streaming updates
+func (cc *ChatController) executeToolCallsWithUpdates(ctx context.Context, toolCalls []chat.ToolCall, updates chan<- StreamingUpdate, streamID string) error {
 	if cc.toolRegistry == nil {
 		return fmt.Errorf("tool registry not available")
 	}
 
 	for _, toolCall := range toolCalls {
-		// Execute the tool
+		toolName := toolCall.Function.Name
+		toolArgs := toolCall.Function.Arguments
+		displayName := FormatToolDisplay(toolName, toolArgs)
+		
+		// Send tool start update if streaming
+		if updates != nil {
+			updates <- StreamingUpdate{
+				Type:            ToolCallStarted,
+				StreamID:        streamID,
+				ToolName:        toolName,
+				ToolArgs:        toolArgs,
+				ToolDisplayName: displayName,
+			}
+		}
+
+		// Execute the tool using tracker if available
 		toolReq := tools.ToolRequest{
-			Name:       toolCall.Function.Name,
-			Parameters: toolCall.Function.Arguments,
+			Name:       toolName,
+			Parameters: toolArgs,
 			Context:    ctx,
 		}
 
-		result, err := cc.toolRegistry.Execute(ctx, toolReq)
+		var result tools.ToolResult
+		var err error
+		
+		if cc.toolTracker != nil {
+			// Set up callbacks for the tracker if streaming
+			if updates != nil {
+				cc.toolTracker.SetCallbacks(
+					func(name string, args map[string]any) {
+						// Tool start callback - already sent above
+					},
+					nil, // No progress callback for now
+					func(name string, res tools.ToolResult) {
+						// Tool complete callback
+						updates <- StreamingUpdate{
+							Type:            ToolExecutionComplete,
+							StreamID:        streamID,
+							ToolName:        name,
+							ToolDisplayName: FormatToolDisplay(name, toolArgs),
+							ToolResult:      res.Content,
+						}
+					},
+					func(name string, err error) {
+						// Tool error callback
+						updates <- StreamingUpdate{
+							Type:  StreamError,
+							Error: fmt.Errorf("tool %s failed: %w", name, err),
+						}
+					},
+				)
+			}
+			
+			result, err = cc.toolTracker.ExecuteWithTracking(ctx, toolReq)
+		} else {
+			result, err = cc.toolRegistry.Execute(ctx, toolReq)
+		}
+
 		if err != nil {
 			// Add error result to conversation
 			errorMsg := fmt.Sprintf("Tool execution failed: %s", err.Error())
-			toolResult := chat.NewToolResultMessage(toolCall.Function.Name, errorMsg)
+			toolResult := chat.NewToolResultMessage(toolName, errorMsg)
 			cc.conversation = chat.AddMessage(cc.conversation, toolResult)
 			continue
 		}
@@ -180,7 +248,7 @@ func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat
 			content = result.Error
 		}
 
-		toolResult := chat.NewToolResultMessage(toolCall.Function.Name, content)
+		toolResult := chat.NewToolResultMessage(toolName, content)
 		cc.conversation = chat.AddMessage(cc.conversation, toolResult)
 	}
 
@@ -329,6 +397,11 @@ type StreamingUpdate struct {
 	Message  chat.Message
 	Error    error
 	Metadata StreamingMetadata
+	// Tool execution specific fields
+	ToolName        string
+	ToolArgs        map[string]any
+	ToolDisplayName string // Formatted display name (e.g., "Bash", "ReadFile")
+	ToolResult      string
 }
 
 // StreamingUpdateType indicates the type of streaming update
@@ -340,7 +413,9 @@ const (
 	MessageComplete
 	StreamError
 	ToolExecutionStarted
+	ToolExecutionProgress
 	ToolExecutionComplete
+	ToolCallStarted
 )
 
 // StreamingMetadata provides additional context about the stream
@@ -349,6 +424,57 @@ type StreamingMetadata struct {
 	ContentLength int
 	Duration      time.Duration
 	Model         string
+}
+
+// FormatToolDisplay formats a tool call for display in the format "ToolName(args)"
+func FormatToolDisplay(toolName string, args map[string]any) string {
+	displayName := formatToolDisplayName(toolName)
+	
+	if len(args) == 0 {
+		return fmt.Sprintf("%s()", displayName)
+	}
+	
+	// Format arguments based on tool type
+	switch toolName {
+	case "execute_bash":
+		if cmd, ok := args["command"].(string); ok {
+			return fmt.Sprintf("%s(%s)", displayName, cmd)
+		}
+	case "read_file", "write_file":
+		if path, ok := args["path"].(string); ok {
+			return fmt.Sprintf("%s(\"%s\")", displayName, path)
+		}
+	case "search_web":
+		if url, ok := args["url"].(string); ok {
+			return fmt.Sprintf("%s(\"%s\")", displayName, url)
+		}
+		if query, ok := args["query"].(string); ok {
+			return fmt.Sprintf("%s(\"%s\")", displayName, query)
+		}
+	}
+	
+	// Fallback for unknown tool types
+	return fmt.Sprintf("%s(%v)", displayName, args)
+}
+
+// formatToolDisplayName converts internal tool names to user-friendly display names
+func formatToolDisplayName(toolName string) string {
+	switch toolName {
+	case "execute_bash":
+		return "Bash"
+	case "read_file":
+		return "ReadFile"
+	case "write_file":
+		return "WriteFile"
+	case "search_web":
+		return "Search"
+	default:
+		// Capitalize first letter for unknown tools
+		if len(toolName) > 0 {
+			return strings.ToUpper(toolName[:1]) + toolName[1:]
+		}
+		return toolName
+	}
 }
 
 // StartStreaming initiates streaming for a user message
@@ -535,24 +661,14 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 				return
 			}
 
-			// Execute tool calls
-			updates <- StreamingUpdate{
-				Type:     ToolExecutionStarted,
-				StreamID: streamID,
-			}
-
-			err = cc.executeToolCalls(ctx, assistantMessage.ToolCalls)
+			// Execute tool calls with streaming updates
+			err = cc.executeToolCallsWithUpdates(ctx, assistantMessage.ToolCalls, updates, streamID)
 			if err != nil {
 				updates <- StreamingUpdate{
 					Type:  StreamError,
 					Error: fmt.Errorf("failed to execute tools: %w", err),
 				}
 				return
-			}
-
-			updates <- StreamingUpdate{
-				Type:     ToolExecutionComplete,
-				StreamID: streamID,
 			}
 
 			// Continue the loop to get the final response after tool execution
