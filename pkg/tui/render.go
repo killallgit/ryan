@@ -7,7 +7,6 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
-	"github.com/killallgit/ryan/pkg/config"
 )
 
 // CalculateMessageLines calculates the total number of lines needed to render messages
@@ -22,114 +21,44 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 	}
 
 	var allLines []MessageLine
-	// Get showThinking from config or use default
-	showThinking := true
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				// Config not initialized, use default
-			}
-		}()
-		if cfg := config.Get(); cfg != nil {
-			showThinking = cfg.ShowThinking
-		}
-	}()
 
-	for i, msg := range messages {
-		isLastMessage := i == len(messages)-1
+	for _, msg := range messages {
 
 		if msg.Role == chat.RoleAssistant {
-			// Check if this is a streaming thinking message (last message + streaming thinking mode)
-			if isLastMessage && streamingThinking && showThinking {
-				// Handle streaming thinking content - apply thinking styling directly
-				thinkingText := "Thinking: " + msg.Content
-				thinkingLines := WrapText(thinkingText, chatWidth)
-				for _, line := range thinkingLines {
-					allLines = append(allLines, MessageLine{
-						Text:       line,
-						Role:       msg.Role,
-						IsThinking: true, // Force thinking styling
-						Style:      nil,
-					})
-				}
-			} else {
-				// Regular assistant message - use normal ParseThinkingBlock logic
-				parsed := ParseThinkingBlock(msg.Content)
+			// Handle assistant message content
+			if msg.Content != "" {
+				// Check if we should use simple formatting for line calculation
+				contentTypes := DetectContentTypes(msg.Content)
+				if ShouldUseSimpleFormatting(contentTypes) {
+					// Use simple formatting to calculate lines
+					formatter := NewSimpleFormatter(chatWidth)
+					segments := ParseContentSegments(msg.Content)
+					formattedLines := formatter.FormatContentSegments(segments)
 
-				if parsed.HasThinking && showThinking {
-					// Add "Thinking: " prefix and format thinking block
-					var thinkingText string
-					if parsed.ResponseContent != "" {
-						// Response is complete, truncate thinking to 3 lines
-						thinkingText = "Thinking: " + TruncateThinkingBlock(parsed.ThinkingBlock, 3, chatWidth-10)
-					} else {
-						// Response not complete, show full thinking block
-						thinkingText = "Thinking: " + parsed.ThinkingBlock
+					for _, formattedLine := range formattedLines {
+						// Apply indentation
+						content := formattedLine.Content
+						if formattedLine.Indent > 0 {
+							content = strings.Repeat(" ", formattedLine.Indent) + content
+						}
+
+						allLines = append(allLines, MessageLine{
+							Text:       content,
+							Role:       msg.Role,
+							IsThinking: false,
+							Style:      &formattedLine.Style,
+						})
 					}
-
-					thinkingLines := WrapText(thinkingText, chatWidth)
-					for _, line := range thinkingLines {
+				} else {
+					// Use traditional text wrapping
+					contentLines := WrapText(msg.Content, chatWidth)
+					for _, line := range contentLines {
 						allLines = append(allLines, MessageLine{
 							Text:       line,
 							Role:       msg.Role,
-							IsThinking: true,
-							Style:      nil,
-						})
-					}
-
-					// Add separator line between thinking and response
-					if parsed.ResponseContent != "" {
-						allLines = append(allLines, MessageLine{
-							Text:       "",
-							Role:       "",
 							IsThinking: false,
 							Style:      nil,
 						})
-					}
-				}
-
-				// Add response content if present
-				var contentToRender string
-				if parsed.HasThinking && showThinking {
-					contentToRender = parsed.ResponseContent
-				} else {
-					contentToRender = msg.Content
-				}
-
-				if contentToRender != "" {
-					// Check if we should use simple formatting for line calculation
-					contentTypes := DetectContentTypes(contentToRender)
-					if ShouldUseSimpleFormatting(contentTypes) {
-						// Use simple formatting to calculate lines
-						formatter := NewSimpleFormatter(chatWidth)
-						segments := ParseContentSegments(contentToRender)
-						formattedLines := formatter.FormatContentSegments(segments)
-
-						for _, formattedLine := range formattedLines {
-							// Apply indentation
-							content := formattedLine.Content
-							if formattedLine.Indent > 0 {
-								content = strings.Repeat(" ", formattedLine.Indent) + content
-							}
-
-							allLines = append(allLines, MessageLine{
-								Text:       content,
-								Role:       msg.Role,
-								IsThinking: false,
-								Style:      &formattedLine.Style,
-							})
-						}
-					} else {
-						// Use traditional text wrapping
-						contentLines := WrapText(contentToRender, chatWidth)
-						for _, line := range contentLines {
-							allLines = append(allLines, MessageLine{
-								Text:       line,
-								Role:       msg.Role,
-								IsThinking: false,
-								Style:      nil,
-							})
-						}
 					}
 				}
 			}
@@ -186,116 +115,43 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 	}
 
 	var allLines []MessageLine
-	// Get showThinking from config or use default
-	showThinking := true
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				// Config not initialized, use default
-			}
-		}()
-		if cfg := config.Get(); cfg != nil {
-			showThinking = cfg.ShowThinking
-		}
-	}()
 
-	for i, msg := range display.Messages {
-		isLastMessage := i == len(display.Messages)-1
-
+	for _, msg := range display.Messages {
 		if msg.Role == chat.RoleAssistant {
+			// Handle assistant message content
+			if msg.Content != "" {
+				// Check if we should use simple formatting
+				contentTypes := DetectContentTypes(msg.Content)
+				if ShouldUseSimpleFormatting(contentTypes) {
+					// Use simple formatting to wrap content
+					formatter := NewSimpleFormatter(chatArea.Width)
+					segments := ParseContentSegments(msg.Content)
+					formattedLines := formatter.FormatContentSegments(segments)
 
-			// Check if this is a streaming thinking message (last message + streaming thinking mode)
-			if isLastMessage && streamingThinking && showThinking {
-				// Handle streaming thinking content - apply thinking styling directly
-				thinkingText := "Thinking: " + msg.Content
-				thinkingLines := WrapText(thinkingText, chatArea.Width)
-				for _, line := range thinkingLines {
-					allLines = append(allLines, MessageLine{
-						Text:       line,
-						Role:       msg.Role,
-						IsThinking: true, // Force thinking styling
-						Style:      nil,
-					})
-				}
-			} else {
-				// Regular assistant message - use normal ParseThinkingBlock logic
-				parsed := ParseThinkingBlock(msg.Content)
+					for _, formattedLine := range formattedLines {
+						// Apply indentation
+						content := formattedLine.Content
+						if formattedLine.Indent > 0 {
+							content = strings.Repeat(" ", formattedLine.Indent) + content
+						}
 
-				if parsed.HasThinking && showThinking {
-					// Add "Thinking: " prefix and format thinking block
-					var thinkingText string
-					if parsed.ResponseContent != "" {
-						// Response is complete, truncate thinking to 3 lines
-						thinkingText = "Thinking: " + TruncateThinkingBlock(parsed.ThinkingBlock, 3, chatArea.Width-10)
-					} else {
-						// Response not complete, show full thinking block
-						thinkingText = "Thinking: " + parsed.ThinkingBlock
+						allLines = append(allLines, MessageLine{
+							Text:       content,
+							Role:       msg.Role,
+							IsThinking: false,
+							Style:      &formattedLine.Style,
+						})
 					}
-
-					thinkingLines := WrapText(thinkingText, chatArea.Width)
-					for _, line := range thinkingLines {
+				} else {
+					// Use traditional text wrapping
+					contentLines := WrapText(msg.Content, chatArea.Width)
+					for _, line := range contentLines {
 						allLines = append(allLines, MessageLine{
 							Text:       line,
 							Role:       msg.Role,
-							IsThinking: true,
-							Style:      nil,
-						})
-					}
-
-					// Add separator line between thinking and response
-					if parsed.ResponseContent != "" {
-						allLines = append(allLines, MessageLine{
-							Text:       "",
-							Role:       "",
 							IsThinking: false,
 							Style:      nil,
 						})
-					}
-				}
-
-				// Add response content if present
-				var contentToRender string
-				if parsed.HasThinking && showThinking {
-					contentToRender = parsed.ResponseContent
-				} else {
-					contentToRender = msg.Content
-				}
-
-				if contentToRender != "" {
-					// Check if we should use simple formatting
-					contentTypes := DetectContentTypes(contentToRender)
-					if ShouldUseSimpleFormatting(contentTypes) {
-						// Use simple formatting for complex content
-						formatter := NewSimpleFormatter(chatArea.Width)
-						segments := ParseContentSegments(contentToRender)
-						formattedLines := formatter.FormatContentSegments(segments)
-
-						for _, formattedLine := range formattedLines {
-							// Apply indentation
-							content := formattedLine.Content
-							if formattedLine.Indent > 0 {
-								content = strings.Repeat(" ", formattedLine.Indent) + content
-							}
-
-							allLines = append(allLines, MessageLine{
-								Text:       content,
-								Role:       msg.Role,
-								IsThinking: false,
-								Style:      &formattedLine.Style, // Store the specific style
-							})
-						}
-					} else {
-						// Use traditional text wrapping for simple content
-						contentLines := WrapText(contentToRender, chatArea.Width)
-
-						for _, line := range contentLines {
-							allLines = append(allLines, MessageLine{
-								Text:       line,
-								Role:       msg.Role,
-								IsThinking: false,
-								Style:      nil,
-							})
-						}
 					}
 				}
 			}

@@ -412,7 +412,6 @@ func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan
 			chunkStr := string(chunk)
 			allChunks = append(allChunks, chunkStr)
 
-
 			select {
 			case outputChan <- chunkStr:
 				return nil
@@ -421,7 +420,6 @@ func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan
 			}
 		}),
 	)
-
 
 	if err != nil {
 		return fmt.Errorf("streaming failed: %w", err)

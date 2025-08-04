@@ -101,7 +101,7 @@ func TestTextMessageNode_Rendering(t *testing.T) {
 func TestThinkingMessageNode_Basic(t *testing.T) {
 	msg := chat.Message{
 		Role:      chat.RoleAssistant,
-		Content:   "<think>I need to think about this</think>Here is my response",
+		Content:   "Here is my response",
 		Timestamp: time.Now(),
 	}
 
@@ -112,16 +112,16 @@ func TestThinkingMessageNode_Basic(t *testing.T) {
 		t.Errorf("Expected NodeTypeThinking, got %d", node.NodeType())
 	}
 
-	// Should be collapsible because it has thinking content
-	if !node.IsCollapsible() {
-		t.Error("Thinking message should be collapsible")
+	// Should not be collapsible since thinking blocks are removed
+	if node.IsCollapsible() {
+		t.Error("Thinking message should not be collapsible")
 	}
 
-	if !node.HasDetailView() {
-		t.Error("Thinking message should have detail view")
+	if node.HasDetailView() {
+		t.Error("Thinking message should not have detail view")
 	}
 
-	// Test preview text (should be the response part)
+	// Test preview text (should be the response content)
 	preview := node.GetPreviewText()
 	if preview != "Here is my response" {
 		t.Errorf("Expected response content in preview, got '%s'", preview)
@@ -131,69 +131,32 @@ func TestThinkingMessageNode_Basic(t *testing.T) {
 func TestThinkingMessageNode_Rendering(t *testing.T) {
 	msg := chat.Message{
 		Role:      chat.RoleAssistant,
-		Content:   "<think>Complex thinking process here</think>Final response content",
+		Content:   "Final response content",
 		Timestamp: time.Now(),
 	}
 
 	node := NewThinkingMessageNode(msg, "thinking-render")
 	area := Rect{X: 0, Y: 0, Width: 80, Height: 20}
 
-	// Test expanded rendering
-	expandedState := NewNodeState() // Default is expanded
-	expandedLines := node.Render(area, expandedState)
+	// Test rendering
+	state := NewNodeState()
+	lines := node.Render(area, state)
 
-	if len(expandedLines) == 0 {
-		t.Error("Should render at least one line when expanded")
+	if len(lines) == 0 {
+		t.Error("Should render at least one line")
 	}
 
-	// Should contain thinking content when expanded
-	hasThinking := false
-	hasResponse := false
-	for _, line := range expandedLines {
-		if line.Text != "" {
-			if line.Text == "Thinking: Complex thinking process here" {
-				hasThinking = true
-			}
-			if line.Text == "Final response content" {
-				hasResponse = true
-			}
-		}
-	}
-
-	if !hasThinking {
-		t.Error("Expanded view should contain thinking content")
-	}
-
-	if !hasResponse {
-		t.Error("Expanded view should contain response content")
-	}
-
-	// Test collapsed rendering
-	collapsedState := expandedState.ToggleExpanded()
-	// Create a new node with the collapsed state
-	collapsedNode := node.WithState(collapsedState)
-	collapsedLines := collapsedNode.Render(area, collapsedState)
-
-	if len(collapsedLines) == 0 {
-		t.Error("Should render at least one line when collapsed")
-	}
-
-	// Should show response content in collapsed mode (not thinking indicator)
-	hasResponseContent := false
-	for _, line := range collapsedLines {
-		if line.Text != "" && line.Text == "Final response content" {
-			hasResponseContent = true
+	// Should contain the message content
+	hasContent := false
+	for _, line := range lines {
+		if line.Text == "Final response content" {
+			hasContent = true
 			break
 		}
 	}
 
-	if !hasResponseContent {
-		t.Error("Collapsed view should show response content")
-	}
-
-	// Collapsed should generally be shorter than expanded (fewer lines)
-	if len(collapsedLines) >= len(expandedLines) {
-		t.Error("Collapsed view should typically be shorter than expanded view")
+	if !hasContent {
+		t.Error("Should contain message content")
 	}
 }
 

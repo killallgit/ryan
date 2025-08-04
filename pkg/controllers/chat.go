@@ -492,12 +492,10 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 					// Get final message
 					finalMessage, exists := accumulator.GetCompleteMessage(chunk.StreamID)
 					if exists {
-						// Parse thinking content and extract only the response content for conversation storage
-						responseContent := chat.ExtractResponseContent(finalMessage.Content)
-
+						// Use the content as-is since we no longer parse thinking blocks
 						assistantMessage = chat.Message{
 							Role:      finalMessage.Role,
-							Content:   responseContent, // Store only response content, not thinking
+							Content:   finalMessage.Content,
 							Timestamp: finalMessage.Timestamp,
 							ToolCalls: finalMessage.ToolCalls,
 						}

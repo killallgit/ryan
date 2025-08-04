@@ -1035,7 +1035,6 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 		"duration", duration.String(),
 		"final_message_length", len(finalMessage.Content))
 
-
 	// Clear streaming state
 	cv.isStreaming = false
 	cv.streamingContent = ""
