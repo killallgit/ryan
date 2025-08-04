@@ -60,7 +60,7 @@ type ContextConfig struct {
 
 // LoggingConfig holds logging-related configuration
 type LoggingConfig struct {
-	File     string `mapstructure:"file"`
+	LogFile  string `mapstructure:"log_file"`
 	Preserve bool   `mapstructure:"preserve"`
 	Level    string `mapstructure:"level"`
 }
@@ -221,7 +221,7 @@ func setDefaults() {
 	viper.SetDefault("streaming", true)
 
 	// Logging defaults
-	viper.SetDefault("logging.file", "./.ryan/logs/debug.log")
+	viper.SetDefault("logging.log_file", "./.ryan/system.log")
 	viper.SetDefault("logging.preserve", false)
 	viper.SetDefault("logging.level", "info")
 
@@ -339,7 +339,7 @@ func InitializeDefaults() error {
 	v.SetConfigType("yaml")
 
 	// Set all the defaults
-	v.SetDefault("logging.file", "./.ryan/logs/debug.log")
+	v.SetDefault("logging.log_file", "./.ryan/system.log")
 	v.SetDefault("logging.preserve", false)
 	v.SetDefault("logging.level", "info")
 

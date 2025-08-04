@@ -59,7 +59,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Initialize logger with config
-		if err := logger.InitLoggerWithConfig(cfg.Logging.File, cfg.Logging.Preserve, cfg.Logging.Level); err != nil {
+		if err := logger.InitLoggerWithConfig(cfg.Logging.LogFile, cfg.Logging.Preserve, cfg.Logging.Level); err != nil {
 			fmt.Printf("Failed to initialize logger: %v\n", err)
 			return
 		}

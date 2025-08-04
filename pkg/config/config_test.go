@@ -27,7 +27,7 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, 10, cfg.Ollama.PollInterval)
 	assert.True(t, cfg.ShowThinking)
 	assert.True(t, cfg.Streaming)
-	assert.Equal(t, "./.ryan/logs/debug.log", cfg.Logging.File)
+	assert.Equal(t, "./.ryan/system.log", cfg.Logging.LogFile)
 	assert.False(t, cfg.Logging.Preserve)
 
 	// Context configuration
@@ -53,7 +53,7 @@ ollama:
   poll_interval: 5
 show_thinking: false
 logging:
-  file: /tmp/test.log
+  log_file: /tmp/test.log
   preserve: true
 tools:
   bash:
@@ -78,7 +78,7 @@ tools:
 	assert.Equal(t, 2*time.Minute, cfg.Ollama.Timeout)
 	assert.Equal(t, 5, cfg.Ollama.PollInterval)
 	assert.False(t, cfg.ShowThinking)
-	assert.Equal(t, "/tmp/test.log", cfg.Logging.File)
+	assert.Equal(t, "/tmp/test.log", cfg.Logging.LogFile)
 	assert.True(t, cfg.Logging.Preserve)
 	assert.Equal(t, 30*time.Second, cfg.Tools.Bash.Timeout)
 	assert.Equal(t, []string{"/test", "/tmp"}, cfg.Tools.Bash.AllowedPaths)
