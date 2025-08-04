@@ -219,9 +219,9 @@ func (c *Client) initializeAgent() error {
 
 	// Create executor with enhanced configuration for multi-step reasoning
 	c.executor = agents.NewExecutor(c.agent)
-	
+
 	// Configure max iterations if the API supports it
-	c.log.Info("Agent executor configured", 
+	c.log.Info("Agent executor configured",
 		"max_iterations", c.config.LangChain.Tools.MaxIterations,
 		"autonomous_reasoning", true)
 
@@ -320,38 +320,38 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 // executeWithReasoningLoop implements enhanced ReAct pattern for autonomous multi-step reasoning
 func (c *Client) executeWithReasoningLoop(ctx context.Context, userInput string) (map[string]any, error) {
 	c.log.Debug("Starting autonomous reasoning loop", "max_iterations", c.config.LangChain.Tools.MaxIterations)
-	
+
 	// Use the standard LangChain agent executor but with enhanced logging
 	result, err := c.executor.Call(ctx, map[string]any{
 		"input": userInput,
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Enhanced processing of intermediate steps for autonomous reasoning
 	if intermediateSteps, ok := result["intermediate_steps"]; ok {
 		c.processIntermediateSteps(intermediateSteps)
 	}
-	
+
 	// Log reasoning insights
 	c.logReasoningInsights(result)
-	
+
 	return result, nil
 }
 
 // processIntermediateSteps processes and logs the reasoning steps for autonomous operation
 func (c *Client) processIntermediateSteps(steps any) {
 	c.log.Debug("Processing intermediate reasoning steps", "steps_type", fmt.Sprintf("%T", steps))
-	
+
 	// Extract step information for autonomous reasoning analysis
 	switch stepsData := steps.(type) {
 	case []any:
 		c.log.Info("Multi-step autonomous reasoning executed", "step_count", len(stepsData))
 		for i, step := range stepsData {
 			c.log.Debug("Reasoning step", "step_number", i+1, "step", step)
-			
+
 			// Log tool execution events for each step
 			if stepMap, ok := step.(map[string]any); ok {
 				if action, exists := stepMap["action"]; exists {
@@ -370,32 +370,32 @@ func (c *Client) processIntermediateSteps(steps any) {
 // logReasoningInsights provides detailed logging for autonomous agent behavior
 func (c *Client) logReasoningInsights(result map[string]any) {
 	insights := make([]string, 0)
-	
+
 	// Analyze the result for autonomous reasoning patterns
 	if intermediateSteps, ok := result["intermediate_steps"]; ok {
 		if steps, ok := intermediateSteps.([]any); ok {
 			insights = append(insights, fmt.Sprintf("executed %d reasoning steps", len(steps)))
 		}
 	}
-	
+
 	if scratchpad, ok := result["agent_scratchpad"]; ok {
 		if scratchpadStr, ok := scratchpad.(string); ok && len(scratchpadStr) > 0 {
 			insights = append(insights, "utilized agent scratchpad for reasoning")
 		}
 	}
-	
+
 	// Log findings about autonomous behavior
 	if len(insights) > 0 {
 		c.log.Info("Autonomous reasoning analysis", "insights", strings.Join(insights, ", "))
 	}
-	
+
 	// Log total execution metrics
 	toolCallCount := 0
 	if steps, ok := result["intermediate_steps"].([]any); ok {
 		toolCallCount = len(steps)
 	}
-	
-	c.log.Info("Autonomous agent execution complete", 
+
+	c.log.Info("Autonomous agent execution complete",
 		"tool_calls", toolCallCount,
 		"reasoning_successful", result["output"] != nil)
 }

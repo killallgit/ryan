@@ -173,7 +173,7 @@ func (r *Registry) RegisterBuiltinTools() error {
 		return fmt.Errorf("failed to register web fetch tool: %w", err)
 	}
 
-	// Register GrepTool 
+	// Register GrepTool
 	grepTool := NewGrepTool()
 	if err := r.Register(grepTool); err != nil {
 		return fmt.Errorf("failed to register grep tool: %w", err)

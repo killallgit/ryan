@@ -1,8 +1,3 @@
-# Add LLM testing framework from langchain-go
-- https://tmc.github.io/langchaingo/docs/modules/model_io/models/llms/Integrations/fake
-- Write a single test to get aquainted
-- Create a plan to augment our current tests with this fake agent
-
 # AgentRyan
 - We need some kind of persistant document embedder that can index files for future
 - Main planning agent loop.
