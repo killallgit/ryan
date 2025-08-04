@@ -39,7 +39,7 @@ type ChatView struct {
 	status           StatusBar
 	layout           Layout
 	screen           tcell.Screen
-	alert            AlertDisplay    // Legacy field for compatibility
+	alert            AlertDisplay     // Legacy field for compatibility
 	statusRow        StatusRowDisplay // New enhanced status row
 	downloadModal    DownloadPromptModal
 	progressModal    ProgressModal
@@ -125,22 +125,22 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 		Text:      cv.alert.SpinnerText,
 	}
 	RenderMessagesWithStreamingState(screen, cv.messages, messageArea, spinner, cv.isStreamingThinking)
-	
+
 	// Update status row with current token count and render it
 	// Get the most current token count from both status and controller
 	statusTokens := cv.status.PromptTokens + cv.status.ResponseTokens
 	promptTokens, responseTokens := cv.controller.GetTokenUsage()
 	controllerTokens := promptTokens + responseTokens
-	
+
 	// Use whichever is higher (more recent)
 	totalTokens := statusTokens
 	if controllerTokens > statusTokens {
 		totalTokens = controllerTokens
 	}
-	
+
 	cv.statusRow = cv.statusRow.WithTokens(totalTokens).UpdateDuration()
 	RenderStatusRow(screen, alertArea, cv.statusRow)
-	
+
 	RenderInput(screen, cv.input, inputArea)
 	RenderStatus(screen, cv.status, statusArea)
 
@@ -949,7 +949,7 @@ func (cv *ChatView) HandleStreamStart(streamID, model string) {
 
 	// Update status to show streaming
 	cv.status = cv.status.WithStatus("Streaming response...")
-	
+
 	// Initialize status row with current token count and streaming spinner
 	promptTokens, responseTokens := cv.controller.GetTokenUsage()
 	totalTokens := promptTokens + responseTokens

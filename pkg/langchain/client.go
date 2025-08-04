@@ -19,14 +19,14 @@ import (
 
 // Client provides full LangChain integration for Ryan
 type Client struct {
-	llm           llms.Model
-	memory        schema.Memory
-	toolRegistry  *tools.Registry
+	llm            llms.Model
+	memory         schema.Memory
+	toolRegistry   *tools.Registry
 	langchainTools []langchaintools.Tool
-	agent         agents.Agent
-	executor      *agents.Executor
-	config        *config.Config
-	log           *logger.Logger
+	agent          agents.Agent
+	executor       *agents.Executor
+	config         *config.Config
+	log            *logger.Logger
 }
 
 // NewClient creates a new LangChain-powered client
@@ -36,14 +36,14 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 
 	// Create Ollama LLM with additional debugging options
 	log.Debug("Creating Ollama LLM", "base_url", baseURL, "model", model)
-	
+
 	// Try to create with additional options that might preserve raw output
 	// Let's try with basic options first and add experimental ones progressively
 	llm, err := ollama.New(
 		ollama.WithServerURL(baseURL),
 		ollama.WithModel(model),
 	)
-	
+
 	// Log what ollama package functions are available for debugging
 	log.Debug("Ollama client created successfully with basic options")
 	if err != nil {
@@ -100,11 +100,11 @@ func (ta *ToolAdapter) Description() string {
 
 func (ta *ToolAdapter) Call(ctx context.Context, input string) (string, error) {
 	ta.log.Debug("Tool call initiated", "tool", ta.ryanTool.Name(), "input_length", len(input))
-	
+
 	// Parse input - for now, assume it's JSON-like format
 	// In a real implementation, you'd want more sophisticated parsing
 	params := make(map[string]interface{})
-	
+
 	// Simple parsing for common tool formats
 	if strings.Contains(input, "command:") {
 		// For bash tool: "command: docker images | wc -l"
@@ -176,7 +176,7 @@ func (c *Client) initializeAgent() error {
 	c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
 		agents.WithMemory(c.memory))
 
-	// Create executor with intermediate steps enabled  
+	// Create executor with intermediate steps enabled
 	c.executor = agents.NewExecutor(c.agent)
 	// TODO: Check if LangChainGo supports intermediate steps configuration
 
@@ -211,7 +211,7 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 			// Fall back to direct LLM interaction when agent parsing fails due to thinking blocks
 			// But first, ensure memory consistency by saving the user input
 			if c.memory != nil {
-				c.memory.SaveContext(ctx, 
+				c.memory.SaveContext(ctx,
 					map[string]any{"input": userInput},
 					map[string]any{"output": ""},
 				)
@@ -258,13 +258,13 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 			c.log.Debug("Agent result field", "key", key, "value_type", fmt.Sprintf("%T", value), "value", value)
 		}
 		c.log.Debug("=== END AGENT OUTPUT DEBUG ===")
-		
+
 		// Log raw agent output to check for thinking blocks
 		c.log.Debug("Raw agent output", "content", output, "has_think_tags", strings.Contains(output, "<think"))
-		
+
 		// Save to memory for consistency with chain mode
 		if c.memory != nil {
-			c.memory.SaveContext(ctx, 
+			c.memory.SaveContext(ctx,
 				map[string]any{"input": userInput},
 				map[string]any{"output": output},
 			)
@@ -275,7 +275,7 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 	// Fallback output
 	finalOutput := fmt.Sprintf("%v", result)
 	if c.memory != nil {
-		c.memory.SaveContext(ctx, 
+		c.memory.SaveContext(ctx,
 			map[string]any{"input": userInput},
 			map[string]any{"output": finalOutput},
 		)
@@ -307,10 +307,10 @@ func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, e
 		for _, tool := range c.langchainTools {
 			toolDescriptions = append(toolDescriptions, fmt.Sprintf("- %s: %s", tool.Name(), tool.Description()))
 		}
-		
-		toolContext := fmt.Sprintf("You have access to the following tools:\n%s\n\nYou can reference these tools in your response, but you cannot actually execute them in this mode.", 
+
+		toolContext := fmt.Sprintf("You have access to the following tools:\n%s\n\nYou can reference these tools in your response, but you cannot actually execute them in this mode.",
 			strings.Join(toolDescriptions, "\n"))
-		
+
 		messages = append([]llms.MessageContent{
 			llms.TextParts(llms.ChatMessageTypeSystem, toolContext),
 		}, messages...)
@@ -342,32 +342,32 @@ func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, e
 	// LOG FULL RESPONSE STRUCTURE FOR DEBUGGING
 	c.log.Debug("=== FULL RESPONSE STRUCTURE DEBUG ===")
 	c.log.Debug("Response choices count", "count", len(response.Choices))
-	
+
 	for i, choice := range response.Choices {
 		c.log.Debug("Choice details", "index", i, "content_length", len(choice.Content))
 		c.log.Debug("Choice content", "index", i, "content", choice.Content)
-		
+
 		// Log any other fields that might be available in the choice
 		c.log.Debug("Choice struct inspection", "index", i, "choice_type", fmt.Sprintf("%T", choice))
-		
+
 		// Try to see if there are additional fields we're missing
 		if choice.Content != "" {
 			c.log.Debug("Choice has content", "index", i, "has_think_tags", strings.Contains(choice.Content, "<think"))
 		}
 	}
-	
+
 	// Log the entire response struct to see what else might be available
 	c.log.Debug("Full response struct", "response_type", fmt.Sprintf("%T", response))
 	c.log.Debug("=== END RESPONSE STRUCTURE DEBUG ===")
 
 	result := response.Choices[0].Content
-	
+
 	// Log raw LLM output to check for thinking blocks
 	c.log.Debug("Raw LLM output (chain mode)", "content", result, "has_think_tags", strings.Contains(result, "<think"))
 
 	// Save to memory
 	if c.memory != nil {
-		c.memory.SaveContext(ctx, 
+		c.memory.SaveContext(ctx,
 			map[string]any{"input": userInput},
 			map[string]any{"output": result},
 		)
@@ -404,13 +404,13 @@ func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan
 		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
 			chunkStr := string(chunk)
 			allChunks = append(allChunks, chunkStr)
-			
+
 			// LOG STREAMING CHUNK DEBUG
 			c.log.Debug("=== STREAMING CHUNK DEBUG ===")
 			c.log.Debug("Received chunk", "length", len(chunk), "content", chunkStr)
 			c.log.Debug("Chunk has thinking", "has_think_tags", strings.Contains(chunkStr, "<think"))
 			c.log.Debug("=== END STREAMING CHUNK DEBUG ===")
-			
+
 			select {
 			case outputChan <- chunkStr:
 				return nil
@@ -419,7 +419,7 @@ func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan
 			}
 		}),
 	)
-	
+
 	// Log accumulated chunks
 	if len(allChunks) > 0 {
 		accumulated := strings.Join(allChunks, "")
@@ -438,7 +438,7 @@ func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan
 	if c.memory != nil {
 		// Note: In a real implementation, you'd want to accumulate the full response
 		// and save both user input and AI response to memory
-		c.memory.SaveContext(ctx, 
+		c.memory.SaveContext(ctx,
 			map[string]any{"input": userInput},
 			map[string]any{"output": ""}, // Placeholder - in real implementation, accumulate chunks
 		)
@@ -468,7 +468,7 @@ func (c *Client) ClearMemory(ctx context.Context) error {
 // WithPromptTemplate creates a response using a custom prompt template
 func (c *Client) WithPromptTemplate(ctx context.Context, templateStr string, vars map[string]any) (string, error) {
 	template := prompts.NewPromptTemplate(templateStr, extractVarNames(vars))
-	
+
 	prompt, err := template.Format(vars)
 	if err != nil {
 		return "", fmt.Errorf("template formatting failed: %w", err)

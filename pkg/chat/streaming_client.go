@@ -125,7 +125,7 @@ func (sc *StreamingClient) StreamMessage(ctx context.Context, req ChatRequest) (
 		// TODO: Extract token usage if available from LangChain response
 		// The llms.ContentResponse type doesn't expose usage information directly
 		// This would require investigation into LangChain Go internals or using a different client
-		
+
 		finalChunk := MessageChunk{
 			ID:        fmt.Sprintf("%s-final", streamID),
 			StreamID:  streamID,

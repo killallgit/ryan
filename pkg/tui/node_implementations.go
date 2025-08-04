@@ -191,7 +191,7 @@ func NewThinkingMessageNode(msg chat.Message, id string) *ThinkingMessageNode {
 	// Use new separated thinking structure if available, fallback to parsing
 	var parsed ParsedContent
 	var showThinking bool
-	
+
 	if msg.HasThinking() {
 		// Use separated thinking data
 		parsed = ParsedContent{
@@ -203,7 +203,7 @@ func NewThinkingMessageNode(msg chat.Message, id string) *ThinkingMessageNode {
 	} else {
 		// Fallback to old parsing method for backwards compatibility
 		parsed = ParseThinkingBlock(msg.Content)
-		
+
 		// Get showThinking from config
 		showThinking = true
 		func() {
@@ -406,16 +406,16 @@ func (tmn *ThinkingMessageNode) GetPreviewText() string {
 // ToolResultMessageNode handles tool execution results with special formatting
 type ToolResultMessageNode struct {
 	BaseNode
-	truncatedOutput  string
-	fullOutput       string
-	showFullOutput   bool
+	truncatedOutput string
+	fullOutput      string
+	showFullOutput  bool
 }
 
 func NewToolResultMessageNode(msg chat.Message, id string) *ToolResultMessageNode {
 	// Parse the tool result to separate tool name and output
 	fullOutput := msg.Content
 	truncatedOutput := fullOutput
-	
+
 	// Truncate long outputs for better UX
 	const maxPreviewLength = 300
 	if len(fullOutput) > maxPreviewLength {
@@ -461,7 +461,7 @@ func (trn *ToolResultMessageNode) Render(area Rect, state NodeState) []RenderedL
 		if toolName == "" {
 			toolName = "Tool" // Fallback
 		}
-		
+
 		headerText := fmt.Sprintf("▶ %s", toolName)
 		if state.Expanded && trn.IsCollapsible() {
 			headerText = fmt.Sprintf("▼ %s", toolName)
@@ -540,7 +540,7 @@ func (trn *ToolResultMessageNode) Render(area Rect, state NodeState) []RenderedL
 
 func (trn *ToolResultMessageNode) CalculateHeight(width int) int {
 	height := 0
-	
+
 	// Header height
 	toolName := trn.message.ToolName
 	if toolName == "" {
@@ -644,10 +644,10 @@ func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLin
 		// Render tool calls in the format requested: Shell(docker ps -a) or Search("https://...")
 		for i, toolCall := range tcn.message.ToolCalls {
 			var toolText string
-			
+
 			// Format tool call based on tool type
 			toolName := tcn.formatToolName(toolCall.Function.Name)
-			
+
 			if state.Expanded {
 				// Show full arguments when expanded
 				if len(toolCall.Function.Arguments) > 0 {
@@ -751,7 +751,7 @@ func (tcn *ToolCallMessageNode) CalculateHeight(width int) int {
 	for i, toolCall := range tcn.message.ToolCalls {
 		var toolText string
 		toolName := tcn.formatToolName(toolCall.Function.Name)
-		
+
 		if tcn.state.Expanded {
 			if len(toolCall.Function.Arguments) > 0 {
 				var argStr string
@@ -826,13 +826,13 @@ func (tnf *TextNodeFactory) CanHandle(msg chat.Message) bool {
 		if msg.HasThinking() {
 			return false
 		}
-		
+
 		// Check if it has tool calls
 		hasTools := len(msg.ToolCalls) > 0
 		if hasTools {
 			return false
 		}
-		
+
 		// Fallback: check if content has thinking blocks for backwards compatibility
 		parsed := ParseThinkingBlock(msg.Content)
 		return !parsed.HasThinking

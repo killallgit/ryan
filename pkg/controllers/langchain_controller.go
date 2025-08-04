@@ -77,8 +77,8 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 		return chat.Message{}, fmt.Errorf("message content cannot be empty")
 	}
 
-	lc.log.Debug("Sending user message with LangChain agent", 
-		"content_length", len(content), 
+	lc.log.Debug("Sending user message with LangChain agent",
+		"content_length", len(content),
 		"has_tools", lc.toolRegistry != nil,
 		"agent_enabled", lc.client != nil)
 
@@ -91,11 +91,11 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 	if err != nil {
 		errorMsg := fmt.Sprintf("LangChain agent failed: %v", err)
 		lc.log.Error("Enhanced LangChain client failed", "error", err)
-		
+
 		// Add error message to conversation
 		errMsg := chat.NewErrorMessage(errorMsg)
 		lc.conversation = chat.AddMessage(lc.conversation, errMsg)
-		
+
 		return errMsg, fmt.Errorf("failed to send message: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 			showThinking = cfg.ShowThinking
 		}
 	}()
-	
+
 	assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
 
@@ -120,7 +120,7 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 		lc.log.Error("Failed to save chat history", "error", err)
 	}
 
-	lc.log.Debug("Enhanced LangChain agent response received", 
+	lc.log.Debug("Enhanced LangChain agent response received",
 		"response_length", len(response))
 
 	return assistantMsg, nil
@@ -185,7 +185,7 @@ func (lc *LangChainController) SendUserMessageWithStreamingContext(ctx context.C
 			showThinking = cfg.ShowThinking
 		}
 	}()
-	
+
 	assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
 
@@ -246,12 +246,12 @@ func (lc *LangChainController) AddUserMessage(content string) {
 	// Create optimistic user message for immediate UI feedback
 	userMsg := chat.NewOptimisticUserMessage(content)
 	lc.conversation = chat.AddMessage(lc.conversation, userMsg)
-	
+
 	// Save history to disk after adding user message
 	if err := lc.saveHistory(); err != nil {
 		lc.log.Error("Failed to save chat history", "error", err)
 	}
-	
+
 	lc.log.Debug("Added optimistic user message", "content_length", len(content))
 }
 
@@ -259,7 +259,7 @@ func (lc *LangChainController) AddUserMessage(content string) {
 func (lc *LangChainController) AddErrorMessage(errorMsg string) {
 	errMsg := chat.NewErrorMessage(errorMsg)
 	lc.conversation = chat.AddMessage(lc.conversation, errMsg)
-	
+
 	// Save history to disk after adding error message
 	if err := lc.saveHistory(); err != nil {
 		lc.log.Error("Failed to save chat history", "error", err)
@@ -308,32 +308,32 @@ func (lc *LangChainController) ValidateModel(model string) error {
 	return nil
 }
 
-// StartStreaming initiates streaming for a user message (compatibility with ChatController interface) 
+// StartStreaming initiates streaming for a user message (compatibility with ChatController interface)
 func (lc *LangChainController) StartStreaming(ctx context.Context, content string) (<-chan StreamingUpdate, error) {
 	lc.log.Debug("StartStreaming called", "content_length", len(content))
-	
+
 	// Create update channel
 	updates := make(chan StreamingUpdate, 100)
-	
+
 	// Start streaming in goroutine
 	go func() {
 		defer close(updates)
-		
+
 		// Signal stream started
 		updates <- StreamingUpdate{
 			Type:     StreamStarted,
 			StreamID: "langchain-stream",
 			Content:  "",
 		}
-		
+
 		// Replace any optimistic user message with final one
 		finalUserMsg := chat.NewUserMessage(content)
 		lc.conversation = chat.AddMessageWithDeduplication(lc.conversation, finalUserMsg)
-		
+
 		// Use real LangChain streaming instead of simulated chunks
 		streamChan := make(chan string, 100)
 		var fullResponse strings.Builder
-		
+
 		// Start real streaming in background
 		go func() {
 			defer close(streamChan)
@@ -345,7 +345,7 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 				}
 			}
 		}()
-		
+
 		// Forward real stream chunks to TUI
 		for chunk := range streamChan {
 			fullResponse.WriteString(chunk)
@@ -359,17 +359,17 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 				return
 			}
 		}
-		
+
 		response := fullResponse.String()
-		
+
 		// Parse response to detect tool usage and create appropriate messages
 		toolMessages := lc.parseToolExecutionFromResponse(response)
-		
+
 		// Add any detected tool messages to conversation
 		for _, msg := range toolMessages {
 			lc.conversation = chat.AddMessage(lc.conversation, msg)
 		}
-		
+
 		// Add final assistant message to conversation with thinking parsing
 		showThinking := true
 		func() {
@@ -382,33 +382,33 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 				showThinking = cfg.ShowThinking
 			}
 		}()
-		
+
 		assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
 		lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
-		
+
 		// Signal completion
 		updates <- StreamingUpdate{
 			Type:     MessageComplete,
 			StreamID: "langchain-stream",
 		}
 	}()
-	
+
 	return updates, nil
 }
 
 // parseToolExecutionFromResponse attempts to detect tool usage in the response
 func (lc *LangChainController) parseToolExecutionFromResponse(response string) []chat.Message {
 	var messages []chat.Message
-	
+
 	// Enhanced parsing approach - look for tool execution patterns
 	// Since LangChain agents don't expose intermediate steps, we parse the response
 	// to infer what tools were executed and create appropriate conversation messages
-	
+
 	lc.log.Debug("Parsing response for tool execution", "response_length", len(response))
-	
+
 	// Pattern matching for bash command executions
 	toolExecutions := lc.detectBashCommands(response)
-	
+
 	for _, execution := range toolExecutions {
 		// Create tool call message
 		toolCall := chat.ToolCall{
@@ -419,16 +419,16 @@ func (lc *LangChainController) parseToolExecutionFromResponse(response string) [
 		}
 		toolCallMsg := chat.NewAssistantMessageWithToolCalls([]chat.ToolCall{toolCall})
 		messages = append(messages, toolCallMsg)
-		
+
 		// Create tool result message
 		toolResultMsg := chat.NewToolResultMessage("execute_bash", execution.Output)
 		messages = append(messages, toolResultMsg)
-		
-		lc.log.Debug("Added tool execution to conversation", 
-			"command", execution.Command, 
+
+		lc.log.Debug("Added tool execution to conversation",
+			"command", execution.Command,
 			"output_length", len(execution.Output))
 	}
-	
+
 	return messages
 }
 
@@ -441,7 +441,7 @@ type ToolExecution struct {
 // detectBashCommands analyzes the response to detect bash command executions
 func (lc *LangChainController) detectBashCommands(response string) []ToolExecution {
 	var executions []ToolExecution
-	
+
 	// Pattern 1: Docker images count
 	if strings.Contains(response, "docker images") && strings.Contains(response, "34") {
 		executions = append(executions, ToolExecution{
@@ -449,8 +449,8 @@ func (lc *LangChainController) detectBashCommands(response string) []ToolExecuti
 			Output:  "34",
 		})
 	}
-	
-	// Pattern 2: Directory listing  
+
+	// Pattern 2: Directory listing
 	if strings.Contains(response, "ls -la") || (strings.Contains(response, "current directory") && strings.Contains(response, "drwx")) {
 		// Extract the actual directory listing from the response if available
 		output := lc.extractDirectoryListing(response)
@@ -462,7 +462,7 @@ func (lc *LangChainController) detectBashCommands(response string) []ToolExecuti
 			Output:  output,
 		})
 	}
-	
+
 	// Pattern 3: Date command
 	if strings.Contains(response, "date") && (strings.Contains(response, "PDT") || strings.Contains(response, "PST") || strings.Contains(response, "Aug")) {
 		// Extract the date from the response
@@ -475,7 +475,7 @@ func (lc *LangChainController) detectBashCommands(response string) []ToolExecuti
 			Output:  dateOutput,
 		})
 	}
-	
+
 	return executions
 }
 
@@ -515,7 +515,6 @@ func (lc *LangChainController) extractDateFromResponse(response string) string {
 	return ""
 }
 
-
 // saveHistory saves the current conversation to disk
 func (lc *LangChainController) saveHistory() error {
 	// Ensure the directory exists
@@ -526,7 +525,7 @@ func (lc *LangChainController) saveHistory() error {
 
 	// Get all messages from the conversation
 	messages := chat.GetMessages(lc.conversation)
-	
+
 	// Save to JSON file (overwrite each time)
 	data, err := json.MarshalIndent(messages, "", "  ")
 	if err != nil {
@@ -575,4 +574,3 @@ func (lc *LangChainController) loadHistory() error {
 func (lc *LangChainController) SaveHistoryToDisk() error {
 	return lc.saveHistory()
 }
-
