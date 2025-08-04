@@ -180,6 +180,15 @@ type EmbedderConfig struct {
 
 	// Base URL (for custom endpoints)
 	BaseURL string
+
+	// HTTP timeout for embedding requests
+	HTTPTimeout time.Duration
+
+	// Maximum retries for failed requests
+	MaxRetries int
+
+	// Base backoff duration for retries
+	RetryBackoff time.Duration
 }
 
 // StoreMetadata represents metadata about the vector store

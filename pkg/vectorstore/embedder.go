@@ -2,6 +2,7 @@ package vectorstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -11,20 +12,52 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 )
 
+const (
+	// MaxTextLength is the maximum length of text that can be embedded
+	MaxTextLength = 8192
+	// MaxBatchSize is the maximum number of texts that can be embedded in one batch
+	MaxBatchSize = 100
+)
+
 // LangChainEmbedder wraps a LangChain embedder to implement our Embedder interface
 type LangChainEmbedder struct {
 	embedder   embeddings.Embedder
 	dimensions int
+	provider   string
 }
 
 // NewOllamaEmbedder creates an embedder using Ollama
 func NewOllamaEmbedder(model string, baseURL string) (*LangChainEmbedder, error) {
-	opts := []ollama.Option{
-		ollama.WithModel(model),
+	return NewOllamaEmbedderWithConfig(EmbedderConfig{
+		Model:   model,
+		BaseURL: baseURL,
+	})
+}
+
+// NewOllamaEmbedderWithConfig creates an embedder using Ollama with full configuration
+func NewOllamaEmbedderWithConfig(config EmbedderConfig) (*LangChainEmbedder, error) {
+	// Build HTTP client config
+	httpConfig := HTTPClientConfig{
+		Timeout:     config.HTTPTimeout,
+		MaxRetries:  config.MaxRetries,
+		BackoffBase: config.RetryBackoff,
 	}
 
-	if baseURL != "" {
-		opts = append(opts, ollama.WithServerURL(baseURL))
+	// Use defaults if not specified
+	if httpConfig.Timeout == 0 {
+		httpConfig = DefaultHTTPClientConfig()
+	}
+
+	// Always create a client with retry logic
+	httpClient := newHTTPClient(httpConfig)
+
+	opts := []ollama.Option{
+		ollama.WithModel(config.Model),
+		ollama.WithHTTPClient(httpClient),
+	}
+
+	if config.BaseURL != "" {
+		opts = append(opts, ollama.WithServerURL(config.BaseURL))
 	}
 
 	llm, err := ollama.New(opts...)
@@ -46,19 +79,45 @@ func NewOllamaEmbedder(model string, baseURL string) (*LangChainEmbedder, error)
 	return &LangChainEmbedder{
 		embedder:   embedder,
 		dimensions: dims,
+		provider:   "ollama",
 	}, nil
 }
 
 // NewOpenAIEmbedder creates an embedder using OpenAI
 func NewOpenAIEmbedder(apiKey string, model string) (*LangChainEmbedder, error) {
-	opts := []openai.Option{}
+	return NewOpenAIEmbedderWithConfig(EmbedderConfig{
+		APIKey: apiKey,
+		Model:  model,
+	})
+}
 
-	if apiKey != "" {
-		opts = append(opts, openai.WithToken(apiKey))
+// NewOpenAIEmbedderWithConfig creates an embedder using OpenAI with full configuration
+func NewOpenAIEmbedderWithConfig(config EmbedderConfig) (*LangChainEmbedder, error) {
+	// Build HTTP client config
+	httpConfig := HTTPClientConfig{
+		Timeout:     config.HTTPTimeout,
+		MaxRetries:  config.MaxRetries,
+		BackoffBase: config.RetryBackoff,
 	}
 
-	if model != "" {
-		opts = append(opts, openai.WithEmbeddingModel(model))
+	// Use defaults if not specified
+	if httpConfig.Timeout == 0 {
+		httpConfig = DefaultHTTPClientConfig()
+	}
+
+	// Always create a client with retry logic
+	httpClient := newHTTPClient(httpConfig)
+
+	opts := []openai.Option{
+		openai.WithHTTPClient(httpClient),
+	}
+
+	if config.APIKey != "" {
+		opts = append(opts, openai.WithToken(config.APIKey))
+	}
+
+	if config.Model != "" {
+		opts = append(opts, openai.WithEmbeddingModel(config.Model))
 	}
 
 	llm, err := openai.New(opts...)
@@ -80,18 +139,28 @@ func NewOpenAIEmbedder(apiKey string, model string) (*LangChainEmbedder, error) 
 	return &LangChainEmbedder{
 		embedder:   embedder,
 		dimensions: dims,
+		provider:   "openai",
 	}, nil
 }
 
 // EmbedText generates an embedding for a single text
 func (le *LangChainEmbedder) EmbedText(ctx context.Context, text string) ([]float32, error) {
+	// Validate input
+	if text == "" {
+		return nil, errors.New("empty text")
+	}
+
+	if len(text) > MaxTextLength {
+		return nil, fmt.Errorf("text exceeds max length of %d characters", MaxTextLength)
+	}
+
 	embeddings, err := le.embedder.EmbedDocuments(ctx, []string{text})
 	if err != nil {
-		return nil, fmt.Errorf("failed to embed text: %w", err)
+		return nil, wrapEmbeddingError(err, "embed_text", le.provider)
 	}
 
 	if len(embeddings) == 0 {
-		return nil, fmt.Errorf("no embeddings returned")
+		return nil, wrapEmbeddingError(errors.New("no embeddings returned"), "embed_text", le.provider)
 	}
 
 	return embeddings[0], nil
@@ -99,9 +168,28 @@ func (le *LangChainEmbedder) EmbedText(ctx context.Context, text string) ([]floa
 
 // EmbedTexts generates embeddings for multiple texts
 func (le *LangChainEmbedder) EmbedTexts(ctx context.Context, texts []string) ([][]float32, error) {
+	// Validate input
+	if len(texts) == 0 {
+		return nil, errors.New("no texts to embed")
+	}
+
+	if len(texts) > MaxBatchSize {
+		return nil, fmt.Errorf("batch size %d exceeds max batch size of %d", len(texts), MaxBatchSize)
+	}
+
+	// Validate each text
+	for i, text := range texts {
+		if text == "" {
+			return nil, fmt.Errorf("empty text at index %d", i)
+		}
+		if len(text) > MaxTextLength {
+			return nil, fmt.Errorf("text at index %d exceeds max length of %d characters", i, MaxTextLength)
+		}
+	}
+
 	embeddings, err := le.embedder.EmbedDocuments(ctx, texts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to embed texts: %w", err)
+		return nil, wrapEmbeddingError(err, "embed_texts", le.provider)
 	}
 
 	return embeddings, nil
@@ -138,6 +226,15 @@ func NewMockEmbedder(dimensions int) *MockEmbedder {
 
 // EmbedText generates a mock embedding for a single text
 func (me *MockEmbedder) EmbedText(ctx context.Context, text string) ([]float32, error) {
+	// Validate input
+	if text == "" {
+		return nil, errors.New("empty text")
+	}
+
+	if len(text) > MaxTextLength {
+		return nil, fmt.Errorf("text exceeds max length of %d characters", MaxTextLength)
+	}
+
 	// Generate a deterministic embedding based on text content
 	embedding := make([]float32, me.dims)
 
@@ -213,12 +310,21 @@ func (me *MockEmbedder) EmbedText(ctx context.Context, text string) ([]float32, 
 
 // EmbedTexts generates mock embeddings for multiple texts
 func (me *MockEmbedder) EmbedTexts(ctx context.Context, texts []string) ([][]float32, error) {
+	// Validate input
+	if len(texts) == 0 {
+		return nil, errors.New("no texts to embed")
+	}
+
+	if len(texts) > MaxBatchSize {
+		return nil, fmt.Errorf("batch size %d exceeds max batch size of %d", len(texts), MaxBatchSize)
+	}
+
 	embeddings := make([][]float32, len(texts))
 
 	for i, text := range texts {
 		emb, err := me.EmbedText(ctx, text)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to embed text at index %d: %w", i, err)
 		}
 		embeddings[i] = emb
 	}
@@ -233,20 +339,22 @@ func (me *MockEmbedder) Dimensions() int {
 
 // CreateEmbedder creates an embedder based on configuration
 func CreateEmbedder(config EmbedderConfig) (Embedder, error) {
+	// Set defaults if not specified
+	if config.Model == "" {
+		switch config.Provider {
+		case "ollama":
+			config.Model = "nomic-embed-text"
+		case "openai":
+			config.Model = "text-embedding-3-small"
+		}
+	}
+
 	switch config.Provider {
 	case "ollama":
-		model := config.Model
-		if model == "" {
-			model = "nomic-embed-text" // Default embedding model
-		}
-		return NewOllamaEmbedder(model, config.BaseURL)
+		return NewOllamaEmbedderWithConfig(config)
 
 	case "openai":
-		model := config.Model
-		if model == "" {
-			model = "text-embedding-3-small" // Default OpenAI embedding model
-		}
-		return NewOpenAIEmbedder(config.APIKey, model)
+		return NewOpenAIEmbedderWithConfig(config)
 
 	case "mock":
 		return NewMockEmbedder(384), nil // Common embedding size
