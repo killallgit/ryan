@@ -1,0 +1,83 @@
+# Ryan Configuration Reference
+# All available configuration options
+
+# Logging
+logging:
+  file: ./.ryan/logs/debug.log
+  preserve: false
+  level: info
+
+# Context persistence
+context:
+  directory: ./.ryan/contexts
+  history_file: ./.ryan/logs/debug.history
+  max_file_size: 10MB
+  persist_langchain: true
+
+# UI settings
+show_thinking: true
+streaming: true
+
+# Ollama LLM
+ollama:
+  url: http://localhost:11434
+  model: qwen3:latest
+  system_prompt: ""
+  timeout: 90s
+  poll_interval: 10
+
+# Tools
+tools:
+  enabled: true
+  truncate_output: true
+  bash:
+    enabled: true
+    timeout: 90s
+    allowed_paths: []
+    skip_permissions: false
+  file_read:
+    enabled: true
+    max_file_size: 10MB
+    allowed_extensions: []
+  search:
+    enabled: true
+    timeout: 10s
+    use_langchain: false
+
+# LangChain
+langchain:
+  tools:
+    max_iterations: 5
+    autonomous_reasoning: true
+    use_react_pattern: true
+    verbose_logging: false
+  memory:
+    type: buffer
+    window_size: 10
+    max_tokens: 4000
+    summary_threshold: 1000
+  prompts:
+    context_injection: true
+
+# Vector Store
+vectorstore:
+  enabled: true
+  provider: chromem
+  persistence_dir: ./.ryan/vectorstore
+  enable_persistence: true
+  embedder:
+    provider: ollama
+    model: nomic-embed-text
+    base_url: http://localhost:11434
+    api_key: ""
+  collections:
+    - name: conversations
+      metadata:
+        type: chat_history
+    - name: documents
+      metadata:
+        type: document_index
+  indexer:
+    chunk_size: 1000
+    chunk_overlap: 200
+    auto_index: false
