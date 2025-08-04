@@ -2,10 +2,12 @@ package vectorstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/killallgit/ryan/pkg/logger"
 )
@@ -104,6 +106,16 @@ func (m *Manager) GetCollection(name string) (Collection, error) {
 
 // IndexDocument indexes a single document
 func (m *Manager) IndexDocument(ctx context.Context, collectionName string, doc Document) error {
+	// Validate collection name
+	if err := validateCollectionName(collectionName); err != nil {
+		return err
+	}
+
+	// Validate document
+	if err := validateDocumentID(doc.ID); err != nil {
+		return err
+	}
+
 	collection, err := m.GetCollection(collectionName)
 	if err != nil {
 		return fmt.Errorf("failed to get collection: %w", err)
@@ -128,6 +140,27 @@ func (m *Manager) IndexDocument(ctx context.Context, collectionName string, doc 
 
 // IndexDocuments indexes multiple documents
 func (m *Manager) IndexDocuments(ctx context.Context, collectionName string, docs []Document) error {
+	// Validate collection name
+	if err := validateCollectionName(collectionName); err != nil {
+		return err
+	}
+
+	if len(docs) == 0 {
+		return errors.New("no documents to index")
+	}
+
+	// Handle large batches
+	if len(docs) > MaxBatchSize {
+		return m.indexDocumentsInBatches(ctx, collectionName, docs)
+	}
+
+	// Validate documents
+	for _, doc := range docs {
+		if err := validateDocumentID(doc.ID); err != nil {
+			return fmt.Errorf("document validation failed: %w", err)
+		}
+	}
+
 	collection, err := m.GetCollection(collectionName)
 	if err != nil {
 		return fmt.Errorf("failed to get collection: %w", err)
@@ -261,9 +294,12 @@ func DefaultConfig() Config {
 			},
 		},
 		EmbedderConfig: EmbedderConfig{
-			Provider: "ollama",
-			Model:    "nomic-embed-text",
-			BaseURL:  "http://localhost:11434",
+			Provider:     "ollama",
+			Model:        "nomic-embed-text",
+			BaseURL:      "http://localhost:11434",
+			HTTPTimeout:  30 * time.Second,
+			MaxRetries:   3,
+			RetryBackoff: 100 * time.Millisecond,
 		},
 	}
 }
@@ -281,4 +317,49 @@ func ConfigFromViper(persistenceDir string) Config {
 	// For now, we'll use defaults
 
 	return config
+}
+
+// indexDocumentsInBatches processes large document sets in batches
+func (m *Manager) indexDocumentsInBatches(ctx context.Context, collectionName string, docs []Document) error {
+	collection, err := m.GetCollection(collectionName)
+	if err != nil {
+		return fmt.Errorf("failed to get collection: %w", err)
+	}
+
+	// Process in batches
+	for i := 0; i < len(docs); i += MaxBatchSize {
+		end := i + MaxBatchSize
+		if end > len(docs) {
+			end = len(docs)
+		}
+
+		batch := docs[i:end]
+
+		// Validate batch
+		for _, doc := range batch {
+			if err := validateDocumentID(doc.ID); err != nil {
+				return fmt.Errorf("document validation failed at index %d: %w", i, err)
+			}
+		}
+
+		// Generate embeddings for batch
+		for j := range batch {
+			if len(batch[j].Embedding) == 0 && batch[j].Content != "" {
+				embedding, err := m.embedder.EmbedText(ctx, batch[j].Content)
+				if err != nil {
+					return fmt.Errorf("failed to generate embedding for document %s: %w", batch[j].ID, err)
+				}
+				batch[j].Embedding = embedding
+			}
+		}
+
+		// Index batch
+		if err := collection.AddDocuments(ctx, batch); err != nil {
+			return fmt.Errorf("failed to add batch starting at index %d: %w", i, err)
+		}
+
+		m.log.Debug("Indexed batch", "collection", collectionName, "start", i, "size", len(batch))
+	}
+
+	return nil
 }
