@@ -417,7 +417,7 @@ type AlertDisplay struct {
 	SpinnerText      string
 	ErrorMessage     string
 	Width            int
-	StartTime        time.Time // Track when operation started
+	StartTime        time.Time     // Track when operation started
 	CurrentDuration  time.Duration // Current operation duration
 }
 
@@ -534,7 +534,7 @@ func (srd StatusRowDisplay) WithSpinner(visible bool, feedbackText string) Statu
 	} else if !visible {
 		startTime = time.Time{}
 	}
-	
+
 	return StatusRowDisplay{
 		IsSpinnerVisible: visible,
 		SpinnerFrame:     srd.SpinnerFrame,
@@ -599,7 +599,7 @@ func (srd StatusRowDisplay) UpdateDuration() StatusRowDisplay {
 	if srd.IsSpinnerVisible && !srd.StartTime.IsZero() {
 		duration = time.Since(srd.StartTime)
 	}
-	
+
 	return StatusRowDisplay{
 		IsSpinnerVisible: srd.IsSpinnerVisible,
 		SpinnerFrame:     srd.SpinnerFrame,
@@ -1086,11 +1086,11 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 		Width:  modalArea.Width - 2,
 		Height: modalArea.Height - 2,
 	}
-	
-	buttonY := contentArea.Y + contentArea.Height - 2  // Inside border, from bottom
+
+	buttonY := contentArea.Y + contentArea.Height - 2 // Inside border, from bottom
 	buttonSpacing := 2
 	availableWidth := contentArea.Width - buttonSpacing
-	buttonWidth := availableWidth / 2  // Each button gets half the available width
+	buttonWidth := availableWidth / 2 // Each button gets half the available width
 
 	// Cancel button (left)
 	cancelX := contentArea.X
@@ -1098,12 +1098,12 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 	if cm.SelectedButton == 0 {
 		cancelStyle = cancelStyle.Bold(true)
 	}
-	
+
 	// Fill button background and render text
 	for x := cancelX; x < cancelX+buttonWidth; x++ {
 		screen.SetContent(x, buttonY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDefault))
 	}
-	
+
 	// Cancel text (centered in button)
 	cancelText := "Cancel"
 	cancelTextX := cancelX + (buttonWidth-len(cancelText))/2
@@ -1115,12 +1115,12 @@ func (cm ConfirmationModal) Render(screen tcell.Screen, area Rect) {
 	if cm.SelectedButton == 1 {
 		confirmStyle = confirmStyle.Bold(true)
 	}
-	
+
 	// Fill button background and render text
 	for x := confirmX; x < confirmX+buttonWidth; x++ {
 		screen.SetContent(x, buttonY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDefault))
 	}
-	
+
 	// Confirm text (centered in button)
 	confirmText := "Confirm"
 	confirmTextX := confirmX + (buttonWidth-len(confirmText))/2
@@ -1280,11 +1280,11 @@ func (dpm DownloadPromptModal) Render(screen tcell.Screen, area Rect) {
 		Width:  modalArea.Width - 2,
 		Height: modalArea.Height - 2,
 	}
-	
-	buttonY := contentArea.Y + contentArea.Height - 2  // Inside border, from bottom
+
+	buttonY := contentArea.Y + contentArea.Height - 2 // Inside border, from bottom
 	buttonSpacing := 2
 	availableWidth := contentArea.Width - buttonSpacing
-	buttonWidth := availableWidth / 2  // Each button gets half the available width
+	buttonWidth := availableWidth / 2 // Each button gets half the available width
 
 	// Cancel button (left)
 	cancelX := contentArea.X
@@ -1292,12 +1292,12 @@ func (dpm DownloadPromptModal) Render(screen tcell.Screen, area Rect) {
 	if dpm.SelectedButton == 0 {
 		cancelStyle = cancelStyle.Bold(true)
 	}
-	
+
 	// Fill button background and render text
 	for x := cancelX; x < cancelX+buttonWidth; x++ {
 		screen.SetContent(x, buttonY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDefault))
 	}
-	
+
 	// Cancel text (centered in button)
 	cancelText := "Cancel"
 	cancelTextX := cancelX + (buttonWidth-len(cancelText))/2
@@ -1309,12 +1309,12 @@ func (dpm DownloadPromptModal) Render(screen tcell.Screen, area Rect) {
 	if dpm.SelectedButton == 1 {
 		downloadStyle = downloadStyle.Bold(true)
 	}
-	
+
 	// Fill button background and render text
 	for x := downloadX; x < downloadX+buttonWidth; x++ {
 		screen.SetContent(x, buttonY, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDefault))
 	}
-	
+
 	// Download text (centered in button)
 	downloadText := "Download"
 	downloadTextX := downloadX + (buttonWidth-len(downloadText))/2

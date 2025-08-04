@@ -131,7 +131,7 @@ func AddMessageWithDeduplication(conv Conversation, msg Message) Conversation {
 	if msg.GetSource() == MessageSourceFinal && msg.IsUser() {
 		conv = RemoveOptimisticMessages(conv, msg.Content)
 	}
-	
+
 	// Add the new message
 	return AddMessage(conv, msg)
 }
@@ -139,15 +139,15 @@ func AddMessageWithDeduplication(conv Conversation, msg Message) Conversation {
 // RemoveOptimisticMessages removes optimistic messages that match the given content
 func RemoveOptimisticMessages(conv Conversation, content string) Conversation {
 	var filteredMessages []Message
-	
+
 	for _, existingMsg := range conv.Messages {
 		// Keep message if it's not optimistic or doesn't match content
-		if !existingMsg.IsOptimistic() || 
-		   strings.TrimSpace(existingMsg.Content) != strings.TrimSpace(content) {
+		if !existingMsg.IsOptimistic() ||
+			strings.TrimSpace(existingMsg.Content) != strings.TrimSpace(content) {
 			filteredMessages = append(filteredMessages, existingMsg)
 		}
 	}
-	
+
 	return Conversation{
 		Messages: filteredMessages,
 		Model:    conv.Model,
@@ -162,14 +162,14 @@ func ReplaceOptimisticMessage(conv Conversation, optimisticContent string, final
 			messages := make([]Message, len(conv.Messages))
 			copy(messages, conv.Messages)
 			messages[i] = finalMsg
-			
+
 			return Conversation{
 				Messages: messages,
 				Model:    conv.Model,
 			}
 		}
 	}
-	
+
 	// If no optimistic message found, just add the final message
 	return AddMessage(conv, finalMsg)
 }
@@ -199,14 +199,14 @@ func GetStreamingMessages(conv Conversation) []Message {
 // RemoveStreamingMessages removes all streaming messages (useful when streaming completes)
 func RemoveStreamingMessages(conv Conversation, streamID string) Conversation {
 	var filteredMessages []Message
-	
+
 	for _, msg := range conv.Messages {
 		// Keep message if it's not streaming or has different stream ID
 		if !msg.IsStreaming() || msg.GetStreamID() != streamID {
 			filteredMessages = append(filteredMessages, msg)
 		}
 	}
-	
+
 	return Conversation{
 		Messages: filteredMessages,
 		Model:    conv.Model,

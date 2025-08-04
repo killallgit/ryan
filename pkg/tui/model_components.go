@@ -369,7 +369,7 @@ func truncateString(s string, maxLen int) string {
 func normalizeModelNameForComparison(name string) string {
 	// Convert to lowercase and trim whitespace
 	normalized := strings.ToLower(strings.TrimSpace(name))
-	
+
 	// Remove common suffixes that don't affect the core model identity
 	suffixes := []string{"-q4_0", "-q4_k_m", "-q8_0", "-fp16", "-instruct", "-chat"}
 	for _, suffix := range suffixes {
@@ -377,7 +377,7 @@ func normalizeModelNameForComparison(name string) string {
 			normalized = strings.TrimSuffix(normalized, suffix)
 		}
 	}
-	
+
 	return normalized
 }
 
@@ -387,7 +387,7 @@ func isModelAlreadyDownloaded(availableModelName string, downloadedModelNames ma
 	if downloadedModelNames[availableModelName] {
 		return true
 	}
-	
+
 	// Then try normalized matching
 	normalizedAvailable := normalizeModelNameForComparison(availableModelName)
 	for downloadedName := range downloadedModelNames {
@@ -396,7 +396,7 @@ func isModelAlreadyDownloaded(availableModelName string, downloadedModelNames ma
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -406,12 +406,12 @@ func sortModelsByDownloadStatus(models []ModelInfo) {
 	sort.Slice(models, func(i, j int) bool {
 		modelA := models[i]
 		modelB := models[j]
-		
+
 		// Primary sort: Downloaded models come first
 		if modelA.IsDownloaded != modelB.IsDownloaded {
 			return modelA.IsDownloaded // true comes before false
 		}
-		
+
 		// Secondary sort: Within each group, sort alphabetically by name
 		return strings.ToLower(modelA.Name) < strings.ToLower(modelB.Name)
 	})

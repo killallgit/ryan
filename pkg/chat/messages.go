@@ -23,10 +23,10 @@ type ThinkingBlock struct {
 
 // MessageMetadata contains message lifecycle and processing information
 type MessageMetadata struct {
-	StreamID    string `json:"stream_id,omitempty"`     // ID of the streaming session
-	ChunkIndex  int    `json:"chunk_index,omitempty"`   // Order in streaming chunks
-	IsStreaming bool   `json:"is_streaming,omitempty"`  // Whether this is a partial message
-	Source      string `json:"source,omitempty"`        // "optimistic", "streaming", "final"
+	StreamID    string `json:"stream_id,omitempty"`    // ID of the streaming session
+	ChunkIndex  int    `json:"chunk_index,omitempty"`  // Order in streaming chunks
+	IsStreaming bool   `json:"is_streaming,omitempty"` // Whether this is a partial message
+	Source      string `json:"source,omitempty"`       // "optimistic", "streaming", "final"
 }
 
 type ToolCall struct {
@@ -150,14 +150,14 @@ func NewAssistantMessageWithThinking(content, thinking string, showThinking bool
 			Source: MessageSourceFinal,
 		},
 	}
-	
+
 	if thinking != "" {
 		msg.Thinking = &ThinkingBlock{
 			Content: thinking,
 			Visible: showThinking,
 		}
 	}
-	
+
 	return msg
 }
 
@@ -276,7 +276,7 @@ func (m Message) WithSource(source string) Message {
 	if m.Metadata == nil {
 		return m.WithMetadata(MessageMetadata{Source: source})
 	}
-	
+
 	metadata := *m.Metadata
 	metadata.Source = source
 	return m.WithMetadata(metadata)

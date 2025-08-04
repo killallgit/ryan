@@ -370,7 +370,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 		allLines = allLines[:len(allLines)-1]
 	}
 
-	// Calculate visible lines for messages 
+	// Calculate visible lines for messages
 	// Note: Spinner is now handled by RenderStatusRow, no need to reserve space here
 	availableHeight := chatArea.Height
 
@@ -663,27 +663,27 @@ func RenderStatusRow(screen tcell.Screen, area Rect, statusRow StatusRowDisplay)
 		// Calculate available width for feedback text
 		remainingWidth := area.Width - (x - area.X)
 		feedbackText := statusRow.FeedbackText
-		
+
 		// Reserve space for the status info in parentheses (estimate ~30 chars)
 		maxFeedbackWidth := remainingWidth - 35
 		if maxFeedbackWidth > 0 && len(feedbackText) > maxFeedbackWidth {
 			feedbackText = feedbackText[:maxFeedbackWidth-3] + "..."
 		}
-		
+
 		renderText(screen, x, area.Y, feedbackText, tcell.StyleDefault)
 		x += len(feedbackText) + 1 // Add space after feedback text
 	}
 
 	// 3. Build status info in parentheses: (DURATION | NUM_TOKENS | esc to interject)
 	var statusInfo []string
-	
+
 	// Duration
 	if statusRow.CurrentDuration > 0 {
 		duration := statusRow.CurrentDuration
 		if statusRow.IsSpinnerVisible && !statusRow.StartTime.IsZero() {
 			duration = time.Since(statusRow.StartTime)
 		}
-		
+
 		// Format duration nicely
 		var durationStr string
 		if duration < time.Second {
@@ -695,25 +695,25 @@ func RenderStatusRow(screen tcell.Screen, area Rect, statusRow StatusRowDisplay)
 		}
 		statusInfo = append(statusInfo, durationStr)
 	}
-	
+
 	// Token count
 	if statusRow.TokenCount > 0 {
 		statusInfo = append(statusInfo, fmt.Sprintf("%d", statusRow.TokenCount))
 	}
-	
+
 	// "esc to interject" (only when spinner is visible)
 	if statusRow.IsSpinnerVisible {
 		statusInfo = append(statusInfo, "esc to interject")
 	}
-	
+
 	// Render status info if we have any
 	if len(statusInfo) > 0 {
 		statusText := "(" + strings.Join(statusInfo, " | ") + ")"
-		
+
 		// Calculate position (try to right-align, but ensure it fits)
 		textWidth := len(statusText)
 		availableWidth := area.Width - (x - area.X)
-		
+
 		if textWidth <= availableWidth {
 			// Can fit the status text
 			statusX := x
@@ -721,20 +721,20 @@ func RenderStatusRow(screen tcell.Screen, area Rect, statusRow StatusRowDisplay)
 				// Right-align within available space
 				statusX = area.X + area.Width - textWidth
 			}
-			
+
 			// Render with proper styling - make "esc" bold if present
 			if statusRow.IsSpinnerVisible && strings.Contains(statusText, "esc to interject") {
 				// Split the text to make "esc" bold
 				beforeEsc := strings.Split(statusText, "esc to interject")[0]
 				afterEsc := strings.Split(statusText, "esc to interject")[1]
-				
+
 				// Render before "esc"
 				renderText(screen, statusX, area.Y, beforeEsc, StyleDimText)
 				escX := statusX + len(beforeEsc)
-				
+
 				// Render "esc" in bold
 				renderText(screen, escX, area.Y, "esc", StyleDimText.Bold(true))
-				
+
 				// Render rest
 				renderText(screen, escX+3, area.Y, " to interject"+afterEsc, StyleDimText)
 			} else {

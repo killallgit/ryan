@@ -249,7 +249,7 @@ func (bt *BashTool) shouldSkipPermissions() bool {
 			// Config not initialized, default to secure behavior
 		}
 	}()
-	
+
 	if cfg := config.Get(); cfg != nil {
 		return cfg.Tools.Bash.SkipPermissions
 	}
