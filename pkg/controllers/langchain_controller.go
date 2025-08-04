@@ -43,6 +43,20 @@ func NewLangChainController(baseURL, model string, toolRegistry *tools.Registry)
 		historyFile:  ".ryan/chat_history.json",
 	}
 
+	// Set up tool progress callback to show tool execution in chat
+	client.SetProgressCallback(func(toolName, command string) {
+		// Add tool progress message to conversation
+		progressMsg := chat.NewToolProgressMessage(toolName, command)
+		controller.conversation = chat.AddMessage(controller.conversation, progressMsg)
+		
+		// Also log to history for debugging
+		if err := logger.LogChatEvent("Tool Execution", fmt.Sprintf("%s(%s)", toolName, command)); err != nil {
+			log.Error("Failed to log tool execution to history", "error", err)
+		}
+		
+		log.Debug("Tool execution started", "tool", toolName, "command", command)
+	})
+
 	// Load existing chat history if available
 	if err := controller.loadHistory(); err != nil {
 		log.Debug("Could not load chat history", "error", err)
