@@ -34,13 +34,19 @@ func NewLangChainController(baseURL, model string, toolRegistry *tools.Registry)
 
 	log := logger.WithComponent("langchain_controller")
 
+	// Get history file path from config, with fallback
+	historyFile := ".ryan/logs/debug.history"
+	if cfg := config.Get(); cfg != nil {
+		historyFile = filepath.Join(cfg.Directories.Logs, "debug.history")
+	}
+
 	controller := &LangChainController{
 		client:       client,
 		model:        model,
 		toolRegistry: toolRegistry,
 		conversation: chat.NewConversation(model),
 		log:          log,
-		historyFile:  ".ryan/chat_history.json",
+		historyFile:  historyFile,
 	}
 
 	// Load existing chat history if available

@@ -29,7 +29,7 @@ func main() {
 	cfg.LangChain.Tools.MaxIterations = 5
 
 	// Initialize logger
-	if err := logger.InitLoggerWithConfig("./.ryan/test.log", false, "debug"); err != nil {
+	if err := logger.InitLoggerWithConfig("./.ryan/logs/test.log", false, "debug"); err != nil {
 		log.Fatal("Failed to initialize logger:", err)
 	}
 
@@ -103,5 +103,5 @@ func main() {
 	}
 
 	fmt.Println("\n🎉 Testing completed!")
-	fmt.Println("📊 Check ./.ryan/test.log for detailed logs")
+	fmt.Println("📊 Check ./.ryan/logs/test.log for detailed logs")
 }

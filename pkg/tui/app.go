@@ -572,7 +572,7 @@ func (app *App) handleSpinnerAnimation(ev *SpinnerAnimationEvent) {
 
 		// Update spinner text with elapsed time
 		if !app.sendStartTime.IsZero() {
-			// Simplified spinner - no extra text as per TODO
+			// Simplified spinner - no extra text
 			spinnerText := ""
 
 			// Update alert display with new text

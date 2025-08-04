@@ -24,12 +24,12 @@ func init() {
 
 func InitLogger() error {
 	// For now, use defaults until we refactor to pass config
-	return InitLoggerWithConfig(".ryan/debug.log", false, "info")
+	return InitLoggerWithConfig(".ryan/logs/debug.log", false, "info")
 }
 
 func InitLoggerWithConfig(logFile string, preserve bool, level string) error {
 	if logFile == "" {
-		logFile = ".ryan/debug.log"
+		logFile = ".ryan/logs/debug.log"
 	}
 
 	// Ensure directory exists

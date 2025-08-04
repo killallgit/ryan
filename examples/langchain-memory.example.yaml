@@ -1,8 +1,13 @@
 # Example configuration for LangChain Go Memory Integration (Phase 2)
 # This demonstrates enhanced memory capabilities while maintaining full compatibility
 
+directories:
+    ryan: ./.ryan
+    logs: ./.ryan/logs
+    contexts: ./.ryan/contexts
+
 logging:
-    file: ./.ryan/debug.log
+    file: ./.ryan/logs/debug.log
     preserve: false
 
 show_thinking: true

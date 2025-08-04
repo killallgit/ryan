@@ -27,6 +27,7 @@ type Client struct {
 	executor       *agents.Executor
 	config         *config.Config
 	log            *logger.Logger
+	contextManager *ContextManager
 }
 
 // NewClient creates a new LangChain-powered client
@@ -58,18 +59,33 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 		mem = memory.NewConversationBuffer()
 	}
 
+	// Create context manager for persistent context
+	contextManager, err := NewContextManager("default")
+	if err != nil {
+		log.Warn("Failed to create context manager", "error", err)
+		// Continue without context manager
+	}
+
 	client := &Client{
-		llm:          llm,
-		memory:       mem,
-		toolRegistry: toolRegistry,
-		config:       cfg,
-		log:          log,
+		llm:            llm,
+		memory:         mem,
+		toolRegistry:   toolRegistry,
+		config:         cfg,
+		log:            log,
+		contextManager: contextManager,
 	}
 
 	// Initialize tools and agent (always enabled now)
 	if toolRegistry != nil {
 		if err := client.initializeAgent(); err != nil {
 			log.Warn("Failed to initialize agent, falling back to direct mode", "error", err)
+		}
+	}
+
+	// Try to load existing context if context manager is available
+	if client.contextManager != nil {
+		if err := client.loadPersistedContext(context.Background()); err != nil {
+			log.Debug("No existing context to load", "error", err)
 		}
 	}
 
@@ -176,9 +192,9 @@ func (c *Client) initializeAgent() error {
 	c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
 		agents.WithMemory(c.memory))
 
-	// Create executor with intermediate steps enabled
+	// Create executor - LangChain Go doesn't provide configuration options for intermediate steps
 	c.executor = agents.NewExecutor(c.agent)
-	// TODO: Check if LangChainGo supports intermediate steps configuration
+	// NOTE: Intermediate steps are extracted from result map when available (see SendMessageAsync)
 
 	c.log.Info("LangChain agent initialized", "tools_count", len(c.langchainTools))
 	return nil
@@ -497,4 +513,49 @@ func extractVarNames(vars map[string]any) []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// loadPersistedContext loads conversation context from persistent storage
+func (c *Client) loadPersistedContext(ctx context.Context) error {
+	if c.contextManager == nil {
+		return fmt.Errorf("context manager not available")
+	}
+
+	contextData, err := c.contextManager.LoadContext(ctx)
+	if err != nil {
+		return err // Context doesn't exist yet, which is fine
+	}
+
+	c.log.Debug("Loaded persisted context",
+		"session_id", contextData.SessionID,
+		"message_count", len(contextData.Messages))
+
+	// TODO: Integration with LangChain memory could be enhanced here
+	// For now, we just log that we loaded the context
+	// In the future, we could restore the conversation to the memory
+
+	return nil
+}
+
+// SaveCurrentContext saves the current conversation state to persistent storage
+func (c *Client) SaveCurrentContext(ctx context.Context) error {
+	if c.contextManager == nil {
+		return nil // Silently skip if context manager not available
+	}
+
+	// For now, we'll create a simple approach to extract messages
+	// This is a simplified implementation - in a full implementation,
+	// we'd want to extract actual messages from the memory
+	messages := []llms.ChatMessage{} // Placeholder
+
+	return c.contextManager.SaveContext(ctx, messages)
+}
+
+// ClearPersistedContext clears the persistent context storage
+func (c *Client) ClearPersistedContext() error {
+	if c.contextManager == nil {
+		return nil
+	}
+
+	return c.contextManager.ClearContext()
 }

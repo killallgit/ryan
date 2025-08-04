@@ -38,12 +38,13 @@ type LangChainPromptConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Logging      LoggingConfig   `mapstructure:"logging"`
-	ShowThinking bool            `mapstructure:"show_thinking"`
-	Streaming    bool            `mapstructure:"streaming"`
-	Ollama       OllamaConfig    `mapstructure:"ollama"`
-	Tools        ToolsConfig     `mapstructure:"tools"`
-	LangChain    LangChainConfig `mapstructure:"langchain"`
+	Logging      LoggingConfig     `mapstructure:"logging"`
+	ShowThinking bool              `mapstructure:"show_thinking"`
+	Streaming    bool              `mapstructure:"streaming"`
+	Ollama       OllamaConfig      `mapstructure:"ollama"`
+	Tools        ToolsConfig       `mapstructure:"tools"`
+	LangChain    LangChainConfig   `mapstructure:"langchain"`
+	Directories  DirectoriesConfig `mapstructure:"directories"`
 }
 
 // LoggingConfig holds logging-related configuration
@@ -51,6 +52,13 @@ type LoggingConfig struct {
 	File     string `mapstructure:"file"`
 	Preserve bool   `mapstructure:"preserve"`
 	Level    string `mapstructure:"level"`
+}
+
+// DirectoriesConfig holds directory path configuration
+type DirectoriesConfig struct {
+	Ryan     string `mapstructure:"ryan"`
+	Logs     string `mapstructure:"logs"`
+	Contexts string `mapstructure:"contexts"`
 }
 
 // OllamaConfig holds Ollama-specific configuration
@@ -147,6 +155,16 @@ func Load(cfgFile string) (*Config, error) {
 		return nil, fmt.Errorf("failed to process durations: %w", err)
 	}
 
+	// Handle migration from old directory structure
+	if err := MigrateOldStructure(cfg); err != nil {
+		return nil, fmt.Errorf("failed to migrate old directory structure: %w", err)
+	}
+
+	// Ensure all directories exist
+	if err := EnsureDirectoriesExist(cfg); err != nil {
+		return nil, fmt.Errorf("failed to create directories: %w", err)
+	}
+
 	return cfg, nil
 }
 
@@ -162,8 +180,13 @@ func setDefaults() {
 	viper.SetDefault("show_thinking", true)
 	viper.SetDefault("streaming", true)
 
+	// Directory defaults
+	viper.SetDefault("directories.ryan", "./.ryan")
+	viper.SetDefault("directories.logs", "./.ryan/logs")
+	viper.SetDefault("directories.contexts", "./.ryan/contexts")
+
 	// Logging defaults
-	viper.SetDefault("logging.file", "./.ryan/debug.log")
+	viper.SetDefault("logging.file", "./.ryan/logs/debug.log")
 	viper.SetDefault("logging.preserve", false)
 	viper.SetDefault("logging.level", "info")
 
@@ -238,7 +261,11 @@ func InitializeDefaults() error {
 	v.SetConfigType("yaml")
 
 	// Set all the defaults
-	v.SetDefault("logging.file", "./.ryan/debug.log")
+	v.SetDefault("directories.ryan", "./.ryan")
+	v.SetDefault("directories.logs", "./.ryan/logs")
+	v.SetDefault("directories.contexts", "./.ryan/contexts")
+
+	v.SetDefault("logging.file", "./.ryan/logs/debug.log")
 	v.SetDefault("logging.preserve", false)
 	v.SetDefault("logging.level", "info")
 
@@ -288,4 +315,72 @@ func promptUserForSettingsCreation() bool {
 
 	response = strings.TrimSpace(strings.ToLower(response))
 	return response == "y" || response == "yes"
+}
+
+// EnsureDirectoriesExist creates all necessary directories based on configuration
+func EnsureDirectoriesExist(cfg *Config) error {
+	directories := []string{
+		cfg.Directories.Ryan,
+		cfg.Directories.Logs,
+		cfg.Directories.Contexts,
+	}
+
+	for _, dir := range directories {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	return nil
+}
+
+// MigrateOldStructure handles migration from old .ryan structure to new organized structure
+func MigrateOldStructure(cfg *Config) error {
+	oldLogFile := ".ryan/debug.log"
+	oldHistoryFile := ".ryan/chat_history.json"
+
+	// Check if old structure exists
+	if _, err := os.Stat(oldLogFile); err == nil {
+		// Ensure new directories exist
+		if err := EnsureDirectoriesExist(cfg); err != nil {
+			return err
+		}
+
+		// Move old debug.log to new location
+		newLogFile := filepath.Join(cfg.Directories.Logs, "debug.log")
+		if err := moveFileIfExists(oldLogFile, newLogFile); err != nil {
+			return fmt.Errorf("failed to migrate debug.log: %w", err)
+		}
+	}
+
+	// Move old chat history to new location
+	if _, err := os.Stat(oldHistoryFile); err == nil {
+		// Ensure new directories exist
+		if err := EnsureDirectoriesExist(cfg); err != nil {
+			return err
+		}
+
+		newHistoryFile := filepath.Join(cfg.Directories.Logs, "debug.history")
+		if err := moveFileIfExists(oldHistoryFile, newHistoryFile); err != nil {
+			return fmt.Errorf("failed to migrate chat_history.json: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// moveFileIfExists moves a file from src to dst if src exists
+func moveFileIfExists(src, dst string) error {
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return nil // Source doesn't exist, nothing to do
+	}
+
+	// Ensure destination directory exists
+	dstDir := filepath.Dir(dst)
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return err
+	}
+
+	// Move the file
+	return os.Rename(src, dst)
 }

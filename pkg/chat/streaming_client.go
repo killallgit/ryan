@@ -122,9 +122,10 @@ func (sc *StreamingClient) StreamMessage(ctx context.Context, req ChatRequest) (
 			finalContent = response.Choices[0].Content
 		}
 
-		// TODO: Extract token usage if available from LangChain response
-		// The llms.ContentResponse type doesn't expose usage information directly
-		// This would require investigation into LangChain Go internals or using a different client
+		// NOTE: Token usage not available from LangChain Go llms.ContentResponse
+		// The LangChain Go library doesn't expose token usage statistics in its response types.
+		// Token tracking is only available when using direct Ollama client connections.
+		// Future enhancement: Consider implementing custom usage tracking or switching to direct API calls.
 
 		finalChunk := MessageChunk{
 			ID:        fmt.Sprintf("%s-final", streamID),

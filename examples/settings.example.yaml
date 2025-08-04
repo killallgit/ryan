@@ -1,5 +1,10 @@
+directories:
+    ryan: ./.ryan
+    logs: ./.ryan/logs
+    contexts: ./.ryan/contexts
+
 logging:
-    file: ./.ryan/debug.log
+    file: ./.ryan/logs/debug.log
     preserve: false
 
 show_thinking: true
