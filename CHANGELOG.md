@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Modal Button Overflow**: Fixed download modal buttons overflowing container boundaries
 - **Status Row Layout**: Improved status row positioning and content layout
 
+### Changed
+- **Code Quality**: Cleaned up debug logging statements across the codebase
+  - Removed extensive debug logging blocks from `pkg/langchain/client.go`
+  - Cleaned up debug statements in TUI rendering components
+  - Removed unused debug comments and imports
+  - Improved code readability and reduced log noise
+
 - **Tool Calling System (Phase 2)**: Complete Ollama integration with tool calling support
   - Universal tool interface with JSON Schema validation
   - Built-in tools: `execute_bash` and `read_file` with security constraints
