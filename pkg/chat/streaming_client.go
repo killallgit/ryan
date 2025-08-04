@@ -182,7 +182,7 @@ func CreateStreamingChatRequest(conversation Conversation, userMessage string) C
 
 	return ChatRequest{
 		Model:    conv.Model,
-		Messages: conv.Messages,
+		Messages: GetMessages(conv),
 		Stream:   true,
 	}
 }
@@ -193,7 +193,7 @@ func CreateStreamingChatRequestWithTools(conversation Conversation, userMessage 
 
 	return ChatRequest{
 		Model:    conv.Model,
-		Messages: conv.Messages,
+		Messages: GetMessages(conv),
 		Stream:   true,
 		Tools:    tools,
 	}

@@ -17,9 +17,10 @@ type LangChainMemory struct {
 
 // NewLangChainMemory creates a new LangChain memory wrapper
 func NewLangChainMemory() *LangChainMemory {
+	emptyConv := NewConversation("")
 	return &LangChainMemory{
 		buffer:       memory.NewConversationBuffer(),
-		conversation: &Conversation{Messages: []Message{}},
+		conversation: &emptyConv,
 	}
 }
 
@@ -32,7 +33,8 @@ func NewLangChainMemoryWithConversation(conv Conversation) (*LangChainMemory, er
 
 	// Convert existing messages to LangChain format
 	ctx := context.Background()
-	for _, msg := range conv.Messages {
+	messages := GetMessages(conv)
+	for _, msg := range messages {
 		if err := lm.addMessageToBuffer(ctx, msg); err != nil {
 			return nil, fmt.Errorf("failed to convert message to LangChain format: %w", err)
 		}
@@ -106,11 +108,13 @@ func (lm *LangChainMemory) SaveContext(ctx context.Context, inputs map[string]an
 
 	// Also add messages to our conversation for consistency
 	if input, ok := inputs["input"].(string); ok && input != "" {
-		lm.conversation.Messages = append(lm.conversation.Messages, NewUserMessage(input))
+		userMsg := NewUserMessage(input)
+		*lm.conversation = AddMessage(*lm.conversation, userMsg)
 	}
 
 	if output, ok := outputs["output"].(string); ok && output != "" {
-		lm.conversation.Messages = append(lm.conversation.Messages, NewAssistantMessage(output))
+		assistantMsg := NewAssistantMessage(output)
+		*lm.conversation = AddMessage(*lm.conversation, assistantMsg)
 	}
 
 	return nil
@@ -119,10 +123,8 @@ func (lm *LangChainMemory) SaveContext(ctx context.Context, inputs map[string]an
 // Clear clears both the conversation and LangChain memory
 func (lm *LangChainMemory) Clear(ctx context.Context) error {
 	// Clear our conversation
-	lm.conversation = &Conversation{
-		Messages: []Message{},
-		Model:    lm.conversation.Model,
-	}
+	clearedConv := NewConversation(lm.conversation.Model)
+	lm.conversation = &clearedConv
 
 	// Clear LangChain buffer
 	return lm.buffer.Clear(ctx)

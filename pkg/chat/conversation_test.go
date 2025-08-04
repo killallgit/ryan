@@ -20,7 +20,8 @@ var _ = Describe("Conversation", func() {
 			conv := chat.NewConversation("llama3.1:8b")
 
 			Expect(conv.Model).To(Equal("llama3.1:8b"))
-			Expect(conv.Messages).To(BeEmpty())
+			messages := chat.GetMessages(conv)
+			Expect(messages).To(BeEmpty())
 			Expect(chat.IsEmpty(conv)).To(BeTrue())
 		})
 	})

@@ -15,10 +15,10 @@ import (
 // LangChainChatController extends ChatController with LangChain memory integration
 type LangChainChatController struct {
 	*ChatController
-	memory      *chat.LangChainVectorMemory
+	memory       *chat.LangChainVectorMemory
 	hybridMemory *chat.HybridMemory
-	llm         llms.Model
-	useHybrid   bool
+	llm          llms.Model
+	useHybrid    bool
 }
 
 // createHybridMemory initializes hybrid memory with the global vector store
@@ -33,10 +33,10 @@ func createHybridMemory() (*chat.HybridMemory, *chat.LangChainVectorMemory, erro
 	}
 
 	if manager == nil {
-		log.Info("Vector store is disabled, using vector memory only")  
+		log.Info("Vector store is disabled, using vector memory only")
 		return nil, createFallbackVectorMemory(), nil
 	}
-	
+
 	// Create hybrid memory with default configuration
 	config := chat.DefaultHybridMemoryConfig()
 	hybridMemory, err := chat.NewHybridMemory(manager, config)
@@ -44,8 +44,8 @@ func createHybridMemory() (*chat.HybridMemory, *chat.LangChainVectorMemory, erro
 		log.Error("Failed to create hybrid memory, falling back to vector memory", "error", err)
 		return nil, createFallbackVectorMemory(), nil
 	}
-	
-	log.Info("Successfully initialized hybrid memory for chat", 
+
+	log.Info("Successfully initialized hybrid memory for chat",
 		"working_size", config.WorkingMemorySize,
 		"vector_collection", config.VectorConfig.CollectionName)
 	return hybridMemory, nil, nil
@@ -95,7 +95,7 @@ func NewLangChainChatControllerWithSystem(client chat.ChatClient, llm llms.Model
 
 	ctx := context.Background()
 	systemMsg := chat.NewSystemMessage(systemPrompt)
-	
+
 	// Add system message to appropriate memory
 	if hybridMemory != nil {
 		if err := hybridMemory.AddMessage(ctx, systemMsg); err != nil {

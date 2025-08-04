@@ -5,9 +5,14 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Message struct {
+	ID        string           `json:"id"`         // UUID for unique identification
+	ParentID  *string          `json:"parent_id"`  // Reference to parent message
+	ContextID string           `json:"context_id"` // Which conversation branch this belongs to
 	Role      string           `json:"role"`
 	Content   string           `json:"content"`
 	Timestamp time.Time        `json:"timestamp"`
@@ -22,6 +27,12 @@ type MessageMetadata struct {
 	ChunkIndex  int    `json:"chunk_index,omitempty"`  // Order in streaming chunks
 	IsStreaming bool   `json:"is_streaming,omitempty"` // Whether this is a partial message
 	Source      string `json:"source,omitempty"`       // "optimistic", "streaming", "final"
+
+	// Context-aware fields for conversation branching
+	BranchPoint bool    `json:"branch_point,omitempty"` // True if this message has children
+	ChildCount  int     `json:"child_count,omitempty"`  // Number of response branches
+	Depth       int     `json:"depth,omitempty"`        // Distance from conversation root
+	ThreadTitle *string `json:"thread_title,omitempty"` // User-defined branch name
 }
 
 type ToolCall struct {
@@ -49,70 +60,104 @@ const (
 	MessageSourceFinal      = "final"      // Completed message
 )
 
+// generateMessageID creates a new unique message ID
+func generateMessageID() string {
+	return uuid.New().String()
+}
+
+// generateContextID creates a new unique context ID
+func generateContextID() string {
+	return uuid.New().String()
+}
+
 func NewUserMessage(content string) Message {
 	return Message{
+		ID:        generateMessageID(),
+		ParentID:  nil,
+		ContextID: "", // Will be set by context manager
 		Role:      RoleUser,
 		Content:   strings.TrimSpace(content),
 		Timestamp: time.Now(),
 		Metadata: &MessageMetadata{
 			Source: MessageSourceFinal,
+			Depth:  0,
 		},
 	}
 }
 
 func NewAssistantMessage(content string) Message {
 	return Message{
+		ID:        generateMessageID(),
+		ParentID:  nil,
+		ContextID: "", // Will be set by context manager
 		Role:      RoleAssistant,
 		Content:   content,
 		Timestamp: time.Now(),
 		Metadata: &MessageMetadata{
 			Source: MessageSourceFinal,
+			Depth:  0,
 		},
 	}
 }
 
 func NewSystemMessage(content string) Message {
 	return Message{
+		ID:        generateMessageID(),
+		ParentID:  nil,
+		ContextID: "", // Will be set by context manager
 		Role:      RoleSystem,
 		Content:   content,
 		Timestamp: time.Now(),
 		Metadata: &MessageMetadata{
 			Source: MessageSourceFinal,
+			Depth:  0,
 		},
 	}
 }
 
 func NewErrorMessage(content string) Message {
 	return Message{
+		ID:        generateMessageID(),
+		ParentID:  nil,
+		ContextID: "", // Will be set by context manager
 		Role:      RoleError,
 		Content:   content,
 		Timestamp: time.Now(),
 		Metadata: &MessageMetadata{
 			Source: MessageSourceFinal,
+			Depth:  0,
 		},
 	}
 }
 
 func NewAssistantMessageWithToolCalls(toolCalls []ToolCall) Message {
 	return Message{
+		ID:        generateMessageID(),
+		ParentID:  nil,
+		ContextID: "", // Will be set by context manager
 		Role:      RoleAssistant,
 		Content:   "",
 		ToolCalls: toolCalls,
 		Timestamp: time.Now(),
 		Metadata: &MessageMetadata{
 			Source: MessageSourceFinal,
+			Depth:  0,
 		},
 	}
 }
 
 func NewToolResultMessage(toolName, content string) Message {
 	return Message{
+		ID:        generateMessageID(),
+		ParentID:  nil,
+		ContextID: "", // Will be set by context manager
 		Role:      RoleTool,
 		Content:   content,
 		ToolName:  toolName,
 		Timestamp: time.Now(),
 		Metadata: &MessageMetadata{
 			Source: MessageSourceFinal,
+			Depth:  0,
 		},
 	}
 }
@@ -128,12 +173,16 @@ func NewToolProgressMessage(toolName, command string) Message {
 	content := fmt.Sprintf("%s(%s)", toolName, truncatedCommand)
 
 	return Message{
+		ID:        generateMessageID(),
+		ParentID:  nil,
+		ContextID: "", // Will be set by context manager
 		Role:      RoleToolProgress,
 		Content:   content,
 		ToolName:  toolName,
 		Timestamp: time.Now(),
 		Metadata: &MessageMetadata{
 			Source: MessageSourceOptimistic,
+			Depth:  0,
 		},
 	}
 }
@@ -143,11 +192,15 @@ func NewToolProgressMessage(toolName, command string) Message {
 // NewUserMessageWithSource creates a user message with source metadata
 func NewUserMessageWithSource(content, source string) Message {
 	return Message{
+		ID:        generateMessageID(),
+		ParentID:  nil,
+		ContextID: "", // Will be set by context manager
 		Role:      RoleUser,
 		Content:   strings.TrimSpace(content),
 		Timestamp: time.Now(),
 		Metadata: &MessageMetadata{
 			Source: source,
+			Depth:  0,
 		},
 	}
 }
@@ -160,6 +213,9 @@ func NewOptimisticUserMessage(content string) Message {
 // NewStreamingMessage creates a message marked as streaming
 func NewStreamingMessage(role, content, streamID string, chunkIndex int) Message {
 	return Message{
+		ID:        generateMessageID(),
+		ParentID:  nil,
+		ContextID: "", // Will be set by context manager
 		Role:      role,
 		Content:   content,
 		Timestamp: time.Now(),
@@ -168,6 +224,7 @@ func NewStreamingMessage(role, content, streamID string, chunkIndex int) Message
 			ChunkIndex:  chunkIndex,
 			IsStreaming: true,
 			Source:      MessageSourceStreaming,
+			Depth:       0,
 		},
 	}
 }
@@ -202,6 +259,9 @@ func (m Message) IsEmpty() bool {
 
 func (m Message) WithTimestamp(t time.Time) Message {
 	return Message{
+		ID:        m.ID,
+		ParentID:  m.ParentID,
+		ContextID: m.ContextID,
 		Role:      m.Role,
 		Content:   m.Content,
 		Timestamp: t,
@@ -240,9 +300,17 @@ func (m Message) GetStreamID() string {
 
 // WithMetadata adds or updates metadata to a message
 func (m Message) WithMetadata(metadata MessageMetadata) Message {
-	updated := m
-	updated.Metadata = &metadata
-	return updated
+	return Message{
+		ID:        m.ID,
+		ParentID:  m.ParentID,
+		ContextID: m.ContextID,
+		Role:      m.Role,
+		Content:   m.Content,
+		Timestamp: m.Timestamp,
+		ToolCalls: m.ToolCalls,
+		ToolName:  m.ToolName,
+		Metadata:  &metadata,
+	}
 }
 
 // WithSource sets the message source in metadata
