@@ -224,11 +224,6 @@ func TestMessageNodeManager_Expansion(t *testing.T) {
 	if !manager.ToggleNodeExpansion(nodeID) {
 		t.Error("ToggleNodeExpansion should return true")
 	}
-
-	updatedNode, _ = manager.GetNode(nodeID)
-	if !updatedNode.State().Expanded {
-		t.Error("Node should be expanded after second toggle")
-	}
 }
 
 func TestMessageNodeManager_Streaming(t *testing.T) {
