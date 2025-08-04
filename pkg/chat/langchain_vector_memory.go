@@ -13,8 +13,7 @@ import (
 // LangChainVectorMemory extends LangChainMemory with vector store capabilities for semantic retrieval
 type LangChainVectorMemory struct {
 	*LangChainMemory
-	store          vectorstore.VectorStore
-	collection     vectorstore.Collection
+	manager        *vectorstore.Manager
 	collectionName string
 	maxRetrieved   int
 	scoreThreshold float32
@@ -36,20 +35,17 @@ func DefaultVectorMemoryConfig() VectorMemoryConfig {
 	}
 }
 
-// NewLangChainVectorMemory creates a new vector-backed memory
-func NewLangChainVectorMemory(store vectorstore.VectorStore, config VectorMemoryConfig) (*LangChainVectorMemory, error) {
-	// Get or create collection
-	collection, err := vectorstore.GetOrCreateCollection(store, config.CollectionName, map[string]interface{}{
-		"type": "conversation_memory",
-	})
+// NewLangChainVectorMemory creates a new vector-backed memory using a Manager
+func NewLangChainVectorMemory(manager *vectorstore.Manager, config VectorMemoryConfig) (*LangChainVectorMemory, error) {
+	// Ensure collection exists
+	_, err := manager.GetCollection(config.CollectionName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get or create collection: %w", err)
 	}
 
 	return &LangChainVectorMemory{
 		LangChainMemory: NewLangChainMemory(),
-		store:           store,
-		collection:      collection,
+		manager:         manager,
 		collectionName:  config.CollectionName,
 		maxRetrieved:    config.MaxRetrieved,
 		scoreThreshold:  config.ScoreThreshold,
@@ -57,23 +53,21 @@ func NewLangChainVectorMemory(store vectorstore.VectorStore, config VectorMemory
 }
 
 // NewLangChainVectorMemoryWithConversation creates vector memory with existing conversation
-func NewLangChainVectorMemoryWithConversation(store vectorstore.VectorStore, config VectorMemoryConfig, conv Conversation) (*LangChainVectorMemory, error) {
+func NewLangChainVectorMemoryWithConversation(manager *vectorstore.Manager, config VectorMemoryConfig, conv Conversation) (*LangChainVectorMemory, error) {
 	lm, err := NewLangChainMemoryWithConversation(conv)
 	if err != nil {
 		return nil, err
 	}
 
-	collection, err := vectorstore.GetOrCreateCollection(store, config.CollectionName, map[string]interface{}{
-		"type": "conversation_memory",
-	})
+	// Ensure collection exists
+	_, err = manager.GetCollection(config.CollectionName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get or create collection: %w", err)
 	}
 
 	vm := &LangChainVectorMemory{
 		LangChainMemory: lm,
-		store:           store,
-		collection:      collection,
+		manager:         manager,
 		collectionName:  config.CollectionName,
 		maxRetrieved:    config.MaxRetrieved,
 		scoreThreshold:  config.ScoreThreshold,
@@ -101,8 +95,8 @@ func NewLangChainVectorMemoryFromGlobalConfig() (*LangChainVectorMemory, error) 
 
 	// Use default config
 	config := DefaultVectorMemoryConfig()
-	
-	return NewLangChainVectorMemory(manager.GetStore(), config)
+
+	return NewLangChainVectorMemory(manager, config)
 }
 
 // AddMessage adds a message to memory and indexes it in the vector store
@@ -135,14 +129,14 @@ func (vm *LangChainVectorMemory) indexMessage(ctx context.Context, msg Message, 
 		metadata["tool_name"] = msg.ToolName
 	}
 
-	// Create and add document
+	// Create and add document using manager
 	doc := vectorstore.Document{
 		ID:       docID,
 		Content:  content,
 		Metadata: metadata,
 	}
 
-	return vm.collection.AddDocuments(ctx, []vectorstore.Document{doc})
+	return vm.manager.IndexDocument(ctx, vm.collectionName, doc)
 }
 
 // formatMessageForIndexing formats a message for vector indexing
@@ -189,7 +183,7 @@ func (vm *LangChainVectorMemory) indexConversation(ctx context.Context) error {
 	}
 
 	if len(docs) > 0 {
-		return vm.collection.AddDocuments(ctx, docs)
+		return vm.manager.IndexDocuments(ctx, vm.collectionName, docs)
 	}
 
 	return nil
@@ -197,8 +191,8 @@ func (vm *LangChainVectorMemory) indexConversation(ctx context.Context) error {
 
 // GetRelevantMessages retrieves messages semantically similar to the query
 func (vm *LangChainVectorMemory) GetRelevantMessages(ctx context.Context, query string) ([]Message, error) {
-	// Search for relevant messages - don't filter by score for now to debug
-	results, err := vm.collection.Query(ctx, query, vm.maxRetrieved)
+	// Search for relevant messages using manager
+	results, err := vm.manager.Search(ctx, vm.collectionName, query, vm.maxRetrieved)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query vector store: %w", err)
 	}
@@ -306,8 +300,8 @@ func (vm *LangChainVectorMemory) Clear(ctx context.Context) error {
 		return err
 	}
 
-	// Clear vector store collection
-	return vm.collection.Clear(ctx)
+	// Clear vector store collection using manager
+	return vm.manager.ClearCollection(ctx, vm.collectionName)
 }
 
 // SaveContext saves context and indexes new messages

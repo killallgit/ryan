@@ -38,8 +38,7 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 	// Create Ollama LLM with additional debugging options
 	log.Debug("Creating Ollama LLM", "base_url", baseURL, "model", model)
 
-	// Try to create with additional options that might preserve raw output
-	// Let's try with basic options first and add experimental ones progressively
+	// Try to create with basic options - we'll handle thinking block prevention via better error handling
 	llm, err := ollama.New(
 		ollama.WithServerURL(baseURL),
 		ollama.WithModel(model),
@@ -70,8 +69,12 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 	// Initialize tools and agent (always enabled now)
 	if toolRegistry != nil {
 		if err := client.initializeAgent(); err != nil {
-			log.Warn("Failed to initialize agent, falling back to direct mode", "error", err)
+			log.Error("Failed to initialize LangChain agent - tools will not work properly", "error", err)
+			return nil, fmt.Errorf("failed to initialize LangChain agent: %w", err)
 		}
+		log.Info("LangChain agent initialized successfully", "tools_count", len(client.langchainTools))
+	} else {
+		log.Warn("No tool registry provided - agent will run without tools")
 	}
 
 	return client, nil
@@ -200,32 +203,52 @@ func (c *Client) initializeAgent() error {
 		return fmt.Errorf("no tool registry available")
 	}
 
+	c.log.Debug("Starting agent initialization", "registry_tools", len(c.toolRegistry.GetTools()))
+
 	// Convert Ryan tools to LangChain tools
 	ryanTools := c.toolRegistry.GetTools()
+	if len(ryanTools) == 0 {
+		return fmt.Errorf("no tools available in registry")
+	}
+
 	c.langchainTools = make([]langchaintools.Tool, 0, len(ryanTools))
 
 	for _, tool := range ryanTools {
+		c.log.Debug("Adapting tool for LangChain", "tool_name", tool.Name(), "tool_description", tool.Description())
 		adapter := NewToolAdapter(tool)
 		if c.progressCallback != nil {
 			adapter = adapter.WithProgressCallback(c.progressCallback)
 		}
 		c.langchainTools = append(c.langchainTools, adapter)
-		c.log.Debug("Adapted tool", "name", tool.Name())
+		c.log.Debug("Successfully adapted tool", "name", tool.Name())
 	}
 
+	c.log.Debug("Creating conversational agent", "tools_count", len(c.langchainTools))
+
 	// Create conversational agent with enhanced configuration for autonomous reasoning
+	// Note: We'll handle thinking block prevention via system messages at the LLM level
 	c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
 		agents.WithMemory(c.memory))
+	
+	if c.agent == nil {
+		return fmt.Errorf("failed to create conversational agent")
+	}
+
+	c.log.Debug("Creating agent executor")
 
 	// Create executor with enhanced configuration for multi-step reasoning
 	c.executor = agents.NewExecutor(c.agent)
+	
+	if c.executor == nil {
+		return fmt.Errorf("failed to create agent executor")
+	}
 
 	// Configure max iterations if the API supports it
-	c.log.Info("Agent executor configured",
+	c.log.Info("Agent executor configured successfully",
 		"max_iterations", c.config.LangChain.Tools.MaxIterations,
-		"autonomous_reasoning", true)
+		"autonomous_reasoning", true,
+		"tools_available", len(c.langchainTools))
 
-	c.log.Info("LangChain agent initialized", "tools_count", len(c.langchainTools))
 	return nil
 }
 
@@ -251,7 +274,10 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 	if err != nil {
 		// Check if error is due to thinking blocks parsing issue
 		if strings.Contains(err.Error(), "unable to parse agent output") && strings.Contains(err.Error(), "<think>") {
-			c.log.Warn("Agent failed due to thinking blocks, falling back to direct LLM", "error", err)
+			c.log.Error("TOOL EXECUTION FAILED: Agent failed due to thinking blocks, falling back to direct LLM mode (tools will not execute)", 
+				"error", err, 
+				"user_input", userInput,
+				"fallback_mode", "direct_llm")
 			// Fall back to direct LLM interaction when agent parsing fails due to thinking blocks
 			// But first, ensure memory consistency by saving the user input
 			if c.memory != nil {

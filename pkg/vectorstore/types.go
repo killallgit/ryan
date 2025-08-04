@@ -156,6 +156,12 @@ type Config struct {
 
 	// Embedder configuration
 	EmbedderConfig EmbedderConfig
+
+	// ChunkSize for document processing
+	ChunkSize int
+
+	// ChunkOverlap for document processing
+	ChunkOverlap int
 }
 
 // CollectionConfig represents configuration for a collection

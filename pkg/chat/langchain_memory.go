@@ -99,7 +99,21 @@ func (lm *LangChainMemory) GetMemoryVariables(ctx context.Context) (map[string]a
 
 // SaveContext saves the context of the conversation (for LangChain chains)
 func (lm *LangChainMemory) SaveContext(ctx context.Context, inputs map[string]any, outputs map[string]any) error {
-	return lm.buffer.SaveContext(ctx, inputs, outputs)
+	// Save to LangChain buffer
+	if err := lm.buffer.SaveContext(ctx, inputs, outputs); err != nil {
+		return err
+	}
+
+	// Also add messages to our conversation for consistency
+	if input, ok := inputs["input"].(string); ok && input != "" {
+		lm.conversation.Messages = append(lm.conversation.Messages, NewUserMessage(input))
+	}
+
+	if output, ok := outputs["output"].(string); ok && output != "" {
+		lm.conversation.Messages = append(lm.conversation.Messages, NewAssistantMessage(output))
+	}
+
+	return nil
 }
 
 // Clear clears both the conversation and LangChain memory

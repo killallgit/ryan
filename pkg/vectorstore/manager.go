@@ -14,11 +14,12 @@ import (
 
 // Manager handles vector store lifecycle and operations
 type Manager struct {
-	store    VectorStore
-	embedder Embedder
-	config   Config
-	log      *logger.Logger
-	mu       sync.RWMutex
+	store     VectorStore
+	embedder  Embedder
+	processor *DocumentProcessor
+	config    Config
+	log       *logger.Logger
+	mu        sync.RWMutex
 }
 
 // NewManager creates a new vector store manager
@@ -50,11 +51,15 @@ func NewManager(config Config) (*Manager, error) {
 		return nil, fmt.Errorf("unsupported vector store provider: %s", config.Provider)
 	}
 
+	// Create document processor
+	processor := NewDocumentProcessor(embedder, config.ChunkSize, config.ChunkOverlap)
+
 	manager := &Manager{
-		store:    store,
-		embedder: embedder,
-		config:   config,
-		log:      log,
+		store:     store,
+		embedder:  embedder,
+		processor: processor,
+		config:    config,
+		log:       log,
 	}
 
 	// Initialize default collections
@@ -111,23 +116,14 @@ func (m *Manager) IndexDocument(ctx context.Context, collectionName string, doc 
 		return err
 	}
 
-	// Validate document
-	if err := validateDocumentID(doc.ID); err != nil {
+	// Process document (validates and generates embedding if needed)
+	if err := m.processor.ProcessDocument(ctx, &doc); err != nil {
 		return err
 	}
 
 	collection, err := m.GetCollection(collectionName)
 	if err != nil {
 		return fmt.Errorf("failed to get collection: %w", err)
-	}
-
-	// Generate embedding if not provided
-	if len(doc.Embedding) == 0 && doc.Content != "" {
-		embedding, err := m.embedder.EmbedText(ctx, doc.Content)
-		if err != nil {
-			return fmt.Errorf("failed to generate embedding: %w", err)
-		}
-		doc.Embedding = embedding
 	}
 
 	if err := collection.AddDocuments(ctx, []Document{doc}); err != nil {
@@ -149,32 +145,14 @@ func (m *Manager) IndexDocuments(ctx context.Context, collectionName string, doc
 		return errors.New("no documents to index")
 	}
 
-	// Handle large batches
-	if len(docs) > MaxBatchSize {
-		return m.indexDocumentsInBatches(ctx, collectionName, docs)
-	}
-
-	// Validate documents
-	for _, doc := range docs {
-		if err := validateDocumentID(doc.ID); err != nil {
-			return fmt.Errorf("document validation failed: %w", err)
-		}
+	// Process documents (validates and generates embeddings)
+	if err := m.processor.ProcessDocuments(ctx, docs); err != nil {
+		return err
 	}
 
 	collection, err := m.GetCollection(collectionName)
 	if err != nil {
 		return fmt.Errorf("failed to get collection: %w", err)
-	}
-
-	// Generate embeddings for documents without them
-	for i := range docs {
-		if len(docs[i].Embedding) == 0 && docs[i].Content != "" {
-			embedding, err := m.embedder.EmbedText(ctx, docs[i].Content)
-			if err != nil {
-				return fmt.Errorf("failed to generate embedding for document %s: %w", docs[i].ID, err)
-			}
-			docs[i].Embedding = embedding
-		}
 	}
 
 	if err := collection.AddDocuments(ctx, docs); err != nil {
@@ -255,6 +233,30 @@ func (m *Manager) GetCollectionInfo(collectionName string) (*CollectionMetadata,
 	}, nil
 }
 
+// ChunkAndIndexDocument chunks a document and indexes all chunks
+func (m *Manager) ChunkAndIndexDocument(ctx context.Context, collectionName string, doc Document, metadata map[string]interface{}) error {
+	// Validate collection name
+	if err := validateCollectionName(collectionName); err != nil {
+		return err
+	}
+
+	// Chunk the document
+	chunks, err := m.processor.ChunkDocument(doc, metadata)
+	if err != nil {
+		return fmt.Errorf("failed to chunk document: %w", err)
+	}
+
+	// Index all chunks
+	return m.IndexDocuments(ctx, collectionName, chunks)
+}
+
+// GetDocumentProcessor returns the document processor for custom operations
+func (m *Manager) GetDocumentProcessor() *DocumentProcessor {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.processor
+}
+
 // Close closes the vector store manager
 func (m *Manager) Close() error {
 	m.mu.Lock()
@@ -277,6 +279,8 @@ func DefaultConfig() Config {
 		Provider:          "chromem",
 		PersistenceDir:    defaultPersistenceDir,
 		EnablePersistence: true,
+		ChunkSize:         1000,
+		ChunkOverlap:      200,
 		Collections: []CollectionConfig{
 			{
 				Name: "conversations",
@@ -335,22 +339,9 @@ func (m *Manager) indexDocumentsInBatches(ctx context.Context, collectionName st
 
 		batch := docs[i:end]
 
-		// Validate batch
-		for _, doc := range batch {
-			if err := validateDocumentID(doc.ID); err != nil {
-				return fmt.Errorf("document validation failed at index %d: %w", i, err)
-			}
-		}
-
-		// Generate embeddings for batch
-		for j := range batch {
-			if len(batch[j].Embedding) == 0 && batch[j].Content != "" {
-				embedding, err := m.embedder.EmbedText(ctx, batch[j].Content)
-				if err != nil {
-					return fmt.Errorf("failed to generate embedding for document %s: %w", batch[j].ID, err)
-				}
-				batch[j].Embedding = embedding
-			}
+		// Process batch (validates and generates embeddings)
+		if err := m.processor.ProcessDocuments(ctx, batch); err != nil {
+			return fmt.Errorf("failed to process batch starting at index %d: %w", i, err)
 		}
 
 		// Index batch
