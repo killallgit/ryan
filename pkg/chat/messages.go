@@ -27,6 +27,7 @@ type MessageMetadata struct {
 	ChunkIndex  int    `json:"chunk_index,omitempty"`  // Order in streaming chunks
 	IsStreaming bool   `json:"is_streaming,omitempty"` // Whether this is a partial message
 	Source      string `json:"source,omitempty"`       // "optimistic", "streaming", "final"
+	MessageID   string `json:"message_id,omitempty"`   // Unique message identifier for branching
 }
 
 type ToolCall struct {

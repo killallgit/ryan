@@ -36,14 +36,22 @@ type LangChainPromptConfig struct {
 	ContextInjection bool `mapstructure:"context_injection"`
 }
 
+// VectorStoreConfig holds vector store configuration
+type VectorStoreConfig struct {
+	Type       string `mapstructure:"type"`        // "chroma", "qdrant", "pgvector"
+	URL        string `mapstructure:"url"`         // Connection URL
+	Collection string `mapstructure:"collection"`  // Collection/table name
+}
+
 // Config represents the application configuration
 type Config struct {
-	Logging      LoggingConfig   `mapstructure:"logging"`
-	ShowThinking bool            `mapstructure:"show_thinking"`
-	Streaming    bool            `mapstructure:"streaming"`
-	Ollama       OllamaConfig    `mapstructure:"ollama"`
-	Tools        ToolsConfig     `mapstructure:"tools"`
-	LangChain    LangChainConfig `mapstructure:"langchain"`
+	Logging      LoggingConfig      `mapstructure:"logging"`
+	ShowThinking bool               `mapstructure:"show_thinking"`
+	Streaming    bool               `mapstructure:"streaming"`
+	Ollama       OllamaConfig       `mapstructure:"ollama"`
+	Tools        ToolsConfig        `mapstructure:"tools"`
+	LangChain    LangChainConfig    `mapstructure:"langchain"`
+	VectorStore  *VectorStoreConfig `mapstructure:"vector_store"`
 }
 
 // LoggingConfig holds logging-related configuration
