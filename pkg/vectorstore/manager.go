@@ -101,6 +101,13 @@ func (m *Manager) GetEmbedder() Embedder {
 	return m.embedder
 }
 
+// GetConfig returns the configuration
+func (m *Manager) GetConfig() Config {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.config
+}
+
 // GetCollection gets or creates a collection
 func (m *Manager) GetCollection(name string) (Collection, error) {
 	m.mu.RLock()

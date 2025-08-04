@@ -99,6 +99,8 @@ func (mc MenuComponent) Render(screen tcell.Screen, area Rect) {
 	selectedStyle := StyleMenuSelected
 	normalStyle := StyleMenuNormal
 
+	// Clear the background first to make modal opaque
+	clearArea(screen, area)
 	drawBorder(screen, area, borderStyle)
 
 	startY := area.Y + 1

@@ -31,10 +31,19 @@ func InitializeVectorStore() (*Manager, error) {
 		embedderConfig.APIKey = os.Getenv("OPENAI_API_KEY")
 	}
 
-	// Create embedder
+	// Create embedder with fallback to mock
 	embedder, err := CreateEmbedder(embedderConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create embedder: %w", err)
+		// Log the error and fall back to mock embedder for development/debugging
+		fmt.Printf("Warning: Failed to create %s embedder (%v), falling back to mock embedder\n", embedderConfig.Provider, err)
+		mockConfig := EmbedderConfig{
+			Provider: "mock",
+			Model:    "mock",
+		}
+		embedder, err = CreateEmbedder(mockConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create fallback mock embedder: %w", err)
+		}
 	}
 
 	// Create store
