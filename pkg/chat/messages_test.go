@@ -156,7 +156,6 @@ var _ = Describe("Messages", func() {
 	})
 
 	Describe("Message helpers", func() {
-
 		It("should update message source", func() {
 			msg := chat.NewUserMessage("Test")
 			updated := msg.WithSource(chat.MessageSourceOptimistic)

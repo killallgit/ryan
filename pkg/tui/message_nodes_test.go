@@ -120,7 +120,6 @@ func TestThinkingMessageNode_Basic(t *testing.T) {
 	if node.HasDetailView() {
 		t.Error("Thinking message should not have detail view")
 	}
-
 	// Test preview text (should be the response content)
 	preview := node.GetPreviewText()
 	if preview != "Here is my response" {
