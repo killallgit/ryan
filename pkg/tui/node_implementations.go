@@ -604,6 +604,102 @@ func (trn *ToolResultMessageNode) GetPreviewText() string {
 	return fmt.Sprintf("%s: %s", toolName, trn.truncatedOutput)
 }
 
+// ToolProgressMessageNode handles tool execution progress messages
+type ToolProgressMessageNode struct {
+	BaseNode
+}
+
+func NewToolProgressMessageNode(msg chat.Message, id string) *ToolProgressMessageNode {
+	return &ToolProgressMessageNode{
+		BaseNode: BaseNode{
+			id:       id,
+			message:  msg,
+			nodeType: NodeTypeToolProgress,
+			state:    NewNodeState(),
+			bounds:   NodeBounds{},
+			cache:    NodeRenderCache{},
+		},
+	}
+}
+
+func (tpn *ToolProgressMessageNode) WithState(state NodeState) MessageNode {
+	updated := *tpn
+	updated.state = state
+	return &updated
+}
+
+func (tpn *ToolProgressMessageNode) WithBounds(bounds NodeBounds) MessageNode {
+	updated := *tpn
+	updated.bounds = bounds
+	return &updated
+}
+
+func (tpn *ToolProgressMessageNode) Render(area Rect, state NodeState) []RenderedLine {
+	tpn.invalidateCache(area.Width)
+	
+	if tpn.cache.Valid {
+		// Convert cached data to RenderedLine format
+		result := make([]RenderedLine, len(tpn.cache.Lines))
+		for i, line := range tpn.cache.Lines {
+			result[i] = RenderedLine{
+				Text:   line,
+				Style:  tpn.cache.Styles[i],
+				Indent: 0,
+			}
+		}
+		return result
+	}
+
+	// Create a subtle progress indicator style (dim gray/yellow)
+	progressStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Dim(true)
+	
+	// Format: "🔧 Shell(docker ps -a)"
+	content := fmt.Sprintf("🔧 %s", tpn.message.Content)
+	
+	lines := []RenderedLine{
+		{
+			Text:  content,
+			Style: progressStyle,
+			Indent: 0,
+		},
+	}
+	
+	// Cache the data
+	tpn.cache.Lines = make([]string, len(lines))
+	tpn.cache.Styles = make([]tcell.Style, len(lines))
+	for i, line := range lines {
+		tpn.cache.Lines[i] = line.Text
+		tpn.cache.Styles[i] = line.Style
+	}
+	tpn.cache.Valid = true
+	
+	return lines
+}
+
+func (tpn *ToolProgressMessageNode) CalculateHeight(width int) int {
+	return 1 // Tool progress messages are always single line
+}
+
+func (tpn *ToolProgressMessageNode) HandleClick(x, y int) (bool, NodeState) {
+	return false, tpn.state // Tool progress messages are not interactive
+}
+
+func (tpn *ToolProgressMessageNode) HandleKeyEvent(ev *tcell.EventKey) (bool, NodeState) {
+	return false, tpn.state // No key handling for progress messages
+}
+
+func (tpn *ToolProgressMessageNode) IsCollapsible() bool {
+	return false // Progress messages can't be collapsed
+}
+
+func (tpn *ToolProgressMessageNode) HasDetailView() bool {
+	return false // No detail view for progress messages
+}
+
+func (tpn *ToolProgressMessageNode) GetPreviewText() string {
+	return tpn.message.Content
+}
+
 // ToolCallMessageNode handles messages with tool calls
 type ToolCallMessageNode struct {
 	BaseNode
@@ -881,6 +977,16 @@ func (trf *ToolResultNodeFactory) CreateNode(msg chat.Message, id string) Messag
 
 func (trf *ToolResultNodeFactory) CanHandle(msg chat.Message) bool {
 	return msg.Role == chat.RoleTool
+}
+
+type ToolProgressNodeFactory struct{}
+
+func (tpf *ToolProgressNodeFactory) CreateNode(msg chat.Message, id string) MessageNode {
+	return NewToolProgressMessageNode(msg, id)
+}
+
+func (tpf *ToolProgressNodeFactory) CanHandle(msg chat.Message) bool {
+	return msg.Role == chat.RoleToolProgress
 }
 
 type SystemNodeFactory struct{}
