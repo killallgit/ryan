@@ -93,6 +93,14 @@ type FileReadConfig struct {
 	AllowedExtensions []string `mapstructure:"allowed_extensions"`
 }
 
+// SearchConfig holds search tool configuration
+type SearchConfig struct {
+	Enabled      bool          `mapstructure:"enabled"`
+	Timeout      time.Duration `mapstructure:"timeout"`
+	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
+	UseLangchain bool          `mapstructure:"use_langchain"`
+}
+
 var (
 	// Global config instance
 	cfg *Config

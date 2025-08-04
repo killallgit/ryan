@@ -192,7 +192,6 @@ func (c *Client) initializeAgent() error {
 	c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
 		agents.WithMemory(c.memory))
 
-	// Create executor - LangChain Go doesn't provide configuration options for intermediate steps
 	c.executor = agents.NewExecutor(c.agent)
 	// NOTE: Intermediate steps are extracted from result map when available (see SendMessageAsync)
 

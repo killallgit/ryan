@@ -108,11 +108,3 @@ func (cv *ChatView) Name() string {
 func (cv *ChatView) Description() string {
 	return "Chat with AI"
 }
-
-// All other methods have been moved to their respective modules:
-// - Event handling: chat_view_events.go
-// - Streaming logic: chat_view_streaming.go
-// - State management: chat_view_state.go
-// - Navigation: chat_view_navigation.go
-// - Node interaction: chat_view_nodes.go
-// - Rendering: chat_view_rendering.go
