@@ -45,8 +45,8 @@ func TestMessageNodeManager_Basic(t *testing.T) {
 		t.Errorf("Expected 3 nodes, got %d", len(nodes))
 	}
 
-	// Test node types
-	expectedTypes := []MessageNodeType{NodeTypeText, NodeTypeText, NodeTypeThinking}
+	// Test node types - all should be NodeTypeText since thinking blocks are removed
+	expectedTypes := []MessageNodeType{NodeTypeText, NodeTypeText, NodeTypeText}
 	for i, node := range nodes {
 		if node.NodeType() != expectedTypes[i] {
 			t.Errorf("Node %d: expected type %d, got %d", i, expectedTypes[i], node.NodeType())
@@ -168,14 +168,24 @@ func TestMessageNodeManager_Focus(t *testing.T) {
 func TestMessageNodeManager_Expansion(t *testing.T) {
 	manager := NewMessageNodeManager()
 
-	// Create a thinking message that's collapsible
-	thinkingMsg := chat.Message{
+	// Create a tool call message that's collapsible
+	toolCallMsg := chat.Message{
 		Role:      chat.RoleAssistant,
-		Content:   "<think>This is thinking content</think>Response content",
+		Content:   "I'll help you with that",
 		Timestamp: time.Now(),
+		ToolCalls: []chat.ToolCall{
+			{
+				Function: chat.ToolFunction{
+					Name: "execute_bash",
+					Arguments: map[string]interface{}{
+						"command": "ls -la",
+					},
+				},
+			},
+		},
 	}
 
-	manager.SetMessages([]chat.Message{thinkingMsg})
+	manager.SetMessages([]chat.Message{toolCallMsg})
 	nodes := manager.GetNodes()
 
 	if len(nodes) != 1 {
@@ -185,9 +195,9 @@ func TestMessageNodeManager_Expansion(t *testing.T) {
 	node := nodes[0]
 	nodeID := node.ID()
 
-	// Test that thinking nodes are collapsible
+	// Test that tool call nodes are collapsible
 	if !node.IsCollapsible() {
-		t.Error("Thinking node should be collapsible")
+		t.Error("Tool call node should be collapsible")
 	}
 
 	// Test initial expanded state (should be expanded by default)

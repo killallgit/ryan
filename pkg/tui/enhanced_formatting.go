@@ -76,30 +76,6 @@ func NewEnhancedFormatter(width int) *EnhancedFormatter {
 	}
 }
 
-// FormatThinkingBlock creates a visually distinct container for thinking content
-func (ef *EnhancedFormatter) FormatThinkingBlock(content string) string {
-	if content == "" {
-		return ""
-	}
-
-	log := logger.WithComponent("enhanced_formatting")
-	log.Debug("FormatThinkingBlock called", "content_length", len(content))
-
-	// Add "Thinking:" prefix and format with box
-	thinkingText := "Thinking: " + strings.TrimSpace(content)
-
-	// Apply the thinking box style with proper width handling
-	boxWidth := ef.width - 4 // Account for margins and padding
-	if boxWidth < 20 {
-		boxWidth = 20 // Minimum width
-	}
-
-	formatted := ef.thinkingBoxStyle.Width(boxWidth).Render(thinkingText)
-
-	log.Debug("FormatThinkingBlock result", "formatted_length", len(formatted))
-	return formatted
-}
-
 // FormatCodeBlock applies syntax highlighting and boxing to code content
 func (ef *EnhancedFormatter) FormatCodeBlock(content, language string) string {
 	if content == "" {
@@ -210,8 +186,6 @@ func (ef *EnhancedFormatter) FormatContentSegments(segments []ContentSegment) []
 		var formatted string
 
 		switch segment.Type {
-		case ContentTypeThinking:
-			formatted = ef.FormatThinkingBlock(segment.Content)
 		case ContentTypeCodeBlock:
 			formatted = ef.FormatCodeBlock(segment.Content, segment.Language)
 		case ContentTypeInlineCode:

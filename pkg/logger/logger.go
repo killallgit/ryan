@@ -208,7 +208,7 @@ func LogChatHistory(role, content string) error {
 
 	timestamp := time.Now().Format("15:04:05")
 	entry := fmt.Sprintf("[%s] %s: %s\n\n", timestamp, role, content)
-	
+
 	if _, err := historyFile.WriteString(entry); err != nil {
 		return fmt.Errorf("failed to write to history: %w", err)
 	}
@@ -227,7 +227,7 @@ func LogChatEvent(event, details string) error {
 
 	timestamp := time.Now().Format("15:04:05")
 	entry := fmt.Sprintf("[%s] EVENT: %s - %s\n\n", timestamp, event, details)
-	
+
 	if _, err := historyFile.WriteString(entry); err != nil {
 		return fmt.Errorf("failed to write event to history: %w", err)
 	}
@@ -258,7 +258,7 @@ func Close() error {
 		// Write session end marker before closing
 		timestamp := time.Now().Format("2006-01-02 15:04:05")
 		fmt.Fprintf(historyFile, "=== Ryan Chat Session Ended: %s ===\n", timestamp)
-		
+
 		if err := historyFile.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("failed to close history file: %w", err))
 		}

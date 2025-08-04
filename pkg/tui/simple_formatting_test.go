@@ -26,16 +26,6 @@ func TestSimpleFormatter_FormatContentSegments(t *testing.T) {
 			expected: 5, // Top border + 3 content lines + bottom border
 		},
 		{
-			name: "thinking block formatting",
-			segments: []ContentSegment{
-				{
-					Type:    ContentTypeThinking,
-					Content: "This is a thinking block",
-				},
-			},
-			expected: 3, // Top border + content line + bottom border
-		},
-		{
 			name: "header formatting",
 			segments: []ContentSegment{
 				{
@@ -129,14 +119,6 @@ func TestDetectContentTypes(t *testing.T) {
 			expected: map[ContentType]bool{
 				ContentTypeText: true,
 				ContentTypeList: true,
-			},
-		},
-		{
-			name:    "thinking block detection",
-			content: "<think>Let me think about this</think>",
-			expected: map[ContentType]bool{
-				ContentTypeText:     true,
-				ContentTypeThinking: true,
 			},
 		},
 	}
