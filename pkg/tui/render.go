@@ -8,7 +8,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/config"
-	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // CalculateMessageLines calculates the total number of lines needed to render messages
@@ -204,18 +203,6 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 		isLastMessage := i == len(display.Messages)-1
 
 		if msg.Role == chat.RoleAssistant {
-			// DEBUG: Log what assistant message is being rendered
-			log := logger.WithComponent("render")
-			log.Debug("Rendering assistant message",
-				"is_last_message", isLastMessage,
-				"streaming_thinking", streamingThinking,
-				"message_length", len(msg.Content),
-				"message_preview", func() string {
-					if len(msg.Content) > 100 {
-						return msg.Content[:100] + "..."
-					}
-					return msg.Content
-				}())
 
 			// Check if this is a streaming thinking message (last message + streaming thinking mode)
 			if isLastMessage && streamingThinking && showThinking {
@@ -230,7 +217,6 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 						Style:      nil,
 					})
 				}
-				log.Debug("Rendered streaming thinking message", "lines_added", len(thinkingLines))
 			} else {
 				// Regular assistant message - use normal ParseThinkingBlock logic
 				parsed := ParseThinkingBlock(msg.Content)
@@ -301,25 +287,6 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 					} else {
 						// Use traditional text wrapping for simple content
 						contentLines := WrapText(contentToRender, chatArea.Width)
-						log := logger.WithComponent("render")
-
-						firstLine := ""
-						if len(contentLines) > 0 {
-							firstLine = contentLines[0]
-						}
-						log.Debug("Rendering assistant message lines",
-							"role", msg.Role,
-							"content_length", len(contentToRender),
-							"width", chatArea.Width,
-							"lines", len(contentLines),
-							"first_line", firstLine,
-							"had_thinking", parsed.HasThinking,
-							"content_preview", func() string {
-								if len(contentToRender) > 100 {
-									return contentToRender[:100] + "..."
-								}
-								return contentToRender
-							}())
 
 						for _, line := range contentLines {
 							allLines = append(allLines, MessageLine{
@@ -335,18 +302,6 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 		} else {
 			// Handle non-assistant messages normally
 			contentLines := WrapText(msg.Content, chatArea.Width)
-			log := logger.WithComponent("render")
-
-			firstLine := ""
-			if len(contentLines) > 0 {
-				firstLine = contentLines[0]
-			}
-			log.Debug("Rendering message lines",
-				"role", msg.Role,
-				"content_length", len(msg.Content),
-				"width", chatArea.Width,
-				"lines", len(contentLines),
-				"first_line", firstLine)
 
 			for _, line := range contentLines {
 				allLines = append(allLines, MessageLine{

@@ -1035,18 +1035,6 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 		"duration", duration.String(),
 		"final_message_length", len(finalMessage.Content))
 
-	// DEBUG: Log the exact final message content
-	log.Debug("Final message details",
-		"role", finalMessage.Role,
-		"content_length", len(finalMessage.Content),
-		"content_preview", func() string {
-			if len(finalMessage.Content) > 200 {
-				return finalMessage.Content[:200] + "..."
-			}
-			return finalMessage.Content
-		}(),
-		"has_thinking_tags", strings.Contains(finalMessage.Content, "<think"),
-		"has_response_after_thinking", strings.Contains(finalMessage.Content, "</think>"))
 
 	// Clear streaming state
 	cv.isStreaming = false
