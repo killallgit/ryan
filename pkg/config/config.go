@@ -39,11 +39,20 @@ type LangChainPromptConfig struct {
 // Config represents the application configuration
 type Config struct {
 	Logging      LoggingConfig   `mapstructure:"logging"`
+	Context      ContextConfig   `mapstructure:"context"`
 	ShowThinking bool            `mapstructure:"show_thinking"`
 	Streaming    bool            `mapstructure:"streaming"`
 	Ollama       OllamaConfig    `mapstructure:"ollama"`
 	Tools        ToolsConfig     `mapstructure:"tools"`
 	LangChain    LangChainConfig `mapstructure:"langchain"`
+}
+
+// ContextConfig holds context persistence configuration
+type ContextConfig struct {
+	Directory        string `mapstructure:"directory"`
+	HistoryFile      string `mapstructure:"history_file"`
+	MaxFileSize      string `mapstructure:"max_file_size"`
+	PersistLangChain bool   `mapstructure:"persist_langchain"`
 }
 
 // LoggingConfig holds logging-related configuration
@@ -177,9 +186,15 @@ func setDefaults() {
 	viper.SetDefault("streaming", true)
 
 	// Logging defaults
-	viper.SetDefault("logging.file", "./.ryan/debug.log")
+	viper.SetDefault("logging.file", "./.ryan/logs/debug.log")
 	viper.SetDefault("logging.preserve", false)
 	viper.SetDefault("logging.level", "info")
+
+	// Context defaults
+	viper.SetDefault("context.directory", "./.ryan/contexts")
+	viper.SetDefault("context.history_file", "./.ryan/logs/debug.history")
+	viper.SetDefault("context.max_file_size", "10MB")
+	viper.SetDefault("context.persist_langchain", true)
 
 	// Tools defaults
 	viper.SetDefault("tools.enabled", true)
@@ -258,9 +273,12 @@ func InitializeDefaults() error {
 		return nil // User declined, continue without creating file
 	}
 
-	// Create .ryan directory if it doesn't exist
-	if err := os.MkdirAll(".ryan", 0755); err != nil {
-		return fmt.Errorf("failed to create .ryan directory: %w", err)
+	// Create .ryan directory structure if it doesn't exist
+	if err := os.MkdirAll(".ryan/logs", 0755); err != nil {
+		return fmt.Errorf("failed to create .ryan/logs directory: %w", err)
+	}
+	if err := os.MkdirAll(".ryan/contexts", 0755); err != nil {
+		return fmt.Errorf("failed to create .ryan/contexts directory: %w", err)
 	}
 
 	// Create a new viper instance for writing defaults
@@ -268,9 +286,14 @@ func InitializeDefaults() error {
 	v.SetConfigType("yaml")
 
 	// Set all the defaults
-	v.SetDefault("logging.file", "./.ryan/debug.log")
+	v.SetDefault("logging.file", "./.ryan/logs/debug.log")
 	v.SetDefault("logging.preserve", false)
 	v.SetDefault("logging.level", "info")
+
+	v.SetDefault("context.directory", "./.ryan/contexts")
+	v.SetDefault("context.history_file", "./.ryan/logs/debug.history")
+	v.SetDefault("context.max_file_size", "10MB")
+	v.SetDefault("context.persist_langchain", true)
 
 	v.SetDefault("show_thinking", true)
 	v.SetDefault("streaming", true)

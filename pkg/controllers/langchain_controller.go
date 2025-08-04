@@ -86,6 +86,11 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 	userMsg := chat.NewUserMessage(content)
 	lc.conversation = chat.AddMessageWithDeduplication(lc.conversation, userMsg)
 
+	// Log user message to history
+	if err := logger.LogChatHistory("User", content); err != nil {
+		lc.log.Error("Failed to log user message to history", "error", err)
+	}
+
 	// Use the enhanced client to send the message
 	response, err := lc.client.SendMessage(ctx, content)
 	if err != nil {
@@ -95,6 +100,11 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 		// Add error message to conversation
 		errMsg := chat.NewErrorMessage(errorMsg)
 		lc.conversation = chat.AddMessage(lc.conversation, errMsg)
+
+		// Log error to history
+		if err := logger.LogChatEvent("Error", errorMsg); err != nil {
+			lc.log.Error("Failed to log error to history", "error", err)
+		}
 
 		return errMsg, fmt.Errorf("failed to send message: %w", err)
 	}
@@ -114,6 +124,11 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 
 	assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
+
+	// Log assistant response to history
+	if err := logger.LogChatHistory("Assistant", assistantMsg.Content); err != nil {
+		lc.log.Error("Failed to log assistant message to history", "error", err)
+	}
 
 	// Save history to disk after each interaction
 	if err := lc.saveHistory(); err != nil {
@@ -137,6 +152,11 @@ func (lc *LangChainController) SendUserMessageWithStreamingContext(ctx context.C
 	// Add user message to conversation with deduplication
 	userMsg := chat.NewUserMessage(content)
 	lc.conversation = chat.AddMessageWithDeduplication(lc.conversation, userMsg)
+
+	// Log user message to history
+	if err := logger.LogChatHistory("User", content); err != nil {
+		lc.log.Error("Failed to log user message to history", "error", err)
+	}
 
 	// Create a channel to collect streamed content
 	streamChan := make(chan string, 100)
@@ -188,6 +208,11 @@ func (lc *LangChainController) SendUserMessageWithStreamingContext(ctx context.C
 
 	assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
+
+	// Log assistant response to history
+	if err := logger.LogChatHistory("Assistant", assistantMsg.Content); err != nil {
+		lc.log.Error("Failed to log assistant message to history", "error", err)
+	}
 
 	// Save history to disk after each interaction
 	if err := lc.saveHistory(); err != nil {

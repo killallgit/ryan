@@ -64,6 +64,12 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		// Initialize chat history file (always overwrites on startup)
+		if err := logger.InitHistoryFile(cfg.Context.HistoryFile); err != nil {
+			fmt.Printf("Failed to initialize history file: %v\n", err)
+			return
+		}
+
 		log := logger.WithComponent("main")
 		log.Info("Application starting")
 

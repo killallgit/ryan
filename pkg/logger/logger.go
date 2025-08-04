@@ -17,6 +17,7 @@ type Logger struct {
 var defaultLogger *Logger
 var errorFile *os.File
 var stdoutFile *os.File
+var historyFile *os.File
 
 func init() {
 	defaultLogger = &Logger{slog.Default(), slog.Default()}
@@ -24,12 +25,12 @@ func init() {
 
 func InitLogger() error {
 	// For now, use defaults until we refactor to pass config
-	return InitLoggerWithConfig(".ryan/debug.log", false, "info")
+	return InitLoggerWithConfig(".ryan/logs/debug.log", false, "info")
 }
 
 func InitLoggerWithConfig(logFile string, preserve bool, level string) error {
 	if logFile == "" {
-		logFile = ".ryan/debug.log"
+		logFile = ".ryan/logs/debug.log"
 	}
 
 	// Ensure directory exists
@@ -171,6 +172,72 @@ func WithContext(key string, value any) *Logger {
 	return defaultLogger.WithContext(key, value)
 }
 
+// InitHistoryFile initializes the chat history file (always overwrites)
+func InitHistoryFile(historyPath string) error {
+	if historyPath == "" {
+		historyPath = ".ryan/logs/debug.history"
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(historyPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create history directory: %w", err)
+	}
+
+	// Always truncate the history file on startup
+	var err error
+	historyFile, err = os.OpenFile(historyPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open history file: %w", err)
+	}
+
+	// Write session start marker
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	if _, err := fmt.Fprintf(historyFile, "=== Ryan Chat Session Started: %s ===\n\n", timestamp); err != nil {
+		return fmt.Errorf("failed to write session start: %w", err)
+	}
+
+	return nil
+}
+
+// LogChatHistory logs a chat interaction to the history file
+func LogChatHistory(role, content string) error {
+	if historyFile == nil {
+		return fmt.Errorf("history file not initialized")
+	}
+
+	timestamp := time.Now().Format("15:04:05")
+	entry := fmt.Sprintf("[%s] %s: %s\n\n", timestamp, role, content)
+	
+	if _, err := historyFile.WriteString(entry); err != nil {
+		return fmt.Errorf("failed to write to history: %w", err)
+	}
+
+	// Flush to ensure it's written immediately
+	historyFile.Sync()
+
+	return nil
+}
+
+// LogChatEvent logs a general chat event (like tool execution, errors, etc.)
+func LogChatEvent(event, details string) error {
+	if historyFile == nil {
+		return fmt.Errorf("history file not initialized")
+	}
+
+	timestamp := time.Now().Format("15:04:05")
+	entry := fmt.Sprintf("[%s] EVENT: %s - %s\n\n", timestamp, event, details)
+	
+	if _, err := historyFile.WriteString(entry); err != nil {
+		return fmt.Errorf("failed to write event to history: %w", err)
+	}
+
+	// Flush to ensure it's written immediately
+	historyFile.Sync()
+
+	return nil
+}
+
 // Close closes the log files
 func Close() error {
 	var errs []error
@@ -184,6 +251,16 @@ func Close() error {
 	if errorFile != nil {
 		if err := errorFile.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("failed to close error log: %w", err))
+		}
+	}
+
+	if historyFile != nil {
+		// Write session end marker before closing
+		timestamp := time.Now().Format("2006-01-02 15:04:05")
+		fmt.Fprintf(historyFile, "=== Ryan Chat Session Ended: %s ===\n", timestamp)
+		
+		if err := historyFile.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close history file: %w", err))
 		}
 	}
 
