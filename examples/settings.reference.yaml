@@ -3,7 +3,7 @@
 
 # Logging
 logging:
-  file: ./.ryan/logs/debug.log
+  log_file: ./.ryan/system.log
   preserve: false
   level: info
 
