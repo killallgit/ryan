@@ -152,10 +152,54 @@ INTEGRATION_TEST=true TEST_REAL_EMBEDDINGS=true OPENAI_API_KEY=your-key go test 
 - Concurrent document addition supported
 - Memory-efficient chunked storage
 
+## Document Indexer
+
+The package includes a powerful document indexer for indexing various file types:
+
+### Features
+- **Smart Chunking**: Splits documents into overlapping chunks for better context
+- **File Type Awareness**: Special handling for code files, structured data, and text
+- **Metadata Extraction**: Automatically extracts file metadata (size, type, modification time)
+- **Directory Indexing**: Recursively index entire directories with pattern matching
+
+### Usage
+
+```go
+// Create indexer
+config := vectorstore.IndexerConfig{
+    CollectionName: "documents",
+    ChunkSize:      1000,
+    ChunkOverlap:   200,
+}
+indexer, err := vectorstore.NewDocumentIndexer(store, config)
+
+// Index a single file
+err = indexer.IndexFile(ctx, "/path/to/document.txt")
+
+// Index a directory
+patterns := []string{"*.go", "*.md", "*.txt"}
+err = indexer.IndexDirectory(ctx, "/path/to/docs", patterns)
+
+// Search indexed documents
+docs, err := indexer.SearchDocuments(ctx, "search query", 10)
+```
+
+### Supported File Types
+- **Text Files**: `.txt`, `.md`, `.log`
+- **Code Files**: `.go`, `.py`, `.js`, `.java`, `.cpp`, `.c`, `.rs`
+- **Structured Data**: `.json`, `.yaml`, `.yml`, `.toml`
+
+## Examples
+
+See the `examples` directory for complete examples:
+- `vectorstore-demo.go` - Basic vector store operations
+- `document-indexer.go` - Command-line document indexing tool
+- `langchain-vector-memory.go` - LangChain integration with vector memory
+
 ## Future Enhancements
 
 - Additional vector store providers (SQLite-vec, FAISS)
 - Advanced indexing strategies
 - Hybrid search (keyword + semantic)
-- Automatic document chunking
+- Language-aware code chunking
 - Collection backups and migrations
