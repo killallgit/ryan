@@ -15,7 +15,8 @@ func TestLangChainMemory(t *testing.T) {
 		assert.NotNil(t, memory.GetBuffer())
 
 		conv := memory.GetConversation()
-		assert.Empty(t, conv.Messages)
+		messages := GetMessages(conv)
+		assert.Empty(t, messages)
 	})
 
 	t.Run("should add messages to memory", func(t *testing.T) {
@@ -34,9 +35,10 @@ func TestLangChainMemory(t *testing.T) {
 
 		// Check conversation
 		conv := memory.GetConversation()
-		assert.Len(t, conv.Messages, 2)
-		assert.Equal(t, "Hello", conv.Messages[0].Content)
-		assert.Equal(t, "Hi there!", conv.Messages[1].Content)
+		messages := GetMessages(conv)
+		assert.Len(t, messages, 2)
+		assert.Equal(t, "Hello", messages[0].Content)
+		assert.Equal(t, "Hi there!", messages[1].Content)
 	})
 
 	t.Run("should create memory from existing conversation", func(t *testing.T) {
@@ -52,10 +54,11 @@ func TestLangChainMemory(t *testing.T) {
 
 		// Check that all messages were transferred
 		memoryConv := memory.GetConversation()
-		assert.Len(t, memoryConv.Messages, 3)
-		assert.Equal(t, "You are helpful", memoryConv.Messages[0].Content)
-		assert.Equal(t, "Hello", memoryConv.Messages[1].Content)
-		assert.Equal(t, "Hi!", memoryConv.Messages[2].Content)
+		messages := GetMessages(memoryConv)
+		assert.Len(t, messages, 3)
+		assert.Equal(t, "You are helpful", messages[0].Content)
+		assert.Equal(t, "Hello", messages[1].Content)
+		assert.Equal(t, "Hi!", messages[2].Content)
 	})
 
 	t.Run("should clear memory", func(t *testing.T) {
@@ -68,7 +71,8 @@ func TestLangChainMemory(t *testing.T) {
 
 		// Check messages exist
 		conv := memory.GetConversation()
-		assert.Len(t, conv.Messages, 2)
+		messages := GetMessages(conv)
+		assert.Len(t, messages, 2)
 
 		// Clear memory
 		err := memory.Clear(ctx)
@@ -76,7 +80,8 @@ func TestLangChainMemory(t *testing.T) {
 
 		// Check messages are gone
 		conv = memory.GetConversation()
-		assert.Empty(t, conv.Messages)
+		messages = GetMessages(conv)
+		assert.Empty(t, messages)
 	})
 
 	t.Run("should handle different message types", func(t *testing.T) {
@@ -98,7 +103,8 @@ func TestLangChainMemory(t *testing.T) {
 		}
 
 		conv := memory.GetConversation()
-		assert.Len(t, conv.Messages, 5)
+		messages = GetMessages(conv)
+		assert.Len(t, messages, 5)
 	})
 }
 

@@ -430,3 +430,33 @@ func NewStreamProgressEvent(streamID string, contentLength, chunkCount int, dura
 		Duration:      duration,
 	}
 }
+
+// Context Tree Events
+
+// BranchContextEvent is sent when a context branch is requested
+type BranchContextEvent struct {
+	tcell.EventTime
+	MessageID string
+}
+
+// NewBranchContextEvent creates a new branch context event
+func NewBranchContextEvent(messageID string) *BranchContextEvent {
+	return &BranchContextEvent{
+		EventTime: tcell.EventTime{},
+		MessageID: messageID,
+	}
+}
+
+// ContextSwitchEvent is sent when switching to a different context
+type ContextSwitchEvent struct {
+	tcell.EventTime
+	ContextID string
+}
+
+// NewContextSwitchEvent creates a new context switch event
+func NewContextSwitchEvent(contextID string) *ContextSwitchEvent {
+	return &ContextSwitchEvent{
+		EventTime: tcell.EventTime{},
+		ContextID: contextID,
+	}
+}

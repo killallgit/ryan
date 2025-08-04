@@ -107,7 +107,8 @@ func (vm *LangChainVectorMemory) AddMessage(ctx context.Context, msg Message) er
 	}
 
 	// Index the message
-	return vm.indexMessage(ctx, msg, len(vm.conversation.Messages)-1)
+	messages := GetMessages(*vm.conversation)
+	return vm.indexMessage(ctx, msg, len(messages)-1)
 }
 
 // indexMessage indexes a single message in the vector store
@@ -159,9 +160,10 @@ func (vm *LangChainVectorMemory) formatMessageForIndexing(msg Message) string {
 
 // indexConversation indexes the entire conversation
 func (vm *LangChainVectorMemory) indexConversation(ctx context.Context) error {
-	docs := make([]vectorstore.Document, 0, len(vm.conversation.Messages))
+	messages := GetMessages(*vm.conversation)
+	docs := make([]vectorstore.Document, 0, len(messages))
 
-	for i, msg := range vm.conversation.Messages {
+	for i, msg := range messages {
 		docID := fmt.Sprintf("msg_init_%d", i)
 		content := vm.formatMessageForIndexing(msg)
 
@@ -236,10 +238,11 @@ func (vm *LangChainVectorMemory) GetRelevantMessages(ctx context.Context, query 
 			continue // Skip if position is not found or can't be parsed
 		}
 
-		if position < len(vm.conversation.Messages) {
+		messages := GetMessages(*vm.conversation)
+		if position < len(messages) {
 			posMessages = append(posMessages, posMsg{
 				position: position,
-				message:  vm.conversation.Messages[position],
+				message:  messages[position],
 				score:    result.Score,
 			})
 		}
@@ -273,8 +276,9 @@ func (vm *LangChainVectorMemory) GetMemoryVariables(ctx context.Context) (map[st
 
 	// Check if we should add relevant context
 	// This is a simple heuristic - you might want to make this configurable
-	if len(vm.conversation.Messages) > 0 {
-		lastMessage := vm.conversation.Messages[len(vm.conversation.Messages)-1]
+	messages := GetMessages(*vm.conversation)
+	if len(messages) > 0 {
+		lastMessage := messages[len(messages)-1]
 		if lastMessage.Role == RoleUser {
 			// Get relevant messages for the last user input
 			relevant, err := vm.GetRelevantMessages(ctx, lastMessage.Content)
@@ -307,7 +311,8 @@ func (vm *LangChainVectorMemory) Clear(ctx context.Context) error {
 // SaveContext saves context and indexes new messages
 func (vm *LangChainVectorMemory) SaveContext(ctx context.Context, inputs map[string]any, outputs map[string]any) error {
 	// Get current message count
-	prevCount := len(vm.conversation.Messages)
+	prevMessages := GetMessages(*vm.conversation)
+	prevCount := len(prevMessages)
 
 	// Save to base memory
 	if err := vm.LangChainMemory.SaveContext(ctx, inputs, outputs); err != nil {
@@ -315,8 +320,9 @@ func (vm *LangChainVectorMemory) SaveContext(ctx context.Context, inputs map[str
 	}
 
 	// Index any new messages
-	for i := prevCount; i < len(vm.conversation.Messages); i++ {
-		if err := vm.indexMessage(ctx, vm.conversation.Messages[i], i); err != nil {
+	newMessages := GetMessages(*vm.conversation)
+	for i := prevCount; i < len(newMessages); i++ {
+		if err := vm.indexMessage(ctx, newMessages[i], i); err != nil {
 			return fmt.Errorf("failed to index message %d: %w", i, err)
 		}
 	}

@@ -216,7 +216,7 @@ func CreateChatRequest(conversation Conversation, userMessage string) ChatReques
 
 	return ChatRequest{
 		Model:    conv.Model,
-		Messages: conv.Messages,
+		Messages: GetMessages(conv),
 		Stream:   false,
 	}
 }
@@ -227,7 +227,7 @@ func CreateChatRequestWithTools(conversation Conversation, userMessage string, t
 
 	return ChatRequest{
 		Model:    conv.Model,
-		Messages: conv.Messages,
+		Messages: GetMessages(conv),
 		Stream:   false,
 		Tools:    tools,
 	}

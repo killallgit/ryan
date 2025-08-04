@@ -6,9 +6,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/tmc/langchaingo/llms"
 )
+
+// generateMessageID creates a new unique message ID
+func generateMessageID() string {
+	return uuid.New().String()
+}
 
 // FakeChatClient implements the ChatClient interface for testing
 type FakeChatClient struct {
@@ -57,6 +63,8 @@ func (c *FakeChatClient) SendMessageWithResponse(req chat.ChatRequest) (chat.Cha
 
 	// Check if response looks like a tool call
 	var toolCalls []chat.ToolCall
+	messageContent := response
+
 	if req.Tools != nil && len(req.Tools) > 0 {
 		// Try to parse as JSON to see if it contains tool calls
 		var toolResponse struct {
@@ -74,6 +82,8 @@ func (c *FakeChatClient) SendMessageWithResponse(req chat.ChatRequest) (chat.Cha
 					},
 				})
 			}
+			// When there are tool calls, content should be empty
+			messageContent = ""
 		}
 	}
 
@@ -82,9 +92,17 @@ func (c *FakeChatClient) SendMessageWithResponse(req chat.ChatRequest) (chat.Cha
 		Model:     c.model,
 		CreatedAt: now,
 		Message: chat.Message{
+			ID:        generateMessageID(),
+			ParentID:  nil,
+			ContextID: "", // Will be set by context manager
 			Role:      "assistant",
-			Content:   response,
+			Content:   messageContent,
 			ToolCalls: toolCalls,
+			Timestamp: now,
+			Metadata: &chat.MessageMetadata{
+				Source: chat.MessageSourceFinal,
+				Depth:  0,
+			},
 		},
 		Done:               true,
 		DoneReason:         "complete",

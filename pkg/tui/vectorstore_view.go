@@ -74,8 +74,8 @@ func (vv *VectorStoreView) refreshData() {
 		vv.loading = false
 		return
 	}
-	log.Info("Vector store stats", 
-		"enabled", stats.IsEnabled, 
+	log.Info("Vector store stats",
+		"enabled", stats.IsEnabled,
 		"provider", stats.Provider,
 		"collections", stats.TotalCollections,
 		"documents", stats.TotalDocuments)

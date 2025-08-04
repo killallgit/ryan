@@ -72,8 +72,9 @@ func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessag
 
 	// Check if the user message was already added (e.g., by optimistic UI update)
 	needsUserMessage := true
-	if len(cc.conversation.Messages) > 0 {
-		lastMsg := cc.conversation.Messages[len(cc.conversation.Messages)-1]
+	messages := chat.GetMessages(cc.conversation)
+	if len(messages) > 0 {
+		lastMsg := messages[len(messages)-1]
 		if lastMsg.Role == chat.RoleUser && lastMsg.Content == userMessage {
 			needsUserMessage = false
 		}
@@ -87,7 +88,7 @@ func (cc *ChatController) executeToolEnabledChat(ctx context.Context, userMessag
 	for i := 0; i < maxIterations; i++ {
 
 		// Use current conversation messages
-		messages := cc.conversation.Messages
+		messages := chat.GetMessages(cc.conversation)
 
 		// Prepare chat request with tools if available
 		var req chat.ChatRequest
@@ -397,8 +398,9 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 
 	// Check if the user message was already added (optimistic UI update)
 	needsUserMessage := true
-	if len(cc.conversation.Messages) > 0 {
-		lastMsg := cc.conversation.Messages[len(cc.conversation.Messages)-1]
+	messages := chat.GetMessages(cc.conversation)
+	if len(messages) > 0 {
+		lastMsg := messages[len(messages)-1]
 		if lastMsg.Role == chat.RoleUser && lastMsg.Content == userMessage {
 			needsUserMessage = false
 		}
@@ -440,14 +442,14 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 
 				req = chat.ChatRequest{
 					Model:    cc.conversation.Model,
-					Messages: cc.conversation.Messages,
+					Messages: chat.GetMessages(cc.conversation),
 					Stream:   true,
 					Tools:    tools,
 				}
 			} else {
 				req = chat.ChatRequest{
 					Model:    cc.conversation.Model,
-					Messages: cc.conversation.Messages,
+					Messages: chat.GetMessages(cc.conversation),
 					Stream:   true,
 				}
 			}

@@ -12,7 +12,7 @@ import (
 
 // HybridMemoryConfig configures the hybrid memory system
 type HybridMemoryConfig struct {
-	// Working memory (recent messages)  
+	// Working memory (recent messages)
 	WorkingMemorySize int // Number of recent messages to keep in working memory
 
 	// Vector memory (semantic retrieval)
@@ -21,7 +21,7 @@ type HybridMemoryConfig struct {
 	// Context assembly
 	MaxContextTokens    int     // Maximum tokens for assembled context
 	SemanticWeight      float32 // Weight for semantic relevance (0.0-1.0)
-	RecencyWeight       float32 // Weight for recency (0.0-1.0)  
+	RecencyWeight       float32 // Weight for recency (0.0-1.0)
 	DeduplicationWindow int     // Number of recent messages to deduplicate from vector results
 
 	// Tool indexing
@@ -34,20 +34,20 @@ func DefaultHybridMemoryConfig() HybridMemoryConfig {
 	return HybridMemoryConfig{
 		WorkingMemorySize:   10, // Keep last 10 messages in working memory
 		VectorConfig:        DefaultVectorMemoryConfig(),
-		MaxContextTokens:    4000, // Conservative token limit
-		SemanticWeight:      0.7,  // Favor semantic relevance
-		RecencyWeight:       0.3,  // But still consider recency
-		DeduplicationWindow: 5,    // Avoid duplicating last 5 messages
-		EnableToolIndexing:  true, // Enable tool output indexing
+		MaxContextTokens:    4000,    // Conservative token limit
+		SemanticWeight:      0.7,     // Favor semantic relevance
+		RecencyWeight:       0.3,     // But still consider recency
+		DeduplicationWindow: 5,       // Avoid duplicating last 5 messages
+		EnableToolIndexing:  true,    // Enable tool output indexing
 		ToolsCollection:     "tools", // Store tool outputs in tools collection
 	}
 }
 
 // HybridMemory combines working memory with semantic vector retrieval
 type HybridMemory struct {
-	workingMemory   *LangChainMemory      // Recent messages buffer
+	workingMemory   *LangChainMemory       // Recent messages buffer
 	vectorMemory    *LangChainVectorMemory // Semantic vector store
-	documentIndexer *DocumentIndexer      // Document and file indexer
+	documentIndexer *DocumentIndexer       // Document and file indexer
 	config          HybridMemoryConfig
 }
 
@@ -134,7 +134,7 @@ func (hm *HybridMemory) AddMessage(ctx context.Context, msg Message) error {
 // maintainWorkingMemorySize keeps working memory within configured size
 func (hm *HybridMemory) maintainWorkingMemorySize() {
 	conv := hm.workingMemory.GetConversation()
-	messages := conv.Messages
+	messages := GetMessages(conv)
 
 	if len(messages) > hm.config.WorkingMemorySize {
 		// Keep system messages and recent messages
@@ -159,9 +159,9 @@ func (hm *HybridMemory) maintainWorkingMemorySize() {
 		newMessages := systemMessages
 		newMessages = append(newMessages, otherMessages[recentStart:]...)
 
-		newConv := Conversation{
-			Messages: newMessages,
-			Model:    conv.Model,
+		newConv := NewConversation(conv.Model)
+		for _, msg := range newMessages {
+			newConv = AddMessage(newConv, msg)
 		}
 
 		// Update working memory conversation
@@ -172,7 +172,7 @@ func (hm *HybridMemory) maintainWorkingMemorySize() {
 // GetHybridContext assembles optimized context from working + semantic memory
 func (hm *HybridMemory) GetHybridContext(ctx context.Context, query string) ([]Message, error) {
 	// Get working memory (recent messages)
-	workingMessages := hm.workingMemory.GetConversation().Messages
+	workingMessages := GetMessages(hm.workingMemory.GetConversation())
 
 	// Get semantically relevant messages
 	relevantMessages, err := hm.vectorMemory.GetRelevantMessages(ctx, query)
@@ -205,7 +205,7 @@ func (hm *HybridMemory) deduplicateMessages(workingMessages, vectorMessages []Me
 	}
 
 	recentMessages := workingMessages[len(workingMessages)-recentCount:]
-	
+
 	// Create set of recent message contents for fast lookup
 	recentContents := make(map[string]bool)
 	for _, msg := range recentMessages {
@@ -225,9 +225,9 @@ func (hm *HybridMemory) deduplicateMessages(workingMessages, vectorMessages []Me
 
 // ScoredMessage holds a message with relevance score
 type ScoredMessage struct {
-	Message      Message
+	Message        Message
 	RelevanceScore float32
-	IsRecent     bool
+	IsRecent       bool
 }
 
 // scoreMessages assigns relevance scores to messages
@@ -237,7 +237,7 @@ func (hm *HybridMemory) scoreMessages(workingMessages, relevantMessages []Messag
 	// Score working memory messages (high recency, variable semantic relevance)
 	for _, msg := range workingMessages {
 		score := hm.config.RecencyWeight * 1.0 // Full recency weight for working memory
-		
+
 		// Add basic semantic relevance for working memory
 		if strings.Contains(strings.ToLower(msg.Content), strings.ToLower(query)) {
 			score += hm.config.SemanticWeight * 0.8 // Boost if query terms present
@@ -246,20 +246,20 @@ func (hm *HybridMemory) scoreMessages(workingMessages, relevantMessages []Messag
 		}
 
 		scored = append(scored, ScoredMessage{
-			Message:      msg,
+			Message:        msg,
 			RelevanceScore: score,
-			IsRecent:     true,
+			IsRecent:       true,
 		})
 	}
 
 	// Score vector memory messages (high semantic relevance, lower recency)
 	for _, msg := range relevantMessages {
-		score := hm.config.SemanticWeight * 0.9 + hm.config.RecencyWeight * 0.2
-		
+		score := hm.config.SemanticWeight*0.9 + hm.config.RecencyWeight*0.2
+
 		scored = append(scored, ScoredMessage{
-			Message:      msg,
+			Message:        msg,
 			RelevanceScore: score,
-			IsRecent:     false,
+			IsRecent:       false,
 		})
 	}
 
@@ -343,7 +343,7 @@ func (hm *HybridMemory) GetWorkingMemory() *LangChainMemory {
 	return hm.workingMemory
 }
 
-// GetVectorMemory returns the vector memory component  
+// GetVectorMemory returns the vector memory component
 func (hm *HybridMemory) GetVectorMemory() *LangChainVectorMemory {
 	return hm.vectorMemory
 }
@@ -376,8 +376,9 @@ func (hm *HybridMemory) GetMemoryVariables(ctx context.Context) (map[string]any,
 
 	// Add hybrid context if we have a recent user message
 	conv := hm.workingMemory.GetConversation()
-	if len(conv.Messages) > 0 {
-		lastMessage := conv.Messages[len(conv.Messages)-1]
+	messages := GetMessages(conv)
+	if len(messages) > 0 {
+		lastMessage := messages[len(messages)-1]
 		if lastMessage.Role == RoleUser {
 			// Get hybrid context for the last user query
 			hybridContext, err := hm.GetHybridContext(ctx, lastMessage.Content)
@@ -435,7 +436,7 @@ func (hm *HybridMemory) indexToolOutput(ctx context.Context, toolMsg Message) er
 
 	// Create a detailed document for the tool output
 	docID := fmt.Sprintf("tool_%s_%d", toolMsg.ToolName, time.Now().UnixNano())
-	
+
 	// Enhanced content format for tool outputs
 	content := fmt.Sprintf("Tool: %s\nOutput: %s", toolMsg.ToolName, toolMsg.Content)
 
@@ -455,7 +456,7 @@ func (hm *HybridMemory) indexToolOutput(ctx context.Context, toolMsg Message) er
 	} else if strings.Contains(contentLower, "success") || strings.Contains(contentLower, "completed") {
 		metadata["result_type"] = "success"
 	} else {
-		metadata["result_type"] = "info" 
+		metadata["result_type"] = "info"
 	}
 
 	// Create document

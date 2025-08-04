@@ -95,12 +95,10 @@ func TestLangChainVectorMemory_WithExistingConversation(t *testing.T) {
 
 	// Create existing conversation
 	conv := NewConversation("test-conv")
-	conv.Messages = append(conv.Messages,
-		NewUserMessage("What is artificial intelligence?"),
-		NewAssistantMessage("Artificial intelligence is the simulation of human intelligence in machines."),
-		NewUserMessage("Tell me about machine learning"),
-		NewAssistantMessage("Machine learning is a subset of AI that enables systems to learn from data."),
-	)
+	conv = AddMessage(conv, NewUserMessage("What is artificial intelligence?"))
+	conv = AddMessage(conv, NewAssistantMessage("Artificial intelligence is the simulation of human intelligence in machines."))
+	conv = AddMessage(conv, NewUserMessage("Tell me about machine learning"))
+	conv = AddMessage(conv, NewAssistantMessage("Machine learning is a subset of AI that enables systems to learn from data."))
 
 	// Create vector memory with existing conversation
 	config := VectorMemoryConfig{
@@ -214,7 +212,8 @@ func TestLangChainVectorMemory_SaveContext(t *testing.T) {
 	require.NoError(t, err)
 
 	// Debug: Check if messages were actually saved to the conversation
-	assert.GreaterOrEqual(t, len(vm.conversation.Messages), 2, "Should have at least 2 messages after SaveContext")
+	messages := GetMessages(*vm.conversation)
+	assert.GreaterOrEqual(t, len(messages), 2, "Should have at least 2 messages after SaveContext")
 
 	// Search for the saved content with no threshold
 	vm.scoreThreshold = 0.0 // Remove threshold for debugging

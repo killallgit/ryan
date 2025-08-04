@@ -52,6 +52,9 @@ type ChatView struct {
 	// Interaction mode
 	mode ChatViewMode // Current interaction mode
 
+	// Context tree visualization
+	contextTreeView *ContextTreeView
+
 	// Streaming state
 	isStreaming         bool
 	streamingContent    string
@@ -67,6 +70,9 @@ type ChatView struct {
 
 func NewChatView(controller ControllerInterface, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
 	width, height := screen.Size()
+
+	// Context tree will be initialized on demand
+	// We'll get it from the conversation when needed
 
 	view := &ChatView{
 		controller:       controller,
@@ -87,6 +93,9 @@ func NewChatView(controller ControllerInterface, modelsController *controllers.M
 
 		// Initialize interaction mode
 		mode: ModeInput, // Start in input mode
+
+		// Initialize context tree view
+		contextTreeView: nil, // Will be initialized when we have a context tree
 
 		// Initialize streaming state
 		isStreaming:         false,
@@ -141,6 +150,11 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 	RenderInput(screen, cv.input, inputArea)
 	RenderStatus(screen, cv.status, statusArea)
 
+	// Render context tree view if visible
+	if cv.contextTreeView != nil && cv.contextTreeView.IsVisible() {
+		cv.contextTreeView.Render(screen, area)
+	}
+
 	// Render modals on top
 	cv.downloadModal.Render(screen, area)
 	cv.progressModal.Render(screen, area)
@@ -148,6 +162,11 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 }
 
 func (cv *ChatView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
+	// Handle context tree keys first if visible
+	if cv.handleContextTreeKeys(ev) {
+		return true
+	}
+
 	// Handle modal events first
 	if cv.helpModal.Visible {
 		modal, handled := cv.helpModal.HandleKeyEvent(ev)
@@ -332,6 +351,22 @@ func (cv *ChatView) handleInputModeKeys(ev *tcell.EventKey, sending bool) bool {
 			return true
 		}
 
+	case tcell.KeyCtrlT:
+		// Ctrl+T to toggle context tree view
+		if cv.contextTreeView != nil {
+			cv.contextTreeView = cv.contextTreeView.Toggle()
+		} else {
+			// Initialize context tree view if not already done
+			cv.initializeContextTreeView()
+		}
+		return true
+
+	case tcell.KeyCtrlB:
+		// Ctrl+B to branch from current message
+		if cv.handleBranchContext() {
+			return true
+		}
+
 	default:
 		if ev.Rune() != 0 {
 			// Check for specific key combinations for node operations
@@ -356,6 +391,16 @@ func (cv *ChatView) handleInputModeKeys(ev *tcell.EventKey, sending bool) bool {
 					if cv.handleClearNodeSelection() {
 						return true
 					}
+				}
+			case 't', 'T':
+				// Alt+T to toggle context tree
+				if ev.Modifiers()&tcell.ModAlt != 0 {
+					if cv.contextTreeView != nil {
+						cv.contextTreeView = cv.contextTreeView.Toggle()
+					} else {
+						cv.initializeContextTreeView()
+					}
+					return true
 				}
 			}
 
@@ -518,6 +563,12 @@ func (cv *ChatView) HandleResize(width, height int) {
 	cv.messages = cv.messages.WithSize(width, height-5) // -5 for status, input, and alert areas
 	cv.status = cv.status.WithWidth(width)
 	cv.alert = cv.alert.WithWidth(width)
+
+	// Update context tree view if it exists
+	if cv.contextTreeView != nil {
+		treeWidth := width / 3 // Use 1/3 of screen width
+		cv.contextTreeView = cv.contextTreeView.WithSize(treeWidth, height)
+	}
 }
 
 func (cv *ChatView) sendMessage() string {
@@ -598,6 +649,12 @@ func (cv *ChatView) updateMessages() {
 		}
 	}
 	cv.messages = cv.messages.WithMessages(filteredHistory)
+
+	// Update context tree if it exists
+	if cv.contextTreeView != nil && cv.contextTreeView.IsVisible() {
+		// Re-initialize to get fresh data
+		cv.initializeContextTreeView()
+	}
 }
 
 func (cv *ChatView) updateMessagesWithStreamingThinking() {
@@ -675,8 +732,20 @@ func (cv *ChatView) scrollToBottom() {
 	streamingThinking := cv.isStreamingThinking
 	totalLines := CalculateMessageLines(cv.messages.Messages, paddedWidth, streamingThinking)
 
-	if totalLines > paddedHeight {
-		cv.messages = cv.messages.WithScroll(totalLines - paddedHeight)
+	// Add a buffer of 3-4 lines when spinner is visible to prevent crowding
+	bufferLines := 0
+	if cv.alert.IsSpinnerVisible || cv.statusRow.IsSpinnerVisible || cv.isStreaming {
+		bufferLines = 4 // Keep 4 lines of buffer above spinner
+	}
+
+	// Calculate the effective visible height (minus buffer)
+	effectiveHeight := paddedHeight - bufferLines
+	if effectiveHeight < 1 {
+		effectiveHeight = 1 // Ensure we always have at least 1 line visible
+	}
+
+	if totalLines > effectiveHeight {
+		cv.messages = cv.messages.WithScroll(totalLines - effectiveHeight)
 	} else {
 		cv.messages = cv.messages.WithScroll(0)
 	}
@@ -1196,4 +1265,120 @@ func (cv *ChatView) autoScrollToFocusedNode() {
 	// adjusting the scroll offset if needed
 	log := logger.WithComponent("chat_view")
 	log.Debug("Auto-scroll to focused node requested (not yet implemented)")
+}
+
+// Context tree methods
+
+func (cv *ChatView) initializeContextTreeView() {
+	log := logger.WithComponent("chat_view")
+
+	screenWidth, screenHeight := cv.screen.Size()
+	width := screenWidth / 3 // Use 1/3 of screen width
+	height := screenHeight
+
+	// Get messages from controller to build a context tree
+	messages := cv.controller.GetHistory()
+
+	// Create a context tree with the current conversation
+	tree := &chat.ContextTree{
+		RootContextID: "main",
+		Contexts: map[string]*chat.Context{
+			"main": {
+				ID:          "main",
+				ParentID:    nil,
+				BranchPoint: nil,
+				Title:       "Main Conversation",
+				Created:     time.Now(),
+				MessageIDs:  []string{},
+				IsActive:    true,
+			},
+		},
+		Messages:      make(map[string]*chat.Message),
+		ParentIndex:   make(map[string][]string),
+		ChildIndex:    make(map[string]string),
+		ActiveContext: "main",
+	}
+
+	// Add existing messages to the tree
+	for i, msg := range messages {
+		msgCopy := msg // Create a copy
+		msgID := fmt.Sprintf("msg-%d", i)
+		msgCopy.ID = msgID
+		msgCopy.ContextID = "main"
+		tree.Messages[msgID] = &msgCopy
+		tree.Contexts["main"].MessageIDs = append(tree.Contexts["main"].MessageIDs, msgID)
+	}
+
+	// Create some example branches if we have messages
+	if len(messages) > 2 {
+		// Create a branch from the second message
+		branchID := "branch1"
+		branchMsgID := "msg-1"
+		tree.Contexts[branchID] = &chat.Context{
+			ID:          branchID,
+			ParentID:    &[]string{"main"}[0],
+			BranchPoint: &branchMsgID,
+			Title:       "Alternative Response",
+			Created:     time.Now().Add(-5 * time.Minute),
+			MessageIDs:  []string{},
+			IsActive:    false,
+		}
+		tree.ParentIndex["main"] = append(tree.ParentIndex["main"], branchID)
+		tree.ChildIndex[branchID] = "main"
+	}
+
+	cv.contextTreeView = NewContextTreeView(tree, width, height)
+	cv.contextTreeView = cv.contextTreeView.WithVisibility(true).WithPosition(TreePositionRight)
+
+	// Expand the root node by default
+	cv.contextTreeView = cv.contextTreeView.ToggleExpanded("main")
+
+	log.Debug("Initialized context tree view with messages", "width", width, "height", height, "message_count", len(messages))
+}
+
+func (cv *ChatView) handleBranchContext() bool {
+	log := logger.WithComponent("chat_view")
+
+	// Check if we have a focused message node to branch from
+	if !cv.messages.UseNodes || cv.messages.NodeManager == nil {
+		log.Debug("Cannot branch - not using nodes")
+		return false
+	}
+
+	focusedNodeID := cv.messages.NodeManager.GetFocusedNode()
+	if focusedNodeID == "" {
+		log.Debug("Cannot branch - no focused node")
+		return false
+	}
+
+	// Get the message associated with this node
+	node, exists := cv.messages.NodeManager.GetNode(focusedNodeID)
+	if !exists {
+		log.Debug("Cannot branch - node not found", "node_id", focusedNodeID)
+		return false
+	}
+
+	// Extract message ID from node
+	// Node IDs are typically in format "msg-<messageID>"
+	messageID := strings.TrimPrefix(node.ID(), "msg-")
+
+	log.Debug("Branching from message", "message_id", messageID, "node_id", focusedNodeID)
+
+	// Post a branch context event that the controller can handle
+	cv.screen.PostEvent(NewBranchContextEvent(messageID))
+
+	// Update status to show branching
+	cv.status = cv.status.WithStatus(fmt.Sprintf("Branching from message %s...", messageID[:8]))
+
+	return true
+}
+
+// Handle context tree keyboard events when visible
+func (cv *ChatView) handleContextTreeKeys(ev *tcell.EventKey) bool {
+	if cv.contextTreeView == nil || !cv.contextTreeView.IsVisible() {
+		return false
+	}
+
+	// Let the context tree view handle its own keyboard events
+	return cv.contextTreeView.HandleKeyEvent(ev)
 }

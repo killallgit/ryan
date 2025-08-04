@@ -15,31 +15,31 @@ import (
 
 // DocumentIndexer handles automatic indexing of documents and files
 type DocumentIndexer struct {
-	manager         *vectorstore.Manager
-	config          DocumentIndexerConfig
-	log             *logger.Logger
-	indexedFiles    map[string]time.Time // Track indexed files and timestamps
+	manager      *vectorstore.Manager
+	config       DocumentIndexerConfig
+	log          *logger.Logger
+	indexedFiles map[string]time.Time // Track indexed files and timestamps
 }
 
 // DocumentIndexerConfig configures document indexing behavior
 type DocumentIndexerConfig struct {
-	CollectionName      string   // Collection to store documents
-	AutoIndexFiles      bool     // Automatically index files when accessed
-	AutoIndexDirectories bool    // Automatically index directory contents
-	MaxFileSize         int64    // Maximum file size to index (bytes)
-	SupportedExtensions []string // File extensions to index
-	ExcludePatterns     []string // Patterns to exclude from indexing
-	ChunkSize           int      // Size of text chunks for indexing
-	UpdateInterval      time.Duration // How often to check for file updates
+	CollectionName       string        // Collection to store documents
+	AutoIndexFiles       bool          // Automatically index files when accessed
+	AutoIndexDirectories bool          // Automatically index directory contents
+	MaxFileSize          int64         // Maximum file size to index (bytes)
+	SupportedExtensions  []string      // File extensions to index
+	ExcludePatterns      []string      // Patterns to exclude from indexing
+	ChunkSize            int           // Size of text chunks for indexing
+	UpdateInterval       time.Duration // How often to check for file updates
 }
 
 // DefaultDocumentIndexerConfig returns default configuration
 func DefaultDocumentIndexerConfig() DocumentIndexerConfig {
 	return DocumentIndexerConfig{
-		CollectionName:      "documents",
-		AutoIndexFiles:      true,
-		AutoIndexDirectories: false, // Manual control for directories
-		MaxFileSize:         10 * 1024 * 1024, // 10MB limit
+		CollectionName:       "documents",
+		AutoIndexFiles:       true,
+		AutoIndexDirectories: false,            // Manual control for directories
+		MaxFileSize:          10 * 1024 * 1024, // 10MB limit
 		SupportedExtensions: []string{
 			".txt", ".md", ".py", ".go", ".js", ".ts", ".json", ".yaml", ".yml",
 			".html", ".css", ".sql", ".sh", ".bat", ".toml", ".ini", ".conf",
@@ -191,9 +191,9 @@ func (di *DocumentIndexer) IndexDirectory(ctx context.Context, dirPath string, r
 		return fmt.Errorf("failed to walk directory %s: %w", dirPath, err)
 	}
 
-	di.log.Info("Directory indexing completed", 
-		"directory", dirPath, 
-		"indexed", indexedCount, 
+	di.log.Info("Directory indexing completed",
+		"directory", dirPath,
+		"indexed", indexedCount,
 		"skipped", skippedCount)
 
 	return nil
