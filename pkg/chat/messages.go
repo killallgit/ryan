@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -39,11 +40,12 @@ type ToolFunction struct {
 }
 
 const (
-	RoleUser      = "user"
-	RoleAssistant = "assistant"
-	RoleSystem    = "system"
-	RoleError     = "error"
-	RoleTool      = "tool"
+	RoleUser         = "user"
+	RoleAssistant    = "assistant"
+	RoleSystem       = "system"
+	RoleError        = "error"
+	RoleTool         = "tool"
+	RoleToolProgress = "tool_progress"
 )
 
 // Message source constants for lifecycle tracking
@@ -117,6 +119,27 @@ func NewToolResultMessage(toolName, content string) Message {
 		Timestamp: time.Now(),
 		Metadata: &MessageMetadata{
 			Source: MessageSourceFinal,
+		},
+	}
+}
+
+// NewToolProgressMessage creates a message showing tool execution progress
+func NewToolProgressMessage(toolName, command string) Message {
+	// Truncate command if too long (like Claude Code does)
+	truncatedCommand := command
+	if len(command) > 50 {
+		truncatedCommand = command[:47] + "..."
+	}
+	
+	content := fmt.Sprintf("%s(%s)", toolName, truncatedCommand)
+	
+	return Message{
+		Role:      RoleToolProgress,
+		Content:   content,
+		ToolName:  toolName,
+		Timestamp: time.Now(),
+		Metadata: &MessageMetadata{
+			Source: MessageSourceOptimistic,
 		},
 	}
 }

@@ -19,14 +19,15 @@ import (
 
 // Client provides full LangChain integration for Ryan
 type Client struct {
-	llm            llms.Model
-	memory         schema.Memory
-	toolRegistry   *tools.Registry
-	langchainTools []langchaintools.Tool
-	agent          agents.Agent
-	executor       *agents.Executor
-	config         *config.Config
-	log            *logger.Logger
+	llm              llms.Model
+	memory           schema.Memory
+	toolRegistry     *tools.Registry
+	langchainTools   []langchaintools.Tool
+	agent            agents.Agent
+	executor         *agents.Executor
+	config           *config.Config
+	log              *logger.Logger
+	progressCallback ToolProgressCallback
 }
 
 // NewClient creates a new LangChain-powered client
@@ -76,10 +77,23 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 	return client, nil
 }
 
+// SetProgressCallback sets a callback for tool execution progress
+func (c *Client) SetProgressCallback(callback ToolProgressCallback) {
+	c.progressCallback = callback
+	// Re-initialize agent if it already exists to update the callback
+	if c.agent != nil && c.toolRegistry != nil {
+		c.initializeAgent()
+	}
+}
+
+// ToolProgressCallback is called when tool execution starts
+type ToolProgressCallback func(toolName, command string)
+
 // ToolAdapter bridges Ryan tools with LangChain tools
 type ToolAdapter struct {
-	ryanTool tools.Tool
-	log      *logger.Logger
+	ryanTool         tools.Tool
+	log              *logger.Logger
+	progressCallback ToolProgressCallback
 }
 
 func NewToolAdapter(ryanTool tools.Tool) *ToolAdapter {
@@ -88,6 +102,12 @@ func NewToolAdapter(ryanTool tools.Tool) *ToolAdapter {
 		ryanTool: ryanTool,
 		log:      log,
 	}
+}
+
+// WithProgressCallback sets a callback for tool execution progress
+func (ta *ToolAdapter) WithProgressCallback(callback ToolProgressCallback) *ToolAdapter {
+	ta.progressCallback = callback
+	return ta
 }
 
 func (ta *ToolAdapter) Name() string {
@@ -106,24 +126,42 @@ func (ta *ToolAdapter) Call(ctx context.Context, input string) (string, error) {
 	params := make(map[string]interface{})
 
 	// Simple parsing for common tool formats
+	var commandForCallback string
 	if strings.Contains(input, "command:") {
 		// For bash tool: "command: docker images | wc -l"
 		if cmd := extractValue(input, "command:"); cmd != "" {
 			params["command"] = cmd
+			commandForCallback = cmd
 		}
 	} else if strings.Contains(input, "path:") {
 		// For file tool: "path: ./README.md"
 		if path := extractValue(input, "path:"); path != "" {
 			params["path"] = path
+			commandForCallback = path
 		}
 	} else {
 		// Fallback: use input as command/path
 		switch ta.ryanTool.Name() {
 		case "execute_bash":
 			params["command"] = input
+			commandForCallback = input
 		case "read_file":
 			params["path"] = input
+			commandForCallback = input
 		}
+	}
+
+	// Call progress callback if available
+	if ta.progressCallback != nil && commandForCallback != "" {
+		// Map tool names to display names that match Claude Code
+		displayName := ta.ryanTool.Name()
+		switch displayName {
+		case "execute_bash":
+			displayName = "Shell"
+		case "read_file":
+			displayName = "ReadFile"
+		}
+		ta.progressCallback(displayName, commandForCallback)
 	}
 
 	// Execute the Ryan tool
@@ -168,6 +206,9 @@ func (c *Client) initializeAgent() error {
 
 	for _, tool := range ryanTools {
 		adapter := NewToolAdapter(tool)
+		if c.progressCallback != nil {
+			adapter = adapter.WithProgressCallback(c.progressCallback)
+		}
 		c.langchainTools = append(c.langchainTools, adapter)
 		c.log.Debug("Adapted tool", "name", tool.Name())
 	}
