@@ -90,16 +90,7 @@ func (mf *MarkdownFormatter) fallbackToSimpleText(content string) []FormattedLin
 
 // ShouldUseMarkdownFormatting determines if markdown formatting should be used
 func ShouldUseMarkdownFormatting(content string) bool {
-	// Use clean markdown formatting for content with markdown features
-	contentTypes := DetectContentTypes(content)
-	
-	// Use markdown formatting for content with:
-	// 1. Headers, lists, or code blocks
-	// 2. Multiple types of content
-	// 3. Thinking blocks
-	return contentTypes[ContentTypeHeader] ||
-		contentTypes[ContentTypeList] ||
-		contentTypes[ContentTypeCodeBlock] ||
-		contentTypes[ContentTypeThinking] ||
-		len(contentTypes) >= 2
+	// Disable markdown formatting to avoid conflicts with existing parsing system
+	// The existing simple formatter works well and handles thinking blocks correctly
+	return false
 }

@@ -23,7 +23,7 @@ func TestSimpleFormatter_FormatContentSegments(t *testing.T) {
 					Language: "javascript",
 				},
 			},
-			expected: 5, // Top border + 3 content lines + bottom border
+			expected: 6, // Empty line + language label + 3 content lines + empty line
 		},
 		{
 			name: "header formatting",
@@ -34,7 +34,7 @@ func TestSimpleFormatter_FormatContentSegments(t *testing.T) {
 					Level:   1,
 				},
 			},
-			expected: 3, // Empty line + header + underline
+			expected: 2, // Empty line + header (no underline in clean format)
 		},
 		{
 			name: "list formatting",
@@ -65,7 +65,7 @@ func TestSimpleFormatter_FormatContentSegments(t *testing.T) {
 					Language: "js",
 				},
 			},
-			expected: 5, // Text line + empty line + code block (3 lines)
+			expected: 6, // Text line + empty line + language label + code line + empty line
 		},
 	}
 

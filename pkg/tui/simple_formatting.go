@@ -89,89 +89,74 @@ func (sf *SimpleFormatter) FormatContentSegments(segments []ContentSegment) []Fo
 	return formattedLines
 }
 
-// formatThinkingBlock creates thinking content with dim italic style
+// formatThinkingBlock creates thinking content with clean styling
 func (sf *SimpleFormatter) formatThinkingBlock(content string) []FormattedLine {
 	var lines []FormattedLine
 
-	// Just wrap the thinking content with dim italic style
-	wrappedLines := WrapText(strings.TrimSpace(content), sf.width)
+	// Add thinking header with clean symbol
+	lines = append(lines, FormattedLine{
+		Content: "✻ Thinking…",
+		Style:   StyleThinkingText,
+		Indent:  0,
+	})
+
+	// Add empty line for spacing
+	lines = append(lines, FormattedLine{
+		Content: "",
+		Style:   tcell.StyleDefault,
+		Indent:  0,
+	})
+
+	// Format thinking content with clean indentation
+	wrappedLines := WrapText(strings.TrimSpace(content), sf.width-4)
 	for _, line := range wrappedLines {
-		lines = append(lines, FormattedLine{
-			Content: line,
-			Style:   StyleThinkingText, // Dim + Italic
-			Indent:  0,
-		})
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, FormattedLine{
+				Content: strings.TrimSpace(line),
+				Style:   StyleThinkingText,
+				Indent:  2,
+			})
+		}
 	}
 
 	return lines
 }
 
-// formatCodeBlock creates a simple boxed code block
+// formatCodeBlock creates a clean code block without heavy borders
 func (sf *SimpleFormatter) formatCodeBlock(content, language string) []FormattedLine {
 	var lines []FormattedLine
 
-	// Ensure minimum width for borders
-	minWidth := 20
-	borderWidth := sf.width - 4
-	if borderWidth < minWidth {
-		borderWidth = minWidth
-	}
-
-	// Top border with language label if available
-	var topBorder string
-	if language != "" {
-		label := " " + language + " "
-		borderLength := borderWidth - len(label)
-		if borderLength < 4 {
-			borderLength = 4
-		}
-		leftBorderLen := borderLength / 2
-		rightBorderLen := borderLength - leftBorderLen
-		if leftBorderLen < 0 {
-			leftBorderLen = 0
-		}
-		if rightBorderLen < 0 {
-			rightBorderLen = 0
-		}
-		leftBorder := strings.Repeat("─", leftBorderLen)
-		rightBorder := strings.Repeat("─", rightBorderLen)
-		topBorder = "┌" + leftBorder + label + rightBorder + "┐"
-	} else {
-		topBorder = "┌" + strings.Repeat("─", borderWidth) + "┐"
-	}
-
+	// Add spacing before code block
 	lines = append(lines, FormattedLine{
-		Content: topBorder,
-		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true),
-		Indent:  1,
+		Content: "",
+		Style:   tcell.StyleDefault,
+		Indent:  0,
 	})
 
-	// Content
-	contentWidth := borderWidth - 2 // Account for padding inside borders
-	if contentWidth < 30 {
-		contentWidth = 30
-	}
-
-	codeLines := strings.Split(content, "\n")
-	for _, codeLine := range codeLines {
-		// Don't wrap code lines, just truncate if too long
-		if len(codeLine) > contentWidth {
-			codeLine = codeLine[:contentWidth-3] + "..."
-		}
-		paddedLine := "│ " + codeLine + strings.Repeat(" ", contentWidth-len(codeLine)) + " │"
+	// Add language label if available
+	if language != "" {
 		lines = append(lines, FormattedLine{
-			Content: paddedLine,
-			Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite),
-			Indent:  1,
+			Content: language + ":",
+			Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true),
+			Indent:  0,
 		})
 	}
 
-	// Bottom border - solid thin line
-	bottomBorder := "└" + strings.Repeat("─", borderWidth) + "┘"
+	// Format code lines with simple indentation
+	codeLines := strings.Split(content, "\n")
+	for _, codeLine := range codeLines {
+		lines = append(lines, FormattedLine{
+			Content: codeLine,
+			Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true),
+			Indent:  4,
+		})
+	}
+
+	// Add spacing after code block
 	lines = append(lines, FormattedLine{
-		Content: bottomBorder,
-		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true),
-		Indent:  1,
+		Content: "",
+		Style:   tcell.StyleDefault,
+		Indent:  0,
 	})
 
 	return lines
@@ -195,27 +180,22 @@ func (sf *SimpleFormatter) formatHeader(content string, level int) []FormattedLi
 	switch level {
 	case 1:
 		headerStyle = tcell.StyleDefault.Foreground(tcell.ColorWhite).Bold(true)
-		prefix = "━━ "
-		// Add underline using characters
+		prefix = "⏺ "
+		// No underline for cleaner look
 		lines = append(lines, FormattedLine{
 			Content: prefix + content,
 			Style:   headerStyle,
-			Indent:  0,
-		})
-		lines = append(lines, FormattedLine{
-			Content: strings.Repeat("━", len(prefix+content)),
-			Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true),
 			Indent:  0,
 		})
 		return lines
 
 	case 2:
 		headerStyle = tcell.StyleDefault.Foreground(tcell.ColorWhite).Bold(true)
-		prefix = "── "
+		prefix = "✻ "
 
 	case 3:
 		headerStyle = tcell.StyleDefault.Foreground(tcell.ColorWhite).Bold(true)
-		prefix = "─ "
+		prefix = "• "
 
 	default:
 		headerStyle = tcell.StyleDefault.Foreground(tcell.ColorWhite).Bold(true)
@@ -234,9 +214,11 @@ func (sf *SimpleFormatter) formatHeader(content string, level int) []FormattedLi
 // formatListItem creates a styled list item
 func (sf *SimpleFormatter) formatListItem(content string, level int) []FormattedLine {
 	indent := (level - 1) * 2
-	bullet := "•"
-	if level > 1 {
-		bullet = "◦" // Hollow bullet for nested items
+	bullet := "☐"
+	if level == 1 {
+		bullet = "⎿  ☐" // Top level with continuation symbol
+	} else {
+		bullet = "☐" // Nested items
 	}
 
 	listText := bullet + " " + content
@@ -247,7 +229,7 @@ func (sf *SimpleFormatter) formatListItem(content string, level int) []Formatted
 		lineIndent := indent
 		if i > 0 {
 			// Continuation lines get extra indent to align with text
-			lineIndent += 2
+			lineIndent += len(bullet) + 1
 		}
 
 		lines = append(lines, FormattedLine{

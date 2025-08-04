@@ -79,10 +79,12 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 		
 		// Handle thinking blocks
 		if strings.Contains(strings.ToLower(line), "<think") || strings.Contains(strings.ToLower(line), "<thinking>") {
-			// Find the complete thinking block
-			thinkingContent := cmf.extractThinkingBlock(lines, i)
+			// Find the complete thinking block and skip all lines that are part of it
+			thinkingContent, endIndex := cmf.extractThinkingBlockWithEndIndex(lines, i)
 			if len(thinkingContent) > 0 {
 				formattedLines = append(formattedLines, cmf.formatThinkingBlock(thinkingContent)...)
+				// Skip all the lines that were part of the thinking block
+				i = endIndex
 			}
 			continue
 		}
@@ -338,9 +340,10 @@ func (cmf *CleanMarkdownFormatter) formatRegularText(line string) FormattedLine 
 	}
 }
 
-// extractThinkingBlock extracts content from thinking tags
-func (cmf *CleanMarkdownFormatter) extractThinkingBlock(lines []string, startIndex int) string {
+// extractThinkingBlockWithEndIndex extracts content from thinking tags and returns the end index
+func (cmf *CleanMarkdownFormatter) extractThinkingBlockWithEndIndex(lines []string, startIndex int) (string, int) {
 	var content strings.Builder
+	endIndex := startIndex
 	
 	// Look for the complete thinking block
 	for i := startIndex; i < len(lines); i++ {
@@ -351,16 +354,24 @@ func (cmf *CleanMarkdownFormatter) extractThinkingBlock(lines []string, startInd
 		}
 		
 		if strings.Contains(strings.ToLower(line), "</think>") || strings.Contains(strings.ToLower(line), "</thinking>") {
+			endIndex = i
 			break
 		}
+		endIndex = i
 	}
 	
 	// Extract content between tags
 	fullContent := content.String()
 	thinkRegex := regexp.MustCompile(`(?is)<think(?:ing)?>\s*(.*?)\s*</think(?:ing)?>`)
 	if matches := thinkRegex.FindStringSubmatch(fullContent); len(matches) > 1 {
-		return strings.TrimSpace(matches[1])
+		return strings.TrimSpace(matches[1]), endIndex
 	}
 	
-	return ""
+	return "", endIndex
+}
+
+// extractThinkingBlock extracts content from thinking tags (legacy function for compatibility)
+func (cmf *CleanMarkdownFormatter) extractThinkingBlock(lines []string, startIndex int) string {
+	content, _ := cmf.extractThinkingBlockWithEndIndex(lines, startIndex)
+	return content
 }
