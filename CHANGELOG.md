@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Self Configuration Support**: Added support for self.yaml configuration file
+  - Separate viper instance for self.yaml configuration
+  - `SelfConfig` and `SelfTrait` structs for AI persona configuration
+  - `GetSelf()` function to access self configuration
+  - `self_config_path` setting with default `./.ryan/self.yaml`
+  - Example self.yaml configurations in examples directory
+
+### Added
 - **Enhanced Status Row**: Improved status information display with format `<SPINNER> <FEEDBACK_TEXT> (<DURATION> | <NUM_TOKENS> | <bold>esc</bold> to interject)`
   - Real-time duration tracking during operations
   - Integrated token count display in status row
@@ -25,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Status Row Layout**: Improved status row positioning and content layout
 
 ### Changed
+- **BREAKING: LangChain-Only Mode**: LangChain is now the only mode of operation
+  - Removed ability to disable LangChain
+  - Removed all conditional logic for alternate modes
+  - Simplified configuration and codebase
+- **BREAKING: Configuration Key Changes**:
+  - Changed `logging.file` to `logging.log_file` in configuration
+  - Fixed LangChain tools configuration keys:
+    - `autonomous_execution` → `autonomous_reasoning`
+    - `use_agent_framework` → `use_react_pattern`
 - **Code Quality**: Cleaned up debug logging statements across the codebase
   - Removed extensive debug logging blocks from `pkg/langchain/client.go`
   - Cleaned up debug statements in TUI rendering components
@@ -71,6 +88,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Model list now displays tool compatibility icons
   - Updated help text to explain tool capability indicators
   - Enhanced model selection feedback with compatibility warnings
+
+### Removed
+- **Configuration Options**:
+  - Removed `UseLangchain` field from `SearchConfig`
+  - Removed `ollama.use_langchain` configuration option
+  - Removed unused `langchain.enabled` configuration
+  - Removed unused `langchain.streaming.use_langchain` configuration
+  - Removed unused `langchain.streaming.provider_optimization` configuration
+  - Removed unused `langchain.prompts.use_templates` configuration
+  - Removed all references to conditional LangChain usage
 
 ### Security
 - **Tool Safety Features**:

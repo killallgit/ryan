@@ -48,7 +48,8 @@ type Config struct {
 	Ollama       OllamaConfig      `mapstructure:"ollama"`
 	Tools        ToolsConfig       `mapstructure:"tools"`
 	LangChain    LangChainConfig   `mapstructure:"langchain"`
-	VectorStore  VectorStoreConfig `mapstructure:"vectorstore"`
+	VectorStore    VectorStoreConfig `mapstructure:"vectorstore"`
+	SelfConfigPath string            `mapstructure:"self_config_path"`
 }
 
 // ContextConfig holds context persistence configuration
@@ -103,10 +104,9 @@ type FileReadConfig struct {
 
 // SearchConfig holds search tool configuration
 type SearchConfig struct {
-	Enabled      bool          `mapstructure:"enabled"`
-	Timeout      time.Duration `mapstructure:"timeout"`
-	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
-	UseLangchain bool          `mapstructure:"use_langchain"`
+	Enabled    bool          `mapstructure:"enabled"`
+	Timeout    time.Duration `mapstructure:"timeout"`
+	TimeoutStr string        `mapstructure:"timeout"` // For parsing string duration
 }
 
 // VectorStoreConfig holds vector store configuration
@@ -131,7 +131,7 @@ type VectorStoreEmbedderConfig struct {
 // VectorStoreCollectionConfig holds collection configuration
 type VectorStoreCollectionConfig struct {
 	Name     string                 `mapstructure:"name"`
-	Metadata map[string]interface{} `mapstructure:"metadata"`
+	Metadata map[string]any `mapstructure:"metadata"`
 }
 
 // VectorStoreIndexerConfig holds document indexer configuration
@@ -141,9 +141,22 @@ type VectorStoreIndexerConfig struct {
 	AutoIndex    bool `mapstructure:"auto_index"`
 }
 
+// SelfConfig represents the self.yaml configuration
+type SelfConfig struct {
+	Role   string      `mapstructure:"role"`
+	Traits []SelfTrait `mapstructure:"traits"`
+}
+
+// SelfTrait represents a trait in the self.yaml configuration
+type SelfTrait struct {
+	Name         string `mapstructure:"name"`
+	SystemPrompt string `mapstructure:"system_prompt"`
+}
+
 var (
 	// Global config instance
-	cfg *Config
+	cfg     *Config
+	selfCfg *SelfConfig
 )
 
 // Get returns the global config instance
@@ -152,6 +165,11 @@ func Get() *Config {
 		panic("config not initialized")
 	}
 	return cfg
+}
+
+// GetSelf returns the global self config instance
+func GetSelf() *SelfConfig {
+	return selfCfg // Allow nil return if self config is optional
 }
 
 // Load loads configuration from file and environment
@@ -203,7 +221,38 @@ func Load(cfgFile string) (*Config, error) {
 		return nil, fmt.Errorf("failed to process durations: %w", err)
 	}
 
+	// Load self config if path is specified
+	if cfg.SelfConfigPath != "" {
+		if err := loadSelfConfig(cfg.SelfConfigPath); err != nil {
+			// Don't fail if self config can't be loaded - it's optional
+			// Log the error but continue
+		}
+	}
+
 	return cfg, nil
+}
+
+// loadSelfConfig loads the self.yaml configuration using a separate viper instance
+func loadSelfConfig(selfConfigPath string) error {
+	// Create a separate viper instance for self config
+	selfViper := viper.New()
+	selfViper.SetConfigFile(selfConfigPath)
+	selfViper.SetConfigType("yaml")
+
+	// Try to read the self config file
+	if err := selfViper.ReadInConfig(); err != nil {
+		return fmt.Errorf("failed to read self config file %s: %w", selfConfigPath, err)
+	}
+
+	// Create self config instance
+	selfCfg = &SelfConfig{}
+
+	// Unmarshal into struct
+	if err := selfViper.Unmarshal(selfCfg); err != nil {
+		return fmt.Errorf("failed to unmarshal self config: %w", err)
+	}
+
+	return nil
 }
 
 // setDefaults sets all default configuration values
@@ -214,7 +263,6 @@ func setDefaults() {
 	viper.SetDefault("ollama.system_prompt", "")
 	viper.SetDefault("ollama.timeout", "90s")
 	viper.SetDefault("ollama.poll_interval", 10)
-	viper.SetDefault("ollama.use_langchain", false)
 
 	// General defaults
 	viper.SetDefault("show_thinking", true)
@@ -262,6 +310,9 @@ func setDefaults() {
 	viper.SetDefault("vectorstore.indexer.chunk_size", 1000)
 	viper.SetDefault("vectorstore.indexer.chunk_overlap", 200)
 	viper.SetDefault("vectorstore.indexer.auto_index", false)
+
+	// Self config path default
+	viper.SetDefault("self_config_path", "./.ryan/self.yaml")
 }
 
 // processDurations converts string durations to time.Duration
@@ -387,6 +438,9 @@ func InitializeDefaults() error {
 	v.SetDefault("vectorstore.indexer.chunk_size", 1000)
 	v.SetDefault("vectorstore.indexer.chunk_overlap", 200)
 	v.SetDefault("vectorstore.indexer.auto_index", false)
+
+	// Self config path default
+	v.SetDefault("self_config_path", "./.ryan/self.yaml")
 
 	// Write the default configuration to .ryan/settings.yaml
 	if err := v.SafeWriteConfigAs(".ryan/settings.yaml"); err != nil {
