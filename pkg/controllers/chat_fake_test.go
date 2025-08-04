@@ -168,8 +168,8 @@ var _ = Describe("ChatController with Fake LLM", func() {
 
 			// The conversation should now include tool result
 			messages := controller.GetHistory()
-			// Should have: user message, assistant with tool call, tool result, final assistant response
-			Expect(messages).To(HaveLen(4))
+			// Should have: user message, assistant with tool call, tool progress, tool result, final assistant response
+			Expect(messages).To(HaveLen(5))
 
 			// Check the assistant message with tool call
 			assistantMsg := messages[1]
@@ -177,14 +177,20 @@ var _ = Describe("ChatController with Fake LLM", func() {
 			Expect(assistantMsg.ToolCalls).To(HaveLen(1))
 			Expect(assistantMsg.ToolCalls[0].Function.Name).To(Equal("calculate"))
 
+			// Check the tool progress message
+			progressMsg := messages[2]
+			Expect(progressMsg.Role).To(Equal(chat.RoleToolProgress))
+			Expect(progressMsg.Content).To(Equal("calculate(2+2)"))
+			Expect(progressMsg.ToolName).To(Equal("calculate"))
+
 			// Check tool result message
-			toolMsg := messages[2]
+			toolMsg := messages[3]
 			Expect(toolMsg.Role).To(Equal(chat.RoleTool))
 			Expect(toolMsg.Content).To(Equal("4"))
 			Expect(toolMsg.ToolName).To(Equal("calculate"))
 
 			// Check final assistant response
-			finalMsg := messages[3]
+			finalMsg := messages[4]
 			Expect(finalMsg.Role).To(Equal(chat.RoleAssistant))
 			Expect(finalMsg.Content).To(Equal("The result of 2+2 is 4"))
 		})

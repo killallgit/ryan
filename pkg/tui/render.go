@@ -27,6 +27,29 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 		if msg.Role == chat.RoleAssistant {
 			// Handle assistant message content
 			if msg.Content != "" {
+				// Check if we should use markdown formatting first
+				if ShouldUseMarkdownFormatting(msg.Content) {
+					// Use clean markdown formatting for rich content
+					formatter := NewCleanMarkdownFormatter(chatWidth)
+					formattedLines := formatter.FormatMarkdown(msg.Content)
+					
+					for _, formattedLine := range formattedLines {
+						// Apply indentation
+						content := formattedLine.Content
+						if formattedLine.Indent > 0 {
+							content = strings.Repeat(" ", formattedLine.Indent) + content
+						}
+
+						allLines = append(allLines, MessageLine{
+							Text:       content,
+							Role:       msg.Role,
+							IsThinking: false,
+							Style:      &formattedLine.Style,
+						})
+					}
+					continue
+				}
+				
 				// Check if we should use simple formatting for line calculation
 				contentTypes := DetectContentTypes(msg.Content)
 				if ShouldUseSimpleFormatting(contentTypes) {
@@ -120,6 +143,29 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 		if msg.Role == chat.RoleAssistant {
 			// Handle assistant message content
 			if msg.Content != "" {
+				// Check if we should use markdown formatting first
+				if ShouldUseMarkdownFormatting(msg.Content) {
+					// Use clean markdown formatting for rich content
+					formatter := NewCleanMarkdownFormatter(chatArea.Width)
+					formattedLines := formatter.FormatMarkdown(msg.Content)
+					
+					for _, formattedLine := range formattedLines {
+						// Apply indentation
+						content := formattedLine.Content
+						if formattedLine.Indent > 0 {
+							content = strings.Repeat(" ", formattedLine.Indent) + content
+						}
+
+						allLines = append(allLines, MessageLine{
+							Text:       content,
+							Role:       msg.Role,
+							IsThinking: false,
+							Style:      &formattedLine.Style,
+						})
+					}
+					continue
+				}
+				
 				// Check if we should use simple formatting
 				contentTypes := DetectContentTypes(msg.Content)
 				if ShouldUseSimpleFormatting(contentTypes) {
