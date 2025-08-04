@@ -64,6 +64,7 @@ const (
 	NodeTypeThinking
 	NodeTypeToolCall
 	NodeTypeToolResult
+	NodeTypeToolProgress
 	NodeTypeSystem
 	NodeTypeError
 )
@@ -97,6 +98,7 @@ func NewNodeRegistry() *NodeRegistry {
 	registry.RegisterFactory(NodeTypeThinking, &ThinkingNodeFactory{})
 	registry.RegisterFactory(NodeTypeToolCall, &ToolCallNodeFactory{})
 	registry.RegisterFactory(NodeTypeToolResult, &ToolResultNodeFactory{})
+	registry.RegisterFactory(NodeTypeToolProgress, &ToolProgressNodeFactory{})
 	registry.RegisterFactory(NodeTypeSystem, &SystemNodeFactory{})
 	registry.RegisterFactory(NodeTypeError, &ErrorNodeFactory{})
 
