@@ -27,8 +27,15 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, 10, cfg.Ollama.PollInterval)
 	assert.True(t, cfg.ShowThinking)
 	assert.True(t, cfg.Streaming)
-	assert.Equal(t, "./.ryan/debug.log", cfg.Logging.File)
+	assert.Equal(t, "./.ryan/logs/debug.log", cfg.Logging.File)
 	assert.False(t, cfg.Logging.Preserve)
+	
+	// Context configuration
+	assert.Equal(t, "./.ryan/contexts", cfg.Context.Directory)
+	assert.Equal(t, "./.ryan/logs/debug.history", cfg.Context.HistoryFile)
+	assert.Equal(t, "10MB", cfg.Context.MaxFileSize)
+	assert.True(t, cfg.Context.PersistLangChain)
+	
 	assert.True(t, cfg.Tools.Enabled)
 	assert.True(t, cfg.Tools.Bash.Enabled)
 	assert.Equal(t, 90*time.Second, cfg.Tools.Bash.Timeout)
