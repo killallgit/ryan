@@ -5,7 +5,7 @@ import (
 )
 
 // ConvertToProvider converts a tool definition to a provider-specific format
-func ConvertToProvider(tool Tool, provider string) (map[string]interface{}, error) {
+func ConvertToProvider(tool Tool, provider string) (map[string]any, error) {
 	switch provider {
 	case "openai", "ollama":
 		return convertToOpenAI(tool), nil
@@ -20,10 +20,10 @@ func ConvertToProvider(tool Tool, provider string) (map[string]interface{}, erro
 
 // convertToOpenAI converts a tool to OpenAI/Ollama format
 // Format: {"type": "function", "function": {"name": ..., "description": ..., "parameters": ...}}
-func convertToOpenAI(tool Tool) map[string]interface{} {
-	return map[string]interface{}{
+func convertToOpenAI(tool Tool) map[string]any {
+	return map[string]any{
 		"type": "function",
-		"function": map[string]interface{}{
+		"function": map[string]any{
 			"name":        tool.Name(),
 			"description": tool.Description(),
 			"parameters":  tool.JSONSchema(),
@@ -33,8 +33,8 @@ func convertToOpenAI(tool Tool) map[string]interface{} {
 
 // convertToAnthropic converts a tool to Anthropic format
 // Format: {"name": ..., "description": ..., "input_schema": ...}
-func convertToAnthropic(tool Tool) map[string]interface{} {
-	return map[string]interface{}{
+func convertToAnthropic(tool Tool) map[string]any {
+	return map[string]any{
 		"name":         tool.Name(),
 		"description":  tool.Description(),
 		"input_schema": tool.JSONSchema(),
@@ -43,8 +43,8 @@ func convertToAnthropic(tool Tool) map[string]interface{} {
 
 // convertToMCP converts a tool to MCP format
 // Format: Similar to Anthropic but with additional MCP-specific metadata
-func convertToMCP(tool Tool) map[string]interface{} {
-	return map[string]interface{}{
+func convertToMCP(tool Tool) map[string]any {
+	return map[string]any{
 		"name":        tool.Name(),
 		"description": tool.Description(),
 		"inputSchema": tool.JSONSchema(), // MCP uses camelCase
@@ -53,7 +53,7 @@ func convertToMCP(tool Tool) map[string]interface{} {
 }
 
 // ConvertToolResult converts a ToolResult to provider-specific format
-func ConvertToolResult(result ToolResult, provider string) (map[string]interface{}, error) {
+func ConvertToolResult(result ToolResult, provider string) (map[string]any, error) {
 	switch provider {
 	case "openai", "ollama":
 		return convertResultToOpenAI(result), nil
@@ -67,15 +67,15 @@ func ConvertToolResult(result ToolResult, provider string) (map[string]interface
 }
 
 // convertResultToOpenAI converts ToolResult to OpenAI format
-func convertResultToOpenAI(result ToolResult) map[string]interface{} {
+func convertResultToOpenAI(result ToolResult) map[string]any {
 	if result.Success {
-		return map[string]interface{}{
+		return map[string]any{
 			"content": result.Content,
 			"role":    "tool",
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"content": result.Error,
 		"role":    "tool",
 		"error":   true,
@@ -83,8 +83,8 @@ func convertResultToOpenAI(result ToolResult) map[string]interface{} {
 }
 
 // convertResultToAnthropic converts ToolResult to Anthropic format
-func convertResultToAnthropic(result ToolResult) map[string]interface{} {
-	anthropicResult := map[string]interface{}{
+func convertResultToAnthropic(result ToolResult) map[string]any {
+	anthropicResult := map[string]any{
 		"type":    "tool_result",
 		"content": result.Content,
 	}
@@ -98,9 +98,9 @@ func convertResultToAnthropic(result ToolResult) map[string]interface{} {
 }
 
 // convertResultToMCP converts ToolResult to MCP format
-func convertResultToMCP(result ToolResult) map[string]interface{} {
-	mcpResult := map[string]interface{}{
-		"content": []map[string]interface{}{
+func convertResultToMCP(result ToolResult) map[string]any {
+	mcpResult := map[string]any{
+		"content": []map[string]any{
 			{
 				"type": "text",
 				"text": result.Content,
@@ -110,7 +110,7 @@ func convertResultToMCP(result ToolResult) map[string]interface{} {
 
 	if !result.Success {
 		mcpResult["isError"] = true
-		mcpResult["content"] = []map[string]interface{}{
+		mcpResult["content"] = []map[string]any{
 			{
 				"type": "text",
 				"text": result.Error,
@@ -122,8 +122,8 @@ func convertResultToMCP(result ToolResult) map[string]interface{} {
 }
 
 // BatchConvertToProvider converts multiple tools to provider-specific format
-func BatchConvertToProvider(tools []Tool, provider string) ([]map[string]interface{}, error) {
-	definitions := make([]map[string]interface{}, 0, len(tools))
+func BatchConvertToProvider(tools []Tool, provider string) ([]map[string]any, error) {
+	definitions := make([]map[string]any, 0, len(tools))
 
 	for _, tool := range tools {
 		definition, err := ConvertToProvider(tool, provider)

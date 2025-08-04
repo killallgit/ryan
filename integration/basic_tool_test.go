@@ -25,7 +25,7 @@ var _ = Describe("Basic Tool Calling", func() {
 		// Initialize config
 		err := config.InitializeDefaults()
 		Expect(err).ToNot(HaveOccurred())
-		
+
 		_, err = config.Load("")
 		Expect(err).ToNot(HaveOccurred())
 
@@ -47,7 +47,7 @@ var _ = Describe("Basic Tool Calling", func() {
 		// Set up progress callback to track tool execution
 		client := controller.GetClient()
 		Expect(client).ToNot(BeNil())
-		
+
 		client.SetProgressCallback(func(toolName, command string) {
 			toolExecuted = true
 			executedTool = toolName
@@ -62,7 +62,7 @@ var _ = Describe("Basic Tool Calling", func() {
 
 		// Send the query
 		response, err := controller.SendUserMessageWithContext(ctx, "list the files in this dir")
-		
+
 		// Log the response for debugging
 		GinkgoWriter.Printf("Response: %s\n", response.Content)
 		GinkgoWriter.Printf("Tool executed: %v\n", toolExecuted)
@@ -72,13 +72,13 @@ var _ = Describe("Basic Tool Calling", func() {
 
 		// The test should not error
 		Expect(err).ToNot(HaveOccurred())
-		
+
 		// Tool should have been executed
 		Expect(toolExecuted).To(BeTrue(), "Expected tool to be executed")
-		
+
 		// Should have used execute_bash tool
 		Expect(executedTool).To(Equal("execute_bash"))
-		
+
 		// Command should contain ls
 		Expect(strings.ToLower(executedCmd)).To(ContainSubstring("ls"))
 	})
@@ -89,7 +89,7 @@ var _ = Describe("Basic Tool Calling", func() {
 
 		// Send the query
 		response, err := controller.SendUserMessageWithContext(ctx, "how many files are in this directory")
-		
+
 		// Log the response for debugging
 		GinkgoWriter.Printf("Response: %s\n", response.Content)
 		GinkgoWriter.Printf("Tool executed: %v\n", toolExecuted)
@@ -99,20 +99,20 @@ var _ = Describe("Basic Tool Calling", func() {
 
 		// The test should not error
 		Expect(err).ToNot(HaveOccurred())
-		
+
 		// Tool should have been executed
 		Expect(toolExecuted).To(BeTrue(), "Expected tool to be executed")
-		
+
 		// Should have used execute_bash tool
 		Expect(executedTool).To(Equal("execute_bash"))
-		
+
 		// Command should be for counting files
 		Expect(executedCmd).To(Or(
 			ContainSubstring("ls"),
 			ContainSubstring("find"),
 			ContainSubstring("wc"),
 		))
-		
+
 		// Response should contain a number
 		Expect(response.Content).To(MatchRegexp(`\d+`))
 	})

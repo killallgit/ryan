@@ -18,7 +18,7 @@ var _ = BeforeSuite(func() {
 	// Initialize config once for all tests
 	err := config.InitializeDefaults()
 	Expect(err).ToNot(HaveOccurred())
-	
+
 	_, err = config.Load("")
 	Expect(err).ToNot(HaveOccurred())
 })
@@ -59,7 +59,7 @@ var _ = Describe("Tool Calling Integration", func() {
 				defer cancel()
 
 				response, err := controller.SendUserMessageWithContext(ctx, query)
-				
+
 				// Check for success or expected tool execution
 				if err != nil {
 					// Some models might fail, that's ok for this test
@@ -87,7 +87,7 @@ var _ = Describe("Tool Calling Integration", func() {
 
 		It("should handle tool execution with qwen3 model specifically", func() {
 			model := "qwen3:latest"
-			
+
 			// Create controller
 			controller, err := controllers.NewLangChainController(ollamaURL, model, toolRegistry)
 			Expect(err).ToNot(HaveOccurred())
@@ -107,7 +107,7 @@ var _ = Describe("Tool Calling Integration", func() {
 			}
 
 			response, err := controller.SendUserMessageWithContext(ctx, "how many files are in this directory")
-			
+
 			if err != nil {
 				GinkgoWriter.Printf("Error occurred: %v\n", err)
 				// Log the response even if there's an error
@@ -120,7 +120,7 @@ var _ = Describe("Tool Calling Integration", func() {
 			// 1. Tool was executed (ideal case)
 			// 2. Response contains a number (indicating file count)
 			// 3. Response mentions executing a command
-			Expect(toolExecuted || 
+			Expect(toolExecuted ||
 				strings.ContainsAny(response.Content, "0123456789") ||
 				strings.Contains(strings.ToLower(response.Content), "command") ||
 				strings.Contains(strings.ToLower(response.Content), "execute")).To(BeTrue(),
@@ -139,7 +139,7 @@ var _ = Describe("Tool Calling Integration", func() {
 			defer cancel()
 
 			response, err := controller.SendUserMessageWithContext(ctx, "how many files are in this directory")
-			
+
 			// Should not error, but might not execute tools
 			if err == nil {
 				// Response should acknowledge the limitation or provide alternative

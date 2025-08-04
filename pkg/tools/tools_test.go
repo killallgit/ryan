@@ -75,7 +75,7 @@ func TestRegistry(t *testing.T) {
 
 		req := ToolRequest{
 			Name:       "test_tool",
-			Parameters: map[string]interface{}{"param": "value"},
+			Parameters: map[string]any{"param": "value"},
 			Context:    context.Background(),
 		}
 
@@ -89,7 +89,7 @@ func TestRegistry(t *testing.T) {
 		registry := NewRegistry()
 		req := ToolRequest{
 			Name:       "nonexistent",
-			Parameters: map[string]interface{}{},
+			Parameters: map[string]any{},
 			Context:    context.Background(),
 		}
 
@@ -127,7 +127,7 @@ func TestBashTool(t *testing.T) {
 		schema := tool.JSONSchema()
 		assert.Equal(t, "object", schema["type"])
 
-		properties, ok := schema["properties"].(map[string]interface{})
+		properties, ok := schema["properties"].(map[string]any)
 		assert.True(t, ok)
 		assert.Contains(t, properties, "command")
 
@@ -137,7 +137,7 @@ func TestBashTool(t *testing.T) {
 	})
 
 	t.Run("ExecuteSimpleCommand", func(t *testing.T) {
-		params := map[string]interface{}{
+		params := map[string]any{
 			"command": "echo 'hello world'",
 		}
 
@@ -149,7 +149,7 @@ func TestBashTool(t *testing.T) {
 	})
 
 	t.Run("ExecuteForbiddenCommand", func(t *testing.T) {
-		params := map[string]interface{}{
+		params := map[string]any{
 			"command": "sudo rm -rf /",
 		}
 
@@ -160,7 +160,7 @@ func TestBashTool(t *testing.T) {
 	})
 
 	t.Run("ExecuteEmptyCommand", func(t *testing.T) {
-		params := map[string]interface{}{
+		params := map[string]any{
 			"command": "",
 		}
 
@@ -171,7 +171,7 @@ func TestBashTool(t *testing.T) {
 	})
 
 	t.Run("ExecuteMissingCommand", func(t *testing.T) {
-		params := map[string]interface{}{}
+		params := map[string]any{}
 
 		result, err := tool.Execute(context.Background(), params)
 		assert.NoError(t, err)
@@ -183,7 +183,7 @@ func TestBashTool(t *testing.T) {
 		// Set a very short timeout for testing
 		tool.Timeout = 100 * time.Millisecond
 
-		params := map[string]interface{}{
+		params := map[string]any{
 			"command": "sleep 1", // Sleep longer than timeout
 		}
 
@@ -212,7 +212,7 @@ func TestFileReadTool(t *testing.T) {
 		schema := tool.JSONSchema()
 		assert.Equal(t, "object", schema["type"])
 
-		properties, ok := schema["properties"].(map[string]interface{})
+		properties, ok := schema["properties"].(map[string]any)
 		assert.True(t, ok)
 		assert.Contains(t, properties, "path")
 
@@ -233,7 +233,7 @@ func TestFileReadTool(t *testing.T) {
 		// Update tool's allowed paths to include temp directory
 		tool.AllowedPaths = append(tool.AllowedPaths, tmpDir)
 
-		params := map[string]interface{}{
+		params := map[string]any{
 			"path": tmpFile,
 		}
 
@@ -245,7 +245,7 @@ func TestFileReadTool(t *testing.T) {
 	})
 
 	t.Run("ReadNonExistentFile", func(t *testing.T) {
-		params := map[string]interface{}{
+		params := map[string]any{
 			"path": "/nonexistent/file.txt",
 		}
 
@@ -267,7 +267,7 @@ func TestFileReadTool(t *testing.T) {
 		// Update tool's allowed paths
 		tool.AllowedPaths = append(tool.AllowedPaths, tmpDir)
 
-		params := map[string]interface{}{
+		params := map[string]any{
 			"path":       tmpFile,
 			"start_line": float64(2),
 			"end_line":   float64(4),
@@ -280,7 +280,7 @@ func TestFileReadTool(t *testing.T) {
 	})
 
 	t.Run("ReadEmptyPath", func(t *testing.T) {
-		params := map[string]interface{}{
+		params := map[string]any{
 			"path": "",
 		}
 
@@ -291,7 +291,7 @@ func TestFileReadTool(t *testing.T) {
 	})
 
 	t.Run("ReadMissingPath", func(t *testing.T) {
-		params := map[string]interface{}{}
+		params := map[string]any{}
 
 		result, err := tool.Execute(context.Background(), params)
 		assert.NoError(t, err)
@@ -304,10 +304,10 @@ func TestProviderAdapters(t *testing.T) {
 	mockTool := &MockTool{
 		name:        "test_tool",
 		description: "A test tool",
-		schema: map[string]interface{}{
+		schema: map[string]any{
 			"type": "object",
-			"properties": map[string]interface{}{
-				"param": map[string]interface{}{
+			"properties": map[string]any{
+				"param": map[string]any{
 					"type":        "string",
 					"description": "A parameter",
 				},
@@ -322,7 +322,7 @@ func TestProviderAdapters(t *testing.T) {
 
 		assert.Equal(t, "function", definition["type"])
 
-		function, ok := definition["function"].(map[string]interface{})
+		function, ok := definition["function"].(map[string]any)
 		assert.True(t, ok)
 		assert.Equal(t, "test_tool", function["name"])
 		assert.Equal(t, "A test tool", function["description"])
@@ -413,7 +413,7 @@ func TestToolResult(t *testing.T) {
 type MockTool struct {
 	name        string
 	description string
-	schema      map[string]interface{}
+	schema      map[string]any
 	result      ToolResult
 	executeErr  error
 }
@@ -429,14 +429,14 @@ func (m *MockTool) Description() string {
 	return m.description
 }
 
-func (m *MockTool) JSONSchema() map[string]interface{} {
+func (m *MockTool) JSONSchema() map[string]any {
 	if m.schema == nil {
 		return NewJSONSchema()
 	}
 	return m.schema
 }
 
-func (m *MockTool) Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error) {
+func (m *MockTool) Execute(ctx context.Context, params map[string]any) (ToolResult, error) {
 	if m.executeErr != nil {
 		return ToolResult{}, m.executeErr
 	}

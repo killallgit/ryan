@@ -120,7 +120,7 @@ func (vm *LangChainVectorMemory) indexMessage(ctx context.Context, msg Message, 
 	content := vm.formatMessageForIndexing(msg)
 
 	// Create metadata
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"role":      string(msg.Role),
 		"position":  position,
 		"timestamp": time.Now().Unix(),
@@ -167,7 +167,7 @@ func (vm *LangChainVectorMemory) indexConversation(ctx context.Context) error {
 		docID := fmt.Sprintf("msg_init_%d", i)
 		content := vm.formatMessageForIndexing(msg)
 
-		metadata := map[string]interface{}{
+		metadata := map[string]any{
 			"role":      string(msg.Role),
 			"position":  i,
 			"timestamp": time.Now().Unix(),

@@ -33,7 +33,7 @@ func ResetGlobalManager() {
 }
 
 // GetOrCreateCollectionGlobal gets or creates a collection using the global manager
-func GetOrCreateCollectionGlobal(name string, metadata map[string]interface{}) (Collection, error) {
+func GetOrCreateCollectionGlobal(name string, metadata map[string]any) (Collection, error) {
 	manager, err := GetGlobalManager()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get global manager: %w", err)

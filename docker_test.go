@@ -25,7 +25,7 @@ func TestDockerIntegration(t *testing.T) {
 
 	// Test Docker version command
 	ctx := context.Background()
-	params := map[string]interface{}{
+	params := map[string]any{
 		"command": "docker --version",
 	}
 
@@ -45,7 +45,7 @@ func TestDockerIntegration(t *testing.T) {
 	fmt.Printf("✓ Docker version: %s\n", strings.TrimSpace(result.Content))
 
 	// Test Docker images count command
-	params = map[string]interface{}{
+	params = map[string]any{
 		"command": "docker images --quiet | wc -l",
 	}
 
@@ -62,7 +62,7 @@ func TestDockerIntegration(t *testing.T) {
 	fmt.Printf("✓ Docker images count: %s\n", imageCount)
 
 	// Test the actual scenario: "How many docker images are on the system?"
-	params = map[string]interface{}{
+	params = map[string]any{
 		"command": "docker images",
 	}
 

@@ -25,7 +25,7 @@ var _ = Describe("Streaming Tool Calling", func() {
 		// Initialize config
 		err := config.InitializeDefaults()
 		Expect(err).ToNot(HaveOccurred())
-		
+
 		_, err = config.Load("")
 		Expect(err).ToNot(HaveOccurred())
 
@@ -47,7 +47,7 @@ var _ = Describe("Streaming Tool Calling", func() {
 		// Set up progress callback to track tool execution
 		client := controller.GetClient()
 		Expect(client).ToNot(BeNil())
-		
+
 		client.SetProgressCallback(func(toolName, command string) {
 			toolExecuted = true
 			executedTool = toolName
@@ -67,7 +67,7 @@ var _ = Describe("Streaming Tool Calling", func() {
 		// Collect all streaming updates
 		var allContent strings.Builder
 		var streamCompleted bool
-		
+
 		for update := range updates {
 			switch update.Type {
 			case controllers.ChunkReceived:
@@ -90,23 +90,23 @@ var _ = Describe("Streaming Tool Calling", func() {
 
 		// The critical test: tool should have been executed during streaming
 		Expect(toolExecuted).To(BeTrue(), "Expected tool to be executed during streaming")
-		
+
 		// Should have used execute_bash tool
 		Expect(executedTool).To(Equal("execute_bash"), "Expected execute_bash tool to be used")
-		
+
 		// Command should contain ls
 		Expect(strings.ToLower(executedCmd)).To(ContainSubstring("ls"), "Expected ls command to be executed")
 
 		// Response should contain actual file listing results
 		finalContent := allContent.String()
 		GinkgoWriter.Printf("Final streaming content: %s\n", finalContent)
-		
+
 		// Should contain file listing results (not just thinking or descriptions)
 		Expect(finalContent).To(Or(
-			ContainSubstring(".go"),    // Go files likely in directory
-			ContainSubstring("total"),  // ls -l output
-			ContainSubstring("drwx"),   // Directory permissions
-			MatchRegexp(`\d+`),         // File sizes or counts
+			ContainSubstring(".go"),   // Go files likely in directory
+			ContainSubstring("total"), // ls -l output
+			ContainSubstring("drwx"),  // Directory permissions
+			MatchRegexp(`\d+`),        // File sizes or counts
 		), "Expected actual file listing results in streamed response")
 	})
 
@@ -121,7 +121,7 @@ var _ = Describe("Streaming Tool Calling", func() {
 		// Collect streaming results
 		var allContent strings.Builder
 		var streamCompleted bool
-		
+
 		for update := range updates {
 			switch update.Type {
 			case controllers.ChunkReceived:
@@ -141,9 +141,9 @@ var _ = Describe("Streaming Tool Calling", func() {
 		Expect(streamCompleted).To(BeTrue())
 		Expect(toolExecuted).To(BeTrue(), "Expected tool to be executed during streaming")
 		Expect(executedTool).To(Equal("execute_bash"))
-		
+
 		finalContent := allContent.String()
-		
+
 		// Should contain a number (file count)
 		Expect(finalContent).To(MatchRegexp(`\d+`), "Expected file count in response")
 	})

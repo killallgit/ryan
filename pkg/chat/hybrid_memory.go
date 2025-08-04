@@ -441,7 +441,7 @@ func (hm *HybridMemory) indexToolOutput(ctx context.Context, toolMsg Message) er
 	content := fmt.Sprintf("Tool: %s\nOutput: %s", toolMsg.ToolName, toolMsg.Content)
 
 	// Rich metadata for tool outputs
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"type":         "tool_output",
 		"tool_name":    toolMsg.ToolName,
 		"content_type": "tool_result",

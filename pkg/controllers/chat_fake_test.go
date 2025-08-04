@@ -23,11 +23,11 @@ func (t *testCalculatorTool) Description() string {
 	return "Perform mathematical calculations"
 }
 
-func (t *testCalculatorTool) JSONSchema() map[string]interface{} {
-	return map[string]interface{}{
+func (t *testCalculatorTool) JSONSchema() map[string]any {
+	return map[string]any{
 		"type": "object",
-		"properties": map[string]interface{}{
-			"expression": map[string]interface{}{
+		"properties": map[string]any{
+			"expression": map[string]any{
 				"type":        "string",
 				"description": "The mathematical expression to evaluate",
 			},
@@ -36,7 +36,7 @@ func (t *testCalculatorTool) JSONSchema() map[string]interface{} {
 	}
 }
 
-func (t *testCalculatorTool) Execute(ctx context.Context, params map[string]interface{}) (tools.ToolResult, error) {
+func (t *testCalculatorTool) Execute(ctx context.Context, params map[string]any) (tools.ToolResult, error) {
 	// For testing, always return 4
 	return tools.ToolResult{
 		Success: true,

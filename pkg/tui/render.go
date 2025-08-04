@@ -32,7 +32,7 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 					// Use clean markdown formatting for rich content
 					formatter := NewCleanMarkdownFormatter(chatWidth)
 					formattedLines := formatter.FormatMarkdown(msg.Content)
-					
+
 					for _, formattedLine := range formattedLines {
 						// Apply indentation
 						content := formattedLine.Content
@@ -49,7 +49,7 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 					}
 					continue
 				}
-				
+
 				// Check if we should use simple formatting for line calculation
 				contentTypes := DetectContentTypes(msg.Content)
 				if ShouldUseSimpleFormatting(contentTypes) {
@@ -148,7 +148,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 					// Use clean markdown formatting for rich content
 					formatter := NewCleanMarkdownFormatter(chatArea.Width)
 					formattedLines := formatter.FormatMarkdown(msg.Content)
-					
+
 					for _, formattedLine := range formattedLines {
 						// Apply indentation
 						content := formattedLine.Content
@@ -165,7 +165,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 					}
 					continue
 				}
-				
+
 				// Check if we should use simple formatting
 				contentTypes := DetectContentTypes(msg.Content)
 				if ShouldUseSimpleFormatting(contentTypes) {

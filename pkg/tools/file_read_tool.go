@@ -69,7 +69,7 @@ func (ft *FileReadTool) Description() string {
 }
 
 // JSONSchema returns the JSON schema for the tool parameters
-func (ft *FileReadTool) JSONSchema() map[string]interface{} {
+func (ft *FileReadTool) JSONSchema() map[string]any {
 	schema := NewJSONSchema()
 
 	AddProperty(schema, "path", JSONSchemaProperty{
@@ -94,7 +94,7 @@ func (ft *FileReadTool) JSONSchema() map[string]interface{} {
 }
 
 // Execute reads the file contents
-func (ft *FileReadTool) Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error) {
+func (ft *FileReadTool) Execute(ctx context.Context, params map[string]any) (ToolResult, error) {
 	startTime := time.Now()
 
 	// Extract path parameter

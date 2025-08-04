@@ -43,7 +43,7 @@ func ParseContentSegments(content string) []ContentSegment {
 			// Find the complete thinking block
 			var thinkingContent strings.Builder
 			var foundEnd bool
-			
+
 			// Accumulate all content until we find the closing tag
 			for j := i; j < len(lines); j++ {
 				currentLine := lines[j]
@@ -51,14 +51,14 @@ func ParseContentSegments(content string) []ContentSegment {
 				if j < len(lines)-1 {
 					thinkingContent.WriteString("\n")
 				}
-				
+
 				if strings.Contains(strings.ToLower(currentLine), "</think>") || strings.Contains(strings.ToLower(currentLine), "</thinking>") {
 					foundEnd = true
 					i = j // Update loop counter
 					break
 				}
 			}
-			
+
 			if foundEnd {
 				// Extract the content between tags
 				content := thinkingContent.String()

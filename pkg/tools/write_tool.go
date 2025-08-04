@@ -55,44 +55,44 @@ func (wt *WriteTool) Description() string {
 }
 
 // JSONSchema returns the JSON schema for the tool parameters
-func (wt *WriteTool) JSONSchema() map[string]interface{} {
-	return map[string]interface{}{
+func (wt *WriteTool) JSONSchema() map[string]any {
+	return map[string]any{
 		"type": "object",
-		"properties": map[string]interface{}{
-			"file_path": map[string]interface{}{
+		"properties": map[string]any{
+			"file_path": map[string]any{
 				"type":        "string",
 				"description": "Path to the file to write (absolute or relative)",
 			},
-			"content": map[string]interface{}{
+			"content": map[string]any{
 				"type":        "string",
 				"description": "Content to write to the file",
 			},
-			"create_backup": map[string]interface{}{
+			"create_backup": map[string]any{
 				"type":        "boolean",
 				"description": "Whether to create a backup of existing file before writing",
 				"default":     true,
 			},
-			"append": map[string]interface{}{
+			"append": map[string]any{
 				"type":        "boolean",
 				"description": "Whether to append to existing file instead of overwriting",
 				"default":     false,
 			},
-			"create_dirs": map[string]interface{}{
+			"create_dirs": map[string]any{
 				"type":        "boolean",
 				"description": "Whether to create parent directories if they don't exist",
 				"default":     true,
 			},
-			"force": map[string]interface{}{
+			"force": map[string]any{
 				"type":        "boolean",
 				"description": "Whether to bypass some safety checks (use with caution)",
 				"default":     false,
 			},
-			"encoding": map[string]interface{}{
+			"encoding": map[string]any{
 				"type":        "string",
 				"description": "File encoding (utf-8, ascii, etc.)",
 				"default":     "utf-8",
 			},
-			"line_ending": map[string]interface{}{
+			"line_ending": map[string]any{
 				"type":        "string",
 				"description": "Line ending style (lf, crlf, cr)",
 				"enum":        []string{"lf", "crlf", "cr"},
@@ -104,7 +104,7 @@ func (wt *WriteTool) JSONSchema() map[string]interface{} {
 }
 
 // Execute performs the file write operation
-func (wt *WriteTool) Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error) {
+func (wt *WriteTool) Execute(ctx context.Context, params map[string]any) (ToolResult, error) {
 	startTime := time.Now()
 
 	// Extract and validate parameters
@@ -224,7 +224,7 @@ func (wt *WriteTool) Execute(ctx context.Context, params map[string]interface{})
 		"duration", time.Since(startTime))
 
 	// Prepare result data
-	resultData := map[string]interface{}{
+	resultData := map[string]any{
 		"file_path":      cleanPath,
 		"bytes_written":  bytesWritten,
 		"append_mode":    appendMode,
@@ -397,7 +397,7 @@ func (wt *WriteTool) createErrorResult(startTime time.Time, errorMsg string) Too
 	}
 }
 
-func (wt *WriteTool) getStringParam(params map[string]interface{}, key, defaultValue string) string {
+func (wt *WriteTool) getStringParam(params map[string]any, key, defaultValue string) string {
 	if value, exists := params[key]; exists {
 		if strValue, ok := value.(string); ok {
 			return strValue
@@ -406,7 +406,7 @@ func (wt *WriteTool) getStringParam(params map[string]interface{}, key, defaultV
 	return defaultValue
 }
 
-func (wt *WriteTool) getBoolParam(params map[string]interface{}, key string, defaultValue bool) bool {
+func (wt *WriteTool) getBoolParam(params map[string]any, key string, defaultValue bool) bool {
 	if value, exists := params[key]; exists {
 		if boolValue, ok := value.(bool); ok {
 			return boolValue

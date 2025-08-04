@@ -79,7 +79,7 @@ func (bt *BashTool) Description() string {
 }
 
 // JSONSchema returns the JSON schema for the tool parameters
-func (bt *BashTool) JSONSchema() map[string]interface{} {
+func (bt *BashTool) JSONSchema() map[string]any {
 	schema := NewJSONSchema()
 
 	AddProperty(schema, "command", JSONSchemaProperty{
@@ -98,7 +98,7 @@ func (bt *BashTool) JSONSchema() map[string]interface{} {
 }
 
 // Execute runs the bash command
-func (bt *BashTool) Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error) {
+func (bt *BashTool) Execute(ctx context.Context, params map[string]any) (ToolResult, error) {
 	startTime := time.Now()
 
 	// Extract command parameter

@@ -194,7 +194,7 @@ func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat
 }
 
 // formatToolCommand formats tool arguments for display in progress messages
-func (cc *ChatController) formatToolCommand(toolName string, arguments map[string]interface{}) string {
+func (cc *ChatController) formatToolCommand(toolName string, arguments map[string]any) string {
 	switch toolName {
 	case "bash":
 		if cmd, ok := arguments["command"].(string); ok {
@@ -238,23 +238,23 @@ func (cc *ChatController) formatToolCommand(toolName string, arguments map[strin
 			}
 		}
 	}
-	
+
 	// Fallback: show raw arguments as JSON-like string
 	if len(arguments) == 0 {
 		return ""
 	}
-	
+
 	var parts []string
 	for key, value := range arguments {
 		if str, ok := value.(string); ok && str != "" {
 			parts = append(parts, fmt.Sprintf("%s=%s", key, str))
 		}
 	}
-	
+
 	if len(parts) > 0 {
 		return strings.Join(parts, ", ")
 	}
-	
+
 	return "..."
 }
 

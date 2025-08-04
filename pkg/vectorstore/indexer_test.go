@@ -237,7 +237,7 @@ func TestDocumentIndexer_IndexReader(t *testing.T) {
 	reader := strings.NewReader(content)
 
 	// Index from reader
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"type": "reader_test",
 	}
 	err = indexer.IndexReader(ctx, reader, "test_source", metadata)

@@ -69,8 +69,8 @@ func (c *FakeChatClient) SendMessageWithResponse(req chat.ChatRequest) (chat.Cha
 		// Try to parse as JSON to see if it contains tool calls
 		var toolResponse struct {
 			ToolCalls []struct {
-				Name      string                 `json:"name"`
-				Arguments map[string]interface{} `json:"arguments"`
+				Name      string         `json:"name"`
+				Arguments map[string]any `json:"arguments"`
 			} `json:"tool_calls"`
 		}
 		if err := json.Unmarshal([]byte(response), &toolResponse); err == nil && len(toolResponse.ToolCalls) > 0 {

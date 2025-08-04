@@ -64,14 +64,14 @@ var _ = Describe("GrepTool", func() {
 			Expect(schema).To(HaveKey("properties"))
 			Expect(schema).To(HaveKey("required"))
 
-			properties := schema["properties"].(map[string]interface{})
+			properties := schema["properties"].(map[string]any)
 			Expect(properties).To(HaveKey("pattern"))
 		})
 	})
 
 	Describe("Search Operations", func() {
 		It("should find matches in text files", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"pattern": "Hello",
 				"path":    tempDir,
 			}
@@ -85,7 +85,7 @@ var _ = Describe("GrepTool", func() {
 		})
 
 		It("should handle case insensitive search", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"pattern":        "HELLO",
 				"path":           tempDir,
 				"case_sensitive": false,
@@ -99,7 +99,7 @@ var _ = Describe("GrepTool", func() {
 		})
 
 		It("should return files only when requested", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"pattern":    "Hello",
 				"path":       tempDir,
 				"files_only": true,
@@ -113,7 +113,7 @@ var _ = Describe("GrepTool", func() {
 		})
 
 		It("should handle no matches gracefully", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"pattern": "NonExistentPattern",
 				"path":    tempDir,
 			}
@@ -126,7 +126,7 @@ var _ = Describe("GrepTool", func() {
 		})
 
 		It("should validate required parameters", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"path": tempDir,
 				// Missing pattern
 			}
@@ -139,7 +139,7 @@ var _ = Describe("GrepTool", func() {
 		})
 
 		It("should handle invalid search path", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"pattern": "test",
 				"path":    "/nonexistent/path",
 			}
@@ -154,7 +154,7 @@ var _ = Describe("GrepTool", func() {
 
 	Describe("Parameter Handling", func() {
 		It("should use default values for optional parameters", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"pattern": "Hello",
 				"path":    tempDir,
 			}
@@ -168,10 +168,10 @@ var _ = Describe("GrepTool", func() {
 		})
 
 		It("should respect file type filtering", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"pattern":    "main",
 				"path":       tempDir,
-				"file_types": []interface{}{"go"},
+				"file_types": []any{"go"},
 			}
 
 			result, err := grepTool.Execute(context.Background(), params)
@@ -222,7 +222,7 @@ var _ = Describe("WriteTool", func() {
 			Expect(schema).To(HaveKey("properties"))
 			Expect(schema).To(HaveKey("required"))
 
-			properties := schema["properties"].(map[string]interface{})
+			properties := schema["properties"].(map[string]any)
 			Expect(properties).To(HaveKey("file_path"))
 			Expect(properties).To(HaveKey("content"))
 
@@ -237,7 +237,7 @@ var _ = Describe("WriteTool", func() {
 			testFile := filepath.Join(tempDir, "new_file.txt")
 			testContent := "Hello, World!\nThis is a test file."
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": testFile,
 				"content":   testContent,
 				"force":     true, // Bypass path restrictions for tests
@@ -266,7 +266,7 @@ var _ = Describe("WriteTool", func() {
 			err := os.WriteFile(testFile, []byte(originalContent), 0644)
 			Expect(err).ToNot(HaveOccurred())
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path":     testFile,
 				"content":       newContent,
 				"create_backup": true,
@@ -303,7 +303,7 @@ var _ = Describe("WriteTool", func() {
 			err := os.WriteFile(testFile, []byte(originalContent), 0644)
 			Expect(err).ToNot(HaveOccurred())
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": testFile,
 				"content":   appendContent,
 				"append":    true,
@@ -327,7 +327,7 @@ var _ = Describe("WriteTool", func() {
 			nestedPath := filepath.Join(tempDir, "nested", "deep", "file.txt")
 			testContent := "Nested file content"
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path":   nestedPath,
 				"content":     testContent,
 				"create_dirs": true,
@@ -354,7 +354,7 @@ var _ = Describe("WriteTool", func() {
 			testFile := filepath.Join(tempDir, "line_endings.txt")
 			testContent := "Line 1\r\nLine 2\rLine 3\n"
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": testFile,
 				"content":   testContent,
 				"force":     true,
@@ -374,7 +374,7 @@ var _ = Describe("WriteTool", func() {
 			testFile := filepath.Join(tempDir, "crlf_file.txt")
 			testContent := "Line 1\nLine 2\n"
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path":   testFile,
 				"content":     testContent,
 				"line_ending": "crlf",
@@ -395,7 +395,7 @@ var _ = Describe("WriteTool", func() {
 	Describe("Safety and Validation", func() {
 		It("should validate required parameters", func() {
 			// Missing file_path
-			params := map[string]interface{}{
+			params := map[string]any{
 				"content": "test content",
 			}
 
@@ -408,7 +408,7 @@ var _ = Describe("WriteTool", func() {
 
 		It("should validate content parameter", func() {
 			// Missing content
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": "test.txt",
 			}
 
@@ -420,7 +420,7 @@ var _ = Describe("WriteTool", func() {
 		})
 
 		It("should reject restricted paths", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": "/etc/passwd",
 				"content":   "malicious content",
 			}
@@ -434,7 +434,7 @@ var _ = Describe("WriteTool", func() {
 
 		It("should reject unsupported file extensions", func() {
 			// Use a simple filename without absolute path to avoid temp dir issues
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": "test.exe",
 				"content":   "binary content",
 				// Don't use force mode to test the validation
@@ -448,7 +448,7 @@ var _ = Describe("WriteTool", func() {
 		})
 
 		It("should allow force mode to bypass safety checks", func() {
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": filepath.Join(tempDir, "test.exe"),
 				"content":   "binary content",
 				"force":     true,
@@ -462,7 +462,7 @@ var _ = Describe("WriteTool", func() {
 
 		It("should handle path traversal attempts", func() {
 			// Use a path with .. that tries to access parent directories
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": "../../../etc/passwd",
 				"content":   "malicious content",
 				// Don't use force mode to test the validation
@@ -482,7 +482,7 @@ var _ = Describe("WriteTool", func() {
 		It("should use default values for optional parameters", func() {
 			testFile := filepath.Join(tempDir, "defaults.txt")
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": testFile,
 				"content":   "test content",
 				"force":     true,
@@ -500,7 +500,7 @@ var _ = Describe("WriteTool", func() {
 		It("should respect custom parameter values", func() {
 			testFile := filepath.Join(tempDir, "custom.txt")
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path":     testFile,
 				"content":       "test content",
 				"create_backup": false,
@@ -524,7 +524,7 @@ var _ = Describe("WriteTool", func() {
 			relativePath := "relative_file.txt"
 			testContent := "relative path content"
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": relativePath,
 				"content":   testContent,
 				"force":     true,
@@ -545,7 +545,7 @@ var _ = Describe("WriteTool", func() {
 			absolutePath := filepath.Join(tempDir, "absolute_file.txt")
 			testContent := "absolute path content"
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"file_path": absolutePath,
 				"content":   testContent,
 				"force":     true,

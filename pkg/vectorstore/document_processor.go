@@ -95,7 +95,7 @@ func (dp *DocumentProcessor) processBatchedDocuments(ctx context.Context, docs [
 }
 
 // ChunkDocument splits a document into smaller chunks with metadata
-func (dp *DocumentProcessor) ChunkDocument(doc Document, baseMetadata map[string]interface{}) ([]Document, error) {
+func (dp *DocumentProcessor) ChunkDocument(doc Document, baseMetadata map[string]any) ([]Document, error) {
 	if err := validateDocumentID(doc.ID); err != nil {
 		return nil, fmt.Errorf("document validation failed: %w", err)
 	}
@@ -112,7 +112,7 @@ func (dp *DocumentProcessor) ChunkDocument(doc Document, baseMetadata map[string
 		chunkID := fmt.Sprintf("%s_chunk_%d", doc.ID, i)
 
 		// Merge metadata
-		metadata := make(map[string]interface{})
+		metadata := make(map[string]any)
 
 		// Copy base metadata
 		for k, v := range baseMetadata {

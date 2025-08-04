@@ -247,11 +247,11 @@ func (t *testWeatherTool) Description() string {
 	return "Get weather information for a location"
 }
 
-func (t *testWeatherTool) JSONSchema() map[string]interface{} {
-	return map[string]interface{}{
+func (t *testWeatherTool) JSONSchema() map[string]any {
+	return map[string]any{
 		"type": "object",
-		"properties": map[string]interface{}{
-			"location": map[string]interface{}{
+		"properties": map[string]any{
+			"location": map[string]any{
 				"type":        "string",
 				"description": "The city to get weather for",
 			},
@@ -260,7 +260,7 @@ func (t *testWeatherTool) JSONSchema() map[string]interface{} {
 	}
 }
 
-func (t *testWeatherTool) Execute(ctx context.Context, params map[string]interface{}) (tools.ToolResult, error) {
+func (t *testWeatherTool) Execute(ctx context.Context, params map[string]any) (tools.ToolResult, error) {
 	location, _ := params["location"].(string)
 	return tools.ToolResult{
 		Success: true,

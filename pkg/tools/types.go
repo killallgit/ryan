@@ -15,10 +15,10 @@ type Tool interface {
 
 	// JSONSchema returns the JSON Schema for the tool's parameters
 	// This is used to generate provider-specific tool definitions
-	JSONSchema() map[string]interface{}
+	JSONSchema() map[string]any
 
 	// Execute runs the tool with the given parameters
-	Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error)
+	Execute(ctx context.Context, params map[string]any) (ToolResult, error)
 }
 
 // ToolResult represents the result of a tool execution
@@ -30,7 +30,7 @@ type ToolResult struct {
 	Content string `json:"content"`
 
 	// Data contains structured data from the tool execution (optional)
-	Data map[string]interface{} `json:"data,omitempty"`
+	Data map[string]any `json:"data,omitempty"`
 
 	// Error contains error information if Success is false
 	Error string `json:"error,omitempty"`
@@ -54,7 +54,7 @@ type ToolMetadata struct {
 	ToolName string `json:"tool_name"`
 
 	// Parameters are the parameters that were passed to the tool
-	Parameters map[string]interface{} `json:"parameters"`
+	Parameters map[string]any `json:"parameters"`
 }
 
 // ToolRequest represents a request to execute a tool
@@ -63,7 +63,7 @@ type ToolRequest struct {
 	Name string `json:"name"`
 
 	// Parameters are the parameters to pass to the tool
-	Parameters map[string]interface{} `json:"parameters"`
+	Parameters map[string]any `json:"parameters"`
 
 	// Context for the execution (timeout, cancellation)
 	Context context.Context `json:"-"`
@@ -75,7 +75,7 @@ type ToolDefinition struct {
 	Provider string `json:"provider"`
 
 	// Definition is the provider-specific tool definition
-	Definition map[string]interface{} `json:"definition"`
+	Definition map[string]any `json:"definition"`
 }
 
 // JSONSchemaProperty represents a property in a JSON Schema
@@ -85,28 +85,28 @@ type JSONSchemaProperty struct {
 	Properties  map[string]JSONSchemaProperty `json:"properties,omitempty"`
 	Required    []string                      `json:"required,omitempty"`
 	Items       *JSONSchemaProperty           `json:"items,omitempty"`
-	Enum        []interface{}                 `json:"enum,omitempty"`
-	Default     interface{}                   `json:"default,omitempty"`
+	Enum        []any                         `json:"enum,omitempty"`
+	Default     any                           `json:"default,omitempty"`
 }
 
 // NewJSONSchema creates a basic JSON Schema structure
-func NewJSONSchema() map[string]interface{} {
-	return map[string]interface{}{
+func NewJSONSchema() map[string]any {
+	return map[string]any{
 		"type":       "object",
-		"properties": make(map[string]interface{}),
+		"properties": make(map[string]any),
 		"required":   []string{},
 	}
 }
 
 // AddProperty adds a property to a JSON Schema
-func AddProperty(schema map[string]interface{}, name string, property JSONSchemaProperty) {
-	if properties, ok := schema["properties"].(map[string]interface{}); ok {
+func AddProperty(schema map[string]any, name string, property JSONSchemaProperty) {
+	if properties, ok := schema["properties"].(map[string]any); ok {
 		properties[name] = property
 	}
 }
 
 // AddRequired adds a required field to a JSON Schema
-func AddRequired(schema map[string]interface{}, field string) {
+func AddRequired(schema map[string]any, field string) {
 	if required, ok := schema["required"].([]string); ok {
 		schema["required"] = append(required, field)
 	}

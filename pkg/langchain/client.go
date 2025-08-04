@@ -31,7 +31,7 @@ type Client struct {
 	config           *config.Config
 	log              *logger.Logger
 	progressCallback ToolProgressCallback
-	
+
 	// New fields for enhanced agent support
 	agentSelector    *AgentSelector
 	outputProcessor  *OutputProcessor
@@ -76,7 +76,7 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 		log:          log,
 		model:        model,
 	}
-	
+
 	// Initialize agent selector
 	if toolRegistry != nil {
 		client.agentSelector = NewAgentSelector(toolRegistry, model)
@@ -142,7 +142,7 @@ func (ta *ToolAdapter) Call(ctx context.Context, input string) (string, error) {
 
 	// Parse input - for now, assume it's JSON-like format
 	// In a real implementation, you'd want more sophisticated parsing
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 
 	// Simple parsing for common tool formats
 	var commandForCallback string
@@ -241,7 +241,7 @@ func (c *Client) initializeAgent() error {
 
 	// Determine the best agent type for this model
 	c.agentType = c.determineAgentType()
-	c.log.Debug("Selected agent type", 
+	c.log.Debug("Selected agent type",
 		"type", c.agentType,
 		"model", c.model,
 		"tools_count", len(c.langchainTools))
@@ -254,14 +254,14 @@ func (c *Client) initializeAgent() error {
 		c.log.Info("Using native Ollama function calling")
 		// Don't create traditional agent/executor for native calling
 		return nil
-		
+
 	case AgentTypeConversational:
 		// Use conversational agent with output processor
 		c.outputProcessor = NewOutputProcessor(true, true) // Strip thinking blocks and convert to ReAct
 		c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
 			agents.WithMemory(c.memory))
 		c.log.Info("Using conversational agent with output processing")
-		
+
 	default:
 		// Direct mode - no agent needed
 		c.log.Info("Using direct LLM mode (no agent)")
@@ -296,23 +296,23 @@ func (c *Client) determineAgentType() AgentType {
 		// Default to conversational if no selector
 		return AgentTypeConversational
 	}
-	
+
 	// For now, use a simplified determination
 	// We'll use the selector more intelligently when processing actual queries
 	modelInfo := models.GetModelInfo(c.model)
-	
+
 	// If model has excellent tool support and is Ollama-compatible, use native
 	if modelInfo.ToolCompatibility == models.ToolCompatibilityExcellent {
 		if c.isOllamaModel() {
 			return AgentTypeOllamaFunctions
 		}
 	}
-	
+
 	// Default to conversational for other tool-capable models
 	if modelInfo.ToolCompatibility != models.ToolCompatibilityNone {
 		return AgentTypeConversational
 	}
-	
+
 	// No tool support - use direct mode
 	return AgentTypeDirect
 }
@@ -326,8 +326,8 @@ func (c *Client) isOllamaModel() bool {
 
 // SendMessage sends a message using LangChain chains or agents
 func (c *Client) SendMessage(ctx context.Context, userInput string) (string, error) {
-	c.log.Debug("Processing message", 
-		"input_length", len(userInput), 
+	c.log.Debug("Processing message",
+		"input_length", len(userInput),
 		"agent_type", c.agentType,
 		"has_tools", c.toolRegistry != nil)
 
@@ -336,7 +336,7 @@ func (c *Client) SendMessage(ctx context.Context, userInput string) (string, err
 	if c.agentSelector != nil {
 		agentType, needsToolsForQuery := c.agentSelector.SelectAgent(userInput)
 		needsTools = needsToolsForQuery
-		c.log.Debug("Query analysis", 
+		c.log.Debug("Query analysis",
 			"needs_tools", needsTools,
 			"suggested_agent", agentType,
 			"configured_agent", c.agentType)
@@ -349,7 +349,7 @@ func (c *Client) SendMessage(ctx context.Context, userInput string) (string, err
 			return c.sendWithNativeTools(ctx, userInput)
 		}
 		// Fall through to direct mode if no tools needed
-		
+
 	case AgentTypeConversational:
 		if needsTools && c.executor != nil {
 			return c.sendWithAgent(ctx, userInput)
@@ -364,12 +364,12 @@ func (c *Client) SendMessage(ctx context.Context, userInput string) (string, err
 // sendWithNativeTools uses Ollama's native function calling
 func (c *Client) sendWithNativeTools(ctx context.Context, userInput string) (string, error) {
 	c.log.Debug("Using native Ollama tool calling")
-	
+
 	// Convert input to messages
 	messages := []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeHuman, userInput),
 	}
-	
+
 	// Add memory context if available
 	if c.memory != nil {
 		memoryVars, err := c.memory.LoadMemoryVariables(ctx, map[string]any{})
@@ -381,14 +381,14 @@ func (c *Client) sendWithNativeTools(ctx context.Context, userInput string) (str
 			}
 		}
 	}
-	
+
 	// Call with tools
 	response, err := c.ollamaToolCaller.CallWithTools(ctx, messages, c.progressCallback)
 	if err != nil {
 		c.log.Error("Native tool calling failed", "error", err)
 		return "", fmt.Errorf("native tool calling failed: %w", err)
 	}
-	
+
 	// Save to memory
 	if c.memory != nil {
 		c.memory.SaveContext(ctx,
@@ -396,7 +396,7 @@ func (c *Client) sendWithNativeTools(ctx context.Context, userInput string) (str
 			map[string]any{"output": response},
 		)
 	}
-	
+
 	return response, nil
 }
 
@@ -480,7 +480,7 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 
 // executeWithReasoningLoop implements enhanced ReAct pattern for autonomous multi-step reasoning
 func (c *Client) executeWithReasoningLoop(ctx context.Context, userInput string) (map[string]any, error) {
-	c.log.Debug("Starting autonomous reasoning loop", 
+	c.log.Debug("Starting autonomous reasoning loop",
 		"max_iterations", c.config.LangChain.Tools.MaxIterations,
 		"has_output_processor", c.outputProcessor != nil)
 
@@ -492,14 +492,14 @@ func (c *Client) executeWithReasoningLoop(ctx context.Context, userInput string)
 			processor: c.outputProcessor,
 			log:       c.log,
 		}
-		
+
 		// Create a temporary executor with the wrapped agent
 		tempExecutor := agents.NewExecutor(wrappedAgent)
-		
+
 		result, err := tempExecutor.Call(ctx, map[string]any{
 			"input": userInput,
 		})
-		
+
 		if err != nil {
 			// Check if it's still a thinking block issue after processing
 			if strings.Contains(err.Error(), "unable to parse agent output") {
@@ -515,16 +515,16 @@ func (c *Client) executeWithReasoningLoop(ctx context.Context, userInput string)
 				}
 			}
 		}
-		
+
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Process intermediate steps
 		if intermediateSteps, ok := result["intermediate_steps"]; ok {
 			c.processIntermediateSteps(intermediateSteps)
 		}
-		
+
 		c.logReasoningInsights(result)
 		return result, nil
 	}
@@ -559,27 +559,27 @@ type outputProcessingAgent struct {
 func (opa *outputProcessingAgent) Plan(ctx context.Context, intermediateSteps []schema.AgentStep, inputs map[string]string) ([]schema.AgentAction, *schema.AgentFinish, error) {
 	// First, get the original agent's plan
 	actions, finish, err := opa.agent.Plan(ctx, intermediateSteps, inputs)
-	
+
 	// If there's an error, try to process the raw output
 	if err != nil && strings.Contains(err.Error(), "unable to parse agent output") {
 		opa.log.Debug("Agent parse error, attempting output processing", "error", err)
-		
+
 		// Try to extract the raw output from the error or context
 		// This is a bit hacky but necessary to intercept thinking blocks
 		if len(intermediateSteps) > 0 {
 			lastStep := intermediateSteps[len(intermediateSteps)-1]
 			// AgentStep.Observation is a string, not an interface
 			processed := opa.processor.ProcessForAgent(lastStep.Observation)
-			opa.log.Debug("Processed observation", 
+			opa.log.Debug("Processed observation",
 				"original_len", len(lastStep.Observation),
 				"processed_len", len(processed))
-			
+
 			// Try to parse again with processed output
 			// This would require reimplementing part of the agent's parsing logic
 			// For now, we'll return the original error
 		}
 	}
-	
+
 	return actions, finish, err
 }
 
@@ -725,8 +725,8 @@ func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, e
 
 // StreamMessage provides streaming responses with tool-aware processing
 func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan chan<- string) error {
-	c.log.Debug("Starting tool-aware streaming message processing", 
-		"input_length", len(userInput), 
+	c.log.Debug("Starting tool-aware streaming message processing",
+		"input_length", len(userInput),
 		"agent_type", c.agentType,
 		"has_tools", c.toolRegistry != nil)
 
@@ -735,7 +735,7 @@ func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan
 	if c.agentSelector != nil {
 		agentType, needsToolsForQuery := c.agentSelector.SelectAgent(userInput)
 		needsTools = needsToolsForQuery
-		c.log.Debug("Streaming query analysis", 
+		c.log.Debug("Streaming query analysis",
 			"needs_tools", needsTools,
 			"suggested_agent", agentType,
 			"configured_agent", c.agentType)
@@ -748,7 +748,7 @@ func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan
 			return c.streamWithNativeTools(ctx, userInput, outputChan)
 		}
 		// Fall through to direct streaming if no tools needed
-		
+
 	case AgentTypeConversational:
 		if needsTools && c.executor != nil {
 			return c.streamWithAgent(ctx, userInput, outputChan)
@@ -763,18 +763,18 @@ func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan
 // streamWithNativeTools streams using Ollama's native function calling
 func (c *Client) streamWithNativeTools(ctx context.Context, userInput string, outputChan chan<- string) error {
 	c.log.Debug("Using native Ollama tool calling for streaming")
-	
+
 	// For streaming with tools, we need to:
 	// 1. Get the full response with tool execution first
 	// 2. Stream the final response
-	
+
 	// This is a compromise - we can't truly stream tool execution, but we can
 	// stream the final response after tools are executed
 	response, err := c.sendWithNativeTools(ctx, userInput)
 	if err != nil {
 		return fmt.Errorf("native tool calling failed: %w", err)
 	}
-	
+
 	// Stream the response in chunks to simulate real streaming
 	return c.streamResponse(response, outputChan)
 }
@@ -782,14 +782,14 @@ func (c *Client) streamWithNativeTools(ctx context.Context, userInput string, ou
 // streamWithAgent streams using LangChain agent with output processing
 func (c *Client) streamWithAgent(ctx context.Context, userInput string, outputChan chan<- string) error {
 	c.log.Debug("Using conversational agent for streaming")
-	
+
 	// Similar to native tools - get full response then stream it
 	// This is because LangChain agents don't support true streaming with tool execution
 	response, err := c.sendWithAgent(ctx, userInput)
 	if err != nil {
 		return fmt.Errorf("agent call failed: %w", err)
 	}
-	
+
 	// Stream the response in chunks
 	return c.streamResponse(response, outputChan)
 }
@@ -852,16 +852,16 @@ func (c *Client) streamWithDirectLLM(ctx context.Context, userInput string, outp
 func (c *Client) streamResponse(response string, outputChan chan<- string) error {
 	// Clean up thinking blocks and other unwanted content before streaming
 	cleanResponse := c.cleanResponseForStreaming(response)
-	
+
 	// Split response into words for more natural streaming
 	words := strings.Fields(cleanResponse)
-	
+
 	for i, word := range words {
 		chunk := word
 		if i < len(words)-1 {
 			chunk += " " // Add space between words
 		}
-		
+
 		select {
 		case outputChan <- chunk:
 			// Small delay to simulate natural streaming
@@ -871,7 +871,7 @@ func (c *Client) streamResponse(response string, outputChan chan<- string) error
 			return nil
 		}
 	}
-	
+
 	return nil
 }
 
@@ -881,10 +881,10 @@ func (c *Client) cleanResponseForStreaming(response string) string {
 	if strings.Contains(response, "<think>") {
 		response = regexp.MustCompile(`(?s)<think>.*?</think>`).ReplaceAllString(response, "")
 	}
-	
+
 	// Clean up extra whitespace
 	response = strings.TrimSpace(response)
-	
+
 	// Remove empty lines
 	lines := strings.Split(response, "\n")
 	var cleanLines []string
@@ -893,7 +893,7 @@ func (c *Client) cleanResponseForStreaming(response string) string {
 			cleanLines = append(cleanLines, line)
 		}
 	}
-	
+
 	return strings.Join(cleanLines, "\n")
 }
 

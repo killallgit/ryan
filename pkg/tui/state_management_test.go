@@ -21,10 +21,10 @@ type MockChatController struct {
 	sendMessageCalled bool
 	sendMessageError  error
 	model             string
-	history           []interface{} // Using interface{} to avoid chat dependency
+	history           []any // Using any to avoid chat dependency
 }
 
-func (m *MockChatController) SendUserMessage(content string) (interface{}, error) {
+func (m *MockChatController) SendUserMessage(content string) (any, error) {
 	m.sendMessageCalled = true
 	if m.sendMessageError != nil {
 		return nil, m.sendMessageError
@@ -32,7 +32,7 @@ func (m *MockChatController) SendUserMessage(content string) (interface{}, error
 	return map[string]string{"content": "Mock response to: " + content}, nil
 }
 
-func (m *MockChatController) GetHistory() []interface{} {
+func (m *MockChatController) GetHistory() []any {
 	return m.history
 }
 
@@ -59,7 +59,7 @@ var _ = Describe("State Management", func() {
 		Expect(err).ToNot(HaveOccurred())
 		screen.SetSize(80, 24)
 
-		// Note: This test would require adapting the App constructor to accept interface{}
+		// Note: This test would require adapting the App constructor to accept any
 		// For now, this serves as a template for future integration testing
 	})
 

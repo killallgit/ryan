@@ -8,7 +8,7 @@ import (
 // VectorStore represents the main interface for vector storage operations
 type VectorStore interface {
 	// CreateCollection creates a new collection with the given name
-	CreateCollection(name string, metadata map[string]interface{}) (Collection, error)
+	CreateCollection(name string, metadata map[string]any) (Collection, error)
 
 	// GetCollection retrieves an existing collection by name
 	GetCollection(name string) (Collection, error)
@@ -56,7 +56,7 @@ type Document struct {
 	Content string
 
 	// Metadata contains additional information about the document
-	Metadata map[string]interface{}
+	Metadata map[string]any
 
 	// Embedding is the vector representation (optional - will be generated if not provided)
 	Embedding []float32
@@ -82,7 +82,7 @@ type QueryOption interface {
 // queryOptions holds query configuration
 type queryOptions struct {
 	// Filter for metadata-based filtering
-	filter map[string]interface{}
+	filter map[string]any
 
 	// MinScore sets a minimum similarity score threshold
 	minScore float32
@@ -92,12 +92,12 @@ type queryOptions struct {
 }
 
 // WithFilter adds metadata filtering to queries
-func WithFilter(filter map[string]interface{}) QueryOption {
+func WithFilter(filter map[string]any) QueryOption {
 	return filterOption{filter: filter}
 }
 
 type filterOption struct {
-	filter map[string]interface{}
+	filter map[string]any
 }
 
 func (f filterOption) apply(opts *queryOptions) {
@@ -170,7 +170,7 @@ type CollectionConfig struct {
 	Name string
 
 	// Metadata for the collection
-	Metadata map[string]interface{}
+	Metadata map[string]any
 }
 
 // EmbedderConfig represents embedder configuration
@@ -224,7 +224,7 @@ type CollectionMetadata struct {
 	DocumentCount int
 
 	// Metadata associated with the collection
-	Metadata map[string]interface{}
+	Metadata map[string]any
 
 	// CreatedAt timestamp
 	CreatedAt time.Time

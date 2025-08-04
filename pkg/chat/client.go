@@ -201,8 +201,11 @@ func (c *Client) SendMessageWithResponse(req ChatRequest) (ChatResponse, error) 
 		CreatedAt: time.Now(),
 		Message:   responseMessage,
 		Done:      true,
-		// TODO: Extract token counts from LangChain response if available
-		// The llms.ContentResponse type doesn't expose usage information directly
+		// Note: LangChain Go's llms.ContentResponse doesn't expose token usage
+		// Token counts would require either:
+		// 1. Using a different client that exposes usage stats
+		// 2. Implementing token counting locally
+		// 3. Waiting for LangChain Go to add usage information
 		PromptEvalCount: 0,
 		EvalCount:       0,
 	}

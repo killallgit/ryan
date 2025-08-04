@@ -288,7 +288,7 @@ func (lc *LangChainController) GetClient() *langchain.Client {
 }
 
 // SetOllamaClient is a no-op for LangChain controller (compatibility with ChatController interface)
-func (lc *LangChainController) SetOllamaClient(client interface{}) {
+func (lc *LangChainController) SetOllamaClient(client any) {
 	// LangChain controller doesn't need separate Ollama client
 	lc.log.Debug("SetOllamaClient called on LangChain controller (no-op)")
 }

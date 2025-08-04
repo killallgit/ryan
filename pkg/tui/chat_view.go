@@ -64,8 +64,8 @@ type ChatView struct {
 	responseContent     string // Accumulate response content separately
 
 	// Stream parser for formatted content
-	streamParser        *StreamParser // Parser for handling think blocks and formatting
-	lastParsedLength    int          // Track how much content we've already parsed
+	streamParser     *StreamParser // Parser for handling think blocks and formatting
+	lastParsedLength int           // Track how much content we've already parsed
 }
 
 func NewChatView(controller ControllerInterface, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
@@ -106,7 +106,7 @@ func NewChatView(controller ControllerInterface, modelsController *controllers.M
 		responseContent:     "",
 
 		// Initialize stream parser
-		streamParser:        NewStreamParser(),
+		streamParser: NewStreamParser(),
 	}
 
 	view.updateMessages()
@@ -860,7 +860,6 @@ func (cv *ChatView) detectThinkingStart(content string) bool {
 	return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "<thinking>")
 }
 
-
 // processStreamingContent processes the full streaming content and separates thinking from response
 func (cv *ChatView) processStreamingContent() {
 	// Extract only the new chunk since last parse
@@ -869,11 +868,11 @@ func (cv *ChatView) processStreamingContent() {
 		newChunk = cv.streamingContent[cv.lastParsedLength:]
 		cv.lastParsedLength = len(cv.streamingContent)
 	}
-	
+
 	// Parse only the new chunk
 	if newChunk != "" {
 		segments := cv.streamParser.ParseChunk(newChunk)
-		
+
 		// Process segments to update thinking/response state
 		for _, segment := range segments {
 			// The parser handles the formatting, we just need to track state
@@ -882,31 +881,31 @@ func (cv *ChatView) processStreamingContent() {
 			}
 		}
 	}
-	
+
 	// Update streaming thinking state
 	cv.isStreamingThinking = cv.streamParser.IsInThinkBlock()
-	
+
 	// Now reconstruct the full content with proper separation
 	// We need to re-parse the entire content to get the proper separation
 	cv.streamParser.Reset()
 	cv.lastParsedLength = 0
-	
+
 	segments := cv.streamParser.ParseChunk(cv.streamingContent)
 	cv.lastParsedLength = len(cv.streamingContent)
-	
+
 	// Reset thinking and response content
 	cv.thinkingContent = ""
 	cv.responseContent = ""
-	
+
 	// Accumulate content based on segment types
 	var thinkingBuilder strings.Builder
 	var responseBuilder strings.Builder
 	var inThinkContent bool
-	
+
 	for _, segment := range segments {
 		// Skip tag content (the actual <think> tags)
 		if segment.Content == "<think>" || segment.Content == "<thinking>" ||
-		   segment.Content == "</think>" || segment.Content == "</thinking>" {
+			segment.Content == "</think>" || segment.Content == "</thinking>" {
 			if strings.HasPrefix(segment.Content, "<") && !strings.HasPrefix(segment.Content, "</") {
 				inThinkContent = true
 			} else if strings.HasPrefix(segment.Content, "</") {
@@ -914,7 +913,7 @@ func (cv *ChatView) processStreamingContent() {
 			}
 			continue
 		}
-		
+
 		// Accumulate content based on format type
 		if segment.Format == FormatTypeThink || inThinkContent {
 			thinkingBuilder.WriteString(segment.Content)
@@ -922,7 +921,7 @@ func (cv *ChatView) processStreamingContent() {
 			responseBuilder.WriteString(segment.Content)
 		}
 	}
-	
+
 	cv.thinkingContent = strings.TrimSpace(thinkingBuilder.String())
 	cv.responseContent = strings.TrimSpace(responseBuilder.String())
 }
