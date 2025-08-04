@@ -181,44 +181,12 @@ func (tmn *TextMessageNode) GetPreviewText() string {
 	return tmn.message.Content
 }
 
-// ThinkingMessageNode handles assistant messages with thinking blocks
+// ThinkingMessageNode handles assistant messages (now simplified since thinking blocks are removed)
 type ThinkingMessageNode struct {
 	BaseNode
-	parsed       ParsedContent
-	showThinking bool
 }
 
 func NewThinkingMessageNode(msg chat.Message, id string) *ThinkingMessageNode {
-	// Use new separated thinking structure if available, fallback to parsing
-	var parsed ParsedContent
-	var showThinking bool
-
-	if msg.HasThinking() {
-		// Use separated thinking data
-		parsed = ParsedContent{
-			ThinkingBlock:   msg.Thinking.Content,
-			ResponseContent: msg.Content,
-			HasThinking:     true,
-		}
-		showThinking = msg.Thinking.Visible
-	} else {
-		// Fallback to old parsing method for backwards compatibility
-		parsed = ParseThinkingBlock(msg.Content)
-
-		// Get showThinking from config
-		showThinking = true
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					// Config not initialized, use default
-				}
-			}()
-			if cfg := config.Get(); cfg != nil {
-				showThinking = cfg.ShowThinking
-			}
-		}()
-	}
-
 	return &ThinkingMessageNode{
 		BaseNode: BaseNode{
 			id:       id,
@@ -228,8 +196,6 @@ func NewThinkingMessageNode(msg chat.Message, id string) *ThinkingMessageNode {
 			bounds:   NodeBounds{},
 			cache:    NodeRenderCache{},
 		},
-		parsed:       parsed,
-		showThinking: showThinking,
 	}
 }
 
@@ -253,51 +219,9 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 	if !tmn.cache.Valid {
 		var lines []RenderedLine
 
-		// Render thinking block if present and expanded
-		if tmn.parsed.HasThinking && tmn.showThinking && state.Expanded {
-			var thinkingText string
-
-			// Show full thinking content when expanded
-			thinkingText = "Thinking: " + tmn.parsed.ThinkingBlock
-			if tmn.parsed.ResponseContent != "" {
-				// Still truncate if there's response content to save space
-				thinkingText = "Thinking: " + TruncateThinkingBlock(tmn.parsed.ThinkingBlock, 3, area.Width-10)
-			}
-
-			thinkingLines := WrapText(thinkingText, area.Width)
-			for _, line := range thinkingLines {
-				style := StyleThinkingText
-				if state.Selected {
-					// Keep the dimmed color but add blue background for selection
-					style = style.Background(tcell.ColorBlue)
-				} else if state.Focused {
-					style = style.Background(tcell.ColorGray)
-				}
-				lines = append(lines, RenderedLine{
-					Text:   line,
-					Style:  style,
-					Indent: 0,
-				})
-			}
-
-			// Add separator if response content follows
-			if tmn.parsed.ResponseContent != "" {
-				lines = append(lines, RenderedLine{Text: "", Style: tcell.StyleDefault, Indent: 0})
-			}
-		}
-
-		// Render response content
-		var contentToRender string
-		if !tmn.parsed.HasThinking {
-			// No thinking block, always show content
-			contentToRender = tmn.message.Content
-		} else {
-			// Has thinking block, always show response content (both when collapsed and expanded)
-			contentToRender = tmn.parsed.ResponseContent
-		}
-
-		if contentToRender != "" {
-			responseLines := WrapText(contentToRender, area.Width)
+		// Render message content
+		if tmn.message.Content != "" {
+			responseLines := WrapText(tmn.message.Content, area.Width)
 			for _, line := range responseLines {
 				style := StyleAssistantText
 				if state.Selected {
@@ -338,37 +262,12 @@ func (tmn *ThinkingMessageNode) Render(area Rect, state NodeState) []RenderedLin
 }
 
 func (tmn *ThinkingMessageNode) CalculateHeight(width int) int {
-	// This is a simplified calculation - for performance we might cache this
-	totalHeight := 0
-
-	// Calculate height for thinking block (only when expanded)
-	if tmn.parsed.HasThinking && tmn.showThinking && tmn.state.Expanded {
-		thinkingText := "Thinking: " + tmn.parsed.ThinkingBlock
-		if tmn.parsed.ResponseContent != "" {
-			thinkingText = "Thinking: " + TruncateThinkingBlock(tmn.parsed.ThinkingBlock, 3, width-10)
-		}
-		thinkingLines := WrapText(thinkingText, width)
-		totalHeight += len(thinkingLines)
-
-		if tmn.parsed.ResponseContent != "" {
-			totalHeight += 1 // separator line
-		}
+	// Calculate height for message content
+	if tmn.message.Content != "" {
+		responseLines := WrapText(tmn.message.Content, width)
+		return len(responseLines)
 	}
-
-	// Calculate height for response content (always shown)
-	var contentToRender string
-	if !tmn.parsed.HasThinking {
-		contentToRender = tmn.message.Content
-	} else {
-		contentToRender = tmn.parsed.ResponseContent
-	}
-
-	if contentToRender != "" {
-		responseLines := WrapText(contentToRender, width)
-		totalHeight += len(responseLines)
-	}
-
-	return totalHeight
+	return 0
 }
 
 func (tmn *ThinkingMessageNode) HandleClick(x, y int) (bool, NodeState) {
@@ -380,27 +279,19 @@ func (tmn *ThinkingMessageNode) HandleKeyEvent(ev *tcell.EventKey) (bool, NodeSt
 	switch ev.Key() {
 	case tcell.KeyEnter:
 		return true, tmn.state.ToggleSelected()
-	case tcell.KeyTab:
-		// Tab toggles thinking block visibility
-		if tmn.IsCollapsible() {
-			return true, tmn.state.ToggleExpanded()
-		}
 	}
 	return false, tmn.state
 }
 
 func (tmn *ThinkingMessageNode) IsCollapsible() bool {
-	return tmn.parsed.HasThinking
+	return false
 }
 
 func (tmn *ThinkingMessageNode) HasDetailView() bool {
-	return tmn.parsed.HasThinking
+	return false
 }
 
 func (tmn *ThinkingMessageNode) GetPreviewText() string {
-	if tmn.parsed.ResponseContent != "" {
-		return tmn.parsed.ResponseContent
-	}
 	return tmn.message.Content
 }
 
@@ -817,26 +708,15 @@ func (tnf *TextNodeFactory) CreateNode(msg chat.Message, id string) MessageNode 
 }
 
 func (tnf *TextNodeFactory) CanHandle(msg chat.Message) bool {
-	// Handle user, system, error messages, and assistant messages without thinking/tools
+	// Handle user, system, error messages
 	if msg.Role == chat.RoleUser || msg.Role == chat.RoleSystem || msg.Role == chat.RoleError {
 		return true
 	}
 
+	// Handle assistant messages without tool calls
 	if msg.Role == chat.RoleAssistant {
-		// Check if it has separated thinking first
-		if msg.HasThinking() {
-			return false
-		}
-
-		// Check if it has tool calls
 		hasTools := len(msg.ToolCalls) > 0
-		if hasTools {
-			return false
-		}
-
-		// Fallback: check if content has thinking blocks for backwards compatibility
-		parsed := ParseThinkingBlock(msg.Content)
-		return !parsed.HasThinking
+		return !hasTools
 	}
 
 	return false
@@ -849,18 +729,8 @@ func (tnf *ThinkingNodeFactory) CreateNode(msg chat.Message, id string) MessageN
 }
 
 func (tnf *ThinkingNodeFactory) CanHandle(msg chat.Message) bool {
-	if msg.Role != chat.RoleAssistant {
-		return false
-	}
-
-	// Check if message has separated thinking first
-	if msg.HasThinking() {
-		return true
-	}
-
-	// Fallback to parsing content for backwards compatibility
-	parsed := ParseThinkingBlock(msg.Content)
-	return parsed.HasThinking
+	// Since thinking blocks are removed, this factory is no longer used
+	return false
 }
 
 type ToolCallNodeFactory struct{}

@@ -35,9 +35,6 @@ func (sf *SimpleFormatter) FormatContentSegments(segments []ContentSegment) []Fo
 
 	for i, segment := range segments {
 		switch segment.Type {
-		case ContentTypeThinking:
-			// Simple thinking block with border and indentation
-			formattedLines = append(formattedLines, sf.formatThinkingBlock(segment.Content)...)
 
 		case ContentTypeCodeBlock:
 			// Simple code block with border
@@ -295,6 +292,5 @@ func ShouldUseSimpleFormatting(contentTypes map[ContentType]bool) bool {
 	return contentTypes[ContentTypeCodeBlock] ||
 		contentTypes[ContentTypeHeader] ||
 		contentTypes[ContentTypeList] ||
-		contentTypes[ContentTypeThinking] ||
 		(contentTypes[ContentTypeInlineCode] && len(contentTypes) > 1)
 }

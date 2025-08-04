@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/killallgit/ryan/pkg/chat"
-	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/langchain"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/tools"
@@ -99,20 +98,8 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 		return errMsg, fmt.Errorf("failed to send message: %w", err)
 	}
 
-	// Create assistant message from response with thinking parsing
-	showThinking := true
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				// Config not initialized, use default
-			}
-		}()
-		if cfg := config.Get(); cfg != nil {
-			showThinking = cfg.ShowThinking
-		}
-	}()
-
-	assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
+	// Create assistant message from response
+	assistantMsg := chat.NewAssistantMessage(response)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
 
 	// Save history to disk after each interaction
@@ -172,21 +159,9 @@ func (lc *LangChainController) SendUserMessageWithStreamingContext(ctx context.C
 		return chat.Message{}, ctx.Err()
 	}
 
-	// Create assistant message from full response with thinking parsing
+	// Create assistant message from full response
 	response := fullResponse.String()
-	showThinking := true
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				// Config not initialized, use default
-			}
-		}()
-		if cfg := config.Get(); cfg != nil {
-			showThinking = cfg.ShowThinking
-		}
-	}()
-
-	assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
+	assistantMsg := chat.NewAssistantMessage(response)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
 
 	// Save history to disk after each interaction
@@ -370,20 +345,8 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 			lc.conversation = chat.AddMessage(lc.conversation, msg)
 		}
 
-		// Add final assistant message to conversation with thinking parsing
-		showThinking := true
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					// Config not initialized, use default
-				}
-			}()
-			if cfg := config.Get(); cfg != nil {
-				showThinking = cfg.ShowThinking
-			}
-		}()
-
-		assistantMsg := chat.ParseAssistantMessageWithThinking(response, showThinking)
+		// Add final assistant message to conversation
+		assistantMsg := chat.NewAssistantMessage(response)
 		lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
 
 		// Signal completion

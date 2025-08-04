@@ -11,15 +11,9 @@ type Message struct {
 	Timestamp time.Time        `json:"timestamp"`
 	ToolCalls []ToolCall       `json:"tool_calls,omitempty"`
 	ToolName  string           `json:"tool_name,omitempty"`
-	Thinking  *ThinkingBlock   `json:"thinking,omitempty"`
 	Metadata  *MessageMetadata `json:"metadata,omitempty"`
 }
 
-// ThinkingBlock represents separated thinking content
-type ThinkingBlock struct {
-	Content string `json:"content"`
-	Visible bool   `json:"visible"`
-}
 
 // MessageMetadata contains message lifecycle and processing information
 type MessageMetadata struct {
@@ -140,26 +134,6 @@ func NewOptimisticUserMessage(content string) Message {
 	return NewUserMessageWithSource(content, MessageSourceOptimistic)
 }
 
-// NewAssistantMessageWithThinking creates an assistant message with separated thinking
-func NewAssistantMessageWithThinking(content, thinking string, showThinking bool) Message {
-	msg := Message{
-		Role:      RoleAssistant,
-		Content:   content,
-		Timestamp: time.Now(),
-		Metadata: &MessageMetadata{
-			Source: MessageSourceFinal,
-		},
-	}
-
-	if thinking != "" {
-		msg.Thinking = &ThinkingBlock{
-			Content: thinking,
-			Visible: showThinking,
-		}
-	}
-
-	return msg
-}
 
 // NewStreamingMessage creates a message marked as streaming
 func NewStreamingMessage(role, content, streamID string, chunkIndex int) Message {
@@ -211,19 +185,10 @@ func (m Message) WithTimestamp(t time.Time) Message {
 		Timestamp: t,
 		ToolCalls: m.ToolCalls,
 		ToolName:  m.ToolName,
-		Thinking:  m.Thinking,
 		Metadata:  m.Metadata,
 	}
 }
 
-// Helper methods for thinking blocks
-func (m Message) HasThinking() bool {
-	return m.Thinking != nil && strings.TrimSpace(m.Thinking.Content) != ""
-}
-
-func (m Message) IsThinkingVisible() bool {
-	return m.HasThinking() && m.Thinking.Visible
-}
 
 // Helper methods for metadata
 func (m Message) HasMetadata() bool {
@@ -252,17 +217,6 @@ func (m Message) GetStreamID() string {
 	return ""
 }
 
-// WithThinking adds or updates thinking content to a message
-func (m Message) WithThinking(content string, visible bool) Message {
-	updated := m
-	if content != "" {
-		updated.Thinking = &ThinkingBlock{
-			Content: content,
-			Visible: visible,
-		}
-	}
-	return updated
-}
 
 // WithMetadata adds or updates metadata to a message
 func (m Message) WithMetadata(metadata MessageMetadata) Message {

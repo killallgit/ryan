@@ -40,70 +40,14 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 		isLastMessage := i == len(messages)-1
 
 		if msg.Role == chat.RoleAssistant {
-			// Check if this is a streaming thinking message (last message + streaming thinking mode)
-			if isLastMessage && streamingThinking && showThinking {
-				// Handle streaming thinking content - apply thinking styling directly
-				thinkingText := "Thinking: " + msg.Content
-				thinkingLines := WrapText(thinkingText, chatWidth)
-				for _, line := range thinkingLines {
-					allLines = append(allLines, MessageLine{
-						Text:       line,
-						Role:       msg.Role,
-						IsThinking: true, // Force thinking styling
-						Style:      nil,
-					})
-				}
-			} else {
-				// Regular assistant message - use normal ParseThinkingBlock logic
-				parsed := ParseThinkingBlock(msg.Content)
-
-				if parsed.HasThinking && showThinking {
-					// Add "Thinking: " prefix and format thinking block
-					var thinkingText string
-					if parsed.ResponseContent != "" {
-						// Response is complete, truncate thinking to 3 lines
-						thinkingText = "Thinking: " + TruncateThinkingBlock(parsed.ThinkingBlock, 3, chatWidth-10)
-					} else {
-						// Response not complete, show full thinking block
-						thinkingText = "Thinking: " + parsed.ThinkingBlock
-					}
-
-					thinkingLines := WrapText(thinkingText, chatWidth)
-					for _, line := range thinkingLines {
-						allLines = append(allLines, MessageLine{
-							Text:       line,
-							Role:       msg.Role,
-							IsThinking: true,
-							Style:      nil,
-						})
-					}
-
-					// Add separator line between thinking and response
-					if parsed.ResponseContent != "" {
-						allLines = append(allLines, MessageLine{
-							Text:       "",
-							Role:       "",
-							IsThinking: false,
-							Style:      nil,
-						})
-					}
-				}
-
-				// Add response content if present
-				var contentToRender string
-				if parsed.HasThinking && showThinking {
-					contentToRender = parsed.ResponseContent
-				} else {
-					contentToRender = msg.Content
-				}
-
-				if contentToRender != "" {
-					// Check if we should use simple formatting for line calculation
-					contentTypes := DetectContentTypes(contentToRender)
+			// Handle assistant message content
+			if msg.Content != "" {
+				// Check if we should use simple formatting for line calculation
+				contentTypes := DetectContentTypes(msg.Content)
 					if ShouldUseSimpleFormatting(contentTypes) {
 						// Use simple formatting to calculate lines
 						formatter := NewSimpleFormatter(chatWidth)
-						segments := ParseContentSegments(contentToRender)
+						segments := ParseContentSegments(msg.Content)
 						formattedLines := formatter.FormatContentSegments(segments)
 
 						for _, formattedLine := range formattedLines {
@@ -122,7 +66,7 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 						}
 					} else {
 						// Use traditional text wrapping
-						contentLines := WrapText(contentToRender, chatWidth)
+						contentLines := WrapText(msg.Content, chatWidth)
 						for _, line := range contentLines {
 							allLines = append(allLines, MessageLine{
 								Text:       line,
@@ -268,20 +212,20 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 				}
 
 				// Add response content if present
-				var contentToRender string
+				var msg.Content string
 				if parsed.HasThinking && showThinking {
-					contentToRender = parsed.ResponseContent
+					msg.Content = parsed.ResponseContent
 				} else {
-					contentToRender = msg.Content
+					msg.Content = msg.Content
 				}
 
-				if contentToRender != "" {
+				if msg.Content != "" {
 					// Check if we should use simple formatting
-					contentTypes := DetectContentTypes(contentToRender)
+					contentTypes := DetectContentTypes(msg.Content)
 					if ShouldUseSimpleFormatting(contentTypes) {
 						// Use simple formatting for complex content
 						formatter := NewSimpleFormatter(chatArea.Width)
-						segments := ParseContentSegments(contentToRender)
+						segments := ParseContentSegments(msg.Content)
 						formattedLines := formatter.FormatContentSegments(segments)
 
 						for _, formattedLine := range formattedLines {
@@ -300,7 +244,7 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 						}
 					} else {
 						// Use traditional text wrapping for simple content
-						contentLines := WrapText(contentToRender, chatArea.Width)
+						contentLines := WrapText(msg.Content, chatArea.Width)
 						log := logger.WithComponent("render")
 
 						firstLine := ""
@@ -309,16 +253,16 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 						}
 						log.Debug("Rendering assistant message lines",
 							"role", msg.Role,
-							"content_length", len(contentToRender),
+							"content_length", len(msg.Content),
 							"width", chatArea.Width,
 							"lines", len(contentLines),
 							"first_line", firstLine,
 							"had_thinking", parsed.HasThinking,
 							"content_preview", func() string {
-								if len(contentToRender) > 100 {
-									return contentToRender[:100] + "..."
+								if len(msg.Content) > 100 {
+									return msg.Content[:100] + "..."
 								}
-								return contentToRender
+								return msg.Content
 							}())
 
 						for _, line := range contentLines {
