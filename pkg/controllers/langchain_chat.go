@@ -8,14 +8,53 @@ import (
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/tools"
+	"github.com/killallgit/ryan/pkg/vectorstore"
 	"github.com/tmc/langchaingo/llms"
 )
 
 // LangChainChatController extends ChatController with LangChain memory integration
 type LangChainChatController struct {
 	*ChatController
-	memory *chat.LangChainMemory
+	memory *chat.LangChainVectorMemory
 	llm    llms.Model
+}
+
+// createVectorMemory initializes vector memory with the global vector store
+func createVectorMemory() (*chat.LangChainVectorMemory, error) {
+	log := logger.WithComponent("langchain_controller")
+	
+	// Get global vector store manager
+	manager, err := vectorstore.GetGlobalManager()
+	if err != nil {
+		log.Warn("Failed to get vector store manager, falling back to regular memory", "error", err)
+		// Fall back to regular LangChain memory wrapped in vector memory structure
+		regularMemory := chat.NewLangChainMemory()
+		return &chat.LangChainVectorMemory{
+			LangChainMemory: regularMemory,
+		}, nil
+	}
+	
+	if manager == nil {
+		log.Info("Vector store is disabled, using regular memory")
+		regularMemory := chat.NewLangChainMemory()
+		return &chat.LangChainVectorMemory{
+			LangChainMemory: regularMemory,
+		}, nil
+	}
+	
+	// Create vector memory with default configuration
+	config := chat.DefaultVectorMemoryConfig()
+	vectorMemory, err := chat.NewLangChainVectorMemory(manager.GetStore(), config)
+	if err != nil {
+		log.Error("Failed to create vector memory, falling back to regular memory", "error", err)
+		regularMemory := chat.NewLangChainMemory()
+		return &chat.LangChainVectorMemory{
+			LangChainMemory: regularMemory,
+		}, nil
+	}
+	
+	log.Info("Successfully initialized vector memory for chat", "collection", config.CollectionName)
+	return vectorMemory, nil
 }
 
 // NewLangChainChatController creates a new controller with LangChain memory
@@ -23,8 +62,11 @@ func NewLangChainChatController(client chat.ChatClient, llm llms.Model, model st
 	// Create base controller
 	baseController := NewChatController(client, model, toolRegistry)
 
-	// Create LangChain memory
-	memory := chat.NewLangChainMemory()
+	// Create vector memory
+	memory, err := createVectorMemory()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create vector memory: %w", err)
+	}
 
 	// Create the controller
 	lcc := &LangChainChatController{
@@ -41,8 +83,12 @@ func NewLangChainChatControllerWithSystem(client chat.ChatClient, llm llms.Model
 	// Create base controller with system prompt
 	baseController := NewChatControllerWithSystem(client, model, systemPrompt, toolRegistry)
 
-	// Create LangChain memory and add system message
-	memory := chat.NewLangChainMemory()
+	// Create vector memory and add system message
+	memory, err := createVectorMemory()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create vector memory: %w", err)
+	}
+	
 	ctx := context.Background()
 	if err := memory.AddMessage(ctx, chat.NewSystemMessage(systemPrompt)); err != nil {
 		return nil, fmt.Errorf("failed to add system message to memory: %w", err)
@@ -172,7 +218,7 @@ func (lcc *LangChainChatController) AddErrorMessage(errorMsg string) {
 	lcc.ChatController.conversation = lcc.conversation
 }
 
-// GetMemory returns the underlying LangChain memory for advanced usage
-func (lcc *LangChainChatController) GetMemory() *chat.LangChainMemory {
+// GetMemory returns the underlying LangChain vector memory for advanced usage
+func (lcc *LangChainChatController) GetMemory() *chat.LangChainVectorMemory {
 	return lcc.memory
 }

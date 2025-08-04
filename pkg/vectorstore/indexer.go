@@ -70,6 +70,12 @@ func (di *DocumentIndexer) IndexFile(ctx context.Context, filePath string) error
 		"size":       fileInfo.Size(),
 		"modified":   fileInfo.ModTime().Unix(),
 		"indexed_at": time.Now().Unix(),
+		"source":     filePath,
+		"filename":   filepath.Base(filePath),
+		"extension":  filepath.Ext(filePath),
+		"size":       fileInfo.Size(),
+		"modified":   fileInfo.ModTime().Unix(),
+		"indexed_at": time.Now().Unix(),
 	}
 
 	// Index based on file type
@@ -108,6 +114,7 @@ func (di *DocumentIndexer) indexCodeFile(ctx context.Context, filePath string, c
 	// For code files, use code chunking
 	chunks := di.processor.ChunkCode(content)
 	docs := make([]Document, 0, len(chunks))
+
 
 	for i, chunk := range chunks {
 		if strings.TrimSpace(chunk) == "" {
@@ -253,9 +260,21 @@ func getLanguageFromExt(ext string) string {
 		".rs":    "rust",
 		".rb":    "ruby",
 		".php":   "php",
+		".go":    "go",
+		".py":    "python",
+		".js":    "javascript",
+		".ts":    "typescript",
+		".java":  "java",
+		".cpp":   "cpp",
+		".c":     "c",
+		".rs":    "rust",
+		".rb":    "ruby",
+		".php":   "php",
 		".swift": "swift",
 		".kt":    "kotlin",
+		".kt":    "kotlin",
 		".scala": "scala",
+		".r":     "r",
 		".r":     "r",
 	}
 
@@ -264,3 +283,4 @@ func getLanguageFromExt(ext string) string {
 	}
 	return "unknown"
 }
+

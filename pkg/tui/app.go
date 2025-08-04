@@ -13,6 +13,7 @@ import (
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
+	"github.com/killallgit/ryan/pkg/vectorstore"
 	"github.com/killallgit/ryan/pkg/tools"
 )
 
@@ -113,12 +114,30 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	// Connect ollama client to chat controller for model validation
 	controller.SetOllamaClient(ollamaClient)
 
+	// Initialize vector store if enabled
+	if cfg.VectorStore.Enabled {
+		log.Debug("Initializing vector store")
+		manager, err := vectorstore.GetGlobalManager()
+		if err != nil {
+			log.Warn("Failed to initialize vector store", "error", err)
+		} else if manager != nil {
+			log.Info("Vector store initialized successfully",
+				"provider", cfg.VectorStore.Provider,
+				"persistence", cfg.VectorStore.EnablePersistence,
+				"embedder", cfg.VectorStore.Embedder.Provider+"/"+cfg.VectorStore.Embedder.Model)
+		}
+	} else {
+		log.Info("Vector store is disabled")
+	}
+
 	viewManager := NewViewManager()
 	chatView := NewChatView(controller, modelsController, screen)
 	modelView := NewModelView(modelsController, controller, screen)
+	vectorStoreView := NewVectorStoreView(screen)
 	viewManager.RegisterView("chat", chatView)
 	viewManager.RegisterView("models", modelView)
-	log.Debug("Registered views with view manager", "views", []string{"chat", "models"})
+	viewManager.RegisterView("vectorstore", vectorStoreView)
+	log.Debug("Registered views with view manager", "views", []string{"chat", "models", "vectorstore"})
 
 	app := &App{
 		screen:        screen,

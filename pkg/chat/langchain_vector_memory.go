@@ -96,7 +96,7 @@ func NewLangChainVectorMemoryFromGlobalConfig() (*LangChainVectorMemory, error) 
 	// Use default config
 	config := DefaultVectorMemoryConfig()
 
-	return NewLangChainVectorMemory(manager, config)
+	return NewLangChainVectorMemory(manager.GetStore(), config)
 }
 
 // AddMessage adds a message to memory and indexes it in the vector store

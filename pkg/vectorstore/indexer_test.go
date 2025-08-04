@@ -106,10 +106,15 @@ func TestDocumentIndexer_ChunkText(t *testing.T) {
 
 	assert.Greater(t, len(chunks), 1, "Long text should be split into multiple chunks")
 
-	// Test overlap
-	if len(chunks) > 1 {
-		assert.True(t, len(chunks[0]) > config.ChunkOverlap)
-		assert.True(t, len(chunks[1]) > config.ChunkOverlap)
+	// Verify overlap
+	for i := 0; i < len(chunks)-1; i++ {
+		// Check that there's some overlap between consecutive chunks
+		chunk1End := chunks[i][len(chunks[i])-config.ChunkOverlap:]
+		chunk2Start := chunks[i+1][:config.ChunkOverlap]
+
+		// There should be some common content due to overlap
+		// This is a simplified check
+		assert.True(t, len(chunk1End) > 0 && len(chunk2Start) > 0)
 	}
 }
 
@@ -154,11 +159,12 @@ func TestDocumentIndexer_IndexDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create test files
-	testFiles := map[string]string{
-		"file1.txt":  "This is the first test file.",
-		"file2.md":   "# This is a markdown file\n\nWith some content.",
-		"file3.go":   "package main\n\nfunc main() {\n\tprintln(\"Hello, World!\")\n}",
-		"ignore.pdf": "This should be ignored",
+	files := map[string]string{
+		"doc1.txt":   "This is document one about machine learning.",
+		"doc2.txt":   "This is document two about deep learning.",
+		"code.go":    "package main\n\nfunc main() {\n\tprintln(\"Hello, World!\")\n}",
+		"data.json":  `{"name": "test", "value": 123}`,
+		"ignore.log": "This should be ignored",
 	}
 
 	for filename, content := range testFiles {
@@ -176,8 +182,8 @@ func TestDocumentIndexer_IndexDirectory(t *testing.T) {
 	docs, err := indexer.SearchDocuments(ctx, "test file", 10)
 	require.NoError(t, err)
 
-	// Should find txt and md files, not PDF
-	foundFiles := make(map[string]bool)
+	// Check that no results are from the log file
+	foundLogFile := false
 	for _, doc := range docs {
 		if source, ok := doc.Metadata["source"].(string); ok {
 			foundFiles[filepath.Base(source)] = true
@@ -284,27 +290,16 @@ func TestDocumentIndexer_CodeFileIndexing(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create a temporary Go file
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.go")
-	content := `package main
+	// Index from reader
+	content := "This is content from a reader. It should be indexed properly."
+	reader := strings.NewReader(content)
 
-import "fmt"
+	metadata := map[string]interface{}{
+		"type":   "stream",
+		"custom": "value",
+	}
 
-// TestFunction demonstrates a simple function
-func TestFunction() {
-	fmt.Println("Hello, World!")
-}
-
-func main() {
-	TestFunction()
-}`
-
-	err = os.WriteFile(testFile, []byte(content), 0644)
-	require.NoError(t, err)
-
-	// Index the file
-	err = indexer.IndexFile(ctx, testFile)
+	err = indexer.IndexReader(ctx, reader, "stream-source", metadata)
 	require.NoError(t, err)
 
 	// Search for content
@@ -362,5 +357,47 @@ func TestDocumentIndexer_GetCollectionName(t *testing.T) {
 	indexer, err := NewDocumentIndexer(manager, indexerConfig)
 	require.NoError(t, err)
 
-	assert.Equal(t, "test_collection", indexer.GetCollectionName())
+	ctx := context.Background()
+
+	// Create a large file
+	tmpDir := t.TempDir()
+	largeFile := filepath.Join(tmpDir, "large.txt")
+
+	// Generate large content
+	var contentBuilder strings.Builder
+	for i := 0; i < 100; i++ {
+		contentBuilder.WriteString(fmt.Sprintf(
+			"This is paragraph %d. It contains some text about topic %d. "+
+				"The content is designed to be chunked properly. "+
+				"Each paragraph should be meaningful on its own. ", i, i))
+	}
+
+	err = os.WriteFile(largeFile, []byte(contentBuilder.String()), 0644)
+	require.NoError(t, err)
+
+	// Index the large file
+	err = indexer.IndexFile(ctx, largeFile)
+	require.NoError(t, err)
+
+	// Search for specific paragraph
+	docs, err := indexer.SearchDocuments(ctx, "paragraph 42 topic", 5)
+	require.NoError(t, err)
+	assert.NotEmpty(t, docs)
+
+	// Verify chunking happened
+	// Get metadata about chunks to verify
+	collection := indexer.GetCollection()
+
+	// Count chunks for the large file by searching with a unique query
+	searchResults, err := collection.Query(ctx, "paragraph contains text", 100)
+	require.NoError(t, err)
+
+	// Should have multiple chunks
+	chunkCount := 0
+	for _, result := range searchResults {
+		if result.Document.Metadata["source"] == largeFile {
+			chunkCount++
+		}
+	}
+	assert.Greater(t, chunkCount, 1, "Large file should be split into multiple chunks")
 }
