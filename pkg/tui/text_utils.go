@@ -16,17 +16,6 @@ type ParsedContent struct {
 
 // ParseThinkingBlock parses a message content to separate <THINK> blocks from regular content
 func ParseThinkingBlock(content string) ParsedContent {
-	// DEBUG: Log the input content being parsed
-	log := logger.WithComponent("text_utils")
-	contentPreview := content
-	if len(contentPreview) > 150 {
-		contentPreview = contentPreview[:150] + "..."
-	}
-	log.Debug("ParseThinkingBlock called",
-		"content_length", len(content),
-		"content_preview", contentPreview,
-		"has_think_start", strings.Contains(content, "<think"),
-		"has_think_end", strings.Contains(content, "</think"))
 
 	thinkRegex := regexp.MustCompile(`(?ims)<think(?:ing)?>(.*?)</think(?:ing)?>`)
 	matches := thinkRegex.FindAllStringSubmatch(content, -1)
@@ -37,14 +26,6 @@ func ParseThinkingBlock(content string) ParsedContent {
 			ResponseContent: strings.TrimSpace(content),
 			HasThinking:     false,
 		}
-		log.Debug("ParseThinkingBlock result - no thinking",
-			"response_content_length", len(result.ResponseContent),
-			"response_preview", func() string {
-				if len(result.ResponseContent) > 100 {
-					return result.ResponseContent[:100] + "..."
-				}
-				return result.ResponseContent
-			}())
 		return result
 	}
 
@@ -65,21 +46,6 @@ func ParseThinkingBlock(content string) ParsedContent {
 		HasThinking:     len(thinkingParts) > 0,
 	}
 
-	log.Debug("ParseThinkingBlock result - with thinking",
-		"thinking_length", len(result.ThinkingBlock),
-		"response_content_length", len(result.ResponseContent),
-		"response_preview", func() string {
-			if len(result.ResponseContent) > 100 {
-				return result.ResponseContent[:100] + "..."
-			}
-			return result.ResponseContent
-		}(),
-		"thinking_preview", func() string {
-			if len(result.ThinkingBlock) > 100 {
-				return result.ThinkingBlock[:100] + "..."
-			}
-			return result.ThinkingBlock
-		}())
 
 	return result
 }
