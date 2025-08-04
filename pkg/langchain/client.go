@@ -2,6 +2,7 @@ package langchain
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -31,7 +32,17 @@ type Client struct {
 
 // NewClient creates a new LangChain-powered client
 func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, error) {
-	cfg := config.Get()
+	var cfg *config.Config
+	// Handle case where config is not initialized (e.g., in tests)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				cfg = nil // Config not available, use defaults
+			}
+		}()
+		cfg = config.Get()
+	}()
+	
 	log := logger.WithComponent("langchain_enhanced")
 
 	// Create Ollama LLM with additional debugging options
@@ -52,7 +63,7 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 
 	// Create memory based on configuration
 	var mem schema.Memory
-	if cfg.LangChain.Memory.Type == "window" {
+	if cfg != nil && cfg.LangChain.Memory.Type == "window" {
 		mem = memory.NewConversationWindowBuffer(cfg.LangChain.Memory.WindowSize)
 	} else {
 		mem = memory.NewConversationBuffer()
@@ -99,32 +110,16 @@ func (ta *ToolAdapter) Description() string {
 }
 
 func (ta *ToolAdapter) Call(ctx context.Context, input string) (string, error) {
-	ta.log.Debug("Tool call initiated", "tool", ta.ryanTool.Name(), "input_length", len(input))
+	ta.log.Debug("Tool call initiated", "tool", ta.ryanTool.Name(), "input_length", len(input), "input", input)
 
-	// Parse input - for now, assume it's JSON-like format
-	// In a real implementation, you'd want more sophisticated parsing
-	params := make(map[string]interface{})
-
-	// Simple parsing for common tool formats
-	if strings.Contains(input, "command:") {
-		// For bash tool: "command: docker images | wc -l"
-		if cmd := extractValue(input, "command:"); cmd != "" {
-			params["command"] = cmd
-		}
-	} else if strings.Contains(input, "path:") {
-		// For file tool: "path: ./README.md"
-		if path := extractValue(input, "path:"); path != "" {
-			params["path"] = path
-		}
-	} else {
-		// Fallback: use input as command/path
-		switch ta.ryanTool.Name() {
-		case "execute_bash":
-			params["command"] = input
-		case "read_file":
-			params["path"] = input
-		}
+	// Enhanced input parsing with multiple format support
+	params, err := ta.parseToolInput(input)
+	if err != nil {
+		ta.log.Error("Failed to parse tool input", "tool", ta.ryanTool.Name(), "input", input, "error", err)
+		return "", fmt.Errorf("failed to parse tool input: %w", err)
 	}
+
+	ta.log.Debug("Parsed tool parameters", "tool", ta.ryanTool.Name(), "params", params)
 
 	// Execute the Ryan tool
 	result, err := ta.ryanTool.Execute(ctx, params)
@@ -134,11 +129,212 @@ func (ta *ToolAdapter) Call(ctx context.Context, input string) (string, error) {
 	}
 
 	if !result.Success {
+		ta.log.Error("Tool execution unsuccessful", "tool", ta.ryanTool.Name(), "error", result.Error)
 		return "", fmt.Errorf("tool execution failed: %s", result.Error)
 	}
 
-	ta.log.Debug("Tool call completed", "tool", ta.ryanTool.Name(), "success", result.Success)
+	ta.log.Debug("Tool call completed successfully", 
+		"tool", ta.ryanTool.Name(), 
+		"output_length", len(result.Content),
+		"success", result.Success)
+	
 	return result.Content, nil
+}
+
+// parseToolInput parses tool input with enhanced format support
+func (ta *ToolAdapter) parseToolInput(input string) (map[string]interface{}, error) {
+	params := make(map[string]interface{})
+	input = strings.TrimSpace(input)
+	
+	if input == "" {
+		return params, nil
+	}
+
+	// Try JSON parsing first
+	if (strings.HasPrefix(input, "{") && strings.HasSuffix(input, "}")) ||
+	   (strings.HasPrefix(input, "[") && strings.HasSuffix(input, "]")) {
+		var jsonParams map[string]interface{}
+		if err := json.Unmarshal([]byte(input), &jsonParams); err == nil {
+			ta.log.Debug("Successfully parsed JSON input", "params", jsonParams)
+			return jsonParams, nil
+		}
+		ta.log.Debug("Failed to parse as JSON, trying other formats")
+	}
+
+	// Try key-value parsing (key: value format)
+	if strings.Contains(input, ":") {
+		kvParams := ta.parseKeyValueFormat(input)
+		if len(kvParams) > 0 {
+			ta.log.Debug("Successfully parsed key-value format", "params", kvParams)
+			return kvParams, nil
+		}
+	}
+
+	// Try structured text parsing for specific tools
+	toolSpecificParams := ta.parseToolSpecificFormat(input)
+	if len(toolSpecificParams) > 0 {
+		ta.log.Debug("Successfully parsed tool-specific format", "params", toolSpecificParams)
+		return toolSpecificParams, nil
+	}
+
+	// Fallback: use input as primary parameter based on tool type
+	return ta.getFallbackParams(input), nil
+}
+
+// parseKeyValueFormat parses "key: value" format
+func (ta *ToolAdapter) parseKeyValueFormat(input string) map[string]interface{} {
+	params := make(map[string]interface{})
+	lines := strings.Split(input, "\n")
+	
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		
+		if colonIndex := strings.Index(line, ":"); colonIndex != -1 {
+			key := strings.TrimSpace(line[:colonIndex])
+			value := strings.TrimSpace(line[colonIndex+1:])
+			
+			// Remove quotes if present
+			if len(value) >= 2 && 
+			   ((value[0] == '"' && value[len(value)-1] == '"') ||
+			    (value[0] == '\'' && value[len(value)-1] == '\'')) {
+				value = value[1 : len(value)-1]
+			}
+			
+			params[key] = value
+		}
+	}
+	
+	return params
+}
+
+// parseToolSpecificFormat handles tool-specific input formats
+func (ta *ToolAdapter) parseToolSpecificFormat(input string) map[string]interface{} {
+	params := make(map[string]interface{})
+	toolName := ta.ryanTool.Name()
+	
+	switch toolName {
+	case "execute_bash":
+		// Handle various bash command formats
+		if cmd := ta.extractBashCommand(input); cmd != "" {
+			params["command"] = cmd
+		}
+		
+	case "read_file", "write_file", "edit_file":
+		// Handle file operation formats
+		if path := ta.extractFilePath(input); path != "" {
+			params["path"] = path
+		}
+		if content := ta.extractFileContent(input); content != "" {
+			params["content"] = content
+		}
+		
+	case "search":
+		// Handle search formats
+		if query := ta.extractSearchQuery(input); query != "" {
+			params["query"] = query
+		}
+	}
+	
+	return params
+}
+
+// extractBashCommand extracts bash command from various formats
+func (ta *ToolAdapter) extractBashCommand(input string) string {
+	// Direct command
+	if !strings.Contains(input, ":") && !strings.Contains(input, "=") {
+		return input
+	}
+	
+	// "command: cmd" format
+	if cmd := extractValue(input, "command:"); cmd != "" {
+		return cmd
+	}
+	
+	// "cmd=command" format
+	if cmd := extractValue(input, "cmd="); cmd != "" {
+		return cmd
+	}
+	
+	return ""
+}
+
+// extractFilePath extracts file path from various formats
+func (ta *ToolAdapter) extractFilePath(input string) string {
+	// "path: /some/path" format
+	if path := extractValue(input, "path:"); path != "" {
+		return path
+	}
+	
+	// "file: /some/path" format
+	if path := extractValue(input, "file:"); path != "" {
+		return path
+	}
+	
+	// Direct path (if it looks like a path)
+	if strings.Contains(input, "/") || strings.Contains(input, "\\") || 
+	   strings.Contains(input, ".") {
+		return input
+	}
+	
+	return ""
+}
+
+// extractFileContent extracts file content from input
+func (ta *ToolAdapter) extractFileContent(input string) string {
+	if content := extractValue(input, "content:"); content != "" {
+		return content
+	}
+	
+	if content := extractValue(input, "data:"); content != "" {
+		return content
+	}
+	
+	return ""
+}
+
+// extractSearchQuery extracts search query from input
+func (ta *ToolAdapter) extractSearchQuery(input string) string {
+	if query := extractValue(input, "query:"); query != "" {
+		return query
+	}
+	
+	if query := extractValue(input, "search:"); query != "" {
+		return query
+	}
+	
+	// If no specific format, use the input as query
+	return input
+}
+
+// getFallbackParams creates fallback parameters based on tool type
+func (ta *ToolAdapter) getFallbackParams(input string) map[string]interface{} {
+	params := make(map[string]interface{})
+	toolName := ta.ryanTool.Name()
+	
+	switch toolName {
+	case "execute_bash":
+		params["command"] = input
+	case "read_file":
+		params["path"] = input
+	case "write_file", "edit_file":
+		// For write/edit, we need both path and content
+		// If input looks like a path, use it as path
+		if strings.Contains(input, "/") || strings.Contains(input, ".") {
+			params["path"] = input
+		} else {
+			params["content"] = input
+		}
+	case "search":
+		params["query"] = input
+	default:
+		params["input"] = input
+	}
+	
+	ta.log.Debug("Using fallback parameters", "tool", toolName, "params", params)
+	return params
 }
 
 // extractValue extracts value after a prefix from input string
@@ -172,15 +368,38 @@ func (c *Client) initializeAgent() error {
 		c.log.Debug("Adapted tool", "name", tool.Name())
 	}
 
-	// Create conversational agent with custom prompt to avoid thinking blocks
+	// Determine if thinking should be shown
+	showThinking := true
+	if c.config != nil {
+		showThinking = c.config.ShowThinking
+	}
+
+	// Get tool names for prompt
+	toolNames := make([]string, len(c.langchainTools))
+	for i, tool := range c.langchainTools {
+		toolNames[i] = tool.Name()
+	}
+
+	// Create custom prompt template that encourages thinking and tool usage
+	customPrompt := CreateAgentPrompt(showThinking, toolNames)
+
+	// Create conversational agent with custom prompt
 	c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
-		agents.WithMemory(c.memory))
+		agents.WithMemory(c.memory),
+		agents.WithPrompt(customPrompt))
 
-	// Create executor with intermediate steps enabled
-	c.executor = agents.NewExecutor(c.agent)
-	// TODO: Check if LangChainGo supports intermediate steps configuration
+	// Create executor with options to expose intermediate steps
+	var executorOptions []agents.Option
+	
+	// Add intermediate steps option if available
+	executorOptions = append(executorOptions, agents.WithMaxIterations(10))
+	
+	c.executor = agents.NewExecutor(c.agent, executorOptions...)
 
-	c.log.Info("LangChain agent initialized", "tools_count", len(c.langchainTools))
+	c.log.Info("LangChain agent initialized", 
+		"tools_count", len(c.langchainTools),
+		"show_thinking", showThinking,
+		"tool_names", toolNames)
 	return nil
 }
 
@@ -249,38 +468,33 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 		}
 	}
 
-	// Extract the final output
-	if output, ok := result["output"].(string); ok {
-		// LOG AGENT OUTPUT DEBUGGING
-		c.log.Debug("=== AGENT OUTPUT DEBUG ===")
-		c.log.Debug("Agent result keys", "keys", getMapKeys(result))
-		for key, value := range result {
-			c.log.Debug("Agent result field", "key", key, "value_type", fmt.Sprintf("%T", value), "value", value)
-		}
-		c.log.Debug("=== END AGENT OUTPUT DEBUG ===")
-
-		// Log raw agent output to check for thinking blocks
-		c.log.Debug("Raw agent output", "content", output, "has_think_tags", strings.Contains(output, "<think"))
-
-		// Save to memory for consistency with chain mode
-		if c.memory != nil {
-			c.memory.SaveContext(ctx,
-				map[string]any{"input": userInput},
-				map[string]any{"output": output},
-			)
-		}
-		return output, nil
+	// Determine if thinking should be shown
+	showThinking := true
+	if c.config != nil {
+		showThinking = c.config.ShowThinking
 	}
 
-	// Fallback output
-	finalOutput := fmt.Sprintf("%v", result)
+	// Format the agent output to include thinking and tool usage
+	formattedOutput := FormatAgentOutput(result, showThinking)
+
+	// LOG AGENT OUTPUT DEBUGGING
+	c.log.Debug("=== AGENT OUTPUT DEBUG ===")
+	c.log.Debug("Agent result keys", "keys", getMapKeys(result))
+	for key, value := range result {
+		c.log.Debug("Agent result field", "key", key, "value_type", fmt.Sprintf("%T", value), "value", value)
+	}
+	c.log.Debug("Formatted output", "content", formattedOutput, "has_think_tags", strings.Contains(formattedOutput, "<think"))
+	c.log.Debug("=== END AGENT OUTPUT DEBUG ===")
+
+	// Save formatted output to memory
 	if c.memory != nil {
 		c.memory.SaveContext(ctx,
 			map[string]any{"input": userInput},
-			map[string]any{"output": finalOutput},
+			map[string]any{"output": formattedOutput},
 		)
 	}
-	return finalOutput, nil
+
+	return formattedOutput, nil
 }
 
 // getMapKeys extracts keys from a map for debugging

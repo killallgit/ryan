@@ -107,6 +107,10 @@ func (p *ThinkingOutputParser) extractThinkingBlocks(text string) ([]string, str
 	cleanText = thinkPattern.ReplaceAllString(text, "")
 	cleanText = strings.TrimSpace(cleanText)
 
+	// Extract LangChain agent "Thought:" patterns
+	agentThoughts := p.extractAgentThoughts(cleanText)
+	thinkingBlocks = append(thinkingBlocks, agentThoughts...)
+
 	// Also check for alternative thinking patterns
 	altPatterns := []string{
 		`(?s)<thinking>(.*?)</thinking>`,
@@ -128,12 +132,76 @@ func (p *ThinkingOutputParser) extractThinkingBlocks(text string) ([]string, str
 		cleanText = altPattern.ReplaceAllString(cleanText, "")
 	}
 
+	// Clean up agent format patterns from the content
+	cleanText = p.cleanAgentFormatFromContent(cleanText)
+
 	return thinkingBlocks, strings.TrimSpace(cleanText)
+}
+
+// extractAgentThoughts extracts thinking content from LangChain agent format
+func (p *ThinkingOutputParser) extractAgentThoughts(text string) []string {
+	var thoughts []string
+	lines := strings.Split(text, "\n")
+	
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		
+		// Extract "Thought:" lines
+		if strings.HasPrefix(line, "Thought:") {
+			thought := strings.TrimPrefix(line, "Thought:")
+			thought = strings.TrimSpace(thought)
+			
+			// Skip common agent framework thoughts
+			if thought != "" && 
+			   !strings.Contains(thought, "I need to use a tool") &&
+			   !strings.Contains(thought, "Do I need to use a tool") &&
+			   !strings.Contains(thought, "should be one of") {
+				thoughts = append(thoughts, thought)
+			}
+		}
+	}
+	
+	return thoughts
+}
+
+// cleanAgentFormatFromContent removes agent format artifacts from content
+func (p *ThinkingOutputParser) cleanAgentFormatFromContent(text string) string {
+	lines := strings.Split(text, "\n")
+	var cleanLines []string
+	
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Skip agent format lines but preserve AI response
+		if strings.HasPrefix(trimmed, "Thought:") ||
+		   strings.HasPrefix(trimmed, "Action:") ||
+		   strings.HasPrefix(trimmed, "Action Input:") ||
+		   strings.HasPrefix(trimmed, "Observation:") {
+			continue
+		}
+		
+		// Handle AI: prefix - extract the content but keep it
+		if strings.HasPrefix(trimmed, "AI:") {
+			aiContent := strings.TrimSpace(strings.TrimPrefix(trimmed, "AI:"))
+			if aiContent != "" {
+				cleanLines = append(cleanLines, aiContent)
+			}
+			continue
+		}
+		
+		cleanLines = append(cleanLines, line)
+	}
+	
+	return strings.TrimSpace(strings.Join(cleanLines, "\n"))
 }
 
 // extractToolCalls attempts to extract tool call patterns from content
 func (p *ThinkingOutputParser) extractToolCalls(content string) []chat.ToolCall {
 	var toolCalls []chat.ToolCall
+
+	// Extract LangChain agent format tool calls first
+	agentToolCalls := p.extractAgentToolCalls(content)
+	toolCalls = append(toolCalls, agentToolCalls...)
 
 	// Pattern for tool calls in various formats
 	// Format 1: Action: tool_name\nAction Input: {...}
@@ -179,6 +247,56 @@ func (p *ThinkingOutputParser) extractToolCalls(content string) []chat.ToolCall 
 		}
 	}
 
+	return toolCalls
+}
+
+// extractAgentToolCalls extracts tool calls from LangChain agent format
+func (p *ThinkingOutputParser) extractAgentToolCalls(content string) []chat.ToolCall {
+	var toolCalls []chat.ToolCall
+	lines := strings.Split(content, "\n")
+	
+	var currentAction string
+	var currentInput string
+	
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		
+		if strings.HasPrefix(line, "Action:") {
+			currentAction = strings.TrimSpace(strings.TrimPrefix(line, "Action:"))
+		} else if strings.HasPrefix(line, "Action Input:") {
+			currentInput = strings.TrimSpace(strings.TrimPrefix(line, "Action Input:"))
+			
+			// If we have both action and input, create a tool call
+			if currentAction != "" && currentInput != "" {
+				args := p.parseToolArguments(currentInput)
+				
+				toolCall := chat.ToolCall{
+					Function: chat.ToolFunction{
+						Name:      currentAction,
+						Arguments: args,
+					},
+				}
+				toolCalls = append(toolCalls, toolCall)
+				
+				// Reset for next tool call
+				currentAction = ""
+				currentInput = ""
+			}
+		} else if strings.HasPrefix(line, "Observation:") {
+			// Extract observation result for context
+			observation := strings.TrimSpace(strings.TrimPrefix(line, "Observation:"))
+			
+			// If we have a recent tool call, we could add the observation as metadata
+			if len(toolCalls) > 0 {
+				lastCall := &toolCalls[len(toolCalls)-1]
+				if lastCall.Function.Arguments == nil {
+					lastCall.Function.Arguments = make(map[string]any)
+				}
+				lastCall.Function.Arguments["_observation"] = observation
+			}
+		}
+	}
+	
 	return toolCalls
 }
 
@@ -277,6 +395,10 @@ type StreamingThinkingParser struct {
 	inThinkingBlock  bool
 	thinkingBuffer   strings.Builder
 	contentBuffer    strings.Builder
+	agentBuffer      strings.Builder
+	inAgentThought   bool
+	inAgentAction    bool
+	currentTool      string
 	log              *logger.Logger
 }
 
@@ -291,8 +413,9 @@ func NewStreamingThinkingParser(showThinking bool) *StreamingThinkingParser {
 // ProcessChunk processes a streaming chunk
 func (sp *StreamingThinkingParser) ProcessChunk(chunk string) (content string, thinking string, isComplete bool) {
 	sp.buffer.WriteString(chunk)
+	sp.agentBuffer.WriteString(chunk)
 	
-	// Check for thinking block markers
+	// Check for thinking block markers (original format)
 	if strings.Contains(chunk, "<think>") {
 		sp.inThinkingBlock = true
 	}
@@ -310,6 +433,23 @@ func (sp *StreamingThinkingParser) ProcessChunk(chunk string) (content string, t
 		return
 	}
 
+	// Check for agent format markers
+	agentContent := sp.processAgentFormat(chunk)
+	if agentContent.HasUpdate {
+		if agentContent.Thinking != "" {
+			thinking = agentContent.Thinking
+		}
+		if agentContent.ToolUsage != "" {
+			content = agentContent.ToolUsage
+			return content, thinking, false
+		}
+		if agentContent.IsComplete {
+			isComplete = true
+			content = agentContent.FinalContent
+			return content, thinking, isComplete
+		}
+	}
+
 	// If in thinking block, accumulate in thinking buffer
 	if sp.inThinkingBlock {
 		sp.thinkingBuffer.WriteString(chunk)
@@ -319,6 +459,70 @@ func (sp *StreamingThinkingParser) ProcessChunk(chunk string) (content string, t
 	// Otherwise, it's content
 	sp.contentBuffer.WriteString(chunk)
 	return chunk, "", false
+}
+
+// AgentChunkResult represents processed agent chunk information  
+type AgentChunkResult struct {
+	HasUpdate    bool
+	Thinking     string
+	ToolUsage    string
+	FinalContent string
+	IsComplete   bool
+}
+
+// processAgentFormat processes agent format chunks
+func (sp *StreamingThinkingParser) processAgentFormat(chunk string) AgentChunkResult {
+	result := AgentChunkResult{}
+	
+	// Look for agent format patterns in the accumulated agent buffer
+	agentText := sp.agentBuffer.String()
+	lines := strings.Split(agentText, "\n")
+	
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		
+		if strings.HasPrefix(line, "Thought:") {
+			sp.inAgentThought = true
+			thought := strings.TrimSpace(strings.TrimPrefix(line, "Thought:"))
+			if thought != "" && 
+			   !strings.Contains(thought, "I need to use a tool") &&
+			   !strings.Contains(thought, "Do I need to use a tool") {
+				result.HasUpdate = true
+				result.Thinking = thought
+			}
+		} else if strings.HasPrefix(line, "Action:") {
+			sp.inAgentAction = true
+			sp.currentTool = strings.TrimSpace(strings.TrimPrefix(line, "Action:"))
+			result.HasUpdate = true
+			result.ToolUsage = fmt.Sprintf("🔧 Using tool: **%s**", sp.currentTool)
+		} else if strings.HasPrefix(line, "Action Input:") {
+			input := strings.TrimSpace(strings.TrimPrefix(line, "Action Input:"))
+			if sp.currentTool != "" && input != "" {
+				result.HasUpdate = true
+				result.ToolUsage = fmt.Sprintf("🔧 **%s**\n   Input: `%s`", sp.currentTool, input)
+			}
+		} else if strings.HasPrefix(line, "Observation:") {
+			observation := strings.TrimSpace(strings.TrimPrefix(line, "Observation:"))
+			if observation != "" {
+				// Truncate long observations for streaming
+				if len(observation) > 100 {
+					observation = observation[:100] + "..."
+				}
+				result.HasUpdate = true
+				result.ToolUsage = fmt.Sprintf("   Result: %s", observation)
+			}
+		} else if strings.HasPrefix(line, "AI:") {
+			// Final AI response
+			finalResponse := strings.TrimSpace(strings.TrimPrefix(line, "AI:"))
+			if finalResponse != "" {
+				result.HasUpdate = true
+				result.IsComplete = true
+				result.FinalContent = finalResponse
+			}
+		}
+	}
+	
+	return result
 }
 
 // Finalize completes parsing of accumulated chunks
@@ -333,5 +537,9 @@ func (sp *StreamingThinkingParser) Reset() {
 	sp.buffer.Reset()
 	sp.thinkingBuffer.Reset()
 	sp.contentBuffer.Reset()
+	sp.agentBuffer.Reset()
 	sp.inThinkingBlock = false
+	sp.inAgentThought = false
+	sp.inAgentAction = false
+	sp.currentTool = ""
 }
