@@ -41,7 +41,6 @@ tools:
   search:
     enabled: true
     timeout: 10s
-    use_langchain: false
 
 # LangChain
 langchain:

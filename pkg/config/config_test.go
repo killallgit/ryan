@@ -154,3 +154,111 @@ func TestGet(t *testing.T) {
 		assert.NotNil(t, c)
 	})
 }
+
+func TestLoadSelfConfig(t *testing.T) {
+	// Create temporary files
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "settings.yaml")
+	selfConfigFile := filepath.Join(tmpDir, "self.yaml")
+
+	// Create main config that references self.yaml
+	configContent := `
+ollama:
+  url: http://test-ollama:11434
+  model: test-model
+self_config_path: ` + selfConfigFile
+	
+	selfConfigContent := `
+role: self
+traits:
+- name: "explorer"
+  system_prompt: |
+    You are the inner explorer. You analyze your current environment and discover the tools and files that are available to you.
+- name: "planner"  
+  system_prompt: |
+    You are given broad goals and ideas. You break them down into smaller, more manageable tasks with clear and comprehensive steps.
+`
+
+	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	require.NoError(t, err)
+	
+	err = os.WriteFile(selfConfigFile, []byte(selfConfigContent), 0644)
+	require.NoError(t, err)
+
+	// Reset viper and global state
+	viper.Reset()
+	cfg = nil
+	selfCfg = nil
+
+	// Load config
+	loadedCfg, err := Load(configFile)
+	require.NoError(t, err)
+	require.NotNil(t, loadedCfg)
+
+	// Check main config
+	assert.Equal(t, "http://test-ollama:11434", loadedCfg.Ollama.URL)
+	assert.Equal(t, selfConfigFile, loadedCfg.SelfConfigPath)
+
+	// Check self config was loaded
+	selfConfig := GetSelf()
+	require.NotNil(t, selfConfig)
+	assert.Equal(t, "self", selfConfig.Role)
+	assert.Len(t, selfConfig.Traits, 2)
+	
+	// Check traits
+	assert.Equal(t, "explorer", selfConfig.Traits[0].Name)
+	assert.Contains(t, selfConfig.Traits[0].SystemPrompt, "inner explorer")
+	assert.Equal(t, "planner", selfConfig.Traits[1].Name)
+	assert.Contains(t, selfConfig.Traits[1].SystemPrompt, "broad goals")
+}
+
+func TestLoadSelfConfigMissing(t *testing.T) {
+	// Create main config with missing self config path
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "settings.yaml")
+	nonExistentSelfFile := filepath.Join(tmpDir, "missing-self.yaml")
+
+	configContent := `
+ollama:
+  url: http://test-ollama:11434
+self_config_path: ` + nonExistentSelfFile
+
+	err := os.WriteFile(configFile, []byte(configContent), 0644)
+	require.NoError(t, err)
+
+	// Reset viper and global state
+	viper.Reset()
+	cfg = nil
+	selfCfg = nil
+
+	// Load config - should succeed even if self config is missing
+	loadedCfg, err := Load(configFile)
+	require.NoError(t, err)
+	require.NotNil(t, loadedCfg)
+
+	// Self config should be nil
+	selfConfig := GetSelf()
+	assert.Nil(t, selfConfig)
+}
+
+func TestGetSelf(t *testing.T) {
+	// Reset global state
+	selfCfg = nil
+
+	// Should return nil if not loaded
+	assert.Nil(t, GetSelf())
+
+	// Set a test self config
+	selfCfg = &SelfConfig{
+		Role: "test",
+		Traits: []SelfTrait{
+			{Name: "test-trait", SystemPrompt: "test prompt"},
+		},
+	}
+
+	// Should return the config
+	retrieved := GetSelf()
+	require.NotNil(t, retrieved)
+	assert.Equal(t, "test", retrieved.Role)
+	assert.Len(t, retrieved.Traits, 1)
+}
