@@ -41,14 +41,14 @@ type LangChainPromptConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Logging      LoggingConfig      `mapstructure:"logging"`
-	Context      ContextConfig      `mapstructure:"context"`
-	ShowThinking bool               `mapstructure:"show_thinking"`
-	Streaming    bool               `mapstructure:"streaming"`
-	Ollama       OllamaConfig       `mapstructure:"ollama"`
-	Tools        ToolsConfig        `mapstructure:"tools"`
-	LangChain    LangChainConfig    `mapstructure:"langchain"`
-	VectorStore  VectorStoreConfig  `mapstructure:"vectorstore"`
+	Logging      LoggingConfig     `mapstructure:"logging"`
+	Context      ContextConfig     `mapstructure:"context"`
+	ShowThinking bool              `mapstructure:"show_thinking"`
+	Streaming    bool              `mapstructure:"streaming"`
+	Ollama       OllamaConfig      `mapstructure:"ollama"`
+	Tools        ToolsConfig       `mapstructure:"tools"`
+	LangChain    LangChainConfig   `mapstructure:"langchain"`
+	VectorStore  VectorStoreConfig `mapstructure:"vectorstore"`
 }
 
 // ContextConfig holds context persistence configuration
@@ -112,13 +112,13 @@ type SearchConfig struct {
 
 // VectorStoreConfig holds vector store configuration
 type VectorStoreConfig struct {
-	Enabled           bool                        `mapstructure:"enabled"`
-	Provider          string                      `mapstructure:"provider"`
-	PersistenceDir    string                      `mapstructure:"persistence_dir"`
-	EnablePersistence bool                        `mapstructure:"enable_persistence"`
-	Embedder          VectorStoreEmbedderConfig   `mapstructure:"embedder"`
+	Enabled           bool                          `mapstructure:"enabled"`
+	Provider          string                        `mapstructure:"provider"`
+	PersistenceDir    string                        `mapstructure:"persistence_dir"`
+	EnablePersistence bool                          `mapstructure:"enable_persistence"`
+	Embedder          VectorStoreEmbedderConfig     `mapstructure:"embedder"`
 	Collections       []VectorStoreCollectionConfig `mapstructure:"collections"`
-	Indexer           VectorStoreIndexerConfig    `mapstructure:"indexer"`
+	Indexer           VectorStoreIndexerConfig      `mapstructure:"indexer"`
 }
 
 // VectorStoreEmbedderConfig holds embedder configuration
@@ -137,9 +137,9 @@ type VectorStoreCollectionConfig struct {
 
 // VectorStoreIndexerConfig holds document indexer configuration
 type VectorStoreIndexerConfig struct {
-	ChunkSize     int `mapstructure:"chunk_size"`
-	ChunkOverlap  int `mapstructure:"chunk_overlap"`
-	AutoIndex     bool `mapstructure:"auto_index"`
+	ChunkSize    int  `mapstructure:"chunk_size"`
+	ChunkOverlap int  `mapstructure:"chunk_overlap"`
+	AutoIndex    bool `mapstructure:"auto_index"`
 }
 
 var (

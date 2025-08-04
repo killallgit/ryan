@@ -73,21 +73,16 @@ func InitializeVectorStore() (*Manager, error) {
 
 // NewIndexerFromGlobalConfig creates a document indexer using global configuration
 func NewIndexerFromGlobalConfig(collectionName string) (*DocumentIndexer, error) {
-	cfg := config.Get()
-	if cfg == nil {
-		return nil, fmt.Errorf("configuration not initialized")
+	// Get global manager
+	manager, err := GetGlobalManager()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get global manager: %w", err)
 	}
-
-	if !cfg.VectorStore.Enabled {
+	if manager == nil {
 		return nil, fmt.Errorf("vector store is not enabled")
 	}
 
-	// Initialize vector store if needed
-	manager, err := InitializeVectorStore()
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize vector store: %w", err)
-	}
-
+	cfg := config.Get()
 	indexerConfig := IndexerConfig{
 		CollectionName: collectionName,
 		ChunkSize:      cfg.VectorStore.Indexer.ChunkSize,
@@ -102,5 +97,5 @@ func NewIndexerFromGlobalConfig(collectionName string) (*DocumentIndexer, error)
 		indexerConfig.ChunkOverlap = 200
 	}
 
-	return NewDocumentIndexer(manager.GetStore(), indexerConfig)
+	return NewDocumentIndexer(manager, indexerConfig)
 }

@@ -376,13 +376,8 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 
 		response := fullResponse.String()
 
-		// Parse response to detect tool usage and create appropriate messages
-		toolMessages := lc.parseToolExecutionFromResponse(response)
-
-		// Add any detected tool messages to conversation
-		for _, msg := range toolMessages {
-			lc.conversation = chat.AddMessage(lc.conversation, msg)
-		}
+		// Note: LangChain agent handles tool execution internally
+		// We don't need to parse or simulate tool executions from the response
 
 		// Add final assistant message to conversation
 		assistantMsg := chat.NewAssistantMessage(response)
@@ -398,124 +393,6 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 	return updates, nil
 }
 
-// parseToolExecutionFromResponse attempts to detect tool usage in the response
-func (lc *LangChainController) parseToolExecutionFromResponse(response string) []chat.Message {
-	var messages []chat.Message
-
-	// Enhanced parsing approach - look for tool execution patterns
-	// Since LangChain agents don't expose intermediate steps, we parse the response
-	// to infer what tools were executed and create appropriate conversation messages
-
-	lc.log.Debug("Parsing response for tool execution", "response_length", len(response))
-
-	// Pattern matching for bash command executions
-	toolExecutions := lc.detectBashCommands(response)
-
-	for _, execution := range toolExecutions {
-		// Create tool call message
-		toolCall := chat.ToolCall{
-			Function: chat.ToolFunction{
-				Name:      "execute_bash",
-				Arguments: map[string]any{"command": execution.Command},
-			},
-		}
-		toolCallMsg := chat.NewAssistantMessageWithToolCalls([]chat.ToolCall{toolCall})
-		messages = append(messages, toolCallMsg)
-
-		// Create tool result message
-		toolResultMsg := chat.NewToolResultMessage("execute_bash", execution.Output)
-		messages = append(messages, toolResultMsg)
-
-		lc.log.Debug("Added tool execution to conversation",
-			"command", execution.Command,
-			"output_length", len(execution.Output))
-	}
-
-	return messages
-}
-
-// ToolExecution represents a detected tool execution
-type ToolExecution struct {
-	Command string
-	Output  string
-}
-
-// detectBashCommands analyzes the response to detect bash command executions
-func (lc *LangChainController) detectBashCommands(response string) []ToolExecution {
-	var executions []ToolExecution
-
-	// Pattern 1: Docker images count
-	if strings.Contains(response, "docker images") && strings.Contains(response, "34") {
-		executions = append(executions, ToolExecution{
-			Command: "docker images | wc -l",
-			Output:  "34",
-		})
-	}
-
-	// Pattern 2: Directory listing
-	if strings.Contains(response, "ls -la") || (strings.Contains(response, "current directory") && strings.Contains(response, "drwx")) {
-		// Extract the actual directory listing from the response if available
-		output := lc.extractDirectoryListing(response)
-		if output == "" {
-			output = "total 23192\ndrwxr-xr-x@ 30 ryan staff 960 Aug 3 08:21 .\ndrwxr-xr-x@ 31 ryan staff 992 Aug 3 07:49 ..\n..." // truncated
-		}
-		executions = append(executions, ToolExecution{
-			Command: "ls -la",
-			Output:  output,
-		})
-	}
-
-	// Pattern 3: Date command
-	if strings.Contains(response, "date") && (strings.Contains(response, "PDT") || strings.Contains(response, "PST") || strings.Contains(response, "Aug")) {
-		// Extract the date from the response
-		dateOutput := lc.extractDateFromResponse(response)
-		if dateOutput == "" {
-			dateOutput = "Sun Aug  3 12:14:50 PDT 2025"
-		}
-		executions = append(executions, ToolExecution{
-			Command: "date",
-			Output:  dateOutput,
-		})
-	}
-
-	return executions
-}
-
-// extractDirectoryListing attempts to extract directory listing from response
-func (lc *LangChainController) extractDirectoryListing(response string) string {
-	// Look for code blocks or structured directory listings
-	if strings.Contains(response, "```") {
-		start := strings.Index(response, "```")
-		if start != -1 {
-			end := strings.Index(response[start+3:], "```")
-			if end != -1 {
-				return strings.TrimSpace(response[start+3 : start+3+end])
-			}
-		}
-	}
-	return ""
-}
-
-// extractDateFromResponse attempts to extract date output from response
-func (lc *LangChainController) extractDateFromResponse(response string) string {
-	// Look for date patterns like "Sun Aug 3 12:14:50 PDT 2025"
-	words := strings.Fields(response)
-	for i, word := range words {
-		if strings.Contains(word, "PDT") || strings.Contains(word, "PST") {
-			// Try to extract a date pattern around this word
-			start := i - 4
-			if start < 0 {
-				start = 0
-			}
-			end := i + 2
-			if end > len(words) {
-				end = len(words)
-			}
-			return strings.Join(words[start:end], " ")
-		}
-	}
-	return ""
-}
 
 // saveHistory saves the current conversation to disk
 func (lc *LangChainController) saveHistory() error {
