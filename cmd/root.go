@@ -64,15 +64,6 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		// Get the continue flag
-		continueHistory, _ := cmd.Flags().GetBool("continue")
-
-		// Initialize chat history file (overwrites unless --continue is set)
-		if err := logger.InitHistoryFile(cfg.Context.HistoryFile, continueHistory); err != nil {
-			fmt.Printf("Failed to initialize history file: %v\n", err)
-			return
-		}
-
 		log := logger.WithComponent("main")
 		log.Info("Application starting")
 

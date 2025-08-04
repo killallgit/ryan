@@ -32,7 +32,6 @@ func TestLoadDefaults(t *testing.T) {
 
 	// Context configuration
 	assert.Equal(t, "./.ryan/contexts", cfg.Context.Directory)
-	assert.Equal(t, "./.ryan/logs/debug.history", cfg.Context.HistoryFile)
 	assert.Equal(t, "10MB", cfg.Context.MaxFileSize)
 	assert.True(t, cfg.Context.PersistLangChain)
 

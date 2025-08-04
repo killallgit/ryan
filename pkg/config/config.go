@@ -54,7 +54,6 @@ type Config struct {
 // ContextConfig holds context persistence configuration
 type ContextConfig struct {
 	Directory        string `mapstructure:"directory"`
-	HistoryFile      string `mapstructure:"history_file"`
 	MaxFileSize      string `mapstructure:"max_file_size"`
 	PersistLangChain bool   `mapstructure:"persist_langchain"`
 }
@@ -228,7 +227,6 @@ func setDefaults() {
 
 	// Context defaults
 	viper.SetDefault("context.directory", "./.ryan/contexts")
-	viper.SetDefault("context.history_file", "./.ryan/logs/debug.history")
 	viper.SetDefault("context.max_file_size", "10MB")
 	viper.SetDefault("context.persist_langchain", true)
 
@@ -346,7 +344,6 @@ func InitializeDefaults() error {
 	v.SetDefault("logging.level", "info")
 
 	v.SetDefault("context.directory", "./.ryan/contexts")
-	v.SetDefault("context.history_file", "./.ryan/logs/debug.history")
 	v.SetDefault("context.max_file_size", "10MB")
 	v.SetDefault("context.persist_langchain", true)
 
