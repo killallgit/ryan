@@ -41,13 +41,14 @@ type LangChainPromptConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Logging      LoggingConfig   `mapstructure:"logging"`
-	Context      ContextConfig   `mapstructure:"context"`
-	ShowThinking bool            `mapstructure:"show_thinking"`
-	Streaming    bool            `mapstructure:"streaming"`
-	Ollama       OllamaConfig    `mapstructure:"ollama"`
-	Tools        ToolsConfig     `mapstructure:"tools"`
-	LangChain    LangChainConfig `mapstructure:"langchain"`
+	Logging      LoggingConfig      `mapstructure:"logging"`
+	Context      ContextConfig      `mapstructure:"context"`
+	ShowThinking bool               `mapstructure:"show_thinking"`
+	Streaming    bool               `mapstructure:"streaming"`
+	Ollama       OllamaConfig       `mapstructure:"ollama"`
+	Tools        ToolsConfig        `mapstructure:"tools"`
+	LangChain    LangChainConfig    `mapstructure:"langchain"`
+	VectorStore  VectorStoreConfig  `mapstructure:"vectorstore"`
 }
 
 // ContextConfig holds context persistence configuration
@@ -107,6 +108,38 @@ type SearchConfig struct {
 	Timeout      time.Duration `mapstructure:"timeout"`
 	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
 	UseLangchain bool          `mapstructure:"use_langchain"`
+}
+
+// VectorStoreConfig holds vector store configuration
+type VectorStoreConfig struct {
+	Enabled           bool                        `mapstructure:"enabled"`
+	Provider          string                      `mapstructure:"provider"`
+	PersistenceDir    string                      `mapstructure:"persistence_dir"`
+	EnablePersistence bool                        `mapstructure:"enable_persistence"`
+	Embedder          VectorStoreEmbedderConfig   `mapstructure:"embedder"`
+	Collections       []VectorStoreCollectionConfig `mapstructure:"collections"`
+	Indexer           VectorStoreIndexerConfig    `mapstructure:"indexer"`
+}
+
+// VectorStoreEmbedderConfig holds embedder configuration
+type VectorStoreEmbedderConfig struct {
+	Provider string `mapstructure:"provider"` // ollama, openai, mock
+	Model    string `mapstructure:"model"`
+	BaseURL  string `mapstructure:"base_url"`
+	APIKey   string `mapstructure:"api_key"`
+}
+
+// VectorStoreCollectionConfig holds collection configuration
+type VectorStoreCollectionConfig struct {
+	Name     string                 `mapstructure:"name"`
+	Metadata map[string]interface{} `mapstructure:"metadata"`
+}
+
+// VectorStoreIndexerConfig holds document indexer configuration
+type VectorStoreIndexerConfig struct {
+	ChunkSize     int `mapstructure:"chunk_size"`
+	ChunkOverlap  int `mapstructure:"chunk_overlap"`
+	AutoIndex     bool `mapstructure:"auto_index"`
 }
 
 var (
@@ -218,6 +251,19 @@ func setDefaults() {
 	viper.SetDefault("langchain.memory.max_tokens", 4000)
 	viper.SetDefault("langchain.memory.summary_threshold", 1000)
 	viper.SetDefault("langchain.prompts.context_injection", true)
+
+	// Vector store defaults
+	viper.SetDefault("vectorstore.enabled", true)
+	viper.SetDefault("vectorstore.provider", "chromem")
+	viper.SetDefault("vectorstore.persistence_dir", "./.ryan/vectorstore")
+	viper.SetDefault("vectorstore.enable_persistence", true)
+	viper.SetDefault("vectorstore.embedder.provider", "ollama")
+	viper.SetDefault("vectorstore.embedder.model", "nomic-embed-text")
+	viper.SetDefault("vectorstore.embedder.base_url", "http://localhost:11434")
+	viper.SetDefault("vectorstore.embedder.api_key", "")
+	viper.SetDefault("vectorstore.indexer.chunk_size", 1000)
+	viper.SetDefault("vectorstore.indexer.chunk_overlap", 200)
+	viper.SetDefault("vectorstore.indexer.auto_index", false)
 }
 
 // processDurations converts string durations to time.Duration
@@ -286,6 +332,9 @@ func InitializeDefaults() error {
 	if err := os.MkdirAll(".ryan/contexts", 0755); err != nil {
 		return fmt.Errorf("failed to create .ryan/contexts directory: %w", err)
 	}
+	if err := os.MkdirAll(".ryan/vectorstore", 0755); err != nil {
+		return fmt.Errorf("failed to create .ryan/vectorstore directory: %w", err)
+	}
 
 	// Create a new viper instance for writing defaults
 	v := viper.New()
@@ -328,6 +377,19 @@ func InitializeDefaults() error {
 	v.SetDefault("langchain.memory.max_tokens", 4000)
 	v.SetDefault("langchain.memory.summary_threshold", 1000)
 	v.SetDefault("langchain.prompts.context_injection", true)
+
+	// Vector store defaults
+	v.SetDefault("vectorstore.enabled", true)
+	v.SetDefault("vectorstore.provider", "chromem")
+	v.SetDefault("vectorstore.persistence_dir", "./.ryan/vectorstore")
+	v.SetDefault("vectorstore.enable_persistence", true)
+	v.SetDefault("vectorstore.embedder.provider", "ollama")
+	v.SetDefault("vectorstore.embedder.model", "nomic-embed-text")
+	v.SetDefault("vectorstore.embedder.base_url", "http://localhost:11434")
+	v.SetDefault("vectorstore.embedder.api_key", "")
+	v.SetDefault("vectorstore.indexer.chunk_size", 1000)
+	v.SetDefault("vectorstore.indexer.chunk_overlap", 200)
+	v.SetDefault("vectorstore.indexer.auto_index", false)
 
 	// Write the default configuration to .ryan/settings.yaml
 	if err := v.SafeWriteConfigAs(".ryan/settings.yaml"); err != nil {
