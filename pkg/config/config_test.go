@@ -21,7 +21,7 @@ func TestLoadDefaults(t *testing.T) {
 	require.NotNil(t, cfg)
 
 	// Check defaults
-	assert.Equal(t, "http://localhost:11434", cfg.Ollama.URL)
+	assert.Equal(t, "https://ollama.kitty-tetra.ts.net", cfg.Ollama.URL)
 	assert.Equal(t, "qwen3:latest", cfg.Ollama.Model)
 	assert.Equal(t, 90*time.Second, cfg.Ollama.Timeout)
 	assert.Equal(t, 10, cfg.Ollama.PollInterval)
