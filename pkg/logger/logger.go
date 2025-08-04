@@ -172,8 +172,8 @@ func WithContext(key string, value any) *Logger {
 	return defaultLogger.WithContext(key, value)
 }
 
-// InitHistoryFile initializes the chat history file (always overwrites)
-func InitHistoryFile(historyPath string) error {
+// InitHistoryFile initializes the chat history file
+func InitHistoryFile(historyPath string, continueHistory bool) error {
 	if historyPath == "" {
 		historyPath = ".ryan/logs/debug.history"
 	}
@@ -184,17 +184,30 @@ func InitHistoryFile(historyPath string) error {
 		return fmt.Errorf("failed to create history directory: %w", err)
 	}
 
-	// Always truncate the history file on startup
+	// Determine file open flags based on continueHistory
+	var flags int
+	if continueHistory {
+		// Append to existing file
+		flags = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	} else {
+		// Truncate the history file on startup (default behavior)
+		flags = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+	}
+
 	var err error
-	historyFile, err = os.OpenFile(historyPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	historyFile, err = os.OpenFile(historyPath, flags, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open history file: %w", err)
 	}
 
 	// Write session start marker
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	if _, err := fmt.Fprintf(historyFile, "=== Ryan Chat Session Started: %s ===\n\n", timestamp); err != nil {
-		return fmt.Errorf("failed to write session start: %w", err)
+	sessionMarker := fmt.Sprintf("\n=== Ryan Chat Session %s: %s ===\n\n",
+		map[bool]string{true: "Continued", false: "Started"}[continueHistory],
+		timestamp)
+
+	if _, err := fmt.Fprint(historyFile, sessionMarker); err != nil {
+		return fmt.Errorf("failed to write session marker: %w", err)
 	}
 
 	return nil

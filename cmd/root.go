@@ -64,8 +64,11 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		// Initialize chat history file (always overwrites on startup)
-		if err := logger.InitHistoryFile(cfg.Context.HistoryFile); err != nil {
+		// Get the continue flag
+		continueHistory, _ := cmd.Flags().GetBool("continue")
+
+		// Initialize chat history file (overwrites unless --continue is set)
+		if err := logger.InitHistoryFile(cfg.Context.HistoryFile, continueHistory); err != nil {
 			fmt.Printf("Failed to initialize history file: %v\n", err)
 			return
 		}
@@ -222,4 +225,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is .ryan/settings.yaml)")
 	rootCmd.PersistentFlags().String("model", "", "model to use (overrides config)")
 	rootCmd.PersistentFlags().String("ollama.system_prompt", "", "system prompt to use (overrides config)")
+	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")
 }

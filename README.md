@@ -65,3 +65,19 @@ devbox shell
 task build
 # bin can be found at ./bin/ryan
 ```
+
+## Command-Line Flags
+
+```bash
+# Start with a specific model
+ryan --model llama3.2
+
+# Continue from previous chat history (don't clear history file)
+ryan --continue
+
+# Use a custom config file
+ryan --config /path/to/config.yaml
+
+# Specify a system prompt file
+ryan --ollama.system_prompt /path/to/prompt.txt
+```
