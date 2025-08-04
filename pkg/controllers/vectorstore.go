@@ -123,7 +123,7 @@ func (c *VectorStoreController) GetStoreMetadata() (*VectorStoreStats, error) {
 	// Check if vector store is configured to be enabled
 	cfg := config.Get()
 	configEnabled := cfg != nil && cfg.VectorStore.Enabled
-	
+
 	manager, err := vectorstore.GetGlobalManager()
 	if err != nil {
 		c.log.Error("Failed to get vector store manager", "error", err)

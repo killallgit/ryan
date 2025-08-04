@@ -109,7 +109,6 @@ func (di *DocumentIndexer) indexCodeFile(ctx context.Context, filePath string, c
 	chunks := di.processor.ChunkCode(content)
 	docs := make([]Document, 0, len(chunks))
 
-
 	for i, chunk := range chunks {
 		if strings.TrimSpace(chunk) == "" {
 			continue
@@ -265,4 +264,3 @@ func getLanguageFromExt(ext string) string {
 	}
 	return "unknown"
 }
-
