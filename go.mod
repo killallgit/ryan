@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.19.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/gdamore/tcell/v2 v2.8.1
+	github.com/google/uuid v1.6.0
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
 	github.com/spf13/cobra v1.9.1
@@ -33,7 +34,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20250403155104-27863c87afa6 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/goph/emperror v0.17.2 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect

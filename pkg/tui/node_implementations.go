@@ -526,7 +526,7 @@ func (tpn *ToolProgressMessageNode) WithBounds(bounds NodeBounds) MessageNode {
 
 func (tpn *ToolProgressMessageNode) Render(area Rect, state NodeState) []RenderedLine {
 	tpn.invalidateCache(area.Width)
-	
+
 	if tpn.cache.Valid {
 		// Convert cached data to RenderedLine format
 		result := make([]RenderedLine, len(tpn.cache.Lines))
@@ -542,18 +542,18 @@ func (tpn *ToolProgressMessageNode) Render(area Rect, state NodeState) []Rendere
 
 	// Create a subtle progress indicator style (dim gray/yellow)
 	progressStyle := tcell.StyleDefault.Foreground(tcell.ColorYellow).Dim(true)
-	
+
 	// Format: "🔧 Shell(docker ps -a)"
 	content := fmt.Sprintf("🔧 %s", tpn.message.Content)
-	
+
 	lines := []RenderedLine{
 		{
-			Text:  content,
-			Style: progressStyle,
+			Text:   content,
+			Style:  progressStyle,
 			Indent: 0,
 		},
 	}
-	
+
 	// Cache the data
 	tpn.cache.Lines = make([]string, len(lines))
 	tpn.cache.Styles = make([]tcell.Style, len(lines))
@@ -562,7 +562,7 @@ func (tpn *ToolProgressMessageNode) Render(area Rect, state NodeState) []Rendere
 		tpn.cache.Styles[i] = line.Style
 	}
 	tpn.cache.Valid = true
-	
+
 	return lines
 }
 
