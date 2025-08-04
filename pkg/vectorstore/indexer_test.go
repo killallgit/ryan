@@ -2,6 +2,7 @@ package vectorstore
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,7 +168,7 @@ func TestDocumentIndexer_IndexDirectory(t *testing.T) {
 		"ignore.log": "This should be ignored",
 	}
 
-	for filename, content := range testFiles {
+	for filename, content := range files {
 		filePath := filepath.Join(tmpDir, filename)
 		err = os.WriteFile(filePath, []byte(content), 0644)
 		require.NoError(t, err)
@@ -182,16 +183,16 @@ func TestDocumentIndexer_IndexDirectory(t *testing.T) {
 	docs, err := indexer.SearchDocuments(ctx, "test file", 10)
 	require.NoError(t, err)
 
-	// Check that no results are from the log file
-	foundLogFile := false
+	// Check that results match expected patterns
+	foundFiles := make(map[string]bool)
 	for _, doc := range docs {
 		if source, ok := doc.Metadata["source"].(string); ok {
 			foundFiles[filepath.Base(source)] = true
 		}
 	}
 
-	assert.True(t, foundFiles["file1.txt"] || foundFiles["file2.md"], "Should find at least one text file")
-	assert.False(t, foundFiles["ignore.pdf"], "Should not index PDF file")
+	assert.True(t, foundFiles["doc1.txt"] || foundFiles["doc2.txt"] || foundFiles["code.go"], "Should find at least one matching file")
+	assert.False(t, foundFiles["ignore.log"], "Should not index log file due to pattern filter")
 }
 
 func TestDocumentIndexer_IndexReader(t *testing.T) {
@@ -290,16 +291,26 @@ func TestDocumentIndexer_CodeFileIndexing(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Index from reader
-	content := "This is content from a reader. It should be indexed properly."
-	reader := strings.NewReader(content)
+	// Create a temporary Go code file
+	tmpDir := t.TempDir()
+	codeFile := filepath.Join(tmpDir, "test.go")
+	content := `package main
 
-	metadata := map[string]interface{}{
-		"type":   "stream",
-		"custom": "value",
-	}
+import "fmt"
 
-	err = indexer.IndexReader(ctx, reader, "stream-source", metadata)
+func TestFunction() {
+	fmt.Println("Hello from TestFunction")
+}
+
+func main() {
+	TestFunction()
+}`
+
+	err = os.WriteFile(codeFile, []byte(content), 0644)
+	require.NoError(t, err)
+
+	// Index the code file
+	err = indexer.IndexFile(ctx, codeFile)
 	require.NoError(t, err)
 
 	// Search for content
@@ -384,18 +395,14 @@ func TestDocumentIndexer_GetCollectionName(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, docs)
 
-	// Verify chunking happened
-	// Get metadata about chunks to verify
-	collection := indexer.GetCollection()
-
-	// Count chunks for the large file by searching with a unique query
-	searchResults, err := collection.Query(ctx, "paragraph contains text", 100)
+	// Verify chunking happened by searching for content that should span multiple chunks
+	allDocs, err := indexer.SearchDocuments(ctx, "paragraph contains text", 100)
 	require.NoError(t, err)
 
-	// Should have multiple chunks
+	// Should have multiple chunks from the large file
 	chunkCount := 0
-	for _, result := range searchResults {
-		if result.Document.Metadata["source"] == largeFile {
+	for _, doc := range allDocs {
+		if doc.Metadata["source"] == largeFile {
 			chunkCount++
 		}
 	}

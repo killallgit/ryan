@@ -44,7 +44,7 @@ func createVectorMemory() (*chat.LangChainVectorMemory, error) {
 	
 	// Create vector memory with default configuration
 	config := chat.DefaultVectorMemoryConfig()
-	vectorMemory, err := chat.NewLangChainVectorMemory(manager.GetStore(), config)
+	vectorMemory, err := chat.NewLangChainVectorMemory(manager, config)
 	if err != nil {
 		log.Error("Failed to create vector memory, falling back to regular memory", "error", err)
 		regularMemory := chat.NewLangChainMemory()
