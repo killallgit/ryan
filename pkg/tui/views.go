@@ -67,6 +67,12 @@ func (vm *ViewManager) SetCurrentView(name string) bool {
 				modelView.Activate()
 			}
 		}
+		
+		// If switching to context tree view, update it with current conversation data
+		if name == "context-tree" {
+			log.Debug("Switching to context tree view")
+			// This will be called by the app when it detects context tree view is active
+		}
 
 		return true
 	}

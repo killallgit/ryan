@@ -686,3 +686,11 @@ func (cc *ChatController) fallbackToNonStreaming(ctx context.Context, content st
 
 	return updates, nil
 }
+
+// SaveHistoryToDisk is a no-op for ChatController (compatibility with LangChainController interface)
+// ChatController doesn't have persistent history storage
+func (cc *ChatController) SaveHistoryToDisk() error {
+	// ChatController doesn't save history to disk by default
+	// This method exists for interface compatibility
+	return nil
+}

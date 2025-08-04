@@ -29,9 +29,10 @@ type App struct {
 	sendStartTime time.Time     // Track when message sending started
 	timeout       time.Duration // Request timeout duration
 	cancelSend    chan bool     // Channel to cancel current send operation
-	viewManager   *ViewManager
-	chatView      *ChatView
-	spinnerTicker *time.Ticker
+	viewManager     *ViewManager
+	chatView        *ChatView
+	contextTreeView *ContextTreeStandaloneView
+	spinnerTicker   *time.Ticker
 	spinnerStop   chan bool
 	modal         ModalDialog
 
@@ -135,10 +136,14 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	chatView := NewChatView(controller, modelsController, screen)
 	modelView := NewModelView(modelsController, controller, screen)
 	vectorStoreView := NewVectorStoreView(screen)
+	contextTreeView := NewContextTreeStandaloneView()
+	toolsView := NewToolsView(controller.GetToolRegistry())
 	viewManager.RegisterView("chat", chatView)
 	viewManager.RegisterView("models", modelView)
 	viewManager.RegisterView("vectorstore", vectorStoreView)
-	log.Debug("Registered views with view manager", "views", []string{"chat", "models", "vectorstore"})
+	viewManager.RegisterView("context-tree", contextTreeView)
+	viewManager.RegisterView("tools", toolsView)
+	log.Debug("Registered views with view manager", "views", []string{"chat", "models", "vectorstore", "context-tree", "tools"})
 
 	app := &App{
 		screen:        screen,
@@ -151,9 +156,10 @@ func NewApp(controller ControllerInterface) (*App, error) {
 		sending:       false,
 		timeout:       cfg.Ollama.Timeout,
 		cancelSend:    make(chan bool, 1), // Buffered channel for cancellation
-		viewManager:   viewManager,
-		chatView:      chatView,
-		spinnerTicker: time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
+		viewManager:     viewManager,
+		chatView:        chatView,
+		contextTreeView: contextTreeView,
+		spinnerTicker:   time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
 		spinnerStop:   make(chan bool),
 		modal:         NewModalDialog(),
 
@@ -936,10 +942,76 @@ func (app *App) render() {
 	width, height := app.screen.Size()
 	area := Rect{X: 0, Y: 0, Width: width, Height: height}
 
+	// Update context tree view if it's the current view
+	if app.viewManager.GetCurrentViewName() == "context-tree" {
+		app.updateContextTreeView()
+	}
+
 	app.viewManager.Render(app.screen, area)
 
 	// Render modal on top of everything else
 	app.modal.Render(app.screen, area)
 
 	app.screen.Show()
+}
+
+// updateContextTreeView updates the context tree view with current conversation data
+func (app *App) updateContextTreeView() {
+	if app.contextTreeView == nil {
+		return
+	}
+
+	// Get messages from controller to build a context tree
+	messages := app.controller.GetHistory()
+
+	// Create a context tree with the current conversation
+	tree := &chat.ContextTree{
+		RootContextID: "main",
+		Contexts: map[string]*chat.Context{
+			"main": {
+				ID:          "main",
+				ParentID:    nil,
+				BranchPoint: nil,
+				Title:       "Main Conversation",
+				Created:     time.Now(),
+				MessageIDs:  []string{},
+				IsActive:    true,
+			},
+		},
+		Messages:      make(map[string]*chat.Message),
+		ParentIndex:   make(map[string][]string),
+		ChildIndex:    make(map[string]string),
+		ActiveContext: "main",
+	}
+
+	// Add existing messages to the tree
+	for i, msg := range messages {
+		msgCopy := msg // Create a copy
+		msgID := fmt.Sprintf("msg-%d", i)
+		msgCopy.ID = msgID
+		msgCopy.ContextID = "main"
+		tree.Messages[msgID] = &msgCopy
+		tree.Contexts["main"].MessageIDs = append(tree.Contexts["main"].MessageIDs, msgID)
+	}
+
+	// Create some example branches if we have messages
+	if len(messages) > 2 {
+		// Create a branch from the second message
+		branchID := "branch1"
+		branchMsgID := "msg-1"
+		tree.Contexts[branchID] = &chat.Context{
+			ID:          branchID,
+			ParentID:    &[]string{"main"}[0],
+			BranchPoint: &branchMsgID,
+			Title:       "Alternative Response",
+			Created:     time.Now().Add(-5 * time.Minute),
+			MessageIDs:  []string{},
+			IsActive:    false,
+		}
+		tree.ParentIndex["main"] = append(tree.ParentIndex["main"], branchID)
+		tree.ChildIndex[branchID] = "main"
+	}
+
+	// Update the context tree view with the new tree
+	app.contextTreeView.UpdateTree(tree)
 }

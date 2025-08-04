@@ -4,18 +4,21 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 )
 
 // Registry manages available tools and their execution
 type Registry struct {
-	tools map[string]Tool
-	mu    sync.RWMutex
+	tools        map[string]Tool
+	statsTracker *ToolStatsTracker
+	mu           sync.RWMutex
 }
 
 // NewRegistry creates a new tool registry
 func NewRegistry() *Registry {
 	return &Registry{
-		tools: make(map[string]Tool),
+		tools:        make(map[string]Tool),
+		statsTracker: NewToolStatsTracker(),
 	}
 }
 
@@ -101,6 +104,10 @@ func (r *Registry) Execute(ctx context.Context, req ToolRequest) (ToolResult, er
 			}
 	}
 
+	// Record the start of execution
+	r.statsTracker.RecordStart(req.Name)
+	startTime := time.Now()
+
 	// Use the provided context or create a default one
 	execCtx := req.Context
 	if execCtx == nil {
@@ -108,7 +115,14 @@ func (r *Registry) Execute(ctx context.Context, req ToolRequest) (ToolResult, er
 	}
 
 	// Execute the tool
-	return tool.Execute(execCtx, req.Parameters)
+	result, err := tool.Execute(execCtx, req.Parameters)
+	
+	// Record the end of execution
+	duration := time.Since(startTime)
+	success := err == nil && result.Success
+	r.statsTracker.RecordEnd(req.Name, duration, success)
+
+	return result, err
 }
 
 // ExecuteAsync runs a tool asynchronously and returns a channel for the result
@@ -186,4 +200,24 @@ func (r *Registry) RegisterBuiltinTools() error {
 	}
 
 	return nil
+}
+
+// GetToolStats returns statistics for a specific tool
+func (r *Registry) GetToolStats(toolName string) *ToolStats {
+	return r.statsTracker.GetStats(toolName)
+}
+
+// GetAllToolStats returns statistics for all tools
+func (r *Registry) GetAllToolStats() map[string]*ToolStats {
+	return r.statsTracker.GetAllStats()
+}
+
+// ResetToolStats resets statistics for a specific tool
+func (r *Registry) ResetToolStats(toolName string) {
+	r.statsTracker.Reset(toolName)
+}
+
+// ResetAllToolStats resets all tool statistics
+func (r *Registry) ResetAllToolStats() {
+	r.statsTracker.ResetAll()
 }
