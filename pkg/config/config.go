@@ -91,8 +91,8 @@ type FileReadConfig struct {
 
 // SearchConfig holds search tool configuration
 type SearchConfig struct {
-	Enabled    bool          `mapstructure:"enabled"`
-	Timeout    time.Duration `mapstructure:"timeout"`
+	Enabled      bool          `mapstructure:"enabled"`
+	Timeout      time.Duration `mapstructure:"timeout"`
 	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
 	UseLangchain bool          `mapstructure:"use_langchain"`
 }
@@ -309,13 +309,13 @@ func InitializeDefaults() error {
 // promptUserForSettingsCreation prompts the user to create a settings file
 func promptUserForSettingsCreation() bool {
 	fmt.Print("No .ryan/settings.yaml file found. Would you like to create one with default settings? (y/N): ")
-	
+
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil {
 		return false
 	}
-	
+
 	response = strings.TrimSpace(strings.ToLower(response))
 	return response == "y" || response == "yes"
 }

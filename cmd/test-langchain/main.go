@@ -43,7 +43,7 @@ func main() {
 
 	// Create LangChain client
 	client, err := langchain.NewClient(
-		cfg.Ollama.URL,  // http://localhost:11434
+		cfg.Ollama.URL,   // http://localhost:11434
 		cfg.Ollama.Model, // Use configured model
 		toolRegistry,
 	)
