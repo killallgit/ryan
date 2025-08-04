@@ -69,7 +69,7 @@ var _ = Describe("ChatController Tool Integration", func() {
 
 			// Verify that tools were included in the request
 			Expect(capturedRequest.Tools).ToNot(BeEmpty())
-			Expect(len(capturedRequest.Tools)).To(Equal(2)) // bash and file read tools
+			Expect(len(capturedRequest.Tools)).To(Equal(5)) // bash, file read, web fetch, grep, and write tools
 		})
 
 		It("should handle tool calls in assistant response", func() {

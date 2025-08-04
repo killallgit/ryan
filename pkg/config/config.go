@@ -20,7 +20,10 @@ type LangChainConfig struct {
 
 // LangChainToolsConfig holds tool integration configuration
 type LangChainToolsConfig struct {
-	MaxIterations int `mapstructure:"max_iterations"`
+	MaxIterations       int  `mapstructure:"max_iterations"`
+	AutonomousReasoning bool `mapstructure:"autonomous_reasoning"`
+	UseReActPattern     bool `mapstructure:"use_react_pattern"`
+	VerboseLogging      bool `mapstructure:"verbose_logging"`
 }
 
 // LangChainMemoryConfig holds memory configuration
@@ -207,6 +210,9 @@ func setDefaults() {
 
 	// LangChain defaults
 	viper.SetDefault("langchain.tools.max_iterations", 5)
+	viper.SetDefault("langchain.tools.autonomous_reasoning", true)
+	viper.SetDefault("langchain.tools.use_react_pattern", true)
+	viper.SetDefault("langchain.tools.verbose_logging", false)
 	viper.SetDefault("langchain.memory.type", "buffer")
 	viper.SetDefault("langchain.memory.window_size", 10)
 	viper.SetDefault("langchain.memory.max_tokens", 4000)
@@ -312,8 +318,11 @@ func InitializeDefaults() error {
 	v.SetDefault("tools.search.enabled", true)
 	v.SetDefault("tools.search.timeout", "10s")
 
-	// LangChain defaults
+	// LangChain autonomous agent defaults
 	v.SetDefault("langchain.tools.max_iterations", 5)
+	v.SetDefault("langchain.tools.autonomous_reasoning", true)
+	v.SetDefault("langchain.tools.use_react_pattern", true)
+	v.SetDefault("langchain.tools.verbose_logging", false)
 	v.SetDefault("langchain.memory.type", "buffer")
 	v.SetDefault("langchain.memory.window_size", 10)
 	v.SetDefault("langchain.memory.max_tokens", 4000)
