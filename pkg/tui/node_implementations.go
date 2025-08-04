@@ -44,9 +44,10 @@ type TextMessageNode struct {
 
 func NewTextMessageNode(msg chat.Message, id string) *TextMessageNode {
 	nodeType := NodeTypeText
-	if msg.Role == chat.RoleSystem {
+	switch msg.Role {
+	case chat.RoleSystem:
 		nodeType = NodeTypeSystem
-	} else if msg.Role == chat.RoleError {
+	case chat.RoleError:
 		nodeType = NodeTypeError
 	}
 

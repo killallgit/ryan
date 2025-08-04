@@ -379,17 +379,6 @@ func (app *App) handleResize(ev *tcell.EventResize) {
 	app.viewManager.HandleResize(width, height)
 }
 
-func (app *App) sendMessage() {
-	content := strings.TrimSpace(app.input.Content)
-	if content == "" {
-		return
-	}
-
-	// Clear input immediately and set sending state
-	app.input = app.input.Clear()
-	app.sendMessageWithContent(content)
-}
-
 func (app *App) sendMessageWithContent(content string) {
 	log := logger.WithComponent("tui_app")
 
@@ -580,7 +569,7 @@ func (app *App) handleMessageError(ev *MessageErrorEvent) {
 	log.Debug("STATE TRANSITION: Forced render after error")
 }
 
-func (app *App) handleSpinnerAnimation(ev *SpinnerAnimationEvent) {
+func (app *App) handleSpinnerAnimation(_ *SpinnerAnimationEvent) {
 	// Update spinner animation in ChatView
 	if app.chatView != nil && app.sending {
 		app.chatView.UpdateSpinnerFrame()
@@ -609,41 +598,6 @@ func (app *App) updateMessages() {
 		}
 	}
 	app.messages = app.messages.WithMessages(filteredHistory)
-}
-
-func (app *App) scrollUp() {
-	if app.messages.Scroll > 0 {
-		app.messages = app.messages.WithScroll(app.messages.Scroll - 1)
-	}
-}
-
-func (app *App) scrollDown() {
-	app.messages = app.messages.WithScroll(app.messages.Scroll + 1)
-}
-
-func (app *App) pageUp() {
-	newScroll := app.messages.Scroll - app.messages.Height
-	if newScroll < 0 {
-		newScroll = 0
-	}
-	app.messages = app.messages.WithScroll(newScroll)
-}
-
-func (app *App) pageDown() {
-	newScroll := app.messages.Scroll + app.messages.Height
-	app.messages = app.messages.WithScroll(newScroll)
-}
-
-func (app *App) scrollToBottom() {
-	var totalLines int
-	for _, msg := range app.messages.Messages {
-		lines := WrapText(msg.Content, app.messages.Width)
-		totalLines += len(lines) + 2
-	}
-
-	if totalLines > app.messages.Height {
-		app.messages = app.messages.WithScroll(totalLines - app.messages.Height)
-	}
 }
 
 func (app *App) handleViewChange(ev *ViewChangeEvent) {

@@ -845,12 +845,7 @@ func RenderMessagesWithNodesAndSpinner(screen tcell.Screen, display MessageDispl
 
 		if nodeArea.Height > 0 {
 			// Update node bounds for click handling
-			nodeBounds := NodeBounds{
-				X:      nodeArea.X,
-				Y:      nodeArea.Y,
-				Width:  nodeArea.Width,
-				Height: nodeArea.Height,
-			}
+			nodeBounds := NodeBounds(nodeArea)
 			display.NodeManager.UpdateNodeBounds(node.ID(), nodeBounds)
 
 			// Render the node

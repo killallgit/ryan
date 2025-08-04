@@ -274,10 +274,6 @@ func RenderModelStats(screen tcell.Screen, display ModelStatsDisplay, area Rect)
 	}
 }
 
-func convertOllamaModelsToModelInfo(models []ollama.Model) []ModelInfo {
-	return convertOllamaModelsToModelInfoWithStatus(models, make(map[string]bool))
-}
-
 func convertOllamaModelsToModelInfoWithStatus(models []ollama.Model, runningModels map[string]bool) []ModelInfo {
 	result := make([]ModelInfo, len(models))
 	for i, model := range models {
@@ -373,9 +369,7 @@ func normalizeModelNameForComparison(name string) string {
 	// Remove common suffixes that don't affect the core model identity
 	suffixes := []string{"-q4_0", "-q4_k_m", "-q8_0", "-fp16", "-instruct", "-chat"}
 	for _, suffix := range suffixes {
-		if strings.HasSuffix(normalized, suffix) {
-			normalized = strings.TrimSuffix(normalized, suffix)
-		}
+		normalized = strings.TrimSuffix(normalized, suffix)
 	}
 
 	return normalized

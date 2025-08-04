@@ -368,7 +368,7 @@ func (cv *ChatView) handleInputModeKeys(ev *tcell.EventKey, sending bool) bool {
 	return false
 }
 
-func (cv *ChatView) handleNodeModeKeys(ev *tcell.EventKey, sending bool) bool {
+func (cv *ChatView) handleNodeModeKeys(ev *tcell.EventKey, _ bool) bool {
 	// In node mode, most keys are for navigation and selection
 	switch ev.Key() {
 	case tcell.KeyEnter:
