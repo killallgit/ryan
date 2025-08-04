@@ -199,6 +199,24 @@ func (r *Registry) RegisterBuiltinTools() error {
 		return fmt.Errorf("failed to register write tool: %w", err)
 	}
 
+	// Register GitTool
+	gitTool := NewGitTool()
+	if err := r.Register(gitTool); err != nil {
+		return fmt.Errorf("failed to register git tool: %w", err)
+	}
+
+	// Register TreeTool
+	treeTool := NewTreeTool()
+	if err := r.Register(treeTool); err != nil {
+		return fmt.Errorf("failed to register tree tool: %w", err)
+	}
+
+	// Register ASTTool
+	astTool := NewASTTool()
+	if err := r.Register(astTool); err != nil {
+		return fmt.Errorf("failed to register ast tool: %w", err)
+	}
+
 	return nil
 }
 
