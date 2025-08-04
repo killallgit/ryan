@@ -77,6 +77,9 @@ var rootCmd = &cobra.Command{
 			systemPromptPath = cfg.Ollama.SystemPrompt
 		}
 
+		// Check if we should continue from previous chat history
+		continueHistory, _ := cmd.Flags().GetBool("continue")
+
 		// Read system prompt from file if specified
 		var systemPrompt string
 		if systemPromptPath != "" {
@@ -179,6 +182,14 @@ var rootCmd = &cobra.Command{
 			} else {
 				log.Debug("Created LangChain controller without system prompt or tools")
 			}
+		}
+
+		// Clear chat history if not continuing from previous session
+		if !continueHistory {
+			log.Debug("Starting fresh chat session - clearing history")
+			langchainController.Reset()
+		} else {
+			log.Debug("Continuing from previous chat history")
 		}
 
 		log.Info("Creating TUI application")

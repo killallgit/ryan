@@ -215,6 +215,15 @@ func (lc *LangChainController) Reset() {
 		lc.log.Error("Failed to clear LangChain memory", "error", err)
 	}
 
+	// Delete history file if it exists
+	if _, err := os.Stat(lc.historyFile); err == nil {
+		if err := os.Remove(lc.historyFile); err != nil {
+			lc.log.Error("Failed to delete chat history file", "file", lc.historyFile, "error", err)
+		} else {
+			lc.log.Debug("Deleted chat history file", "file", lc.historyFile)
+		}
+	}
+
 	// Re-add system prompt if it existed
 	if systemPrompt != "" {
 		lc.conversation = chat.AddMessage(lc.conversation, chat.NewSystemMessage(systemPrompt))
