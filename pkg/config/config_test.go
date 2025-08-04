@@ -1,8 +1,6 @@
 package config
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -41,34 +39,11 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadFromFile(t *testing.T) {
-	// Create a temporary config file
-	tmpDir := t.TempDir()
-	configFile := filepath.Join(tmpDir, "test-settings.yaml")
-
-	configContent := `
-ollama:
-  url: http://test-ollama:11434
-  model: test-model
-  timeout: "2m"
-  poll_interval: 5
-show_thinking: false
-logging:
-  log_file: /tmp/test.log
-  preserve: true
-tools:
-  bash:
-    timeout: "30s"
-    allowed_paths: ["/test", "/tmp"]
-`
-
-	err := os.WriteFile(configFile, []byte(configContent), 0644)
-	require.NoError(t, err)
-
 	// Reset viper
 	viper.Reset()
 
-	// Load config from file
-	cfg, err := Load(configFile)
+	// Load config from test file
+	cfg, err := Load("testdata/test-settings.yaml")
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
@@ -156,48 +131,19 @@ func TestGet(t *testing.T) {
 }
 
 func TestLoadSelfConfig(t *testing.T) {
-	// Create temporary files
-	tmpDir := t.TempDir()
-	configFile := filepath.Join(tmpDir, "settings.yaml")
-	selfConfigFile := filepath.Join(tmpDir, "self.yaml")
-
-	// Create main config that references self.yaml
-	configContent := `
-ollama:
-  url: http://test-ollama:11434
-  model: test-model
-self_config_path: ` + selfConfigFile
-	
-	selfConfigContent := `
-role: self
-traits:
-- name: "explorer"
-  system_prompt: |
-    You are the inner explorer. You analyze your current environment and discover the tools and files that are available to you.
-- name: "planner"  
-  system_prompt: |
-    You are given broad goals and ideas. You break them down into smaller, more manageable tasks with clear and comprehensive steps.
-`
-
-	err := os.WriteFile(configFile, []byte(configContent), 0644)
-	require.NoError(t, err)
-	
-	err = os.WriteFile(selfConfigFile, []byte(selfConfigContent), 0644)
-	require.NoError(t, err)
-
 	// Reset viper and global state
 	viper.Reset()
 	cfg = nil
 	selfCfg = nil
 
-	// Load config
-	loadedCfg, err := Load(configFile)
+	// Load config with self config path
+	loadedCfg, err := Load("testdata/settings-with-self.yaml")
 	require.NoError(t, err)
 	require.NotNil(t, loadedCfg)
 
 	// Check main config
 	assert.Equal(t, "http://test-ollama:11434", loadedCfg.Ollama.URL)
-	assert.Equal(t, selfConfigFile, loadedCfg.SelfConfigPath)
+	assert.Equal(t, "./testdata/test-self.yaml", loadedCfg.SelfConfigPath)
 
 	// Check self config was loaded
 	selfConfig := GetSelf()
@@ -213,26 +159,13 @@ traits:
 }
 
 func TestLoadSelfConfigMissing(t *testing.T) {
-	// Create main config with missing self config path
-	tmpDir := t.TempDir()
-	configFile := filepath.Join(tmpDir, "settings.yaml")
-	nonExistentSelfFile := filepath.Join(tmpDir, "missing-self.yaml")
-
-	configContent := `
-ollama:
-  url: http://test-ollama:11434
-self_config_path: ` + nonExistentSelfFile
-
-	err := os.WriteFile(configFile, []byte(configContent), 0644)
-	require.NoError(t, err)
-
 	// Reset viper and global state
 	viper.Reset()
 	cfg = nil
 	selfCfg = nil
 
-	// Load config - should succeed even if self config is missing
-	loadedCfg, err := Load(configFile)
+	// Load config with missing self config path
+	loadedCfg, err := Load("testdata/settings-with-missing-self.yaml")
 	require.NoError(t, err)
 	require.NotNil(t, loadedCfg)
 
