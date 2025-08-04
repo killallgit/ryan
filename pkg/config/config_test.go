@@ -27,7 +27,7 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, 10, cfg.Ollama.PollInterval)
 	assert.True(t, cfg.ShowThinking)
 	assert.True(t, cfg.Streaming)
-	assert.Equal(t, "./.ryan/debug.log", cfg.Logging.File)
+	assert.Equal(t, "./.ryan/app.log", cfg.Logging.File)
 	assert.False(t, cfg.Logging.Preserve)
 	assert.True(t, cfg.Tools.Enabled)
 	assert.True(t, cfg.Tools.Bash.Enabled)

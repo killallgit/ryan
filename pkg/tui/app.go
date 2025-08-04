@@ -513,19 +513,19 @@ func (app *App) sendMessageWithContent(content string) {
 				// Legacy event - keeping for backward compatibility
 
 			case controllers.ToolCallStarted:
-				log.Debug("STREAMING: Tool call started", 
+				log.Debug("STREAMING: Tool call started",
 					"stream_id", update.StreamID,
 					"tool_name", update.ToolName,
 					"display_name", update.ToolDisplayName)
 				app.screen.PostEvent(NewToolExecutionStartEvent(
-					update.ToolName, 
-					update.ToolDisplayName, 
-					update.StreamID, 
+					update.ToolName,
+					update.ToolDisplayName,
+					update.StreamID,
 					update.ToolArgs,
 				))
 
 			case controllers.ToolExecutionProgress:
-				log.Debug("STREAMING: Tool execution progress", 
+				log.Debug("STREAMING: Tool execution progress",
 					"stream_id", update.StreamID,
 					"tool_name", update.ToolName)
 				app.screen.PostEvent(NewToolExecutionProgressEvent(
@@ -535,10 +535,10 @@ func (app *App) sendMessageWithContent(content string) {
 					update.StreamID,
 				))
 			}
-			
+
 			// Handle the detailed tool execution complete event if we get one
 			if update.Type == controllers.ToolExecutionComplete && update.ToolName != "" {
-				log.Debug("STREAMING: Detailed tool execution complete", 
+				log.Debug("STREAMING: Detailed tool execution complete",
 					"stream_id", update.StreamID,
 					"tool_name", update.ToolName,
 					"success", update.Error == nil)
@@ -550,10 +550,10 @@ func (app *App) sendMessageWithContent(content string) {
 					update.Error == nil, // Success if no error
 				))
 			}
-			
+
 			// Handle tool execution errors
 			if update.Type == controllers.StreamError && update.ToolName != "" {
-				log.Error("STREAMING: Tool execution error", 
+				log.Error("STREAMING: Tool execution error",
 					"stream_id", update.StreamID,
 					"tool_name", update.ToolName,
 					"error", update.Error)

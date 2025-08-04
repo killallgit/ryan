@@ -44,34 +44,34 @@ func (tet *ToolExecutionTracker) SetCallbacks(
 func (tet *ToolExecutionTracker) ExecuteWithTracking(ctx context.Context, req ToolRequest) (ToolResult, error) {
 	toolName := req.Name
 	args := req.Parameters
-	
+
 	tet.log.Debug("Starting tracked tool execution", "tool", toolName, "args", args)
-	
+
 	// Notify start
 	if tet.onStart != nil {
 		tet.onStart(toolName, args)
 	}
-	
+
 	// Record start time
 	startTime := time.Now()
-	
+
 	// Execute the tool using the underlying registry
 	result, err := tet.registry.Execute(ctx, req)
-	
+
 	// Record execution time
 	executionTime := time.Since(startTime)
-	tet.log.Debug("Tool execution completed", 
-		"tool", toolName, 
-		"success", result.Success, 
+	tet.log.Debug("Tool execution completed",
+		"tool", toolName,
+		"success", result.Success,
 		"duration", executionTime)
-	
+
 	// Update result metadata with execution time
 	if result.Metadata.ExecutionTime == 0 {
 		result.Metadata.ExecutionTime = executionTime
 		result.Metadata.StartTime = startTime
 		result.Metadata.EndTime = startTime.Add(executionTime)
 	}
-	
+
 	// Handle callbacks based on result
 	if err != nil {
 		tet.log.Error("Tool execution failed", "tool", toolName, "error", err)
@@ -80,7 +80,7 @@ func (tet *ToolExecutionTracker) ExecuteWithTracking(ctx context.Context, req To
 		}
 		return result, err
 	}
-	
+
 	if !result.Success {
 		tet.log.Warn("Tool execution unsuccessful", "tool", toolName, "error", result.Error)
 		if tet.onError != nil {
@@ -96,17 +96,17 @@ func (tet *ToolExecutionTracker) ExecuteWithTracking(ctx context.Context, req To
 			tet.onComplete(toolName, result)
 		}
 	}
-	
+
 	return result, nil
 }
 
 // ExecuteAsync executes a tool asynchronously with tracking
 func (tet *ToolExecutionTracker) ExecuteAsync(ctx context.Context, req ToolRequest) <-chan ToolResult {
 	resultChan := make(chan ToolResult, 1)
-	
+
 	go func() {
 		defer close(resultChan)
-		
+
 		result, err := tet.ExecuteWithTracking(ctx, req)
 		if err != nil {
 			// Convert error to failed result
@@ -119,10 +119,10 @@ func (tet *ToolExecutionTracker) ExecuteAsync(ctx context.Context, req ToolReque
 				},
 			}
 		}
-		
+
 		resultChan <- result
 	}()
-	
+
 	return resultChan
 }
 

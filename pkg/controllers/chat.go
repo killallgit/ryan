@@ -31,7 +31,7 @@ func NewChatController(client chat.ChatClient, model string, toolRegistry *tools
 	if toolRegistry != nil {
 		toolTracker = tools.NewToolExecutionTracker(toolRegistry)
 	}
-	
+
 	return &ChatController{
 		client:             client,
 		conversation:       chat.NewConversation(model),
@@ -48,7 +48,7 @@ func NewChatControllerWithSystem(client chat.ChatClient, model, systemPrompt str
 	if toolRegistry != nil {
 		toolTracker = tools.NewToolExecutionTracker(toolRegistry)
 	}
-	
+
 	return &ChatController{
 		client:             client,
 		conversation:       chat.NewConversationWithSystem(model, systemPrompt),
@@ -179,7 +179,7 @@ func (cc *ChatController) executeToolCallsWithUpdates(ctx context.Context, toolC
 		toolName := toolCall.Function.Name
 		toolArgs := toolCall.Function.Arguments
 		displayName := FormatToolDisplay(toolName, toolArgs)
-		
+
 		// Send tool start update if streaming
 		if updates != nil {
 			updates <- StreamingUpdate{
@@ -200,7 +200,7 @@ func (cc *ChatController) executeToolCallsWithUpdates(ctx context.Context, toolC
 
 		var result tools.ToolResult
 		var err error
-		
+
 		if cc.toolTracker != nil {
 			// Set up callbacks for the tracker if streaming
 			if updates != nil {
@@ -228,7 +228,7 @@ func (cc *ChatController) executeToolCallsWithUpdates(ctx context.Context, toolC
 					},
 				)
 			}
-			
+
 			result, err = cc.toolTracker.ExecuteWithTracking(ctx, toolReq)
 		} else {
 			result, err = cc.toolRegistry.Execute(ctx, toolReq)
@@ -429,11 +429,11 @@ type StreamingMetadata struct {
 // FormatToolDisplay formats a tool call for display in the format "ToolName(args)"
 func FormatToolDisplay(toolName string, args map[string]any) string {
 	displayName := formatToolDisplayName(toolName)
-	
+
 	if len(args) == 0 {
 		return fmt.Sprintf("%s()", displayName)
 	}
-	
+
 	// Format arguments based on tool type
 	switch toolName {
 	case "execute_bash":
@@ -452,7 +452,7 @@ func FormatToolDisplay(toolName string, args map[string]any) string {
 			return fmt.Sprintf("%s(\"%s\")", displayName, query)
 		}
 	}
-	
+
 	// Fallback for unknown tool types
 	return fmt.Sprintf("%s(%v)", displayName, args)
 }

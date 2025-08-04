@@ -154,7 +154,7 @@ var rootCmd = &cobra.Command{
 
 		// Create LangChain controller with agent framework
 		var langchainController *controllers.LangChainController
-		
+
 		if systemPrompt != "" {
 			langchainController, err = controllers.NewLangChainControllerWithSystem(cfg.Ollama.URL, model, systemPrompt, toolRegistry)
 			if err != nil {

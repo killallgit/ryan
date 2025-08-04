@@ -56,7 +56,7 @@ func ExtractResponseContent(content string) string {
 // ParseMessageWithThinking takes a message content and returns a Message with separated thinking
 func ParseMessageWithThinking(content string, role string, showThinking bool) Message {
 	parsed := ParseMessageThinking(content)
-	
+
 	msg := Message{
 		Role:      role,
 		Content:   parsed.ResponseContent,
@@ -65,14 +65,14 @@ func ParseMessageWithThinking(content string, role string, showThinking bool) Me
 			Source: MessageSourceFinal,
 		},
 	}
-	
+
 	if parsed.HasThinking {
 		msg.Thinking = &ThinkingBlock{
 			Content: parsed.ThinkingContent,
 			Visible: showThinking,
 		}
 	}
-	
+
 	return msg
 }
 
@@ -86,19 +86,19 @@ func UpdateMessageWithThinking(msg Message, showThinking bool) Message {
 	if msg.Content == "" {
 		return msg
 	}
-	
+
 	parsed := ParseMessageThinking(msg.Content)
-	
+
 	updated := msg
 	updated.Content = parsed.ResponseContent
-	
+
 	if parsed.HasThinking {
 		updated.Thinking = &ThinkingBlock{
 			Content: parsed.ThinkingContent,
 			Visible: showThinking,
 		}
 	}
-	
+
 	return updated
 }
 

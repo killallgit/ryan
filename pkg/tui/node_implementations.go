@@ -192,7 +192,7 @@ func NewThinkingMessageNode(msg chat.Message, id string) *ThinkingMessageNode {
 	// Use new separated thinking structure if available, fallback to parsing
 	var parsed ParsedContent
 	var showThinking bool
-	
+
 	if msg.HasThinking() {
 		// Use separated thinking data
 		parsed = ParsedContent{
@@ -204,7 +204,7 @@ func NewThinkingMessageNode(msg chat.Message, id string) *ThinkingMessageNode {
 	} else {
 		// Fallback to old parsing method for backwards compatibility
 		parsed = ParseThinkingBlock(msg.Content)
-		
+
 		// Get showThinking from config
 		showThinking = true
 		func() {
@@ -407,16 +407,16 @@ func (tmn *ThinkingMessageNode) GetPreviewText() string {
 // ToolResultMessageNode handles tool execution results with special formatting
 type ToolResultMessageNode struct {
 	BaseNode
-	truncatedOutput  string
-	fullOutput       string
-	showFullOutput   bool
+	truncatedOutput string
+	fullOutput      string
+	showFullOutput  bool
 }
 
 func NewToolResultMessageNode(msg chat.Message, id string) *ToolResultMessageNode {
 	// Parse the tool result to separate tool name and output
 	fullOutput := msg.Content
 	truncatedOutput := fullOutput
-	
+
 	// Truncate long outputs for better UX
 	const maxPreviewLength = 300
 	if len(fullOutput) > maxPreviewLength {
@@ -462,7 +462,7 @@ func (trn *ToolResultMessageNode) Render(area Rect, state NodeState) []RenderedL
 		if toolName == "" {
 			toolName = "Tool" // Fallback
 		}
-		
+
 		headerText := fmt.Sprintf("▶ %s", toolName)
 		if state.Expanded && trn.IsCollapsible() {
 			headerText = fmt.Sprintf("▼ %s", toolName)
@@ -541,7 +541,7 @@ func (trn *ToolResultMessageNode) Render(area Rect, state NodeState) []RenderedL
 
 func (trn *ToolResultMessageNode) CalculateHeight(width int) int {
 	height := 0
-	
+
 	// Header height
 	toolName := trn.message.ToolName
 	if toolName == "" {
@@ -645,10 +645,10 @@ func (tcn *ToolCallMessageNode) Render(area Rect, state NodeState) []RenderedLin
 		// Render tool calls in the format requested: Shell(docker ps -a) or Search("https://...")
 		for i, toolCall := range tcn.message.ToolCalls {
 			var toolText string
-			
+
 			// Format tool call based on tool type
 			toolName := tcn.formatToolName(toolCall.Function.Name)
-			
+
 			if state.Expanded {
 				// Show full arguments when expanded
 				if len(toolCall.Function.Arguments) > 0 {
@@ -752,7 +752,7 @@ func (tcn *ToolCallMessageNode) CalculateHeight(width int) int {
 	for i, toolCall := range tcn.message.ToolCalls {
 		var toolText string
 		toolName := tcn.formatToolName(toolCall.Function.Name)
-		
+
 		if tcn.state.Expanded {
 			if len(toolCall.Function.Arguments) > 0 {
 				var argStr string
@@ -827,13 +827,13 @@ func (tnf *TextNodeFactory) CanHandle(msg chat.Message) bool {
 		if msg.HasThinking() {
 			return false
 		}
-		
+
 		// Check if it has tool calls
 		hasTools := len(msg.ToolCalls) > 0
 		if hasTools {
 			return false
 		}
-		
+
 		// Fallback: check if content has thinking blocks for backwards compatibility
 		parsed := ParseThinkingBlock(msg.Content)
 		return !parsed.HasThinking
@@ -966,7 +966,7 @@ func (temn *ToolExecutionMessageNode) UpdateExecutionState(state ToolExecutionSt
 	updated.progress = progress
 	updated.result = result
 	updated.cache.Valid = false // Invalidate cache when state changes
-	
+
 	// Update the message content based on state
 	switch state {
 	case ToolStateStarted:
@@ -978,7 +978,7 @@ func (temn *ToolExecutionMessageNode) UpdateExecutionState(state ToolExecutionSt
 	case ToolStateError:
 		updated.message.Content = fmt.Sprintf("✗ %s (failed)", temn.toolDisplayName)
 	}
-	
+
 	return &updated
 }
 
@@ -987,11 +987,11 @@ func (temn *ToolExecutionMessageNode) Render(area Rect, state NodeState) []Rende
 
 	if !temn.cache.Valid {
 		var lines []RenderedLine
-		
+
 		// Main tool execution line with appropriate styling and spinner/status
 		var mainText string
 		var mainStyle tcell.Style
-		
+
 		switch temn.executionState {
 		case ToolStateStarted:
 			mainText = fmt.Sprintf("⏳ %s", temn.toolDisplayName)
@@ -1009,13 +1009,13 @@ func (temn *ToolExecutionMessageNode) Render(area Rect, state NodeState) []Rende
 			mainText = fmt.Sprintf("✗ %s", temn.toolDisplayName)
 			mainStyle = StyleToolText.Foreground(tcell.ColorRed)
 		}
-		
+
 		if state.Selected {
 			mainStyle = mainStyle.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
 		} else if state.Focused {
 			mainStyle = mainStyle.Background(tcell.ColorGray)
 		}
-		
+
 		mainLines := WrapText(mainText, area.Width)
 		for _, line := range mainLines {
 			lines = append(lines, RenderedLine{
@@ -1024,12 +1024,12 @@ func (temn *ToolExecutionMessageNode) Render(area Rect, state NodeState) []Rende
 				Indent: 0,
 			})
 		}
-		
+
 		// Show result if completed and expanded
 		if temn.executionState == ToolStateCompleted && temn.result != "" && state.Expanded {
 			// Add separator
 			lines = append(lines, RenderedLine{Text: "", Style: tcell.StyleDefault, Indent: 0})
-			
+
 			// Add result content with indentation
 			resultLines := WrapText(temn.result, area.Width-2)
 			for _, line := range resultLines {
@@ -1046,7 +1046,7 @@ func (temn *ToolExecutionMessageNode) Render(area Rect, state NodeState) []Rende
 				})
 			}
 		}
-		
+
 		temn.cache.Lines = make([]string, len(lines))
 		temn.cache.Styles = make([]tcell.Style, len(lines))
 		for i, line := range lines {
@@ -1054,10 +1054,10 @@ func (temn *ToolExecutionMessageNode) Render(area Rect, state NodeState) []Rende
 			temn.cache.Styles[i] = line.Style
 		}
 		temn.cache.Valid = true
-		
+
 		return lines
 	}
-	
+
 	// Convert cached data to RenderedLine format
 	result := make([]RenderedLine, len(temn.cache.Lines))
 	for i, line := range temn.cache.Lines {
@@ -1072,13 +1072,13 @@ func (temn *ToolExecutionMessageNode) Render(area Rect, state NodeState) []Rende
 			Indent: indent,
 		}
 	}
-	
+
 	return result
 }
 
 func (temn *ToolExecutionMessageNode) CalculateHeight(width int) int {
 	height := 0
-	
+
 	// Main tool execution line
 	mainText := fmt.Sprintf("⏳ %s", temn.toolDisplayName)
 	if temn.progress != "" {
@@ -1086,14 +1086,14 @@ func (temn *ToolExecutionMessageNode) CalculateHeight(width int) int {
 	}
 	mainLines := WrapText(mainText, width)
 	height += len(mainLines)
-	
+
 	// Result lines if expanded and completed
 	if temn.executionState == ToolStateCompleted && temn.result != "" && temn.state.Expanded {
 		height += 1 // separator
 		resultLines := WrapText(temn.result, width-2)
 		height += len(resultLines)
 	}
-	
+
 	return height
 }
 

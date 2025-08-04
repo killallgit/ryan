@@ -12,23 +12,23 @@ import (
 )
 
 type ModelView struct {
-	controller        *controllers.ModelsController
-	chatController    ControllerInterface
-	modelList         ModelListDisplay
-	modelStats        ModelStatsDisplay
-	status            StatusBar
-	layout            Layout
-	loading           bool
-	screen            tcell.Screen
-	showStats         bool
-	pullModal         TextInputModal
-	confirmationModal ConfirmationModal
-	downloadModal     DownloadPromptModal
-	progressModal     ProgressModal
-	downloadCtx       context.Context
-	downloadCancel    context.CancelFunc
-	showingDetails    bool
-	detailsModel      ModelInfo
+	controller         *controllers.ModelsController
+	chatController     ControllerInterface
+	modelList          ModelListDisplay
+	modelStats         ModelStatsDisplay
+	status             StatusBar
+	layout             Layout
+	loading            bool
+	screen             tcell.Screen
+	showStats          bool
+	pullModal          TextInputModal
+	confirmationModal  ConfirmationModal
+	downloadModal      DownloadPromptModal
+	progressModal      ProgressModal
+	downloadCtx        context.Context
+	downloadCancel     context.CancelFunc
+	showingDetails     bool
+	detailsModel       ModelInfo
 	selectAfterRefresh string // Model name to select after next refresh
 }
 
@@ -39,23 +39,23 @@ func NewModelView(controller *controllers.ModelsController, chatController Contr
 	log.Debug("Creating new ModelView", "width", width, "height", height)
 
 	view := &ModelView{
-		controller:        controller,
-		chatController:    chatController,
-		modelList:         NewModelListDisplay(width, height-6),
-		modelStats:        NewModelStatsDisplay(width, 4),
-		status:            NewStatusBar(width).WithStatus("Ready").WithModelViewData(0, 0),
-		layout:            NewLayout(width, height),
-		loading:           false,
-		screen:            screen,
-		showStats:         true,
-		pullModal:         NewTextInputModal(),
-		confirmationModal: NewConfirmationModal(),
-		downloadModal:     NewDownloadPromptModal(),
-		progressModal:     NewProgressModal(),
-		downloadCtx:       nil,
-		downloadCancel:    nil,
-		showingDetails:    false,
-		detailsModel:      ModelInfo{},
+		controller:         controller,
+		chatController:     chatController,
+		modelList:          NewModelListDisplay(width, height-6),
+		modelStats:         NewModelStatsDisplay(width, 4),
+		status:             NewStatusBar(width).WithStatus("Ready").WithModelViewData(0, 0),
+		layout:             NewLayout(width, height),
+		loading:            false,
+		screen:             screen,
+		showStats:          true,
+		pullModal:          NewTextInputModal(),
+		confirmationModal:  NewConfirmationModal(),
+		downloadModal:      NewDownloadPromptModal(),
+		progressModal:      NewProgressModal(),
+		downloadCtx:        nil,
+		downloadCancel:     nil,
+		showingDetails:     false,
+		detailsModel:       ModelInfo{},
 		selectAfterRefresh: "",
 	}
 
@@ -309,7 +309,7 @@ func (mv *ModelView) refreshModels() {
 
 		// Combine downloaded and available models
 		models := append(downloadedModels, filteredAvailable...)
-		
+
 		// Sort models: downloaded first, then available, alphabetically within each group
 		sortModelsByDownloadStatus(models)
 		log.Debug("Converted models to UI format", "downloaded_models", len(downloadedModels), "available_models", len(filteredAvailable), "total_models", len(models))
@@ -395,7 +395,7 @@ func (mv *ModelView) HandleModelDeleted(ev ModelDeletedEvent) {
 
 	mv.loading = false
 	mv.status = mv.status.WithStatus("Model deleted: " + ev.ModelName)
-	
+
 	// Instead of full refresh, update the deleted model in place
 	mv.markModelAsAvailable(ev.ModelName)
 }
@@ -403,22 +403,22 @@ func (mv *ModelView) HandleModelDeleted(ev ModelDeletedEvent) {
 // markModelAsAvailable finds a model by name and marks it as available for download
 func (mv *ModelView) markModelAsAvailable(modelName string) {
 	log := logger.WithComponent("model_view")
-	
+
 	// Find the model in the current list
 	models := mv.modelList.Models
 	var wasSelected bool = false
 	var originalIndex int = -1
-	
+
 	for i, model := range models {
 		if model.Name == modelName {
 			originalIndex = i
 			wasSelected = (i == mv.modelList.Selected)
-			
+
 			// Mark as not downloaded and update properties
 			models[i].IsDownloaded = false
 			models[i].IsRunning = false
 			models[i].Size = 0 // Reset size since it's not downloaded
-			
+
 			// Get estimated size from available models info
 			availableModels := createAvailableModelInfo()
 			for _, available := range availableModels {
@@ -429,16 +429,16 @@ func (mv *ModelView) markModelAsAvailable(modelName string) {
 					break
 				}
 			}
-			
+
 			log.Debug("Marked model as available for download", "model", modelName)
 			break
 		}
 	}
-	
+
 	if originalIndex >= 0 {
 		// Sort the models to move the newly available model to the correct position
 		sortModelsByDownloadStatus(models)
-		
+
 		// If the deleted model was selected, find its new position and select it
 		newSelection := mv.modelList.Selected
 		if wasSelected {
@@ -449,35 +449,35 @@ func (mv *ModelView) markModelAsAvailable(modelName string) {
 				}
 			}
 		}
-		
+
 		// Update the model list with the modified models and preserve selection
 		mv.modelList = mv.modelList.WithModels(models).WithSelection(newSelection)
 		mv.ensureSelectionVisible()
-		
+
 		// Trigger screen refresh to update the display
 		mv.screen.Show()
 		return
 	}
-	
+
 	// If model wasn't found in current list, add it as available
 	availableModels := createAvailableModelInfo()
 	for _, available := range availableModels {
 		if available.Name == modelName {
 			// Add the model back to the list as available
 			updatedModels := append(models, available)
-			
+
 			// Sort the models to place the newly added model in the correct position
 			sortModelsByDownloadStatus(updatedModels)
-			
+
 			mv.modelList = mv.modelList.WithModels(updatedModels)
 			log.Debug("Added deleted model back to list as available", "model", modelName)
-			
+
 			// Trigger screen refresh
 			mv.screen.Show()
 			return
 		}
 	}
-	
+
 	log.Warn("Could not find deleted model to mark as available", "model", modelName)
 }
 
