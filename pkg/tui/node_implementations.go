@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
@@ -900,4 +901,230 @@ func (enf *ErrorNodeFactory) CreateNode(msg chat.Message, id string) MessageNode
 
 func (enf *ErrorNodeFactory) CanHandle(msg chat.Message) bool {
 	return msg.Role == chat.RoleError
+}
+
+// ToolExecutionMessageNode handles real-time tool execution feedback
+type ToolExecutionMessageNode struct {
+	BaseNode
+	toolDisplayName string
+	executionState  ToolExecutionState
+	progress        string
+	result          string
+}
+
+// ToolExecutionState represents the current state of tool execution
+type ToolExecutionState int
+
+const (
+	ToolStateStarted ToolExecutionState = iota
+	ToolStateProgress
+	ToolStateCompleted
+	ToolStateError
+)
+
+func NewToolExecutionMessageNode(toolName, displayName string, id string) *ToolExecutionMessageNode {
+	// Create a synthetic message for the tool execution
+	msg := chat.Message{
+		Role:      "tool_execution", // Special role for tool execution nodes
+		Content:   fmt.Sprintf("Executing %s...", displayName),
+		Timestamp: time.Now(),
+	}
+
+	return &ToolExecutionMessageNode{
+		BaseNode: BaseNode{
+			id:       id,
+			message:  msg,
+			nodeType: NodeTypeText, // We'll create a new type later if needed
+			state:    NewNodeState(),
+			bounds:   NodeBounds{},
+			cache:    NodeRenderCache{},
+		},
+		toolDisplayName: displayName,
+		executionState:  ToolStateStarted,
+		progress:        "",
+		result:          "",
+	}
+}
+
+func (temn *ToolExecutionMessageNode) WithState(state NodeState) MessageNode {
+	updated := *temn
+	updated.state = state
+	updated.cache.Valid = false
+	return &updated
+}
+
+func (temn *ToolExecutionMessageNode) WithBounds(bounds NodeBounds) MessageNode {
+	updated := *temn
+	updated.bounds = bounds
+	return &updated
+}
+
+// UpdateExecutionState updates the tool execution state
+func (temn *ToolExecutionMessageNode) UpdateExecutionState(state ToolExecutionState, progress, result string) *ToolExecutionMessageNode {
+	updated := *temn
+	updated.executionState = state
+	updated.progress = progress
+	updated.result = result
+	updated.cache.Valid = false // Invalidate cache when state changes
+	
+	// Update the message content based on state
+	switch state {
+	case ToolStateStarted:
+		updated.message.Content = fmt.Sprintf("Executing %s...", temn.toolDisplayName)
+	case ToolStateProgress:
+		updated.message.Content = fmt.Sprintf("Executing %s... %s", temn.toolDisplayName, progress)
+	case ToolStateCompleted:
+		updated.message.Content = fmt.Sprintf("✓ %s", temn.toolDisplayName)
+	case ToolStateError:
+		updated.message.Content = fmt.Sprintf("✗ %s (failed)", temn.toolDisplayName)
+	}
+	
+	return &updated
+}
+
+func (temn *ToolExecutionMessageNode) Render(area Rect, state NodeState) []RenderedLine {
+	temn.invalidateCache(area.Width)
+
+	if !temn.cache.Valid {
+		var lines []RenderedLine
+		
+		// Main tool execution line with appropriate styling and spinner/status
+		var mainText string
+		var mainStyle tcell.Style
+		
+		switch temn.executionState {
+		case ToolStateStarted:
+			mainText = fmt.Sprintf("⏳ %s", temn.toolDisplayName)
+			mainStyle = StyleToolText.Foreground(tcell.ColorYellow)
+		case ToolStateProgress:
+			mainText = fmt.Sprintf("⏳ %s", temn.toolDisplayName)
+			if temn.progress != "" {
+				mainText += fmt.Sprintf(" (%s)", temn.progress)
+			}
+			mainStyle = StyleToolText.Foreground(tcell.ColorYellow)
+		case ToolStateCompleted:
+			mainText = fmt.Sprintf("✓ %s", temn.toolDisplayName)
+			mainStyle = StyleToolText.Foreground(tcell.ColorGreen)
+		case ToolStateError:
+			mainText = fmt.Sprintf("✗ %s", temn.toolDisplayName)
+			mainStyle = StyleToolText.Foreground(tcell.ColorRed)
+		}
+		
+		if state.Selected {
+			mainStyle = mainStyle.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+		} else if state.Focused {
+			mainStyle = mainStyle.Background(tcell.ColorGray)
+		}
+		
+		mainLines := WrapText(mainText, area.Width)
+		for _, line := range mainLines {
+			lines = append(lines, RenderedLine{
+				Text:   line,
+				Style:  mainStyle,
+				Indent: 0,
+			})
+		}
+		
+		// Show result if completed and expanded
+		if temn.executionState == ToolStateCompleted && temn.result != "" && state.Expanded {
+			// Add separator
+			lines = append(lines, RenderedLine{Text: "", Style: tcell.StyleDefault, Indent: 0})
+			
+			// Add result content with indentation
+			resultLines := WrapText(temn.result, area.Width-2)
+			for _, line := range resultLines {
+				style := StyleToolText
+				if state.Selected {
+					style = style.Background(tcell.ColorBlue).Foreground(tcell.ColorWhite)
+				} else if state.Focused {
+					style = style.Background(tcell.ColorGray)
+				}
+				lines = append(lines, RenderedLine{
+					Text:   "  " + line, // 2-space indent
+					Style:  style,
+					Indent: 2,
+				})
+			}
+		}
+		
+		temn.cache.Lines = make([]string, len(lines))
+		temn.cache.Styles = make([]tcell.Style, len(lines))
+		for i, line := range lines {
+			temn.cache.Lines[i] = line.Text
+			temn.cache.Styles[i] = line.Style
+		}
+		temn.cache.Valid = true
+		
+		return lines
+	}
+	
+	// Convert cached data to RenderedLine format
+	result := make([]RenderedLine, len(temn.cache.Lines))
+	for i, line := range temn.cache.Lines {
+		// Determine indent from line content
+		indent := 0
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "⏳") && !strings.HasPrefix(line, "✓") && !strings.HasPrefix(line, "✗") {
+			indent = 2
+		}
+		result[i] = RenderedLine{
+			Text:   line,
+			Style:  temn.cache.Styles[i],
+			Indent: indent,
+		}
+	}
+	
+	return result
+}
+
+func (temn *ToolExecutionMessageNode) CalculateHeight(width int) int {
+	height := 0
+	
+	// Main tool execution line
+	mainText := fmt.Sprintf("⏳ %s", temn.toolDisplayName)
+	if temn.progress != "" {
+		mainText += fmt.Sprintf(" (%s)", temn.progress)
+	}
+	mainLines := WrapText(mainText, width)
+	height += len(mainLines)
+	
+	// Result lines if expanded and completed
+	if temn.executionState == ToolStateCompleted && temn.result != "" && temn.state.Expanded {
+		height += 1 // separator
+		resultLines := WrapText(temn.result, width-2)
+		height += len(resultLines)
+	}
+	
+	return height
+}
+
+func (temn *ToolExecutionMessageNode) HandleClick(x, y int) (bool, NodeState) {
+	// Click toggles expansion if there's a result to show
+	if temn.executionState == ToolStateCompleted && temn.result != "" {
+		return true, temn.state.ToggleExpanded()
+	}
+	return true, temn.state.ToggleSelected()
+}
+
+func (temn *ToolExecutionMessageNode) HandleKeyEvent(ev *tcell.EventKey) (bool, NodeState) {
+	switch ev.Key() {
+	case tcell.KeyEnter:
+		return true, temn.state.ToggleSelected()
+	case tcell.KeyTab:
+		if temn.executionState == ToolStateCompleted && temn.result != "" {
+			return true, temn.state.ToggleExpanded()
+		}
+	}
+	return false, temn.state
+}
+
+func (temn *ToolExecutionMessageNode) IsCollapsible() bool {
+	return temn.executionState == ToolStateCompleted && temn.result != ""
+}
+
+func (temn *ToolExecutionMessageNode) HasDetailView() bool {
+	return temn.IsCollapsible()
+}
+
+func (temn *ToolExecutionMessageNode) GetPreviewText() string {
+	return temn.toolDisplayName
 }

@@ -330,37 +330,49 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 		finalUserMsg := chat.NewUserMessage(content)
 		lc.conversation = chat.AddMessageWithDeduplication(lc.conversation, finalUserMsg)
 		
-		// Use real LangChain streaming instead of simulated chunks
-		streamChan := make(chan string, 100)
-		var fullResponse strings.Builder
-		
-		// Start real streaming in background
-		go func() {
-			defer close(streamChan)
-			if err := lc.client.StreamMessage(ctx, content, streamChan); err != nil {
-				lc.log.Error("LangChain streaming failed", "error", err)
-				select {
-				case updates <- StreamingUpdate{Type: StreamError, Error: err}:
-				case <-ctx.Done():
+		// Set up tool execution callbacks for the LangChain client
+		lc.client.SetToolCallbacks(
+			func(toolName string, args map[string]any) {
+				// Tool start callback
+				displayName := FormatToolDisplay(toolName, args)
+				updates <- StreamingUpdate{
+					Type:            ToolCallStarted,
+					StreamID:        "langchain-stream",
+					ToolName:        toolName,
+					ToolArgs:        args,
+					ToolDisplayName: displayName,
 				}
-			}
-		}()
+			},
+			func(toolName string, result tools.ToolResult) {
+				// Tool complete callback
+				displayName := FormatToolDisplay(toolName, map[string]any{})
+				updates <- StreamingUpdate{
+					Type:            ToolExecutionComplete,
+					StreamID:        "langchain-stream",
+					ToolName:        toolName,
+					ToolDisplayName: displayName,
+					ToolResult:      result.Content,
+				}
+			},
+			func(toolName string, err error) {
+				// Tool error callback
+				updates <- StreamingUpdate{
+					Type:  StreamError,
+					Error: fmt.Errorf("tool %s failed: %w", toolName, err),
+				}
+			},
+		)
 		
-		// Forward real stream chunks to TUI
-		for chunk := range streamChan {
-			fullResponse.WriteString(chunk)
+		// Use LangChain agent (non-streaming to get complete result with tool execution)
+		response, err := lc.client.SendMessage(ctx, content)
+		if err != nil {
+			lc.log.Error("LangChain agent failed", "error", err)
 			select {
-			case updates <- StreamingUpdate{
-				Type:     ChunkReceived,
-				StreamID: "langchain-stream",
-				Content:  chunk,
-			}:
+			case updates <- StreamingUpdate{Type: StreamError, Error: err}:
 			case <-ctx.Done():
-				return
 			}
+			return
 		}
-		
-		response := fullResponse.String()
 		
 		// Parse response to detect tool usage and create appropriate messages
 		toolMessages := lc.parseToolExecutionFromResponse(response)

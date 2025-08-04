@@ -248,6 +248,14 @@ func (app *App) handleEvent(event tcell.Event) {
 		app.handleStreamError(ev)
 	case *StreamProgressEvent:
 		app.handleStreamProgress(ev)
+	case *ToolExecutionStartEvent:
+		app.handleToolExecutionStart(ev)
+	case *ToolExecutionProgressEvent:
+		app.handleToolExecutionProgress(ev)
+	case *ToolExecutionCompleteEvent:
+		app.handleToolExecutionComplete(ev)
+	case *ToolExecutionErrorEvent:
+		app.handleToolExecutionError(ev)
 	}
 }
 
@@ -498,11 +506,63 @@ func (app *App) sendMessageWithContent(content string) {
 
 			case controllers.ToolExecutionStarted:
 				log.Debug("STREAMING: Tool execution started", "stream_id", update.StreamID)
-				// Could add tool execution UI indicators here
+				// Legacy event - keeping for backward compatibility
 
 			case controllers.ToolExecutionComplete:
 				log.Debug("STREAMING: Tool execution complete", "stream_id", update.StreamID)
-				// Could add tool execution completion indicators here
+				// Legacy event - keeping for backward compatibility
+
+			case controllers.ToolCallStarted:
+				log.Debug("STREAMING: Tool call started", 
+					"stream_id", update.StreamID,
+					"tool_name", update.ToolName,
+					"display_name", update.ToolDisplayName)
+				app.screen.PostEvent(NewToolExecutionStartEvent(
+					update.ToolName, 
+					update.ToolDisplayName, 
+					update.StreamID, 
+					update.ToolArgs,
+				))
+
+			case controllers.ToolExecutionProgress:
+				log.Debug("STREAMING: Tool execution progress", 
+					"stream_id", update.StreamID,
+					"tool_name", update.ToolName)
+				app.screen.PostEvent(NewToolExecutionProgressEvent(
+					update.ToolName,
+					update.ToolDisplayName,
+					update.Content, // Progress message
+					update.StreamID,
+				))
+			}
+			
+			// Handle the detailed tool execution complete event if we get one
+			if update.Type == controllers.ToolExecutionComplete && update.ToolName != "" {
+				log.Debug("STREAMING: Detailed tool execution complete", 
+					"stream_id", update.StreamID,
+					"tool_name", update.ToolName,
+					"success", update.Error == nil)
+				app.screen.PostEvent(NewToolExecutionCompleteEvent(
+					update.ToolName,
+					update.ToolDisplayName,
+					update.ToolResult,
+					update.StreamID,
+					update.Error == nil, // Success if no error
+				))
+			}
+			
+			// Handle tool execution errors
+			if update.Type == controllers.StreamError && update.ToolName != "" {
+				log.Error("STREAMING: Tool execution error", 
+					"stream_id", update.StreamID,
+					"tool_name", update.ToolName,
+					"error", update.Error)
+				app.screen.PostEvent(NewToolExecutionErrorEvent(
+					update.ToolName,
+					update.ToolDisplayName,
+					update.StreamID,
+					update.Error,
+				))
 			}
 		}
 
@@ -954,6 +1014,97 @@ func (app *App) handleStreamProgress(ev *StreamProgressEvent) {
 			ev.Duration.Round(time.Second))
 		app.status = app.status.WithStatus(statusText)
 	}
+}
+
+// Tool execution event handlers
+
+func (app *App) handleToolExecutionStart(ev *ToolExecutionStartEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling ToolExecutionStartEvent",
+		"tool_name", ev.ToolName,
+		"display_name", ev.ToolDisplayName,
+		"stream_id", ev.StreamID)
+
+	// Update status to show tool execution
+	statusText := fmt.Sprintf("Executing %s...", ev.ToolDisplayName)
+	app.status = app.status.WithStatus(statusText)
+
+	// If we have a ChatView, notify it of tool execution start
+	// TODO: Implement ChatView.HandleToolExecutionStart
+	// if app.chatView != nil {
+	// 	app.chatView.HandleToolExecutionStart(ev.ToolName, ev.ToolDisplayName, ev.StreamID, ev.ToolArgs)
+	// }
+}
+
+func (app *App) handleToolExecutionProgress(ev *ToolExecutionProgressEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling ToolExecutionProgressEvent",
+		"tool_name", ev.ToolName,
+		"progress", ev.Progress,
+		"stream_id", ev.StreamID)
+
+	// Update status to show progress
+	statusText := fmt.Sprintf("Executing %s... %s", ev.ToolDisplayName, ev.Progress)
+	app.status = app.status.WithStatus(statusText)
+
+	// If we have a ChatView, notify it of progress
+	// TODO: Implement ChatView.HandleToolExecutionProgress
+	// if app.chatView != nil {
+	// 	app.chatView.HandleToolExecutionProgress(ev.ToolName, ev.Progress, ev.StreamID)
+	// }
+}
+
+func (app *App) handleToolExecutionComplete(ev *ToolExecutionCompleteEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Handling ToolExecutionCompleteEvent",
+		"tool_name", ev.ToolName,
+		"success", ev.Success,
+		"stream_id", ev.StreamID)
+
+	// Update status to show completion
+	var statusText string
+	if ev.Success {
+		statusText = fmt.Sprintf("✓ %s completed", ev.ToolDisplayName)
+	} else {
+		statusText = fmt.Sprintf("✗ %s failed", ev.ToolDisplayName)
+	}
+	app.status = app.status.WithStatus(statusText)
+
+	// Clear status after a short delay
+	go func() {
+		time.Sleep(2 * time.Second)
+		app.status = app.status.WithStatus("")
+	}()
+
+	// If we have a ChatView, notify it of completion
+	// TODO: Implement ChatView.HandleToolExecutionComplete
+	// if app.chatView != nil {
+	// 	app.chatView.HandleToolExecutionComplete(ev.ToolName, ev.Result, ev.Success, ev.StreamID)
+	// }
+}
+
+func (app *App) handleToolExecutionError(ev *ToolExecutionErrorEvent) {
+	log := logger.WithComponent("tui_app")
+	log.Error("Handling ToolExecutionErrorEvent",
+		"tool_name", ev.ToolName,
+		"error", ev.Error,
+		"stream_id", ev.StreamID)
+
+	// Update status to show error
+	statusText := fmt.Sprintf("✗ %s failed: %s", ev.ToolDisplayName, ev.Error.Error())
+	app.status = app.status.WithStatus(statusText)
+
+	// Clear status after a longer delay for errors
+	go func() {
+		time.Sleep(5 * time.Second)
+		app.status = app.status.WithStatus("")
+	}()
+
+	// If we have a ChatView, notify it of the error
+	// TODO: Implement ChatView.HandleToolExecutionError
+	// if app.chatView != nil {
+	// 	app.chatView.HandleToolExecutionError(ev.ToolName, ev.Error, ev.StreamID)
+	// }
 }
 
 func (app *App) render() {

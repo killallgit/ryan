@@ -27,6 +27,10 @@ type Client struct {
 	executor      *agents.Executor
 	config        *config.Config
 	log           *logger.Logger
+	// Tool execution callbacks
+	onToolStart    func(toolName string, args map[string]any)
+	onToolComplete func(toolName string, result tools.ToolResult)
+	onToolError    func(toolName string, err error)
 }
 
 // NewClient creates a new LangChain-powered client
@@ -76,10 +80,32 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 	return client, nil
 }
 
+// SetToolCallbacks sets callbacks for tool execution tracking
+func (c *Client) SetToolCallbacks(
+	onStart func(toolName string, args map[string]any),
+	onComplete func(toolName string, result tools.ToolResult),
+	onError func(toolName string, err error),
+) {
+	c.onToolStart = onStart
+	c.onToolComplete = onComplete
+	c.onToolError = onError
+	
+	// Update existing tool adapters with new callbacks
+	for _, tool := range c.langchainTools {
+		if adapter, ok := tool.(*ToolAdapter); ok {
+			adapter.SetCallbacks(onStart, onComplete, onError)
+		}
+	}
+}
+
 // ToolAdapter bridges Ryan tools with LangChain tools
 type ToolAdapter struct {
 	ryanTool tools.Tool
 	log      *logger.Logger
+	// Callback functions for execution tracking
+	onStart    func(toolName string, args map[string]any)
+	onComplete func(toolName string, result tools.ToolResult)
+	onError    func(toolName string, err error)
 }
 
 func NewToolAdapter(ryanTool tools.Tool) *ToolAdapter {
@@ -88,6 +114,17 @@ func NewToolAdapter(ryanTool tools.Tool) *ToolAdapter {
 		ryanTool: ryanTool,
 		log:      log,
 	}
+}
+
+// SetCallbacks sets the execution tracking callbacks
+func (ta *ToolAdapter) SetCallbacks(
+	onStart func(toolName string, args map[string]any),
+	onComplete func(toolName string, result tools.ToolResult),
+	onError func(toolName string, err error),
+) {
+	ta.onStart = onStart
+	ta.onComplete = onComplete
+	ta.onError = onError
 }
 
 func (ta *ToolAdapter) Name() string {
@@ -99,11 +136,12 @@ func (ta *ToolAdapter) Description() string {
 }
 
 func (ta *ToolAdapter) Call(ctx context.Context, input string) (string, error) {
-	ta.log.Debug("Tool call initiated", "tool", ta.ryanTool.Name(), "input_length", len(input))
+	toolName := ta.ryanTool.Name()
+	ta.log.Debug("Tool call initiated", "tool", toolName, "input_length", len(input))
 	
 	// Parse input - for now, assume it's JSON-like format
 	// In a real implementation, you'd want more sophisticated parsing
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	
 	// Simple parsing for common tool formats
 	if strings.Contains(input, "command:") {
@@ -118,7 +156,7 @@ func (ta *ToolAdapter) Call(ctx context.Context, input string) (string, error) {
 		}
 	} else {
 		// Fallback: use input as command/path
-		switch ta.ryanTool.Name() {
+		switch toolName {
 		case "execute_bash":
 			params["command"] = input
 		case "read_file":
@@ -126,18 +164,43 @@ func (ta *ToolAdapter) Call(ctx context.Context, input string) (string, error) {
 		}
 	}
 
+	// Notify start of execution
+	if ta.onStart != nil {
+		ta.onStart(toolName, params)
+	}
+
 	// Execute the Ryan tool
 	result, err := ta.ryanTool.Execute(ctx, params)
 	if err != nil {
-		ta.log.Error("Tool execution failed", "tool", ta.ryanTool.Name(), "error", err)
+		ta.log.Error("Tool execution failed", "tool", toolName, "error", err)
+		
+		// Notify error
+		if ta.onError != nil {
+			ta.onError(toolName, err)
+		}
+		
 		return "", fmt.Errorf("tool execution failed: %w", err)
 	}
 
 	if !result.Success {
-		return "", fmt.Errorf("tool execution failed: %s", result.Error)
+		toolErr := fmt.Errorf("tool execution failed: %s", result.Error)
+		ta.log.Warn("Tool execution unsuccessful", "tool", toolName, "error", result.Error)
+		
+		// Notify error
+		if ta.onError != nil {
+			ta.onError(toolName, toolErr)
+		}
+		
+		return "", toolErr
 	}
 
-	ta.log.Debug("Tool call completed", "tool", ta.ryanTool.Name(), "success", result.Success)
+	ta.log.Debug("Tool call completed", "tool", toolName, "success", result.Success)
+	
+	// Notify successful completion
+	if ta.onComplete != nil {
+		ta.onComplete(toolName, result)
+	}
+	
 	return result.Content, nil
 }
 
@@ -168,6 +231,12 @@ func (c *Client) initializeAgent() error {
 
 	for _, tool := range ryanTools {
 		adapter := NewToolAdapter(tool)
+		
+		// Set callbacks if they are available
+		if c.onToolStart != nil || c.onToolComplete != nil || c.onToolError != nil {
+			adapter.SetCallbacks(c.onToolStart, c.onToolComplete, c.onToolError)
+		}
+		
 		c.langchainTools = append(c.langchainTools, adapter)
 		c.log.Debug("Adapted tool", "name", tool.Name())
 	}

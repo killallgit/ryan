@@ -186,7 +186,9 @@ func TestStreamingUpdateTypes(t *testing.T) {
 		assert.Equal(t, StreamingUpdateType(2), MessageComplete)
 		assert.Equal(t, StreamingUpdateType(3), StreamError)
 		assert.Equal(t, StreamingUpdateType(4), ToolExecutionStarted)
-		assert.Equal(t, StreamingUpdateType(5), ToolExecutionComplete)
+		assert.Equal(t, StreamingUpdateType(5), ToolExecutionProgress)
+		assert.Equal(t, StreamingUpdateType(6), ToolExecutionComplete)
+		assert.Equal(t, StreamingUpdateType(7), ToolCallStarted)
 	})
 }
 

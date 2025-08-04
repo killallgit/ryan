@@ -216,46 +216,82 @@ func NewSpinnerAnimationEvent() *SpinnerAnimationEvent {
 // ToolExecutionStartEvent is sent when a tool starts executing
 type ToolExecutionStartEvent struct {
 	tcell.EventTime
-	ToolName string
+	ToolName        string
+	ToolArgs        map[string]any
+	ToolDisplayName string // Formatted display name (e.g., "Bash(ls -la)")
+	StreamID        string // Associated stream ID for correlation
 }
 
 // ToolExecutionCompleteEvent is sent when a tool completes successfully
 type ToolExecutionCompleteEvent struct {
 	tcell.EventTime
-	ToolName string
-	Result   string
+	ToolName        string
+	ToolDisplayName string // Formatted display name
+	Result          string
+	StreamID        string // Associated stream ID for correlation
+	Success         bool   // Whether the tool execution was successful
 }
 
 // ToolExecutionErrorEvent is sent when a tool execution fails
 type ToolExecutionErrorEvent struct {
 	tcell.EventTime
-	ToolName string
-	Error    error
+	ToolName        string
+	ToolDisplayName string // Formatted display name
+	Error           error
+	StreamID        string // Associated stream ID for correlation
 }
 
 // NewToolExecutionStartEvent creates a new tool execution start event
-func NewToolExecutionStartEvent(toolName string) *ToolExecutionStartEvent {
+func NewToolExecutionStartEvent(toolName, displayName, streamID string, args map[string]any) *ToolExecutionStartEvent {
 	return &ToolExecutionStartEvent{
-		EventTime: tcell.EventTime{},
-		ToolName:  toolName,
+		EventTime:       tcell.EventTime{},
+		ToolName:        toolName,
+		ToolArgs:        args,
+		ToolDisplayName: displayName,
+		StreamID:        streamID,
 	}
 }
 
 // NewToolExecutionCompleteEvent creates a new tool execution complete event
-func NewToolExecutionCompleteEvent(toolName, result string) *ToolExecutionCompleteEvent {
+func NewToolExecutionCompleteEvent(toolName, displayName, result, streamID string, success bool) *ToolExecutionCompleteEvent {
 	return &ToolExecutionCompleteEvent{
-		EventTime: tcell.EventTime{},
-		ToolName:  toolName,
-		Result:    result,
+		EventTime:       tcell.EventTime{},
+		ToolName:        toolName,
+		ToolDisplayName: displayName,
+		Result:          result,
+		StreamID:        streamID,
+		Success:         success,
+	}
+}
+
+// ToolExecutionProgressEvent is sent during tool execution for progress updates
+type ToolExecutionProgressEvent struct {
+	tcell.EventTime
+	ToolName        string
+	ToolDisplayName string
+	Progress        string // Progress message or percentage
+	StreamID        string
+}
+
+// NewToolExecutionProgressEvent creates a new tool execution progress event
+func NewToolExecutionProgressEvent(toolName, displayName, progress, streamID string) *ToolExecutionProgressEvent {
+	return &ToolExecutionProgressEvent{
+		EventTime:       tcell.EventTime{},
+		ToolName:        toolName,
+		ToolDisplayName: displayName,
+		Progress:        progress,
+		StreamID:        streamID,
 	}
 }
 
 // NewToolExecutionErrorEvent creates a new tool execution error event
-func NewToolExecutionErrorEvent(toolName string, err error) *ToolExecutionErrorEvent {
+func NewToolExecutionErrorEvent(toolName, displayName, streamID string, err error) *ToolExecutionErrorEvent {
 	return &ToolExecutionErrorEvent{
-		EventTime: tcell.EventTime{},
-		ToolName:  toolName,
-		Error:     err,
+		EventTime:       tcell.EventTime{},
+		ToolName:        toolName,
+		ToolDisplayName: displayName,
+		Error:           err,
+		StreamID:        streamID,
 	}
 }
 
