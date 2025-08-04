@@ -15,20 +15,20 @@ import (
 
 // GrepTool implements advanced text search with ripgrep integration
 type GrepTool struct {
-	log          *logger.Logger
-	maxResults   int
-	maxFileSize  int64
-	ripgrepPath  string
-	workingDir   string
+	log         *logger.Logger
+	maxResults  int
+	maxFileSize int64
+	ripgrepPath string
+	workingDir  string
 }
 
 // GrepResult represents a single search result
 type GrepResult struct {
-	File         string `json:"file"`
-	LineNumber   int    `json:"line_number"`
-	ColumnNumber int    `json:"column_number,omitempty"`
-	Line         string `json:"line"`
-	Match        string `json:"match"`
+	File         string   `json:"file"`
+	LineNumber   int      `json:"line_number"`
+	ColumnNumber int      `json:"column_number,omitempty"`
+	Line         string   `json:"line"`
+	Match        string   `json:"match"`
 	Context      []string `json:"context,omitempty"`
 }
 
@@ -182,9 +182,9 @@ func (gt *GrepTool) Execute(ctx context.Context, params map[string]interface{}) 
 		return gt.createErrorResult(startTime, fmt.Sprintf("search path does not exist: %s", searchPath)), nil
 	}
 
-	gt.log.Debug("Starting search", 
-		"pattern", patternStr, 
-		"path", searchPath, 
+	gt.log.Debug("Starting search",
+		"pattern", patternStr,
+		"path", searchPath,
 		"case_sensitive", caseSensitive,
 		"regex", useRegex,
 		"max_results", maxResults)
@@ -228,8 +228,8 @@ func (gt *GrepTool) Execute(ctx context.Context, params map[string]interface{}) 
 	// Format results
 	content := gt.formatResults(results, patternStr, filesOnly)
 
-	gt.log.Debug("Search completed", 
-		"results_count", len(results), 
+	gt.log.Debug("Search completed",
+		"results_count", len(results),
 		"duration", time.Since(startTime))
 
 	// Return successful result
@@ -238,13 +238,13 @@ func (gt *GrepTool) Execute(ctx context.Context, params map[string]interface{}) 
 		Content: content,
 		Error:   "",
 		Data: map[string]interface{}{
-			"pattern":       patternStr,
-			"search_path":   searchPath,
-			"results_count": len(results),
-			"results":       results,
+			"pattern":        patternStr,
+			"search_path":    searchPath,
+			"results_count":  len(results),
+			"results":        results,
 			"case_sensitive": caseSensitive,
-			"regex":         useRegex,
-			"files_only":    filesOnly,
+			"regex":          useRegex,
+			"files_only":     filesOnly,
 		},
 		Metadata: ToolMetadata{
 			ExecutionTime: time.Since(startTime),
@@ -493,7 +493,7 @@ func (gt *GrepTool) formatResults(results []GrepResult, pattern string, filesOnl
 			if i > 0 {
 				output.WriteString("\n")
 			}
-			
+
 			if result.LineNumber > 0 {
 				output.WriteString(fmt.Sprintf("%s:%d: %s\n", result.File, result.LineNumber, result.Line))
 			} else {
@@ -513,9 +513,9 @@ func (gt *GrepTool) formatResults(results []GrepResult, pattern string, filesOnl
 func (gt *GrepTool) createErrorResult(startTime time.Time, errorMsg string) ToolResult {
 	gt.log.Error("Grep tool error", "error", errorMsg)
 	return ToolResult{
-		Success:   false,
-		Content:   "",
-		Error:     errorMsg,
+		Success: false,
+		Content: "",
+		Error:   errorMsg,
 		Metadata: ToolMetadata{
 			ExecutionTime: time.Since(startTime),
 			StartTime:     startTime,

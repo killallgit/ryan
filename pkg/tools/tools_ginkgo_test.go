@@ -18,15 +18,15 @@ func TestTools(t *testing.T) {
 
 var _ = Describe("GrepTool", func() {
 	var (
-		grepTool *tools.GrepTool
-		tempDir  string
+		grepTool  *tools.GrepTool
+		tempDir   string
 		testFile1 string
 		testFile2 string
 	)
 
 	BeforeEach(func() {
 		grepTool = tools.NewGrepTool()
-		
+
 		// Create temporary directory and test files
 		var err error
 		tempDir, err = os.MkdirTemp("", "grep_test")
@@ -190,12 +190,12 @@ var _ = Describe("WriteTool", func() {
 
 	BeforeEach(func() {
 		writeTool = tools.NewWriteTool()
-		
+
 		// Create temporary directory for tests
 		var err error
 		tempDir, err = os.MkdirTemp("", "write_test")
 		Expect(err).ToNot(HaveOccurred())
-		
+
 		// Change to temp directory for relative path tests
 		err = os.Chdir(tempDir)
 		Expect(err).ToNot(HaveOccurred())
@@ -375,10 +375,10 @@ var _ = Describe("WriteTool", func() {
 			testContent := "Line 1\nLine 2\n"
 
 			params := map[string]interface{}{
-				"file_path":    testFile,
-				"content":      testContent,
-				"line_ending":  "crlf",
-				"force":        true,
+				"file_path":   testFile,
+				"content":     testContent,
+				"line_ending": "crlf",
+				"force":       true,
 			}
 
 			result, err := writeTool.Execute(context.Background(), params)
@@ -481,7 +481,7 @@ var _ = Describe("WriteTool", func() {
 	Describe("Parameter Handling", func() {
 		It("should use default values for optional parameters", func() {
 			testFile := filepath.Join(tempDir, "defaults.txt")
-			
+
 			params := map[string]interface{}{
 				"file_path": testFile,
 				"content":   "test content",
@@ -492,14 +492,14 @@ var _ = Describe("WriteTool", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Success).To(BeTrue())
-			Expect(result.Data["append_mode"]).To(BeFalse())        // Default
-			Expect(result.Data["encoding"]).To(Equal("utf-8"))      // Default
-			Expect(result.Data["line_ending"]).To(Equal("lf"))      // Default
+			Expect(result.Data["append_mode"]).To(BeFalse())   // Default
+			Expect(result.Data["encoding"]).To(Equal("utf-8")) // Default
+			Expect(result.Data["line_ending"]).To(Equal("lf")) // Default
 		})
 
 		It("should respect custom parameter values", func() {
 			testFile := filepath.Join(tempDir, "custom.txt")
-			
+
 			params := map[string]interface{}{
 				"file_path":     testFile,
 				"content":       "test content",

@@ -44,7 +44,7 @@ type CacheEntry struct {
 
 // RateLimiter implements simple rate limiting for HTTP requests
 type RateLimiter struct {
-	requests chan time.Time
+	requests     chan time.Time
 	maxPerMinute int
 }
 
@@ -68,7 +68,7 @@ func NewWebFetchTool() *WebFetchTool {
 
 	// Create rate limiter (60 requests per minute)
 	rateLimiter := &RateLimiter{
-		requests: make(chan time.Time, 60),
+		requests:     make(chan time.Time, 60),
 		maxPerMinute: 60,
 	}
 
@@ -177,9 +177,9 @@ func (wft *WebFetchTool) Execute(ctx context.Context, params map[string]interfac
 	if cached := wft.cache.Get(urlStr); cached != nil {
 		wft.log.Debug("Cache hit", "url", urlStr, "age", time.Since(cached.Timestamp))
 		return ToolResult{
-			Success:    true,
-			Content:    cached.Content,
-			Error:      "",
+			Success: true,
+			Content: cached.Content,
+			Error:   "",
 			Data: map[string]interface{}{
 				"url":          urlStr,
 				"status_code":  cached.StatusCode,
@@ -265,17 +265,17 @@ func (wft *WebFetchTool) Execute(ctx context.Context, params map[string]interfac
 		})
 	}
 
-	wft.log.Debug("HTTP request completed", 
-		"url", urlStr, 
-		"status", resp.StatusCode, 
+	wft.log.Debug("HTTP request completed",
+		"url", urlStr,
+		"status", resp.StatusCode,
 		"content_length", len(content),
 		"duration", time.Since(startTime))
 
 	// Return successful result
 	return ToolResult{
-		Success:    resp.StatusCode >= 200 && resp.StatusCode < 400,
-		Content:    content,
-		Error:      "",
+		Success: resp.StatusCode >= 200 && resp.StatusCode < 400,
+		Content: content,
+		Error:   "",
 		Data: map[string]interface{}{
 			"url":          urlStr,
 			"method":       method,
@@ -299,9 +299,9 @@ func (wft *WebFetchTool) Execute(ctx context.Context, params map[string]interfac
 func (wft *WebFetchTool) createErrorResult(startTime time.Time, errorMsg string) ToolResult {
 	wft.log.Error("WebFetch tool error", "error", errorMsg)
 	return ToolResult{
-		Success:   false,
-		Content:   "",
-		Error:     errorMsg,
+		Success: false,
+		Content: "",
+		Error:   errorMsg,
 		Metadata: ToolMetadata{
 			ExecutionTime: time.Since(startTime),
 			StartTime:     startTime,

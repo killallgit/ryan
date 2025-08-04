@@ -216,9 +216,9 @@ func (wt *WriteTool) Execute(ctx context.Context, params map[string]interface{})
 		wt.log.Warn("Failed to get final file info", "error", err)
 	}
 
-	wt.log.Debug("File write completed", 
-		"path", cleanPath, 
-		"bytes_written", bytesWritten, 
+	wt.log.Debug("File write completed",
+		"path", cleanPath,
+		"bytes_written", bytesWritten,
 		"append_mode", appendMode,
 		"backup_created", backupPath != "",
 		"duration", time.Since(startTime))
@@ -283,19 +283,19 @@ func (wt *WriteTool) Execute(ctx context.Context, params map[string]interface{})
 func (wt *WriteTool) validatePath(path string) error {
 	// Normalize path for consistent checking
 	cleanPath := filepath.Clean(path)
-	
+
 	// Check for restricted paths (must be exact matches or start with restricted path)
 	for _, restricted := range wt.restrictedPaths {
 		// Check if path starts with restricted directory
 		if strings.HasPrefix(cleanPath, restricted+"/") || cleanPath == restricted {
 			return fmt.Errorf("path contains restricted directory: %s", restricted)
 		}
-		
+
 		// For system paths, be more strict - they must start with the path
 		if strings.HasPrefix(restricted, "/") && strings.HasPrefix(cleanPath, restricted) {
 			return fmt.Errorf("path contains restricted directory: %s", restricted)
 		}
-		
+
 		// For relative restricted paths, check if they appear as complete path components
 		pathComponents := strings.Split(cleanPath, string(filepath.Separator))
 		for _, component := range pathComponents {
@@ -315,7 +315,7 @@ func (wt *WriteTool) validatePath(path string) error {
 
 func (wt *WriteTool) validateFileExtension(path string) error {
 	ext := strings.ToLower(filepath.Ext(path))
-	
+
 	// Allow files without extensions (like Makefile, Dockerfile, etc.)
 	if ext == "" {
 		return nil
@@ -385,9 +385,9 @@ func (wt *WriteTool) normalizeLineEndings(content, lineEnding string) string {
 func (wt *WriteTool) createErrorResult(startTime time.Time, errorMsg string) ToolResult {
 	wt.log.Error("Write tool error", "error", errorMsg)
 	return ToolResult{
-		Success:   false,
-		Content:   "",
-		Error:     errorMsg,
+		Success: false,
+		Content: "",
+		Error:   errorMsg,
 		Metadata: ToolMetadata{
 			ExecutionTime: time.Since(startTime),
 			StartTime:     startTime,
