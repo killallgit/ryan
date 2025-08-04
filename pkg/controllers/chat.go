@@ -159,6 +159,11 @@ func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat
 	}
 
 	for _, toolCall := range toolCalls {
+		// Add tool progress message to show what tool is being called
+		commandStr := cc.formatToolCommand(toolCall.Function.Name, toolCall.Function.Arguments)
+		progressMsg := chat.NewToolProgressMessage(toolCall.Function.Name, commandStr)
+		cc.conversation = chat.AddMessage(cc.conversation, progressMsg)
+
 		// Execute the tool
 		toolReq := tools.ToolRequest{
 			Name:       toolCall.Function.Name,
@@ -186,6 +191,71 @@ func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat
 	}
 
 	return nil
+}
+
+// formatToolCommand formats tool arguments for display in progress messages
+func (cc *ChatController) formatToolCommand(toolName string, arguments map[string]interface{}) string {
+	switch toolName {
+	case "bash":
+		if cmd, ok := arguments["command"].(string); ok {
+			return cmd
+		}
+	case "file_read":
+		if path, ok := arguments["file_path"].(string); ok {
+			return path
+		}
+	case "write_file":
+		if path, ok := arguments["file_path"].(string); ok {
+			return path
+		}
+	case "grep":
+		if pattern, ok := arguments["pattern"].(string); ok {
+			if path, hasPath := arguments["path"].(string); hasPath {
+				return fmt.Sprintf("%s in %s", pattern, path)
+			}
+			return pattern
+		}
+	case "web_fetch":
+		if url, ok := arguments["url"].(string); ok {
+			return url
+		}
+	default:
+		// For unknown tools, try to find a reasonable parameter to display
+		if len(arguments) > 0 {
+			// Look for common parameter names
+			for _, key := range []string{"command", "query", "url", "path", "file_path", "search", "text", "input"} {
+				if value, ok := arguments[key]; ok {
+					if str, isString := value.(string); isString {
+						return str
+					}
+				}
+			}
+			// Fall back to showing the first string parameter
+			for _, value := range arguments {
+				if str, isString := value.(string); isString && str != "" {
+					return str
+				}
+			}
+		}
+	}
+	
+	// Fallback: show raw arguments as JSON-like string
+	if len(arguments) == 0 {
+		return ""
+	}
+	
+	var parts []string
+	for key, value := range arguments {
+		if str, ok := value.(string); ok && str != "" {
+			parts = append(parts, fmt.Sprintf("%s=%s", key, str))
+		}
+	}
+	
+	if len(parts) > 0 {
+		return strings.Join(parts, ", ")
+	}
+	
+	return "..."
 }
 
 // AddUserMessage adds a user message to the conversation immediately (optimistic UI update)
