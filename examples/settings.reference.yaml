@@ -10,7 +10,6 @@ logging:
 # Context persistence
 context:
   directory: ./.ryan/contexts
-  history_file: ./.ryan/logs/debug.history
   max_file_size: 10MB
   persist_langchain: true
 
