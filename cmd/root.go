@@ -38,6 +38,10 @@ func (lca *LangChainControllerAdapter) GetTokenUsage() (promptTokens, responseTo
 	return lca.LangChainController.GetTokenUsage()
 }
 
+func (lca *LangChainControllerAdapter) CleanThinkingBlocks() {
+	lca.LangChainController.CleanThinkingBlocks()
+}
+
 var cfgFile string
 
 var rootCmd = &cobra.Command{

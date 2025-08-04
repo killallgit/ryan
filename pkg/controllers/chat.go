@@ -285,6 +285,28 @@ func (cc *ChatController) AddErrorMessage(errorMsg string) {
 	cc.conversation = chat.AddMessage(cc.conversation, chat.NewErrorMessage(errorMsg))
 }
 
+// CleanThinkingBlocks removes thinking blocks from all assistant messages in the conversation
+func (cc *ChatController) CleanThinkingBlocks() {
+	// Create a new conversation with cleaned messages
+	cleanedMessages := make([]chat.Message, 0, len(cc.conversation.Messages))
+
+	for _, msg := range cc.conversation.Messages {
+		if msg.Role == chat.RoleAssistant && msg.Content != "" {
+			// Remove thinking blocks from assistant messages
+			cleanedContent := chat.RemoveThinkingBlocks(msg.Content)
+			cleanedMsg := msg
+			cleanedMsg.Content = cleanedContent
+			cleanedMessages = append(cleanedMessages, cleanedMsg)
+		} else {
+			// Keep other messages as-is
+			cleanedMessages = append(cleanedMessages, msg)
+		}
+	}
+
+	// Update conversation with cleaned messages
+	cc.conversation.Messages = cleanedMessages
+}
+
 func (cc *ChatController) SetOllamaClient(client OllamaClient) {
 	cc.ollamaClient = client
 }

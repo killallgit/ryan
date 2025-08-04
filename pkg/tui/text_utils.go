@@ -16,6 +16,7 @@ const (
 	ContentTypeInlineCode
 	ContentTypeHeader
 	ContentTypeList
+	ContentTypeThinking
 )
 
 // ContentSegment represents a parsed segment of content with its type
@@ -36,6 +37,42 @@ func ParseContentSegments(content string) []ContentSegment {
 
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
+
+		// Check for thinking blocks (<think> or <thinking>)
+		if strings.Contains(strings.ToLower(line), "<think") || strings.Contains(strings.ToLower(line), "<thinking>") {
+			// Find the complete thinking block
+			var thinkingContent strings.Builder
+			var foundEnd bool
+			
+			// Accumulate all content until we find the closing tag
+			for j := i; j < len(lines); j++ {
+				currentLine := lines[j]
+				thinkingContent.WriteString(currentLine)
+				if j < len(lines)-1 {
+					thinkingContent.WriteString("\n")
+				}
+				
+				if strings.Contains(strings.ToLower(currentLine), "</think>") || strings.Contains(strings.ToLower(currentLine), "</thinking>") {
+					foundEnd = true
+					i = j // Update loop counter
+					break
+				}
+			}
+			
+			if foundEnd {
+				// Extract the content between tags
+				content := thinkingContent.String()
+				// Remove the tags
+				thinkRegex := regexp.MustCompile(`(?is)<think(?:ing)?>\s*(.*?)\s*</think(?:ing)?>`)
+				if matches := thinkRegex.FindStringSubmatch(content); len(matches) > 1 {
+					segments = append(segments, ContentSegment{
+						Type:    ContentTypeThinking,
+						Content: matches[1],
+					})
+				}
+			}
+			continue
+		}
 
 		// Check for fenced code blocks (```)
 		if strings.HasPrefix(strings.TrimSpace(line), "```") {
@@ -175,6 +212,11 @@ func DetectContentTypes(content string) map[ContentType]bool {
 	// Check for lists
 	if regexp.MustCompile(`(?m)^\s*[-*+]\s`).MatchString(content) {
 		types[ContentTypeList] = true
+	}
+
+	// Check for thinking blocks
+	if regexp.MustCompile(`(?i)<think(?:ing)?>`).MatchString(content) {
+		types[ContentTypeThinking] = true
 	}
 
 	// Always has text if content is not empty

@@ -2,6 +2,7 @@ package chat
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -253,4 +254,20 @@ func (m Message) WithSource(source string) Message {
 	metadata := *m.Metadata
 	metadata.Source = source
 	return m.WithMetadata(metadata)
+}
+
+// RemoveThinkingBlocks removes <think> or <thinking> blocks from content
+func RemoveThinkingBlocks(content string) string {
+	// Remove <think>...</think> blocks (case insensitive)
+	thinkRegex := regexp.MustCompile(`(?is)<think(?:ing)?>\s*.*?\s*</think(?:ing)?>`)
+	cleanContent := thinkRegex.ReplaceAllString(content, "")
+
+	// Trim any extra whitespace that might be left
+	cleanContent = strings.TrimSpace(cleanContent)
+
+	// Clean up multiple consecutive newlines that might result from removal
+	multiNewlineRegex := regexp.MustCompile(`\n{3,}`)
+	cleanContent = multiNewlineRegex.ReplaceAllString(cleanContent, "\n\n")
+
+	return cleanContent
 }

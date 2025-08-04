@@ -60,10 +60,9 @@ type ChatView struct {
 	thinkingContent     string // Accumulate thinking content separately
 	responseContent     string // Accumulate response content separately
 
-	// Early detection buffering
-	contentBuffer       string // Buffer for early content type detection
-	contentTypeDetected bool   // Whether we've determined the content type
-	bufferSize          int    // Current buffer size
+	// Stream parser for formatted content
+	streamParser        *StreamParser // Parser for handling think blocks and formatting
+	lastParsedLength    int          // Track how much content we've already parsed
 }
 
 func NewChatView(controller ControllerInterface, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
@@ -97,10 +96,8 @@ func NewChatView(controller ControllerInterface, modelsController *controllers.M
 		thinkingContent:     "",
 		responseContent:     "",
 
-		// Initialize buffering state
-		contentBuffer:       "",
-		contentTypeDetected: false,
-		bufferSize:          0,
+		// Initialize stream parser
+		streamParser:        NewStreamParser(),
 	}
 
 	view.updateMessages()
@@ -271,6 +268,8 @@ func (cv *ChatView) handleInputModeKeys(ev *tcell.EventKey, sending bool) bool {
 		if !sending {
 			content := cv.sendMessage()
 			if content != "" {
+				// Clean thinking blocks from all assistant messages when user sends a new message
+				cv.controller.CleanThinkingBlocks()
 				cv.screen.PostEvent(NewChatMessageSendEvent(content))
 				// Immediately update the UI to show the user message
 				cv.updateMessages()
@@ -612,8 +611,8 @@ func (cv *ChatView) updateMessagesWithStreamingThinking() {
 	}
 	history = filteredHistory
 
-	// If we're streaming and have detected content type, show streaming content
-	if cv.isStreaming && cv.contentTypeDetected {
+	// If we're streaming, show streaming content
+	if cv.isStreaming {
 		// Create a copy of history to avoid modifying the original
 		messagesWithStreaming := make([]chat.Message, len(history))
 		copy(messagesWithStreaming, history)
@@ -792,102 +791,84 @@ func (cv *ChatView) detectThinkingStart(content string) bool {
 	return strings.HasPrefix(trimmed, "<think>") || strings.HasPrefix(trimmed, "<thinking>")
 }
 
-// detectContentTypeFromBuffer analyzes the buffer to determine content type
-// Returns true if content type has been determined, false if more buffering needed
-func (cv *ChatView) detectContentTypeFromBuffer() bool {
-	const minBufferSize = 10 // Need at least 10 chars to detect "<thinking>"
-
-	if cv.bufferSize < minBufferSize && cv.bufferSize < len(cv.streamingContent) {
-		// Still need more characters for reliable detection
-		return false
-	}
-
-	// Check if it starts with thinking tags
-	if cv.detectThinkingStart(cv.contentBuffer) {
-		cv.isStreamingThinking = true
-		// Extract content after the opening tag
-		thinkStartRegex := regexp.MustCompile(`(?i)<think(?:ing)?>`)
-		cv.thinkingContent = strings.TrimSpace(thinkStartRegex.ReplaceAllString(cv.contentBuffer, ""))
-	} else {
-		cv.isStreamingThinking = false
-		// Not thinking content, treat as regular response
-		cv.responseContent = cv.contentBuffer
-	}
-
-	cv.contentTypeDetected = true
-	return true
-}
 
 // processStreamingContent processes the full streaming content and separates thinking from response
 func (cv *ChatView) processStreamingContent() {
-	fullContent := cv.streamingContent
-
-	// If we haven't detected thinking yet, check for thinking tags at the start
-	if !cv.isStreamingThinking && len(cv.thinkingContent) == 0 && len(cv.responseContent) == 0 {
-		if cv.detectThinkingStart(fullContent) {
-			cv.isStreamingThinking = true
-		}
+	// Extract only the new chunk since last parse
+	newChunk := ""
+	if len(cv.streamingContent) > cv.lastParsedLength {
+		newChunk = cv.streamingContent[cv.lastParsedLength:]
+		cv.lastParsedLength = len(cv.streamingContent)
 	}
-
-	// Process the content based on current state
-	if cv.isStreamingThinking {
-		// Check if thinking block ends
-		thinkEndRegex := regexp.MustCompile(`(?i)</think(?:ing)?>`)
-		if thinkEndRegex.MatchString(fullContent) {
-			// Split at the end of thinking block
-			parts := thinkEndRegex.Split(fullContent, 2)
-			if len(parts) == 2 {
-				// Extract thinking content (remove opening tags)
-				thinkStartRegex := regexp.MustCompile(`(?i)<think(?:ing)?>`)
-				thinkingRaw := thinkStartRegex.ReplaceAllString(parts[0], "")
-				cv.thinkingContent = strings.TrimSpace(thinkingRaw)
-
-				// Start response content
-				cv.responseContent = strings.TrimSpace(parts[1])
-				cv.isStreamingThinking = false
-			}
-		} else {
-			// Still in thinking block, accumulate thinking content
-			thinkStartRegex := regexp.MustCompile(`(?i)<think(?:ing)?>`)
-			cv.thinkingContent = strings.TrimSpace(thinkStartRegex.ReplaceAllString(fullContent, ""))
-		}
-	} else {
-		// In response mode or no thinking detected
-		if len(cv.thinkingContent) == 0 {
-			// No thinking content detected, treat as regular response
-			cv.responseContent = fullContent
-		} else {
-			// Already have thinking content, extract response part from full content
-			thinkEndRegex := regexp.MustCompile(`(?i)</think(?:ing)?>`)
-			if thinkEndRegex.MatchString(fullContent) {
-				parts := thinkEndRegex.Split(fullContent, 2)
-				if len(parts) == 2 {
-					cv.responseContent = strings.TrimSpace(parts[1])
-				}
+	
+	// Parse only the new chunk
+	if newChunk != "" {
+		segments := cv.streamParser.ParseChunk(newChunk)
+		
+		// Process segments to update thinking/response state
+		for _, segment := range segments {
+			// The parser handles the formatting, we just need to track state
+			if segment.Format == FormatTypeThink {
+				cv.isStreamingThinking = true
 			}
 		}
 	}
+	
+	// Update streaming thinking state
+	cv.isStreamingThinking = cv.streamParser.IsInThinkBlock()
+	
+	// Now reconstruct the full content with proper separation
+	// We need to re-parse the entire content to get the proper separation
+	cv.streamParser.Reset()
+	cv.lastParsedLength = 0
+	
+	segments := cv.streamParser.ParseChunk(cv.streamingContent)
+	cv.lastParsedLength = len(cv.streamingContent)
+	
+	// Reset thinking and response content
+	cv.thinkingContent = ""
+	cv.responseContent = ""
+	
+	// Accumulate content based on segment types
+	var thinkingBuilder strings.Builder
+	var responseBuilder strings.Builder
+	var inThinkContent bool
+	
+	for _, segment := range segments {
+		// Skip tag content (the actual <think> tags)
+		if segment.Content == "<think>" || segment.Content == "<thinking>" ||
+		   segment.Content == "</think>" || segment.Content == "</thinking>" {
+			if strings.HasPrefix(segment.Content, "<") && !strings.HasPrefix(segment.Content, "</") {
+				inThinkContent = true
+			} else if strings.HasPrefix(segment.Content, "</") {
+				inThinkContent = false
+			}
+			continue
+		}
+		
+		// Accumulate content based on format type
+		if segment.Format == FormatTypeThink || inThinkContent {
+			thinkingBuilder.WriteString(segment.Content)
+		} else {
+			responseBuilder.WriteString(segment.Content)
+		}
+	}
+	
+	cv.thinkingContent = strings.TrimSpace(thinkingBuilder.String())
+	cv.responseContent = strings.TrimSpace(responseBuilder.String())
 }
 
 // createStreamingMessage creates a properly formatted message for streaming display
 func (cv *ChatView) createStreamingMessage() chat.Message {
 	var content string
 
-	// If we haven't detected content type yet, don't show anything
-	if !cv.contentTypeDetected && cv.isStreaming {
-		return chat.Message{
-			Role:    chat.RoleAssistant,
-			Content: "", // Show nothing while buffering
-		}
-	}
-
 	if cv.thinkingContent != "" {
 		// Format thinking content with proper tags so ParseThinkingBlock can style it correctly
 		thinkingWithTags := "<think>" + cv.thinkingContent
 
 		if cv.isStreamingThinking {
-			// Still streaming thinking content, add cursor before closing tag
-			content = thinkingWithTags + " ▌"
+			// Still streaming thinking content, add cursor and close tag for proper formatting
+			content = thinkingWithTags + " ▌</think>"
 		} else {
 			// Thinking complete, close tag and add response if any
 			content = thinkingWithTags + "</think>"
@@ -913,7 +894,7 @@ func (cv *ChatView) createStreamingMessage() chat.Message {
 		// Remove any <think> tags that might be in the raw content
 		thinkStartRegex := regexp.MustCompile(`(?i)<think(?:ing)?>`)
 		thinkingRaw = thinkStartRegex.ReplaceAllString(thinkingRaw, "")
-		content = "<think>" + strings.TrimSpace(thinkingRaw) + " ▌"
+		content = "<think>" + strings.TrimSpace(thinkingRaw) + " ▌</think>"
 	} else {
 		// Regular content without thinking
 		content = cv.streamingContent
@@ -942,10 +923,9 @@ func (cv *ChatView) HandleStreamStart(streamID, model string) {
 	cv.thinkingContent = ""
 	cv.responseContent = ""
 
-	// Initialize buffering state
-	cv.contentBuffer = ""
-	cv.contentTypeDetected = false
-	cv.bufferSize = 0
+	// Reset stream parser for new stream
+	cv.streamParser.Reset()
+	cv.lastParsedLength = 0
 
 	// Update status to show streaming
 	cv.status = cv.status.WithStatus("Streaming response...")
@@ -964,41 +944,18 @@ func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete 
 	log.Debug("Updating streaming content in chat view",
 		"stream_id", streamID,
 		"content_length", len(content),
-		"is_complete", isComplete,
-		"content_type_detected", cv.contentTypeDetected,
-		"buffer_size", cv.bufferSize)
+		"is_complete", isComplete)
 
 	// Update basic streaming state
 	cv.currentStreamID = streamID
 	cv.streamingContent = content
 	cv.isStreaming = !isComplete
 
-	// Early detection buffering logic
-	if !cv.contentTypeDetected && !isComplete {
-		// Still buffering to detect content type
-		cv.contentBuffer = content
-		cv.bufferSize = len(content)
+	// Process content immediately without buffering delay
+	cv.processStreamingContent()
 
-		// Try to detect content type from buffer
-		if cv.detectContentTypeFromBuffer() {
-			log.Debug("Content type detected",
-				"is_thinking", cv.isStreamingThinking,
-				"thinking_content", cv.thinkingContent,
-				"response_content", cv.responseContent)
-		} else {
-			// Still need more content for detection, don't display anything yet
-			log.Debug("Still buffering for content type detection", "buffer_size", cv.bufferSize)
-			return
-		}
-	}
-
-	// Content type already detected or stream is complete, process normally
-	if cv.contentTypeDetected || isComplete {
-		cv.processStreamingContent()
-
-		// Update the message display to show streaming content with proper formatting
-		cv.updateMessagesWithStreamingThinking()
-	}
+	// Update the message display to show streaming content with proper formatting
+	cv.updateMessagesWithStreamingThinking()
 
 	if !isComplete {
 		// Update spinner text based on current mode
@@ -1017,10 +974,9 @@ func (cv *ChatView) UpdateStreamingContent(streamID, content string, isComplete 
 		cv.thinkingContent = ""
 		cv.responseContent = ""
 
-		// Clear buffering state
-		cv.contentBuffer = ""
-		cv.contentTypeDetected = false
-		cv.bufferSize = 0
+		// Reset stream parser for next message
+		cv.streamParser.Reset()
+		cv.lastParsedLength = 0
 
 		cv.alert = cv.alert.WithSpinner(false, "")
 		cv.statusRow = cv.statusRow.ClearSpinnerOnly() // Preserve token count
@@ -1042,11 +998,6 @@ func (cv *ChatView) HandleStreamComplete(streamID string, finalMessage chat.Mess
 	cv.isStreamingThinking = false
 	cv.thinkingContent = ""
 	cv.responseContent = ""
-
-	// Clear buffering state
-	cv.contentBuffer = ""
-	cv.contentTypeDetected = false
-	cv.bufferSize = 0
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")
@@ -1076,11 +1027,6 @@ func (cv *ChatView) HandleStreamError(streamID string, err error) {
 	cv.isStreamingThinking = false
 	cv.thinkingContent = ""
 	cv.responseContent = ""
-
-	// Clear buffering state
-	cv.contentBuffer = ""
-	cv.contentTypeDetected = false
-	cv.bufferSize = 0
 
 	// Hide spinner
 	cv.alert = cv.alert.WithSpinner(false, "")

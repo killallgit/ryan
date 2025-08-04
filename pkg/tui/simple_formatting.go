@@ -56,6 +56,10 @@ func (sf *SimpleFormatter) FormatContentSegments(segments []ContentSegment) []Fo
 			// List item with bullet and indentation
 			formattedLines = append(formattedLines, sf.formatListItem(segment.Content, segment.Level)...)
 
+		case ContentTypeThinking:
+			// Format thinking block with dim italic style
+			formattedLines = append(formattedLines, sf.formatThinkingBlock(segment.Content)...)
+
 		case ContentTypeText:
 			// Regular text
 			textLines := WrapText(segment.Content, sf.width)
@@ -85,49 +89,19 @@ func (sf *SimpleFormatter) FormatContentSegments(segments []ContentSegment) []Fo
 	return formattedLines
 }
 
-// formatThinkingBlock creates a simple boxed thinking block
+// formatThinkingBlock creates thinking content with dim italic style
 func (sf *SimpleFormatter) formatThinkingBlock(content string) []FormattedLine {
 	var lines []FormattedLine
 
-	// Ensure minimum width for borders
-	minWidth := 20
-	borderWidth := sf.width - 4
-	if borderWidth < minWidth {
-		borderWidth = minWidth
-	}
-
-	// Top border - solid thin line
-	border := "┌" + strings.Repeat("─", borderWidth) + "┐"
-	lines = append(lines, FormattedLine{
-		Content: border,
-		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true),
-		Indent:  1,
-	})
-
-	// Content with "Thinking:" prefix
-	thinkingText := "Thinking: " + strings.TrimSpace(content)
-	contentWidth := borderWidth - 2 // Account for padding inside borders
-	if contentWidth < 20 {
-		contentWidth = 20
-	}
-
-	wrappedLines := WrapText(thinkingText, contentWidth)
+	// Just wrap the thinking content with dim italic style
+	wrappedLines := WrapText(strings.TrimSpace(content), sf.width)
 	for _, line := range wrappedLines {
-		paddedLine := "│ " + line + strings.Repeat(" ", contentWidth-len(line)) + " │"
 		lines = append(lines, FormattedLine{
-			Content: paddedLine,
-			Style:   StyleThinkingText,
-			Indent:  1,
+			Content: line,
+			Style:   StyleThinkingText, // Dim + Italic
+			Indent:  0,
 		})
 	}
-
-	// Bottom border - solid thin line
-	bottomBorder := "└" + strings.Repeat("─", borderWidth) + "┘"
-	lines = append(lines, FormattedLine{
-		Content: bottomBorder,
-		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true),
-		Indent:  1,
-	})
 
 	return lines
 }
@@ -292,5 +266,6 @@ func ShouldUseSimpleFormatting(contentTypes map[ContentType]bool) bool {
 	return contentTypes[ContentTypeCodeBlock] ||
 		contentTypes[ContentTypeHeader] ||
 		contentTypes[ContentTypeList] ||
+		contentTypes[ContentTypeThinking] ||
 		(contentTypes[ContentTypeInlineCode] && len(contentTypes) > 1)
 }

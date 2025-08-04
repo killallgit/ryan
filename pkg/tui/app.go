@@ -78,6 +78,7 @@ type ControllerInterface interface {
 	ValidateModel(model string) error
 	GetToolRegistry() *tools.Registry
 	GetTokenUsage() (promptTokens, responseTokens int)
+	CleanThinkingBlocks()
 }
 
 func NewApp(controller ControllerInterface) (*App, error) {

@@ -431,3 +431,25 @@ func (lc *LangChainController) loadHistory() error {
 func (lc *LangChainController) SaveHistoryToDisk() error {
 	return lc.saveHistory()
 }
+
+// CleanThinkingBlocks removes thinking blocks from all assistant messages in the conversation
+func (lc *LangChainController) CleanThinkingBlocks() {
+	// Create a new conversation with cleaned messages
+	cleanedMessages := make([]chat.Message, 0, len(lc.conversation.Messages))
+
+	for _, msg := range lc.conversation.Messages {
+		if msg.Role == chat.RoleAssistant && msg.Content != "" {
+			// Remove thinking blocks from assistant messages
+			cleanedContent := chat.RemoveThinkingBlocks(msg.Content)
+			cleanedMsg := msg
+			cleanedMsg.Content = cleanedContent
+			cleanedMessages = append(cleanedMessages, cleanedMsg)
+		} else {
+			// Keep other messages as-is
+			cleanedMessages = append(cleanedMessages, msg)
+		}
+	}
+
+	// Update conversation with cleaned messages
+	lc.conversation.Messages = cleanedMessages
+}
