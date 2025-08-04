@@ -122,9 +122,12 @@ func (sc *StreamingClient) StreamMessage(ctx context.Context, req ChatRequest) (
 			finalContent = response.Choices[0].Content
 		}
 
-		// TODO: Extract token usage if available from LangChain response
-		// The llms.ContentResponse type doesn't expose usage information directly
-		// This would require investigation into LangChain Go internals or using a different client
+		// Note: LangChain Go's llms.ContentResponse doesn't expose token usage
+		// For streaming, token counts are even more challenging since chunks don't
+		// contain cumulative usage information. Possible solutions:
+		// 1. Use direct Ollama API client for streaming with usage stats
+		// 2. Implement local token estimation
+		// 3. Wait for LangChain Go streaming usage support
 
 		finalChunk := MessageChunk{
 			ID:        fmt.Sprintf("%s-final", streamID),

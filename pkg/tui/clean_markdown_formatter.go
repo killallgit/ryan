@@ -28,14 +28,14 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 
 	var formattedLines []FormattedLine
 	lines := strings.Split(content, "\n")
-	
+
 	inCodeBlock := false
 	var codeBlockLines []string
 	var codeBlockLang string
-	
+
 	for i, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
-		
+
 		// Handle code blocks
 		if strings.HasPrefix(trimmedLine, "```") {
 			if !inCodeBlock {
@@ -53,30 +53,30 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 				continue
 			}
 		}
-		
+
 		if inCodeBlock {
 			codeBlockLines = append(codeBlockLines, line)
 			continue
 		}
-		
+
 		// Handle headers
 		if strings.HasPrefix(trimmedLine, "#") {
 			formattedLines = append(formattedLines, cmf.formatCleanHeader(trimmedLine)...)
 			continue
 		}
-		
+
 		// Handle lists
 		if matched, _ := regexp.MatchString(`^\s*[-*+]\s`, line); matched {
 			formattedLines = append(formattedLines, cmf.formatCleanList(line))
 			continue
 		}
-		
+
 		// Handle numbered lists
 		if matched, _ := regexp.MatchString(`^\s*\d+\.\s`, line); matched {
 			formattedLines = append(formattedLines, cmf.formatCleanNumberedList(line))
 			continue
 		}
-		
+
 		// Handle thinking blocks
 		if strings.Contains(strings.ToLower(line), "<think") || strings.Contains(strings.ToLower(line), "<thinking>") {
 			// Find the complete thinking block and skip all lines that are part of it
@@ -88,13 +88,13 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 			}
 			continue
 		}
-		
+
 		// Handle inline code
 		if strings.Contains(line, "`") {
 			formattedLines = append(formattedLines, cmf.formatInlineCode(line))
 			continue
 		}
-		
+
 		// Handle empty lines (preserve some spacing but not excessive)
 		if trimmedLine == "" {
 			// Only add empty line if the previous line wasn't empty
@@ -107,16 +107,16 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 			}
 			continue
 		}
-		
+
 		// Regular text
 		formattedLines = append(formattedLines, cmf.formatRegularText(line))
 	}
-	
+
 	// Handle unclosed code block
 	if inCodeBlock && len(codeBlockLines) > 0 {
 		formattedLines = append(formattedLines, cmf.formatCleanCodeBlock(codeBlockLines, codeBlockLang)...)
 	}
-	
+
 	log.Debug("FormatMarkdown result", "formatted_lines_count", len(formattedLines))
 	return formattedLines
 }
@@ -132,11 +132,11 @@ func (cmf *CleanMarkdownFormatter) formatCleanHeader(line string) []FormattedLin
 			break
 		}
 	}
-	
+
 	headerText := strings.TrimSpace(strings.TrimPrefix(trimmed, strings.Repeat("#", level)))
-	
+
 	var lines []FormattedLine
-	
+
 	// Add some spacing before header (except for level 1)
 	if level > 1 {
 		lines = append(lines, FormattedLine{
@@ -145,7 +145,7 @@ func (cmf *CleanMarkdownFormatter) formatCleanHeader(line string) []FormattedLin
 			Indent:  0,
 		})
 	}
-	
+
 	// Format header based on level
 	switch level {
 	case 1:
@@ -170,7 +170,7 @@ func (cmf *CleanMarkdownFormatter) formatCleanHeader(line string) []FormattedLin
 			Indent:  (level - 3) * 2,
 		})
 	}
-	
+
 	return lines
 }
 
@@ -189,11 +189,11 @@ func (cmf *CleanMarkdownFormatter) formatCleanList(line string) FormattedLine {
 			break
 		}
 	}
-	
+
 	// Extract list content
 	trimmed := strings.TrimSpace(line)
 	content := strings.TrimSpace(trimmed[1:]) // Remove the bullet
-	
+
 	// Use clean bullets based on nesting
 	bullet := "☐"
 	if indent == 0 {
@@ -201,7 +201,7 @@ func (cmf *CleanMarkdownFormatter) formatCleanList(line string) FormattedLine {
 	} else {
 		bullet = "☐"
 	}
-	
+
 	return FormattedLine{
 		Content: bullet + " " + content,
 		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite),
@@ -224,7 +224,7 @@ func (cmf *CleanMarkdownFormatter) formatCleanNumberedList(line string) Formatte
 			break
 		}
 	}
-	
+
 	// Extract the number and content
 	trimmed := strings.TrimSpace(line)
 	parts := strings.SplitN(trimmed, ".", 2)
@@ -235,10 +235,10 @@ func (cmf *CleanMarkdownFormatter) formatCleanNumberedList(line string) Formatte
 			Indent:  0,
 		}
 	}
-	
+
 	number := parts[0]
 	content := strings.TrimSpace(parts[1])
-	
+
 	return FormattedLine{
 		Content: fmt.Sprintf("%s. %s", number, content),
 		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite),
@@ -249,14 +249,14 @@ func (cmf *CleanMarkdownFormatter) formatCleanNumberedList(line string) Formatte
 // formatCleanCodeBlock creates clean code block formatting
 func (cmf *CleanMarkdownFormatter) formatCleanCodeBlock(lines []string, language string) []FormattedLine {
 	var formatted []FormattedLine
-	
+
 	// Add a clean separator
 	formatted = append(formatted, FormattedLine{
 		Content: "",
 		Style:   tcell.StyleDefault,
 		Indent:  0,
 	})
-	
+
 	for _, line := range lines {
 		// Simple indentation for code
 		formatted = append(formatted, FormattedLine{
@@ -265,33 +265,33 @@ func (cmf *CleanMarkdownFormatter) formatCleanCodeBlock(lines []string, language
 			Indent:  4,
 		})
 	}
-	
+
 	// Add spacing after
 	formatted = append(formatted, FormattedLine{
 		Content: "",
 		Style:   tcell.StyleDefault,
 		Indent:  0,
 	})
-	
+
 	return formatted
 }
 
 // formatThinkingBlock creates clean thinking block formatting
 func (cmf *CleanMarkdownFormatter) formatThinkingBlock(content string) []FormattedLine {
 	var lines []FormattedLine
-	
+
 	lines = append(lines, FormattedLine{
 		Content: "✻ Thinking…",
 		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true),
 		Indent:  0,
 	})
-	
+
 	lines = append(lines, FormattedLine{
 		Content: "",
 		Style:   tcell.StyleDefault,
 		Indent:  0,
 	})
-	
+
 	// Format thinking content with indentation
 	contentLines := strings.Split(content, "\n")
 	for _, contentLine := range contentLines {
@@ -303,7 +303,7 @@ func (cmf *CleanMarkdownFormatter) formatThinkingBlock(content string) []Formatt
 			})
 		}
 	}
-	
+
 	return lines
 }
 
@@ -332,7 +332,7 @@ func (cmf *CleanMarkdownFormatter) formatRegularText(line string) FormattedLine 
 			break
 		}
 	}
-	
+
 	return FormattedLine{
 		Content: strings.TrimSpace(line),
 		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite),
@@ -344,7 +344,7 @@ func (cmf *CleanMarkdownFormatter) formatRegularText(line string) FormattedLine 
 func (cmf *CleanMarkdownFormatter) extractThinkingBlockWithEndIndex(lines []string, startIndex int) (string, int) {
 	var content strings.Builder
 	endIndex := startIndex
-	
+
 	// Look for the complete thinking block
 	for i := startIndex; i < len(lines); i++ {
 		line := lines[i]
@@ -352,21 +352,21 @@ func (cmf *CleanMarkdownFormatter) extractThinkingBlockWithEndIndex(lines []stri
 		if i < len(lines)-1 {
 			content.WriteString("\n")
 		}
-		
+
 		if strings.Contains(strings.ToLower(line), "</think>") || strings.Contains(strings.ToLower(line), "</thinking>") {
 			endIndex = i
 			break
 		}
 		endIndex = i
 	}
-	
+
 	// Extract content between tags
 	fullContent := content.String()
 	thinkRegex := regexp.MustCompile(`(?is)<think(?:ing)?>\s*(.*?)\s*</think(?:ing)?>`)
 	if matches := thinkRegex.FindStringSubmatch(fullContent); len(matches) > 1 {
 		return strings.TrimSpace(matches[1]), endIndex
 	}
-	
+
 	return "", endIndex
 }
 

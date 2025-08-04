@@ -135,7 +135,7 @@ func (di *DocumentIndexer) IndexFile(ctx context.Context, filePath string) error
 	doc := vectorstore.Document{
 		ID:      fmt.Sprintf("file_%s_%d", strings.ReplaceAll(filePath, "/", "_"), info.ModTime().Unix()),
 		Content: string(content),
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"type":          "file",
 			"file_path":     filePath,
 			"file_name":     filepath.Base(filePath),

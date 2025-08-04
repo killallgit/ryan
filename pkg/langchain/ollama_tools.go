@@ -33,47 +33,47 @@ func NewOllamaToolCaller(llm llms.Model, toolRegistry *tools.Registry) *OllamaTo
 func (otc *OllamaToolCaller) CallWithTools(ctx context.Context, messages []llms.MessageContent, progressCallback ToolProgressCallback) (string, error) {
 	// Format tools for Ollama
 	toolDefs := otc.formatToolsForOllama()
-	
+
 	otc.log.Debug("Calling Ollama with native tools",
 		"message_count", len(messages),
 		"tool_count", len(toolDefs))
-	
+
 	// Create a custom call that includes tools
 	// Note: This is a workaround since langchaingo's Ollama doesn't expose tool calling directly
 	// We'll need to use the raw API or enhance the wrapper
-	
+
 	// For now, we'll simulate tool calling by injecting tool context
 	toolContext := otc.createToolContext()
-	
+
 	// Prepend tool context to messages
 	enhancedMessages := []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeSystem, toolContext),
 	}
 	enhancedMessages = append(enhancedMessages, messages...)
-	
+
 	// Call LLM
 	response, err := otc.llm.GenerateContent(ctx, enhancedMessages)
 	if err != nil {
 		return "", fmt.Errorf("LLM call failed: %w", err)
 	}
-	
+
 	if len(response.Choices) == 0 {
 		return "", fmt.Errorf("no response choices")
 	}
-	
+
 	content := response.Choices[0].Content
-	
+
 	// Check if response contains tool calls
 	if toolCalls := otc.extractToolCalls(content); len(toolCalls) > 0 {
 		otc.log.Debug("Detected tool calls in response", "count", len(toolCalls))
-		
+
 		// Execute tools
 		toolResults := make([]string, 0, len(toolCalls))
 		for _, toolCall := range toolCalls {
 			if progressCallback != nil {
 				progressCallback(toolCall.Name, toolCall.Input)
 			}
-			
+
 			result, err := otc.executeTool(ctx, toolCall)
 			if err != nil {
 				otc.log.Error("Tool execution failed",
@@ -84,27 +84,27 @@ func (otc *OllamaToolCaller) CallWithTools(ctx context.Context, messages []llms.
 				toolResults = append(toolResults, result)
 			}
 		}
-		
+
 		// Create a follow-up call with tool results
 		return otc.callWithToolResults(ctx, enhancedMessages, content, toolResults)
 	}
-	
+
 	return content, nil
 }
 
 // formatToolsForOllama converts tools to Ollama's expected format
-func (otc *OllamaToolCaller) formatToolsForOllama() []map[string]interface{} {
+func (otc *OllamaToolCaller) formatToolsForOllama() []map[string]any {
 	if otc.toolRegistry == nil {
 		return nil
 	}
-	
-	toolDefs := make([]map[string]interface{}, 0)
-	
+
+	toolDefs := make([]map[string]any, 0)
+
 	for _, tool := range otc.toolRegistry.GetTools() {
 		// Convert to Ollama/OpenAI format
-		toolDef := map[string]interface{}{
+		toolDef := map[string]any{
 			"type": "function",
-			"function": map[string]interface{}{
+			"function": map[string]any{
 				"name":        tool.Name(),
 				"description": tool.Description(),
 				"parameters":  tool.JSONSchema(),
@@ -112,7 +112,7 @@ func (otc *OllamaToolCaller) formatToolsForOllama() []map[string]interface{} {
 		}
 		toolDefs = append(toolDefs, toolDef)
 	}
-	
+
 	return toolDefs
 }
 
@@ -121,18 +121,18 @@ func (otc *OllamaToolCaller) createToolContext() string {
 	if otc.toolRegistry == nil || len(otc.toolRegistry.GetTools()) == 0 {
 		return ""
 	}
-	
+
 	context := "You have access to the following tools:\n\n"
-	
+
 	for _, tool := range otc.toolRegistry.GetTools() {
 		context += fmt.Sprintf("Tool: %s\nDescription: %s\n", tool.Name(), tool.Description())
-		
+
 		// Add parameter info
 		if schema := tool.JSONSchema(); schema != nil {
-			if props, ok := schema["properties"].(map[string]interface{}); ok {
+			if props, ok := schema["properties"].(map[string]any); ok {
 				context += "Parameters:\n"
 				for param, def := range props {
-					if paramDef, ok := def.(map[string]interface{}); ok {
+					if paramDef, ok := def.(map[string]any); ok {
 						desc := ""
 						if d, ok := paramDef["description"].(string); ok {
 							desc = d
@@ -144,7 +144,7 @@ func (otc *OllamaToolCaller) createToolContext() string {
 		}
 		context += "\n"
 	}
-	
+
 	context += `IMPORTANT: To use a tool, you MUST respond with ONLY a JSON object in this exact format (no other text, no thinking blocks, no explanations):
 {
   "tool_calls": [
@@ -163,21 +163,21 @@ Examples:
 - To count files: {"tool_calls":[{"name":"execute_bash","arguments":{"command":"ls | wc -l"}}]}
 
 Do NOT add any text before or after the JSON. Do NOT use thinking blocks. Just output the JSON directly.`
-	
+
 	return context
 }
 
 // ToolCall represents a tool invocation request
 type ToolCall struct {
-	Name      string                 `json:"name"`
-	Arguments map[string]interface{} `json:"arguments"`
-	Input     string                 // For display purposes
+	Name      string         `json:"name"`
+	Arguments map[string]any `json:"arguments"`
+	Input     string         // For display purposes
 }
 
 // extractToolCalls extracts tool calls from LLM response
 func (otc *OllamaToolCaller) extractToolCalls(content string) []ToolCall {
 	otc.log.Debug("Extracting tool calls from content", "content_length", len(content))
-	
+
 	// Strip thinking blocks first if present
 	cleanContent := content
 	if strings.Contains(cleanContent, "<think>") {
@@ -187,17 +187,17 @@ func (otc *OllamaToolCaller) extractToolCalls(content string) []ToolCall {
 		cleanContent = strings.TrimSpace(cleanContent)
 		otc.log.Debug("Removed thinking blocks", "cleaned_length", len(cleanContent))
 	}
-	
+
 	// First, try to parse as JSON
 	var response struct {
 		ToolCalls []ToolCall `json:"tool_calls"`
 	}
-	
+
 	// Look for JSON in the response - try multiple approaches
 	jsonCandidates := []string{
 		cleanContent, // Try the whole cleaned content
 	}
-	
+
 	// Also try extracting JSON from the content
 	if startIdx := strings.Index(cleanContent, "{"); startIdx >= 0 {
 		if endIdx := strings.LastIndex(cleanContent, "}"); endIdx > startIdx {
@@ -205,7 +205,7 @@ func (otc *OllamaToolCaller) extractToolCalls(content string) []ToolCall {
 			jsonCandidates = append(jsonCandidates, jsonStr)
 		}
 	}
-	
+
 	// Try to find compact JSON (single line format)
 	lines := strings.Split(cleanContent, "\n")
 	for _, line := range lines {
@@ -214,7 +214,7 @@ func (otc *OllamaToolCaller) extractToolCalls(content string) []ToolCall {
 			jsonCandidates = append(jsonCandidates, line)
 		}
 	}
-	
+
 	for _, candidate := range jsonCandidates {
 		if err := json.Unmarshal([]byte(candidate), &response); err == nil && len(response.ToolCalls) > 0 {
 			otc.log.Debug("Successfully parsed JSON tool calls", "count", len(response.ToolCalls))
@@ -230,7 +230,7 @@ func (otc *OllamaToolCaller) extractToolCalls(content string) []ToolCall {
 			return response.ToolCalls
 		}
 	}
-	
+
 	// Fallback: Try to extract using patterns (for models that don't output proper JSON)
 	otc.log.Debug("JSON parsing failed, trying pattern extraction")
 	processor := NewOutputProcessor(true, true)
@@ -238,13 +238,13 @@ func (otc *OllamaToolCaller) extractToolCalls(content string) []ToolCall {
 		otc.log.Debug("Pattern extraction succeeded", "tool", tool, "command", command)
 		return []ToolCall{{
 			Name: tool,
-			Arguments: map[string]interface{}{
+			Arguments: map[string]any{
 				"command": command,
 			},
 			Input: command,
 		}}
 	}
-	
+
 	otc.log.Debug("No tool calls extracted from response")
 	return nil
 }
@@ -255,17 +255,17 @@ func (otc *OllamaToolCaller) executeTool(ctx context.Context, toolCall ToolCall)
 	if !exists {
 		return "", fmt.Errorf("tool %s not found", toolCall.Name)
 	}
-	
+
 	// Execute the tool
 	result, err := tool.Execute(ctx, toolCall.Arguments)
 	if err != nil {
 		return "", err
 	}
-	
+
 	if !result.Success {
 		return "", fmt.Errorf(result.Error)
 	}
-	
+
 	return result.Content, nil
 }
 
@@ -286,17 +286,17 @@ func (otc *OllamaToolCaller) callWithToolResults(ctx context.Context, originalMe
 			}
 		}
 	}
-	
+
 	// Build a comprehensive message with tool results and formatting instructions
 	resultMessage := fmt.Sprintf(`I executed tools to answer the user's question: "%s"
 
 Tool Execution Results:
 `, userQuestion)
-	
+
 	for i, result := range toolResults {
 		resultMessage += fmt.Sprintf("Tool %d Output:\n%s\n\n", i+1, result)
 	}
-	
+
 	resultMessage += `IMPORTANT: Please provide a natural, helpful response to the user that:
 1. Acknowledges that you executed commands/tools to get this information
 2. Presents the results in a clear, formatted way
@@ -304,23 +304,23 @@ Tool Execution Results:
 4. Uses markdown formatting if appropriate (e.g., code blocks for command output)
 
 Do NOT just return the raw tool output. Format it nicely and explain what it shows.`
-	
+
 	// Create a clean conversation with just the user question and tool results
 	messages := []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeHuman, userQuestion),
 		llms.TextParts(llms.ChatMessageTypeSystem, resultMessage),
 	}
-	
+
 	// Make final call
 	response, err := otc.llm.GenerateContent(ctx, messages)
 	if err != nil {
 		return "", fmt.Errorf("follow-up LLM call failed: %w", err)
 	}
-	
+
 	if len(response.Choices) == 0 {
 		return "", fmt.Errorf("no response choices in follow-up")
 	}
-	
+
 	return response.Choices[0].Content, nil
 }
 
@@ -341,18 +341,18 @@ type OllamaFunctionsAgent struct {
 }
 
 // Call executes the agent with native Ollama tool support
-func (ofa *OllamaFunctionsAgent) Call(ctx context.Context, inputs map[string]interface{}, progressCallback ToolProgressCallback) (string, error) {
+func (ofa *OllamaFunctionsAgent) Call(ctx context.Context, inputs map[string]any, progressCallback ToolProgressCallback) (string, error) {
 	// Extract user input
 	userInput, ok := inputs["input"].(string)
 	if !ok {
 		return "", fmt.Errorf("missing 'input' in inputs")
 	}
-	
+
 	// Build message history from memory
 	messages := []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeHuman, userInput),
 	}
-	
+
 	// Add memory context if available
 	if ofa.memory != nil {
 		if memVars, err := ofa.memory.LoadMemoryVariables(ctx, inputs); err == nil {
@@ -364,20 +364,20 @@ func (ofa *OllamaFunctionsAgent) Call(ctx context.Context, inputs map[string]int
 			}
 		}
 	}
-	
+
 	// Call with tools
 	response, err := ofa.toolCaller.CallWithTools(ctx, messages, progressCallback)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Save to memory
 	if ofa.memory != nil {
 		ofa.memory.SaveContext(ctx,
-			map[string]interface{}{"input": userInput},
-			map[string]interface{}{"output": response},
+			map[string]any{"input": userInput},
+			map[string]any{"output": response},
 		)
 	}
-	
+
 	return response, nil
 }

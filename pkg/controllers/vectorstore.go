@@ -15,7 +15,7 @@ type CollectionInfo struct {
 	DocumentCount int
 	EmbedderModel string
 	LastUpdated   time.Time
-	Metadata      map[string]interface{}
+	Metadata      map[string]any
 }
 
 type VectorStoreStats struct {
@@ -79,7 +79,7 @@ func (c *VectorStoreController) GetCollections() ([]CollectionInfo, error) {
 			DocumentCount: count,
 			EmbedderModel: embedderInfo.Model,
 			LastUpdated:   time.Now(), // TODO: Get actual last updated time from metadata
-			Metadata:      make(map[string]interface{}),
+			Metadata:      make(map[string]any),
 		}
 
 		collections = append(collections, info)
@@ -115,7 +115,7 @@ func (c *VectorStoreController) GetCollectionStats(name string) (*CollectionInfo
 		DocumentCount: count,
 		EmbedderModel: embedderInfo.Model,
 		LastUpdated:   time.Now(),
-		Metadata:      make(map[string]interface{}),
+		Metadata:      make(map[string]any),
 	}, nil
 }
 

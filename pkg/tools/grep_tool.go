@@ -61,75 +61,75 @@ func (gt *GrepTool) Description() string {
 }
 
 // JSONSchema returns the JSON schema for the tool parameters
-func (gt *GrepTool) JSONSchema() map[string]interface{} {
-	return map[string]interface{}{
+func (gt *GrepTool) JSONSchema() map[string]any {
+	return map[string]any{
 		"type": "object",
-		"properties": map[string]interface{}{
-			"pattern": map[string]interface{}{
+		"properties": map[string]any{
+			"pattern": map[string]any{
 				"type":        "string",
 				"description": "The search pattern (supports regex)",
 			},
-			"path": map[string]interface{}{
+			"path": map[string]any{
 				"type":        "string",
 				"description": "Directory or file path to search in (defaults to current directory)",
 				"default":     ".",
 			},
-			"case_sensitive": map[string]interface{}{
+			"case_sensitive": map[string]any{
 				"type":        "boolean",
 				"description": "Whether the search should be case sensitive",
 				"default":     false,
 			},
-			"regex": map[string]interface{}{
+			"regex": map[string]any{
 				"type":        "boolean",
 				"description": "Whether to treat pattern as a regular expression",
 				"default":     true,
 			},
-			"whole_word": map[string]interface{}{
+			"whole_word": map[string]any{
 				"type":        "boolean",
 				"description": "Match whole words only",
 				"default":     false,
 			},
-			"file_types": map[string]interface{}{
+			"file_types": map[string]any{
 				"type":        "array",
 				"description": "File extensions to include (e.g., ['go', 'js', 'py'])",
-				"items": map[string]interface{}{
+				"items": map[string]any{
 					"type": "string",
 				},
 			},
-			"exclude_dirs": map[string]interface{}{
+			"exclude_dirs": map[string]any{
 				"type":        "array",
 				"description": "Directories to exclude from search (e.g., ['node_modules', '.git'])",
-				"items": map[string]interface{}{
+				"items": map[string]any{
 					"type": "string",
 				},
 			},
-			"context_before": map[string]interface{}{
+			"context_before": map[string]any{
 				"type":        "integer",
 				"description": "Number of lines to show before each match",
 				"minimum":     0,
 				"maximum":     10,
 				"default":     0,
 			},
-			"context_after": map[string]interface{}{
+			"context_after": map[string]any{
 				"type":        "integer",
 				"description": "Number of lines to show after each match",
 				"minimum":     0,
 				"maximum":     10,
 				"default":     0,
 			},
-			"max_results": map[string]interface{}{
+			"max_results": map[string]any{
 				"type":        "integer",
 				"description": "Maximum number of results to return",
 				"minimum":     1,
 				"maximum":     2000,
 				"default":     100,
 			},
-			"files_only": map[string]interface{}{
+			"files_only": map[string]any{
 				"type":        "boolean",
 				"description": "Return only file names that contain matches",
 				"default":     false,
 			},
-			"line_numbers": map[string]interface{}{
+			"line_numbers": map[string]any{
 				"type":        "boolean",
 				"description": "Include line numbers in results",
 				"default":     true,
@@ -140,7 +140,7 @@ func (gt *GrepTool) JSONSchema() map[string]interface{} {
 }
 
 // Execute performs the search operation
-func (gt *GrepTool) Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error) {
+func (gt *GrepTool) Execute(ctx context.Context, params map[string]any) (ToolResult, error) {
 	startTime := time.Now()
 
 	// Extract and validate pattern
@@ -237,7 +237,7 @@ func (gt *GrepTool) Execute(ctx context.Context, params map[string]interface{}) 
 		Success: true,
 		Content: content,
 		Error:   "",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"pattern":        patternStr,
 			"search_path":    searchPath,
 			"results_count":  len(results),
@@ -525,7 +525,7 @@ func (gt *GrepTool) createErrorResult(startTime time.Time, errorMsg string) Tool
 	}
 }
 
-func (gt *GrepTool) getStringParam(params map[string]interface{}, key, defaultValue string) string {
+func (gt *GrepTool) getStringParam(params map[string]any, key, defaultValue string) string {
 	if value, exists := params[key]; exists {
 		if strValue, ok := value.(string); ok {
 			return strValue
@@ -534,7 +534,7 @@ func (gt *GrepTool) getStringParam(params map[string]interface{}, key, defaultVa
 	return defaultValue
 }
 
-func (gt *GrepTool) getBoolParam(params map[string]interface{}, key string, defaultValue bool) bool {
+func (gt *GrepTool) getBoolParam(params map[string]any, key string, defaultValue bool) bool {
 	if value, exists := params[key]; exists {
 		if boolValue, ok := value.(bool); ok {
 			return boolValue
@@ -543,7 +543,7 @@ func (gt *GrepTool) getBoolParam(params map[string]interface{}, key string, defa
 	return defaultValue
 }
 
-func (gt *GrepTool) getIntParam(params map[string]interface{}, key string, defaultValue int) int {
+func (gt *GrepTool) getIntParam(params map[string]any, key string, defaultValue int) int {
 	if value, exists := params[key]; exists {
 		if intValue, ok := value.(int); ok {
 			return intValue
@@ -555,9 +555,9 @@ func (gt *GrepTool) getIntParam(params map[string]interface{}, key string, defau
 	return defaultValue
 }
 
-func (gt *GrepTool) getStringArrayParam(params map[string]interface{}, key string) []string {
+func (gt *GrepTool) getStringArrayParam(params map[string]any, key string) []string {
 	if value, exists := params[key]; exists {
-		if arrayValue, ok := value.([]interface{}); ok {
+		if arrayValue, ok := value.([]any); ok {
 			var result []string
 			for _, item := range arrayValue {
 				if strValue, ok := item.(string); ok {

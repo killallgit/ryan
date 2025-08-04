@@ -26,7 +26,7 @@ func (lca *LangChainControllerAdapter) StartStreaming(ctx context.Context, conte
 	return lca.LangChainController.StartStreaming(ctx, content)
 }
 
-func (lca *LangChainControllerAdapter) SetOllamaClient(client interface{}) {
+func (lca *LangChainControllerAdapter) SetOllamaClient(client any) {
 	lca.LangChainController.SetOllamaClient(client)
 }
 

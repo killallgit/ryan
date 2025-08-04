@@ -41,25 +41,25 @@ func NewAgentSelector(toolRegistry *tools.Registry, modelName string) *AgentSele
 // SelectAgent determines the best agent type for the given input
 func (as *AgentSelector) SelectAgent(input string) (AgentType, bool) {
 	needsTools := as.analyzeToolNeed(input)
-	
+
 	as.log.Debug("Agent selection analysis",
 		"input_length", len(input),
 		"needs_tools", needsTools,
 		"model", as.modelInfo.Name,
 		"tool_compatibility", as.modelInfo.ToolCompatibility.String())
-	
+
 	// If no tools needed, use direct LLM
 	if !needsTools {
 		return AgentTypeDirect, false
 	}
-	
+
 	// If model doesn't support tools, use direct LLM with tool context
 	if as.modelInfo.ToolCompatibility == models.ToolCompatibilityNone {
 		as.log.Warn("Model doesn't support tool calling, using direct mode",
 			"model", as.modelInfo.Name)
 		return AgentTypeDirect, false
 	}
-	
+
 	// For models with excellent tool support, prefer native function calling
 	if as.modelInfo.ToolCompatibility == models.ToolCompatibilityExcellent {
 		// Check if it's an Ollama-compatible model
@@ -73,7 +73,7 @@ func (as *AgentSelector) SelectAgent(input string) (AgentType, bool) {
 			return AgentTypeOpenAIFunctions, true
 		}
 	}
-	
+
 	// Default to conversational agent for other cases
 	as.log.Debug("Selecting conversational agent",
 		"model", as.modelInfo.Name,
@@ -84,30 +84,30 @@ func (as *AgentSelector) SelectAgent(input string) (AgentType, bool) {
 // analyzeToolNeed determines if the input likely requires tool usage
 func (as *AgentSelector) analyzeToolNeed(input string) bool {
 	lowerInput := strings.ToLower(input)
-	
+
 	// Tool-indicating keywords and patterns
 	toolKeywords := []string{
 		// File system operations
 		"how many files", "list files", "list the files", "count files", "show files",
 		"create file", "write file", "read file", "delete file",
 		"what's in", "show me the contents", "open file",
-		
+
 		// Command execution
 		"run command", "execute", "terminal", "bash", "shell",
 		"docker", "git", "npm", "go run", "python",
-		
+
 		// System information
 		"disk usage", "memory usage", "cpu usage", "system info",
 		"process", "running", "status",
-		
+
 		// Web operations
 		"fetch", "download", "web page", "url", "website",
 		"search for", "look up", "find information about",
-		
+
 		// Code operations
 		"grep", "search code", "find in files", "locate",
 	}
-	
+
 	// Check for tool keywords
 	for _, keyword := range toolKeywords {
 		if strings.Contains(lowerInput, keyword) {
@@ -117,13 +117,13 @@ func (as *AgentSelector) analyzeToolNeed(input string) bool {
 			return true
 		}
 	}
-	
+
 	// Check for question patterns that typically need tools
 	questionPatterns := []string{
 		"how many", "what is the", "show me", "can you check",
 		"what's running", "is there", "do we have",
 	}
-	
+
 	for _, pattern := range questionPatterns {
 		if strings.HasPrefix(lowerInput, pattern) {
 			as.log.Debug("Tool-requiring question pattern detected",
@@ -131,7 +131,7 @@ func (as *AgentSelector) analyzeToolNeed(input string) bool {
 			return true
 		}
 	}
-	
+
 	// Check if tools are explicitly mentioned
 	if as.toolRegistry != nil {
 		for _, tool := range as.toolRegistry.GetTools() {
@@ -143,7 +143,7 @@ func (as *AgentSelector) analyzeToolNeed(input string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -154,14 +154,14 @@ func (as *AgentSelector) isOllamaCompatible() bool {
 		"llama", "qwen", "mistral", "deepseek", "command-r",
 		"granite", "gemma2", "phi3",
 	}
-	
+
 	modelLower := strings.ToLower(as.modelInfo.Name)
 	for _, model := range ollamaModels {
 		if strings.Contains(modelLower, model) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

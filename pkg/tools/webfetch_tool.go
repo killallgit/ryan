@@ -104,33 +104,33 @@ func (wft *WebFetchTool) Description() string {
 }
 
 // JSONSchema returns the JSON schema for the tool parameters
-func (wft *WebFetchTool) JSONSchema() map[string]interface{} {
-	return map[string]interface{}{
+func (wft *WebFetchTool) JSONSchema() map[string]any {
+	return map[string]any{
 		"type": "object",
-		"properties": map[string]interface{}{
-			"url": map[string]interface{}{
+		"properties": map[string]any{
+			"url": map[string]any{
 				"type":        "string",
 				"description": "The URL to fetch content from (HTTP or HTTPS)",
 				"pattern":     "^https?://",
 			},
-			"method": map[string]interface{}{
+			"method": map[string]any{
 				"type":        "string",
 				"description": "HTTP method to use (GET, POST, PUT, DELETE)",
 				"enum":        []string{"GET", "POST", "PUT", "DELETE"},
 				"default":     "GET",
 			},
-			"headers": map[string]interface{}{
+			"headers": map[string]any{
 				"type":        "object",
 				"description": "Optional HTTP headers to include in the request",
-				"additionalProperties": map[string]interface{}{
+				"additionalProperties": map[string]any{
 					"type": "string",
 				},
 			},
-			"body": map[string]interface{}{
+			"body": map[string]any{
 				"type":        "string",
 				"description": "Request body for POST/PUT requests",
 			},
-			"timeout": map[string]interface{}{
+			"timeout": map[string]any{
 				"type":        "integer",
 				"description": "Request timeout in seconds (1-120)",
 				"minimum":     1,
@@ -143,7 +143,7 @@ func (wft *WebFetchTool) JSONSchema() map[string]interface{} {
 }
 
 // Execute performs the HTTP request with caching and rate limiting
-func (wft *WebFetchTool) Execute(ctx context.Context, params map[string]interface{}) (ToolResult, error) {
+func (wft *WebFetchTool) Execute(ctx context.Context, params map[string]any) (ToolResult, error) {
 	startTime := time.Now()
 
 	// Extract and validate URL parameter
@@ -180,7 +180,7 @@ func (wft *WebFetchTool) Execute(ctx context.Context, params map[string]interfac
 			Success: true,
 			Content: cached.Content,
 			Error:   "",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"url":          urlStr,
 				"status_code":  cached.StatusCode,
 				"content_type": cached.ContentType,
@@ -223,7 +223,7 @@ func (wft *WebFetchTool) Execute(ctx context.Context, params map[string]interfac
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.1")
 
 	// Add custom headers if provided
-	if headers, ok := params["headers"].(map[string]interface{}); ok {
+	if headers, ok := params["headers"].(map[string]any); ok {
 		for key, value := range headers {
 			if valueStr, ok := value.(string); ok {
 				req.Header.Set(key, valueStr)
@@ -276,7 +276,7 @@ func (wft *WebFetchTool) Execute(ctx context.Context, params map[string]interfac
 		Success: resp.StatusCode >= 200 && resp.StatusCode < 400,
 		Content: content,
 		Error:   "",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"url":          urlStr,
 			"method":       method,
 			"status_code":  resp.StatusCode,
@@ -311,7 +311,7 @@ func (wft *WebFetchTool) createErrorResult(startTime time.Time, errorMsg string)
 	}
 }
 
-func (wft *WebFetchTool) getStringParam(params map[string]interface{}, key, defaultValue string) string {
+func (wft *WebFetchTool) getStringParam(params map[string]any, key, defaultValue string) string {
 	if value, exists := params[key]; exists {
 		if strValue, ok := value.(string); ok {
 			return strValue
@@ -320,7 +320,7 @@ func (wft *WebFetchTool) getStringParam(params map[string]interface{}, key, defa
 	return defaultValue
 }
 
-func (wft *WebFetchTool) getIntParam(params map[string]interface{}, key string, defaultValue int) int {
+func (wft *WebFetchTool) getIntParam(params map[string]any, key string, defaultValue int) int {
 	if value, exists := params[key]; exists {
 		if intValue, ok := value.(int); ok {
 			return intValue

@@ -41,7 +41,7 @@ func NewChromemStore(embedder Embedder, persistenceDir string, enablePersistence
 }
 
 // CreateCollection creates a new collection
-func (cs *ChromemStore) CreateCollection(name string, metadata map[string]interface{}) (Collection, error) {
+func (cs *ChromemStore) CreateCollection(name string, metadata map[string]any) (Collection, error) {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 
@@ -255,8 +255,8 @@ func (cc *ChromemCollection) Query(ctx context.Context, query string, k int, opt
 	// Convert results
 	results := make([]Result, len(filteredResults))
 	for i, cr := range filteredResults {
-		// Convert metadata back to map[string]interface{}
-		metadata := make(map[string]interface{})
+		// Convert metadata back to map[string]any
+		metadata := make(map[string]any)
 		for k, v := range cr.Metadata {
 			metadata[k] = v
 		}
@@ -322,8 +322,8 @@ func (cc *ChromemCollection) QueryWithEmbedding(ctx context.Context, embedding [
 	// Convert results
 	results := make([]Result, len(filteredResults))
 	for i, cr := range filteredResults {
-		// Convert metadata back to map[string]interface{}
-		metadata := make(map[string]interface{})
+		// Convert metadata back to map[string]any
+		metadata := make(map[string]any)
 		for k, v := range cr.Metadata {
 			metadata[k] = v
 		}
@@ -404,7 +404,7 @@ func (cc *ChromemCollection) Clear(ctx context.Context) error {
 
 func buildChromemWhere(opts *queryOptions) map[string]string {
 	if opts.filter != nil && len(opts.filter) > 0 {
-		// Convert map[string]interface{} to map[string]string
+		// Convert map[string]any to map[string]string
 		where := make(map[string]string)
 		for k, v := range opts.filter {
 			if str, ok := v.(string); ok {
@@ -419,7 +419,7 @@ func buildChromemWhere(opts *queryOptions) map[string]string {
 }
 
 // GetOrCreateCollection is a helper that gets a collection or creates it if it doesn't exist
-func GetOrCreateCollection(store VectorStore, name string, metadata map[string]interface{}) (Collection, error) {
+func GetOrCreateCollection(store VectorStore, name string, metadata map[string]any) (Collection, error) {
 	// Try to get existing collection
 	col, err := store.GetCollection(name)
 	if err == nil {

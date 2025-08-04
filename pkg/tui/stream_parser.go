@@ -80,27 +80,27 @@ func (sp *StreamParser) processBuffer() []FormattedSegment {
 
 		// Look for the next tag
 		tagStart := sp.findNextTag(processed)
-		
+
 		if tagStart == -1 {
 			// No more tags in buffer
 			remaining := sp.buffer[processed:]
 			if len(remaining) > 0 {
 				// Check if this might be the start of an incomplete tag
-				if strings.HasSuffix(remaining, "<") || 
-				   strings.HasSuffix(remaining, "<t") ||
-				   strings.HasSuffix(remaining, "<th") ||
-				   strings.HasSuffix(remaining, "<thi") ||
-				   strings.HasSuffix(remaining, "<thin") ||
-				   strings.HasSuffix(remaining, "</") ||
-				   strings.HasSuffix(remaining, "</t") ||
-				   strings.HasSuffix(remaining, "</th") ||
-				   strings.HasSuffix(remaining, "</thi") ||
-				   strings.HasSuffix(remaining, "</thin") {
+				if strings.HasSuffix(remaining, "<") ||
+					strings.HasSuffix(remaining, "<t") ||
+					strings.HasSuffix(remaining, "<th") ||
+					strings.HasSuffix(remaining, "<thi") ||
+					strings.HasSuffix(remaining, "<thin") ||
+					strings.HasSuffix(remaining, "</") ||
+					strings.HasSuffix(remaining, "</t") ||
+					strings.HasSuffix(remaining, "</th") ||
+					strings.HasSuffix(remaining, "</thi") ||
+					strings.HasSuffix(remaining, "</thin") {
 					// Keep potential incomplete tag in buffer
 					sp.buffer = remaining
 					return newSegments
 				}
-				
+
 				// Add remaining content as a segment
 				newSegments = append(newSegments, FormattedSegment{
 					Content: remaining,
@@ -168,12 +168,12 @@ func (sp *StreamParser) findNextTag(startPos int) int {
 // processTag attempts to process a tag starting at the given position
 func (sp *StreamParser) processTag(pos int) (tag string, newPos int, processed bool) {
 	remainingBuffer := sp.buffer[pos:]
-	
+
 	// Check if we have enough characters to identify a tag
 	if len(remainingBuffer) < 2 {
 		return "", pos, false // Need at least "<x"
 	}
-	
+
 	// Check for opening think tags
 	if sp.couldBeTag(remainingBuffer, "<think>") {
 		if len(remainingBuffer) >= 7 { // Full "<think>"
@@ -189,7 +189,7 @@ func (sp *StreamParser) processTag(pos int) (tag string, newPos int, processed b
 			return "", pos, false // Incomplete tag
 		}
 	}
-	
+
 	if sp.couldBeTag(remainingBuffer, "<thinking>") {
 		if len(remainingBuffer) >= 10 { // Full "<thinking>"
 			if sp.matchTag(pos, "<thinking>") {
@@ -216,7 +216,7 @@ func (sp *StreamParser) processTag(pos int) (tag string, newPos int, processed b
 			return "", pos, false // Incomplete tag
 		}
 	}
-	
+
 	if sp.couldBeTag(remainingBuffer, "</thinking>") {
 		if len(remainingBuffer) >= 11 { // Full "</thinking>"
 			if sp.matchTag(pos, "</thinking>") && sp.isInFormat(FormatTypeThink) {

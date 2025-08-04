@@ -48,12 +48,12 @@ func (mf *MarkdownFormatter) FormatMarkdown(content string) ([]FormattedLine, er
 	// Strip any remaining ANSI codes and split into lines
 	cleanRendered := mf.stripANSICodes(rendered)
 	lines := strings.Split(strings.TrimRight(cleanRendered, "\n"), "\n")
-	
+
 	var formattedLines []FormattedLine
 	for _, line := range lines {
 		// Clean the line and apply appropriate styling
 		cleanLine := strings.TrimRight(line, " \t")
-		
+
 		formattedLines = append(formattedLines, FormattedLine{
 			Content: cleanLine,
 			Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite),
@@ -76,7 +76,7 @@ func (mf *MarkdownFormatter) stripANSICodes(text string) string {
 func (mf *MarkdownFormatter) fallbackToSimpleText(content string) []FormattedLine {
 	var formattedLines []FormattedLine
 	lines := WrapText(content, mf.width)
-	
+
 	for _, line := range lines {
 		formattedLines = append(formattedLines, FormattedLine{
 			Content: line,
@@ -84,7 +84,7 @@ func (mf *MarkdownFormatter) fallbackToSimpleText(content string) []FormattedLin
 			Indent:  0,
 		})
 	}
-	
+
 	return formattedLines
 }
 

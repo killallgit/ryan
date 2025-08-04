@@ -74,7 +74,7 @@ type ControllerInterface interface {
 	AddErrorMessage(errorMsg string)
 	Reset()
 	StartStreaming(ctx context.Context, content string) (<-chan controllers.StreamingUpdate, error)
-	SetOllamaClient(client interface{})
+	SetOllamaClient(client any)
 	ValidateModel(model string) error
 	GetToolRegistry() *tools.Registry
 	GetTokenUsage() (promptTokens, responseTokens int)

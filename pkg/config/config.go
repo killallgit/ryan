@@ -41,13 +41,13 @@ type LangChainPromptConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Logging      LoggingConfig     `mapstructure:"logging"`
-	Context      ContextConfig     `mapstructure:"context"`
-	ShowThinking bool              `mapstructure:"show_thinking"`
-	Streaming    bool              `mapstructure:"streaming"`
-	Ollama       OllamaConfig      `mapstructure:"ollama"`
-	Tools        ToolsConfig       `mapstructure:"tools"`
-	LangChain    LangChainConfig   `mapstructure:"langchain"`
+	Logging        LoggingConfig     `mapstructure:"logging"`
+	Context        ContextConfig     `mapstructure:"context"`
+	ShowThinking   bool              `mapstructure:"show_thinking"`
+	Streaming      bool              `mapstructure:"streaming"`
+	Ollama         OllamaConfig      `mapstructure:"ollama"`
+	Tools          ToolsConfig       `mapstructure:"tools"`
+	LangChain      LangChainConfig   `mapstructure:"langchain"`
 	VectorStore    VectorStoreConfig `mapstructure:"vectorstore"`
 	SelfConfigPath string            `mapstructure:"self_config_path"`
 }
@@ -130,7 +130,7 @@ type VectorStoreEmbedderConfig struct {
 
 // VectorStoreCollectionConfig holds collection configuration
 type VectorStoreCollectionConfig struct {
-	Name     string                 `mapstructure:"name"`
+	Name     string         `mapstructure:"name"`
 	Metadata map[string]any `mapstructure:"metadata"`
 }
 

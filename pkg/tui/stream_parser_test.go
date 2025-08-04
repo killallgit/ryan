@@ -11,18 +11,18 @@ func TestStreamParser_BasicThinkBlock(t *testing.T) {
 
 	// Test complete think block in one chunk
 	segments := parser.ParseChunk("<think>This is thinking content</think>This is response")
-	
+
 	assert.Len(t, segments, 4)
 	assert.Equal(t, "<think>", segments[0].Content)
 	assert.Equal(t, FormatTypeNone, segments[0].Format)
-	
+
 	assert.Equal(t, "This is thinking content", segments[1].Content)
 	assert.Equal(t, FormatTypeThink, segments[1].Format)
 	assert.Equal(t, StyleThinkingText, segments[1].Style)
-	
+
 	assert.Equal(t, "</think>", segments[2].Content)
 	assert.Equal(t, FormatTypeNone, segments[2].Format)
-	
+
 	assert.Equal(t, "This is response", segments[3].Content)
 	assert.Equal(t, FormatTypeNone, segments[3].Format)
 }
@@ -164,7 +164,7 @@ func TestStreamParser_IncompleteTagAtEnd(t *testing.T) {
 
 	// Complete the tag in next chunk
 	segments2 := parser.ParseChunk("nk>Thinking here</think>")
-	
+
 	// Should now get the thinking content
 	hasThinkContent := false
 	for _, seg := range segments2 {

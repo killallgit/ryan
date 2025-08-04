@@ -63,7 +63,7 @@ func (di *DocumentIndexer) IndexFile(ctx context.Context, filePath string) error
 	}
 
 	// Create metadata
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"source":     filePath,
 		"filename":   filepath.Base(filePath),
 		"extension":  filepath.Ext(filePath),
@@ -86,7 +86,7 @@ func (di *DocumentIndexer) IndexFile(ctx context.Context, filePath string) error
 }
 
 // indexTextFile indexes a text file
-func (di *DocumentIndexer) indexTextFile(ctx context.Context, filePath string, content string, metadata map[string]interface{}) error {
+func (di *DocumentIndexer) indexTextFile(ctx context.Context, filePath string, content string, metadata map[string]any) error {
 	metadata["type"] = "text"
 
 	// Create base document
@@ -101,7 +101,7 @@ func (di *DocumentIndexer) indexTextFile(ctx context.Context, filePath string, c
 }
 
 // indexCodeFile indexes a code file with language-aware chunking
-func (di *DocumentIndexer) indexCodeFile(ctx context.Context, filePath string, content string, metadata map[string]interface{}) error {
+func (di *DocumentIndexer) indexCodeFile(ctx context.Context, filePath string, content string, metadata map[string]any) error {
 	metadata["type"] = "code"
 	metadata["language"] = getLanguageFromExt(filepath.Ext(filePath))
 
@@ -118,7 +118,7 @@ func (di *DocumentIndexer) indexCodeFile(ctx context.Context, filePath string, c
 		docID := fmt.Sprintf("%s_chunk_%d", filePath, i)
 
 		// Copy metadata and add chunk info
-		chunkMeta := make(map[string]interface{})
+		chunkMeta := make(map[string]any)
 		for k, v := range metadata {
 			chunkMeta[k] = v
 		}
@@ -136,7 +136,7 @@ func (di *DocumentIndexer) indexCodeFile(ctx context.Context, filePath string, c
 }
 
 // indexStructuredFile indexes structured data files
-func (di *DocumentIndexer) indexStructuredFile(ctx context.Context, filePath string, content string, metadata map[string]interface{}) error {
+func (di *DocumentIndexer) indexStructuredFile(ctx context.Context, filePath string, content string, metadata map[string]any) error {
 	metadata["type"] = "structured"
 
 	// For structured files, treat the whole content as one chunk
@@ -197,14 +197,14 @@ func (di *DocumentIndexer) IndexDirectory(ctx context.Context, dirPath string, p
 }
 
 // IndexReader indexes content from an io.Reader
-func (di *DocumentIndexer) IndexReader(ctx context.Context, reader io.Reader, source string, metadata map[string]interface{}) error {
+func (di *DocumentIndexer) IndexReader(ctx context.Context, reader io.Reader, source string, metadata map[string]any) error {
 	content, err := io.ReadAll(reader)
 	if err != nil {
 		return fmt.Errorf("failed to read content: %w", err)
 	}
 
 	if metadata == nil {
-		metadata = make(map[string]interface{})
+		metadata = make(map[string]any)
 	}
 	metadata["source"] = source
 	metadata["indexed_at"] = time.Now().Unix()

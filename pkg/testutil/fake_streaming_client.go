@@ -47,8 +47,8 @@ func (c *FakeStreamingChatClient) StreamMessage(ctx context.Context, req chat.Ch
 	if req.Tools != nil && len(req.Tools) > 0 && strings.Contains(response, "tool_calls") {
 		var toolResponse struct {
 			ToolCalls []struct {
-				Name      string                 `json:"name"`
-				Arguments map[string]interface{} `json:"arguments"`
+				Name      string         `json:"name"`
+				Arguments map[string]any `json:"arguments"`
 			} `json:"tool_calls"`
 		}
 		if err := json.Unmarshal([]byte(response), &toolResponse); err == nil && len(toolResponse.ToolCalls) > 0 {

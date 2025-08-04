@@ -150,7 +150,7 @@ func TestLoadSelfConfig(t *testing.T) {
 	require.NotNil(t, selfConfig)
 	assert.Equal(t, "self", selfConfig.Role)
 	assert.Len(t, selfConfig.Traits, 2)
-	
+
 	// Check traits
 	assert.Equal(t, "explorer", selfConfig.Traits[0].Name)
 	assert.Contains(t, selfConfig.Traits[0].SystemPrompt, "inner explorer")

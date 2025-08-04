@@ -113,7 +113,7 @@ func (vcm *VectorContextManager) indexInCollection(ctx context.Context, collecti
 	content := vcm.formatMessageForIndexing(*msg)
 
 	// Create metadata
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"message_id": msg.ID,
 		"context_id": msg.ContextID,
 		"role":       msg.Role,

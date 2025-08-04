@@ -241,7 +241,7 @@ func (m *Manager) GetCollectionInfo(collectionName string) (*CollectionMetadata,
 }
 
 // ChunkAndIndexDocument chunks a document and indexes all chunks
-func (m *Manager) ChunkAndIndexDocument(ctx context.Context, collectionName string, doc Document, metadata map[string]interface{}) error {
+func (m *Manager) ChunkAndIndexDocument(ctx context.Context, collectionName string, doc Document, metadata map[string]any) error {
 	// Validate collection name
 	if err := validateCollectionName(collectionName); err != nil {
 		return err
@@ -291,21 +291,21 @@ func DefaultConfig() Config {
 		Collections: []CollectionConfig{
 			{
 				Name: "conversations",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"description": "Chat conversation history",
 					"type":        "conversation",
 				},
 			},
 			{
 				Name: "documents",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"description": "Indexed documents and files",
 					"type":        "document",
 				},
 			},
 			{
 				Name: "tools",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"description": "Tool execution results and outputs",
 					"type":        "tool_output",
 				},

@@ -84,7 +84,7 @@ func runVectorStoreTests(t *testing.T, store vectorstore.VectorStore) {
 
 	t.Run("CollectionOperations", func(t *testing.T) {
 		// Create collection
-		col, err := store.CreateCollection("test-collection", map[string]interface{}{
+		col, err := store.CreateCollection("test-collection", map[string]any{
 			"description": "Test collection",
 			"created_at":  time.Now().Format(time.RFC3339),
 		})
@@ -125,7 +125,7 @@ func runVectorStoreTests(t *testing.T, store vectorstore.VectorStore) {
 			{
 				ID:      "doc1",
 				Content: "The quick brown fox jumps over the lazy dog",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"type":   "sentence",
 					"source": "test",
 				},
@@ -133,7 +133,7 @@ func runVectorStoreTests(t *testing.T, store vectorstore.VectorStore) {
 			{
 				ID:      "doc2",
 				Content: "Machine learning is a subset of artificial intelligence",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"type":   "definition",
 					"source": "test",
 				},
@@ -141,7 +141,7 @@ func runVectorStoreTests(t *testing.T, store vectorstore.VectorStore) {
 			{
 				ID:      "doc3",
 				Content: "Vector databases enable semantic search capabilities",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"type":   "definition",
 					"source": "test",
 				},
@@ -164,7 +164,7 @@ func runVectorStoreTests(t *testing.T, store vectorstore.VectorStore) {
 		assert.Equal(t, "doc2", results[0].Document.ID)
 
 		// Query with filter
-		results, err = col.Query(ctx, "search", 10, vectorstore.WithFilter(map[string]interface{}{
+		results, err = col.Query(ctx, "search", 10, vectorstore.WithFilter(map[string]any{
 			"type": "definition",
 		}))
 		require.NoError(t, err)
@@ -282,8 +282,8 @@ func TestVectorStoreManager(t *testing.T) {
 		PersistenceDir:    tempDir,
 		EnablePersistence: true,
 		Collections: []vectorstore.CollectionConfig{
-			{Name: "test-conversations", Metadata: map[string]interface{}{"type": "conversation"}},
-			{Name: "test-documents", Metadata: map[string]interface{}{"type": "document"}},
+			{Name: "test-conversations", Metadata: map[string]any{"type": "conversation"}},
+			{Name: "test-documents", Metadata: map[string]any{"type": "document"}},
 		},
 		EmbedderConfig: vectorstore.EmbedderConfig{
 			Provider: "mock",

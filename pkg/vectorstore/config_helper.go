@@ -66,21 +66,21 @@ func InitializeVectorStore() (*Manager, error) {
 		managerConfig.Collections = []CollectionConfig{
 			{
 				Name: "conversations",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"description": "Chat conversation history",
 					"type":        "conversation",
 				},
 			},
 			{
 				Name: "documents",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"description": "Indexed documents and files",
 					"type":        "document",
 				},
 			},
 			{
 				Name: "tools",
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"description": "Tool execution results and outputs",
 					"type":        "tool_output",
 				},

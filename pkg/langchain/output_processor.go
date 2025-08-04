@@ -27,7 +27,7 @@ func NewOutputProcessor(stripThinking, convertReAct bool) *OutputProcessor {
 // ProcessForAgent processes LLM output to make it compatible with agents
 func (op *OutputProcessor) ProcessForAgent(output string) string {
 	original := output
-	
+
 	// Step 1: Remove thinking blocks if enabled
 	if op.stripThinkingBlocks {
 		output = op.removeThinkingBlocks(output)
@@ -37,7 +37,7 @@ func (op *OutputProcessor) ProcessForAgent(output string) string {
 				"processed_length", len(output))
 		}
 	}
-	
+
 	// Step 2: Try to extract tool intent and convert to ReAct format
 	if op.convertToReAct && op.detectToolIntent(output) {
 		converted := op.convertToReActFormat(output)
@@ -48,7 +48,7 @@ func (op *OutputProcessor) ProcessForAgent(output string) string {
 			return converted
 		}
 	}
-	
+
 	return output
 }
 
@@ -57,22 +57,22 @@ func (op *OutputProcessor) removeThinkingBlocks(output string) string {
 	// Remove <think> blocks
 	thinkRe := regexp.MustCompile(`(?s)<think>.*?</think>`)
 	output = thinkRe.ReplaceAllString(output, "")
-	
+
 	// Remove <thinking> blocks
 	thinkingRe := regexp.MustCompile(`(?s)<thinking>.*?</thinking>`)
 	output = thinkingRe.ReplaceAllString(output, "")
-	
+
 	// Clean up extra whitespace
 	output = strings.TrimSpace(output)
 	output = regexp.MustCompile(`\n{3,}`).ReplaceAllString(output, "\n\n")
-	
+
 	return output
 }
 
 // detectToolIntent checks if the output indicates tool usage intent
 func (op *OutputProcessor) detectToolIntent(output string) bool {
 	lowerOutput := strings.ToLower(output)
-	
+
 	// Common patterns indicating tool usage
 	toolPatterns := []string{
 		"i'll run", "i'll execute", "let me run", "let me execute",
@@ -81,18 +81,18 @@ func (op *OutputProcessor) detectToolIntent(output string) bool {
 		"i need to", "i should", "i can help you by",
 		"to count the files", "to list the files", "to find",
 	}
-	
+
 	for _, pattern := range toolPatterns {
 		if strings.Contains(lowerOutput, pattern) {
 			return true
 		}
 	}
-	
+
 	// Check for command-like content
 	if op.containsCommand(output) {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -100,19 +100,19 @@ func (op *OutputProcessor) detectToolIntent(output string) bool {
 func (op *OutputProcessor) containsCommand(output string) bool {
 	// Look for command patterns
 	commandPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?m)^\s*\$\s+.+`),           // $ command
-		regexp.MustCompile(`(?m)^\s*>\s+.+`),           // > command
+		regexp.MustCompile(`(?m)^\s*\$\s+.+`),                  // $ command
+		regexp.MustCompile(`(?m)^\s*>\s+.+`),                   // > command
 		regexp.MustCompile(`(?i)(bash|shell|execute):\s*(.+)`), // tool: command
-		regexp.MustCompile("`[^`]+\\|[^`]+`"),          // `command | pipe`
-		regexp.MustCompile(`ls\s+.*\|\s*wc\s+-l`),     // specific: ls | wc -l
+		regexp.MustCompile("`[^`]+\\|[^`]+`"),                  // `command | pipe`
+		regexp.MustCompile(`ls\s+.*\|\s*wc\s+-l`),              // specific: ls | wc -l
 	}
-	
+
 	for _, pattern := range commandPatterns {
 		if pattern.MatchString(output) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -120,12 +120,12 @@ func (op *OutputProcessor) containsCommand(output string) bool {
 func (op *OutputProcessor) convertToReActFormat(output string) string {
 	// Try to extract tool and command from various formats
 	tool, command := op.extractToolAndCommand(output)
-	
+
 	if tool != "" && command != "" {
 		// Format as ReAct
 		return fmt.Sprintf("I need to use a tool to help with this task.\n\nAction: %s\nAction Input: %s", tool, command)
 	}
-	
+
 	// If we can't convert, return original
 	return output
 }
@@ -137,26 +137,26 @@ func (op *OutputProcessor) extractToolAndCommand(output string) (tool, command s
 	if matches := runPattern.FindStringSubmatch(output); len(matches) > 1 {
 		return "execute_bash", strings.TrimSpace(matches[1])
 	}
-	
+
 	// Pattern 2: Backtick commands
 	backtickPattern := regexp.MustCompile("`([^`]+)`")
 	if matches := backtickPattern.FindAllStringSubmatch(output, -1); len(matches) > 0 {
 		// Look for command-like content
 		for _, match := range matches {
 			cmd := match[1]
-			if strings.Contains(cmd, "|") || strings.Contains(cmd, "ls") || 
-			   strings.Contains(cmd, "wc") || strings.Contains(cmd, "grep") {
+			if strings.Contains(cmd, "|") || strings.Contains(cmd, "ls") ||
+				strings.Contains(cmd, "wc") || strings.Contains(cmd, "grep") {
 				return "execute_bash", cmd
 			}
 		}
 	}
-	
+
 	// Pattern 3: Direct tool mentions
 	toolPattern := regexp.MustCompile(`(?i)(?:using|use|with)\s+(?:the\s+)?(\w+)\s+tool.*?:\s*(.+)`)
 	if matches := toolPattern.FindStringSubmatch(output); len(matches) > 2 {
 		toolName := strings.ToLower(matches[1])
 		command := strings.TrimSpace(matches[2])
-		
+
 		// Map common tool names
 		switch toolName {
 		case "bash", "shell", "terminal", "command":
@@ -169,7 +169,7 @@ func (op *OutputProcessor) extractToolAndCommand(output string) (tool, command s
 			return toolName, command
 		}
 	}
-	
+
 	// Pattern 4: Specific for "ls | wc -l" type commands
 	if strings.Contains(output, "ls") && strings.Contains(output, "wc") {
 		// Extract the actual command
@@ -178,7 +178,7 @@ func (op *OutputProcessor) extractToolAndCommand(output string) (tool, command s
 			return "execute_bash", matches[1]
 		}
 	}
-	
+
 	return "", ""
 }
 
@@ -187,9 +187,9 @@ func (op *OutputProcessor) CleanToolResponse(response string) string {
 	// Remove ANSI escape codes
 	ansiPattern := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	response = ansiPattern.ReplaceAllString(response, "")
-	
+
 	// Trim whitespace
 	response = strings.TrimSpace(response)
-	
+
 	return response
 }

@@ -72,12 +72,12 @@ func TestDocumentProcessor_ChunkDocument(t *testing.T) {
 	doc := Document{
 		ID:      "test-doc",
 		Content: strings.Repeat("This is a test sentence. ", 10),
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"original": "metadata",
 		},
 	}
 
-	baseMetadata := map[string]interface{}{
+	baseMetadata := map[string]any{
 		"source": "test_source",
 	}
 

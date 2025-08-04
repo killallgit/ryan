@@ -177,7 +177,7 @@ func TestMessageNodeManager_Expansion(t *testing.T) {
 			{
 				Function: chat.ToolFunction{
 					Name: "execute_bash",
-					Arguments: map[string]interface{}{
+					Arguments: map[string]any{
 						"command": "ls -la",
 					},
 				},
