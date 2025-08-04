@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/config"
@@ -331,28 +330,37 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 		finalUserMsg := chat.NewUserMessage(content)
 		lc.conversation = chat.AddMessageWithDeduplication(lc.conversation, finalUserMsg)
 		
-		// Signal tool execution started (agents will use tools autonomously)
-		updates <- StreamingUpdate{
-			Type:     ToolExecutionStarted,
-			StreamID: "langchain-stream",
-		}
+		// Use real LangChain streaming instead of simulated chunks
+		streamChan := make(chan string, 100)
+		var fullResponse strings.Builder
 		
-		// Use LangChain agent (non-streaming to get complete result with tool execution)
-		response, err := lc.client.SendMessage(ctx, content)
-		if err != nil {
-			lc.log.Error("LangChain agent failed", "error", err)
-			select {
-			case updates <- StreamingUpdate{Type: StreamError, Error: err}:
-			case <-ctx.Done():
+		// Start real streaming in background
+		go func() {
+			defer close(streamChan)
+			if err := lc.client.StreamMessage(ctx, content, streamChan); err != nil {
+				lc.log.Error("LangChain streaming failed", "error", err)
+				select {
+				case updates <- StreamingUpdate{Type: StreamError, Error: err}:
+				case <-ctx.Done():
+				}
 			}
-			return
+		}()
+		
+		// Forward real stream chunks to TUI
+		for chunk := range streamChan {
+			fullResponse.WriteString(chunk)
+			select {
+			case updates <- StreamingUpdate{
+				Type:     ChunkReceived,
+				StreamID: "langchain-stream",
+				Content:  chunk,
+			}:
+			case <-ctx.Done():
+				return
+			}
 		}
 		
-		// Signal tool execution completed
-		updates <- StreamingUpdate{
-			Type:     ToolExecutionComplete,
-			StreamID: "langchain-stream",
-		}
+		response := fullResponse.String()
 		
 		// Parse response to detect tool usage and create appropriate messages
 		toolMessages := lc.parseToolExecutionFromResponse(response)
@@ -361,9 +369,6 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 		for _, msg := range toolMessages {
 			lc.conversation = chat.AddMessage(lc.conversation, msg)
 		}
-		
-		// Stream the final response in chunks to simulate streaming
-		lc.streamResponseInChunks(response, updates, "langchain-stream")
 		
 		// Add final assistant message to conversation with thinking parsing
 		showThinking := true
@@ -510,36 +515,6 @@ func (lc *LangChainController) extractDateFromResponse(response string) string {
 	return ""
 }
 
-// streamResponseInChunks simulates streaming by breaking response into chunks
-func (lc *LangChainController) streamResponseInChunks(response string, updates chan<- StreamingUpdate, streamID string) {
-	// Break response into word chunks for streaming effect
-	words := strings.Fields(response)
-	chunkSize := 3 // words per chunk
-	
-	for i := 0; i < len(words); i += chunkSize {
-		end := i + chunkSize
-		if end > len(words) {
-			end = len(words)
-		}
-		
-		chunk := strings.Join(words[i:end], " ")
-		if i+chunkSize < len(words) {
-			chunk += " " // Add space between chunks
-		}
-		
-		select {
-		case updates <- StreamingUpdate{
-			Type:     ChunkReceived,
-			StreamID: streamID,
-			Content:  chunk,
-		}:
-		case <-time.After(50 * time.Millisecond): // Small delay for streaming effect
-		}
-		
-		// Small delay between chunks
-		time.Sleep(30 * time.Millisecond)
-	}
-}
 
 // saveHistory saves the current conversation to disk
 func (lc *LangChainController) saveHistory() error {
