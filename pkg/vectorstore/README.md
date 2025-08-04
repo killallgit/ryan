@@ -18,15 +18,11 @@ The `vectorstore` package provides embedded vector storage capabilities for Ryan
 ```go
 import "github.com/killallgit/ryan/pkg/vectorstore"
 
-// Create configuration
-config := vectorstore.DefaultConfig()
-
-// Create manager
-manager, err := vectorstore.NewManager(config)
+// Initialize from global config (reads from .ryan/settings.yaml)
+manager, err := vectorstore.GetGlobalManager()
 if err != nil {
     log.Fatal(err)
 }
-defer manager.Close()
 
 // Index documents
 docs := []vectorstore.Document{
@@ -39,31 +35,40 @@ docs := []vectorstore.Document{
     },
 }
 
-err = manager.IndexDocuments(ctx, "documents", docs)
+err = vectorstore.IndexDocumentsGlobal("documents", docs)
 
 // Search
-results, err := manager.Search(ctx, "documents", "golang programming", 5)
+results, err := vectorstore.SearchGlobal("documents", "golang programming", 5)
 ```
 
 ### Configuration
 
-```go
-config := vectorstore.Config{
-    Provider:          "chromem",              // Vector store provider
-    PersistenceDir:    ".ryan/vectorstore",    // Where to store data
-    EnablePersistence: true,                   // Enable disk persistence
-    
-    EmbedderConfig: vectorstore.EmbedderConfig{
-        Provider: "ollama",                    // Embedding provider
-        Model:    "nomic-embed-text",          // Model to use
-        BaseURL:  "http://localhost:11434",    // Ollama endpoint
-    },
-    
-    Collections: []vectorstore.CollectionConfig{
-        {Name: "conversations"},               // Pre-create collections
-        {Name: "documents"},
-    },
-}
+Add to your `.ryan/settings.yaml`:
+
+```yaml
+vectorstore:
+  enabled: true
+  provider: chromem
+  persistence_dir: ./.ryan/vectorstore
+  enable_persistence: true
+  
+  embedder:
+    provider: ollama         # ollama, openai, or mock
+    model: nomic-embed-text
+    base_url: http://localhost:11434
+    # api_key: ""           # For OpenAI, set via OPENAI_API_KEY env var
+  
+  collections:
+    - name: conversations
+      metadata:
+        type: chat_history
+    - name: documents
+      metadata:
+        type: document_index
+  
+  indexer:
+    chunk_size: 1000
+    chunk_overlap: 200
 ```
 
 ### Embedding Providers
@@ -97,17 +102,16 @@ config := vectorstore.Config{
 
 ```go
 // Query with filters
-results, err := manager.Search(ctx, "documents", "search query", 10,
+results, err := vectorstore.SearchGlobal("documents", "search query", 10,
     vectorstore.WithFilter(map[string]interface{}{
         "type": "programming",
     }),
     vectorstore.WithMinScore(0.7),
 )
 
-// Query with pre-computed embedding
-embedding, _ := manager.GetEmbedder().EmbedText(ctx, "query")
-collection, _ := manager.GetCollection("documents")
-results, err := collection.QueryWithEmbedding(ctx, embedding, 5)
+// Get a specific collection for direct operations
+collection, err := vectorstore.GetOrCreateCollectionGlobal("documents", nil)
+results, err := collection.Query(ctx, "search query", 5)
 ```
 
 ## Architecture
@@ -165,13 +169,8 @@ The package includes a powerful document indexer for indexing various file types
 ### Usage
 
 ```go
-// Create indexer
-config := vectorstore.IndexerConfig{
-    CollectionName: "documents",
-    ChunkSize:      1000,
-    ChunkOverlap:   200,
-}
-indexer, err := vectorstore.NewDocumentIndexer(store, config)
+// Create indexer using global config
+indexer, err := vectorstore.NewIndexerFromGlobalConfig("documents")
 
 // Index a single file
 err = indexer.IndexFile(ctx, "/path/to/document.txt")

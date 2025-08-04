@@ -88,6 +88,23 @@ func NewLangChainVectorMemoryWithConversation(store vectorstore.VectorStore, con
 	return vm, nil
 }
 
+// NewLangChainVectorMemoryFromGlobalConfig creates vector memory using global configuration
+func NewLangChainVectorMemoryFromGlobalConfig() (*LangChainVectorMemory, error) {
+	// Get global vector store manager
+	manager, err := vectorstore.GetGlobalManager()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vector store manager: %w", err)
+	}
+	if manager == nil {
+		return nil, fmt.Errorf("vector store is not enabled")
+	}
+
+	// Use default config
+	config := DefaultVectorMemoryConfig()
+	
+	return NewLangChainVectorMemory(manager.GetStore(), config)
+}
+
 // AddMessage adds a message to memory and indexes it in the vector store
 func (vm *LangChainVectorMemory) AddMessage(ctx context.Context, msg Message) error {
 	// Add to base memory
