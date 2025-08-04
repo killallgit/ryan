@@ -13,8 +13,8 @@ import (
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
-	"github.com/killallgit/ryan/pkg/vectorstore"
 	"github.com/killallgit/ryan/pkg/tools"
+	"github.com/killallgit/ryan/pkg/vectorstore"
 )
 
 type App struct {

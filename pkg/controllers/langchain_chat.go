@@ -22,7 +22,7 @@ type LangChainChatController struct {
 // createVectorMemory initializes vector memory with the global vector store
 func createVectorMemory() (*chat.LangChainVectorMemory, error) {
 	log := logger.WithComponent("langchain_controller")
-	
+
 	// Get global vector store manager
 	manager, err := vectorstore.GetGlobalManager()
 	if err != nil {
@@ -33,7 +33,7 @@ func createVectorMemory() (*chat.LangChainVectorMemory, error) {
 			LangChainMemory: regularMemory,
 		}, nil
 	}
-	
+
 	if manager == nil {
 		log.Info("Vector store is disabled, using regular memory")
 		regularMemory := chat.NewLangChainMemory()
@@ -41,7 +41,7 @@ func createVectorMemory() (*chat.LangChainVectorMemory, error) {
 			LangChainMemory: regularMemory,
 		}, nil
 	}
-	
+
 	// Create vector memory with default configuration
 	config := chat.DefaultVectorMemoryConfig()
 	vectorMemory, err := chat.NewLangChainVectorMemory(manager, config)
@@ -52,7 +52,7 @@ func createVectorMemory() (*chat.LangChainVectorMemory, error) {
 			LangChainMemory: regularMemory,
 		}, nil
 	}
-	
+
 	log.Info("Successfully initialized vector memory for chat", "collection", config.CollectionName)
 	return vectorMemory, nil
 }
@@ -88,7 +88,7 @@ func NewLangChainChatControllerWithSystem(client chat.ChatClient, llm llms.Model
 	if err != nil {
 		return nil, fmt.Errorf("failed to create vector memory: %w", err)
 	}
-	
+
 	ctx := context.Background()
 	if err := memory.AddMessage(ctx, chat.NewSystemMessage(systemPrompt)); err != nil {
 		return nil, fmt.Errorf("failed to add system message to memory: %w", err)

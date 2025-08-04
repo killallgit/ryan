@@ -229,7 +229,7 @@ func (c *Client) initializeAgent() error {
 	// Note: We'll handle thinking block prevention via system messages at the LLM level
 	c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
 		agents.WithMemory(c.memory))
-	
+
 	if c.agent == nil {
 		return fmt.Errorf("failed to create conversational agent")
 	}
@@ -238,7 +238,7 @@ func (c *Client) initializeAgent() error {
 
 	// Create executor with enhanced configuration for multi-step reasoning
 	c.executor = agents.NewExecutor(c.agent)
-	
+
 	if c.executor == nil {
 		return fmt.Errorf("failed to create agent executor")
 	}
@@ -274,8 +274,8 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 	if err != nil {
 		// Check if error is due to thinking blocks parsing issue
 		if strings.Contains(err.Error(), "unable to parse agent output") && strings.Contains(err.Error(), "<think>") {
-			c.log.Error("TOOL EXECUTION FAILED: Agent failed due to thinking blocks, falling back to direct LLM mode (tools will not execute)", 
-				"error", err, 
+			c.log.Error("TOOL EXECUTION FAILED: Agent failed due to thinking blocks, falling back to direct LLM mode (tools will not execute)",
+				"error", err,
 				"user_input", userInput,
 				"fallback_mode", "direct_llm")
 			// Fall back to direct LLM interaction when agent parsing fails due to thinking blocks
