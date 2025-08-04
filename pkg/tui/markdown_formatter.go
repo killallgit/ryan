@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/glamour"
 	"github.com/gdamore/tcell/v2"
-	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // MarkdownFormatter provides rich markdown formatting using Charm's Glamour
@@ -34,13 +33,10 @@ func NewMarkdownFormatter(width int) (*MarkdownFormatter, error) {
 
 // FormatMarkdown formats the entire content as markdown using glamour
 func (mf *MarkdownFormatter) FormatMarkdown(content string) ([]FormattedLine, error) {
-	log := logger.WithComponent("markdown_formatting")
-	log.Debug("FormatMarkdown called", "content_length", len(content))
 
 	// Render the markdown content using glamour
 	rendered, err := mf.renderer.Render(content)
 	if err != nil {
-		log.Error("Failed to render markdown with glamour", "error", err)
 		// Fallback to simple text formatting
 		return mf.fallbackToSimpleText(content), nil
 	}
@@ -61,7 +57,6 @@ func (mf *MarkdownFormatter) FormatMarkdown(content string) ([]FormattedLine, er
 		})
 	}
 
-	log.Debug("FormatMarkdown result", "formatted_lines_count", len(formattedLines))
 	return formattedLines, nil
 }
 
@@ -86,11 +81,4 @@ func (mf *MarkdownFormatter) fallbackToSimpleText(content string) []FormattedLin
 	}
 
 	return formattedLines
-}
-
-// ShouldUseMarkdownFormatting determines if markdown formatting should be used
-func ShouldUseMarkdownFormatting(content string) bool {
-	// Disable markdown formatting to avoid conflicts with existing parsing system
-	// The existing simple formatter works well and handles thinking blocks correctly
-	return false
 }

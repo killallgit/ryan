@@ -3,8 +3,6 @@ package tui
 import (
 	"regexp"
 	"strings"
-
-	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // ContentType represents different types of content for formatting
@@ -29,8 +27,6 @@ type ContentSegment struct {
 
 // ParseContentSegments parses content into typed segments for enhanced formatting
 func ParseContentSegments(content string) []ContentSegment {
-	log := logger.WithComponent("text_utils")
-	log.Debug("ParseContentSegments called", "content_length", len(content))
 
 	var segments []ContentSegment
 	lines := strings.Split(content, "\n")
@@ -146,7 +142,6 @@ func ParseContentSegments(content string) []ContentSegment {
 		}
 	}
 
-	log.Debug("ParseContentSegments result", "segments_count", len(segments))
 	return segments
 }
 

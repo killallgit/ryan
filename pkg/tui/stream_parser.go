@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // FormatType represents different formatting types
@@ -56,16 +55,12 @@ func NewStreamParser() *StreamParser {
 
 // ParseChunk processes a chunk of streaming content and returns formatted segments
 func (sp *StreamParser) ParseChunk(chunk string) []FormattedSegment {
-	log := logger.WithComponent("stream_parser")
-	log.Debug("ParseChunk called", "chunk_length", len(chunk), "buffer_length", len(sp.buffer))
-
 	// Add chunk to buffer
 	sp.buffer += chunk
 
 	// Process the buffer
 	newSegments := sp.processBuffer()
 
-	log.Debug("ParseChunk result", "new_segments", len(newSegments), "remaining_buffer", len(sp.buffer))
 	return newSegments
 }
 

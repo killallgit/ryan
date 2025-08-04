@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // CleanMarkdownFormatter provides beautiful, clean markdown formatting without ANSI codes
@@ -23,8 +22,8 @@ func NewCleanMarkdownFormatter(width int) *CleanMarkdownFormatter {
 
 // FormatMarkdown formats markdown content with clean, beautiful styling
 func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLine {
-	log := logger.WithComponent("clean_markdown_formatting")
-	log.Debug("FormatMarkdown called", "content_length", len(content))
+	// Pre-process content to handle multi-line inline code patterns
+	content = cmf.preprocessInlineCode(content)
 
 	var formattedLines []FormattedLine
 	lines := strings.Split(content, "\n")
@@ -32,6 +31,7 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 	inCodeBlock := false
 	var codeBlockLines []string
 	var codeBlockLang string
+	lastWasList := false
 
 	for i, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
@@ -62,18 +62,21 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 		// Handle headers
 		if strings.HasPrefix(trimmedLine, "#") {
 			formattedLines = append(formattedLines, cmf.formatCleanHeader(trimmedLine)...)
+			lastWasList = false
 			continue
 		}
 
 		// Handle lists
 		if matched, _ := regexp.MatchString(`^\s*[-*+]\s`, line); matched {
 			formattedLines = append(formattedLines, cmf.formatCleanList(line))
+			lastWasList = true
 			continue
 		}
 
 		// Handle numbered lists
 		if matched, _ := regexp.MatchString(`^\s*\d+\.\s`, line); matched {
 			formattedLines = append(formattedLines, cmf.formatCleanNumberedList(line))
+			lastWasList = true
 			continue
 		}
 
@@ -86,17 +89,24 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 				// Skip all the lines that were part of the thinking block
 				i = endIndex
 			}
+			lastWasList = false
 			continue
 		}
 
 		// Handle inline code
 		if strings.Contains(line, "`") {
 			formattedLines = append(formattedLines, cmf.formatInlineCode(line))
+			lastWasList = false
 			continue
 		}
 
 		// Handle empty lines (preserve some spacing but not excessive)
 		if trimmedLine == "" {
+			// Don't add empty lines between consecutive list items
+			if lastWasList {
+				lastWasList = false
+				continue
+			}
 			// Only add empty line if the previous line wasn't empty
 			if len(formattedLines) > 0 && formattedLines[len(formattedLines)-1].Content != "" {
 				formattedLines = append(formattedLines, FormattedLine{
@@ -110,6 +120,7 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 
 		// Regular text
 		formattedLines = append(formattedLines, cmf.formatRegularText(line))
+		lastWasList = false
 	}
 
 	// Handle unclosed code block
@@ -117,7 +128,6 @@ func (cmf *CleanMarkdownFormatter) FormatMarkdown(content string) []FormattedLin
 		formattedLines = append(formattedLines, cmf.formatCleanCodeBlock(codeBlockLines, codeBlockLang)...)
 	}
 
-	log.Debug("FormatMarkdown result", "formatted_lines_count", len(formattedLines))
 	return formattedLines
 }
 
@@ -247,7 +257,7 @@ func (cmf *CleanMarkdownFormatter) formatCleanNumberedList(line string) Formatte
 }
 
 // formatCleanCodeBlock creates clean code block formatting
-func (cmf *CleanMarkdownFormatter) formatCleanCodeBlock(lines []string, language string) []FormattedLine {
+func (cmf *CleanMarkdownFormatter) formatCleanCodeBlock(lines []string, _ string) []FormattedLine {
 	var formatted []FormattedLine
 
 	// Add a clean separator
@@ -309,11 +319,33 @@ func (cmf *CleanMarkdownFormatter) formatThinkingBlock(content string) []Formatt
 
 // formatInlineCode handles inline code formatting
 func (cmf *CleanMarkdownFormatter) formatInlineCode(line string) FormattedLine {
-	// For now, just render as regular text - inline code styling is complex
+	// Extract indentation from original line
+	indent := 0
+	for _, char := range line {
+		if char == ' ' || char == '\t' {
+			if char == '\t' {
+				indent += 4
+			} else {
+				indent++
+			}
+		} else {
+			break
+		}
+	}
+
+	// Replace single backticks with styled inline code
+	inlineCodeRegex := regexp.MustCompile("`([^`]+)`")
+	formattedContent := inlineCodeRegex.ReplaceAllStringFunc(line, func(match string) string {
+		// Extract code content (remove backticks)
+		codeContent := strings.Trim(match, "`")
+		// Style inline code with brackets and dim styling
+		return "[" + codeContent + "]"
+	})
+
 	return FormattedLine{
-		Content: line,
-		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite),
-		Indent:  0,
+		Content: strings.TrimSpace(formattedContent),
+		Style:   tcell.StyleDefault.Foreground(tcell.ColorWhite).Dim(true),
+		Indent:  indent,
 	}
 }
 
@@ -370,8 +402,48 @@ func (cmf *CleanMarkdownFormatter) extractThinkingBlockWithEndIndex(lines []stri
 	return "", endIndex
 }
 
-// extractThinkingBlock extracts content from thinking tags (legacy function for compatibility)
-func (cmf *CleanMarkdownFormatter) extractThinkingBlock(lines []string, startIndex int) string {
-	content, _ := cmf.extractThinkingBlockWithEndIndex(lines, startIndex)
+// preprocessInlineCode handles multi-line inline code patterns and cleans them up
+func (cmf *CleanMarkdownFormatter) preprocessInlineCode(content string) string {
+	// Handle the specific case where backticks are malformed across lines
+	// This is a more aggressive approach to clean up broken markdown
+
+	// First, handle obvious multi-line inline code spans
+	multiLineCodeRegex := regexp.MustCompile("(?s)`([^`]*?\n[^`]*?)`")
+	content = multiLineCodeRegex.ReplaceAllStringFunc(content, func(match string) string {
+		codeContent := strings.Trim(match, "`")
+		codeContent = regexp.MustCompile(`\s+`).ReplaceAllString(strings.TrimSpace(codeContent), " ")
+		if strings.TrimSpace(codeContent) == "" {
+			return ""
+		}
+		return "[" + codeContent + "]"
+	})
+
+	// Handle the common broken pattern: ` followed by newline followed by `
+	brokenBacktickPattern := regexp.MustCompile("(?m)`\\s*\n\\s*`")
+	content = brokenBacktickPattern.ReplaceAllString(content, " ")
+
+	// Remove standalone backticks on their own lines
+	standaloneBackticks := regexp.MustCompile("(?m)^\\s*`+\\s*$")
+	content = standaloneBackticks.ReplaceAllString(content, "")
+
+	// Clean up double backticks that are empty or nearly empty
+	emptyDoubleBackticks := regexp.MustCompile("``\\s*")
+	content = emptyDoubleBackticks.ReplaceAllString(content, "")
+
+	// Handle remaining single backticks with minimal content on their own lines
+	minimalBackticks := regexp.MustCompile("(?m)^\\s*`\\s*([^`\\n]{0,3})\\s*`?\\s*$")
+	content = minimalBackticks.ReplaceAllStringFunc(content, func(match string) string {
+		// If there's actual content, keep it but format it nicely
+		cleaned := regexp.MustCompile(`[^a-zA-Z0-9\s]`).ReplaceAllString(match, "")
+		cleaned = strings.TrimSpace(cleaned)
+		if cleaned != "" && len(cleaned) > 0 {
+			return "[" + cleaned + "]"
+		}
+		return ""
+	})
+
+	// Final cleanup: remove excessive empty lines that might have been created
+	content = regexp.MustCompile("\n{3,}").ReplaceAllString(content, "\n\n")
+
 	return content
 }

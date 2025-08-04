@@ -22,77 +22,26 @@ func CalculateMessageLines(messages []chat.Message, chatWidth int, streamingThin
 
 	var allLines []MessageLine
 
+	// Create unified formatter for all content
+	formatter := NewUnifiedFormatter()
+
 	for _, msg := range messages {
+		if msg.Content != "" {
+			// Use unified formatter for all content types
+			formattedLines := formatter.Format(msg.Content, chatWidth)
 
-		if msg.Role == chat.RoleAssistant {
-			// Handle assistant message content
-			if msg.Content != "" {
-				// Check if we should use markdown formatting first
-				if ShouldUseMarkdownFormatting(msg.Content) {
-					// Use clean markdown formatting for rich content
-					formatter := NewCleanMarkdownFormatter(chatWidth)
-					formattedLines := formatter.FormatMarkdown(msg.Content)
-
-					for _, formattedLine := range formattedLines {
-						// Apply indentation
-						content := formattedLine.Content
-						if formattedLine.Indent > 0 {
-							content = strings.Repeat(" ", formattedLine.Indent) + content
-						}
-
-						allLines = append(allLines, MessageLine{
-							Text:       content,
-							Role:       msg.Role,
-							IsThinking: false,
-							Style:      &formattedLine.Style,
-						})
-					}
-					continue
+			for _, formattedLine := range formattedLines {
+				// Apply indentation
+				content := formattedLine.Content
+				if formattedLine.Indent > 0 {
+					content = strings.Repeat(" ", formattedLine.Indent) + content
 				}
 
-				// Check if we should use simple formatting for line calculation
-				contentTypes := DetectContentTypes(msg.Content)
-				if ShouldUseSimpleFormatting(contentTypes) {
-					// Use simple formatting to calculate lines
-					formatter := NewSimpleFormatter(chatWidth)
-					segments := ParseContentSegments(msg.Content)
-					formattedLines := formatter.FormatContentSegments(segments)
-
-					for _, formattedLine := range formattedLines {
-						// Apply indentation
-						content := formattedLine.Content
-						if formattedLine.Indent > 0 {
-							content = strings.Repeat(" ", formattedLine.Indent) + content
-						}
-
-						allLines = append(allLines, MessageLine{
-							Text:       content,
-							Role:       msg.Role,
-							IsThinking: false,
-							Style:      &formattedLine.Style,
-						})
-					}
-				} else {
-					// Use traditional text wrapping
-					contentLines := WrapText(msg.Content, chatWidth)
-					for _, line := range contentLines {
-						allLines = append(allLines, MessageLine{
-							Text:       line,
-							Role:       msg.Role,
-							IsThinking: false,
-							Style:      nil,
-						})
-					}
-				}
-			}
-		} else {
-			// Handle non-assistant messages normally
-			contentLines := WrapText(msg.Content, chatWidth)
-			for _, line := range contentLines {
 				allLines = append(allLines, MessageLine{
-					Text:       line,
+					Text:       content,
 					Role:       msg.Role,
 					IsThinking: false,
+					Style:      &formattedLine.Style,
 				})
 			}
 		}
@@ -139,77 +88,26 @@ func RenderMessagesWithSpinnerAndStreaming(screen tcell.Screen, display MessageD
 
 	var allLines []MessageLine
 
+	// Create unified formatter for all content
+	formatter := NewUnifiedFormatter()
+
 	for _, msg := range display.Messages {
-		if msg.Role == chat.RoleAssistant {
-			// Handle assistant message content
-			if msg.Content != "" {
-				// Check if we should use markdown formatting first
-				if ShouldUseMarkdownFormatting(msg.Content) {
-					// Use clean markdown formatting for rich content
-					formatter := NewCleanMarkdownFormatter(chatArea.Width)
-					formattedLines := formatter.FormatMarkdown(msg.Content)
+		if msg.Content != "" {
+			// Use unified formatter for all content types
+			formattedLines := formatter.Format(msg.Content, chatArea.Width)
 
-					for _, formattedLine := range formattedLines {
-						// Apply indentation
-						content := formattedLine.Content
-						if formattedLine.Indent > 0 {
-							content = strings.Repeat(" ", formattedLine.Indent) + content
-						}
-
-						allLines = append(allLines, MessageLine{
-							Text:       content,
-							Role:       msg.Role,
-							IsThinking: false,
-							Style:      &formattedLine.Style,
-						})
-					}
-					continue
+			for _, formattedLine := range formattedLines {
+				// Apply indentation
+				content := formattedLine.Content
+				if formattedLine.Indent > 0 {
+					content = strings.Repeat(" ", formattedLine.Indent) + content
 				}
 
-				// Check if we should use simple formatting
-				contentTypes := DetectContentTypes(msg.Content)
-				if ShouldUseSimpleFormatting(contentTypes) {
-					// Use simple formatting to wrap content
-					formatter := NewSimpleFormatter(chatArea.Width)
-					segments := ParseContentSegments(msg.Content)
-					formattedLines := formatter.FormatContentSegments(segments)
-
-					for _, formattedLine := range formattedLines {
-						// Apply indentation
-						content := formattedLine.Content
-						if formattedLine.Indent > 0 {
-							content = strings.Repeat(" ", formattedLine.Indent) + content
-						}
-
-						allLines = append(allLines, MessageLine{
-							Text:       content,
-							Role:       msg.Role,
-							IsThinking: false,
-							Style:      &formattedLine.Style,
-						})
-					}
-				} else {
-					// Use traditional text wrapping
-					contentLines := WrapText(msg.Content, chatArea.Width)
-					for _, line := range contentLines {
-						allLines = append(allLines, MessageLine{
-							Text:       line,
-							Role:       msg.Role,
-							IsThinking: false,
-							Style:      nil,
-						})
-					}
-				}
-			}
-		} else {
-			// Handle non-assistant messages normally
-			contentLines := WrapText(msg.Content, chatArea.Width)
-
-			for _, line := range contentLines {
 				allLines = append(allLines, MessageLine{
-					Text:       line,
+					Text:       content,
 					Role:       msg.Role,
 					IsThinking: false,
+					Style:      &formattedLine.Style,
 				})
 			}
 		}

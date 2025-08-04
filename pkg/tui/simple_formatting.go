@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // SimpleFormatter provides basic, readable text formatting without complex ANSI codes
@@ -28,8 +27,6 @@ func NewSimpleFormatter(width int) *SimpleFormatter {
 
 // FormatContentSegments formats parsed content segments with simple, readable styling
 func (sf *SimpleFormatter) FormatContentSegments(segments []ContentSegment) []FormattedLine {
-	log := logger.WithComponent("simple_formatting")
-	log.Debug("FormatContentSegments called", "segments_count", len(segments))
 
 	var formattedLines []FormattedLine
 
@@ -85,7 +82,6 @@ func (sf *SimpleFormatter) FormatContentSegments(segments []ContentSegment) []Fo
 		}
 	}
 
-	log.Debug("FormatContentSegments result", "formatted_lines_count", len(formattedLines))
 	return formattedLines
 }
 
@@ -240,14 +236,4 @@ func (sf *SimpleFormatter) formatListItem(content string, level int) []Formatted
 	}
 
 	return lines
-}
-
-// ShouldUseSimpleFormatting determines if simple formatting should be applied
-func ShouldUseSimpleFormatting(contentTypes map[ContentType]bool) bool {
-	// Use simple formatting for any complex content
-	return contentTypes[ContentTypeCodeBlock] ||
-		contentTypes[ContentTypeHeader] ||
-		contentTypes[ContentTypeList] ||
-		contentTypes[ContentTypeThinking] ||
-		(contentTypes[ContentTypeInlineCode] && len(contentTypes) > 1)
 }
