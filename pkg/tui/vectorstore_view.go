@@ -53,6 +53,7 @@ func (vv *VectorStoreView) Description() string {
 
 func (vv *VectorStoreView) refreshData() {
 	log := logger.WithComponent("vectorstore_view")
+	log.Debug("Starting vector store data refresh")
 	vv.loading = true
 
 	// Get collections
@@ -63,6 +64,7 @@ func (vv *VectorStoreView) refreshData() {
 		vv.loading = false
 		return
 	}
+	log.Debug("Retrieved collections", "count", len(collections))
 
 	// Get stats
 	stats, err := vv.controller.GetStoreMetadata()
@@ -72,6 +74,11 @@ func (vv *VectorStoreView) refreshData() {
 		vv.loading = false
 		return
 	}
+	log.Info("Vector store stats", 
+		"enabled", stats.IsEnabled, 
+		"provider", stats.Provider,
+		"collections", stats.TotalCollections,
+		"documents", stats.TotalDocuments)
 
 	vv.listDisplay = vv.listDisplay.WithCollections(collections)
 	vv.statsDisplay = vv.statsDisplay.WithStats(*stats)

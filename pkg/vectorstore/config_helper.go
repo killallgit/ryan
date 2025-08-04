@@ -31,50 +31,67 @@ func InitializeVectorStore() (*Manager, error) {
 		embedderConfig.APIKey = os.Getenv("OPENAI_API_KEY")
 	}
 
-	// Create embedder with fallback to mock
-	embedder, err := CreateEmbedder(embedderConfig)
+	// Check if embedder can be created - NewManager will handle fallback
+	_, err := CreateEmbedder(embedderConfig)
 	if err != nil {
-		// Log the error and fall back to mock embedder for development/debugging
+		// Log the error and use mock embedder for development/debugging
 		fmt.Printf("Warning: Failed to create %s embedder (%v), falling back to mock embedder\n", embedderConfig.Provider, err)
-		mockConfig := EmbedderConfig{
+		embedderConfig = EmbedderConfig{
 			Provider: "mock",
 			Model:    "mock",
 		}
-		embedder, err = CreateEmbedder(mockConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create fallback mock embedder: %w", err)
-		}
 	}
 
-	// Create store
-	var store VectorStore
-	switch cfg.VectorStore.Provider {
-	case "chromem":
-		store, err = NewChromemStore(embedder, cfg.VectorStore.PersistenceDir, cfg.VectorStore.EnablePersistence)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create chromem store: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("unsupported vector store provider: %s", cfg.VectorStore.Provider)
+	// Build full config with collections
+	managerConfig := Config{
+		Provider:          cfg.VectorStore.Provider,
+		PersistenceDir:    cfg.VectorStore.PersistenceDir,
+		EnablePersistence: cfg.VectorStore.EnablePersistence,
+		ChunkSize:         1000, // Default chunk size
+		ChunkOverlap:      200,  // Default overlap
+		EmbedderConfig:    embedderConfig,
+		Collections:       make([]CollectionConfig, 0),
 	}
 
-	// Create manager with the store and embedder
-	manager := &Manager{
-		store:    store,
-		embedder: embedder,
-		config: Config{
-			Provider:          cfg.VectorStore.Provider,
-			PersistenceDir:    cfg.VectorStore.PersistenceDir,
-			EnablePersistence: cfg.VectorStore.EnablePersistence,
-			EmbedderConfig:    embedderConfig,
-		},
-	}
-
-	// Create pre-configured collections
+	// Add configured collections
 	for _, col := range cfg.VectorStore.Collections {
-		if _, err := GetOrCreateCollection(store, col.Name, col.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to create collection %s: %w", col.Name, err)
+		managerConfig.Collections = append(managerConfig.Collections, CollectionConfig{
+			Name:     col.Name,
+			Metadata: col.Metadata,
+		})
+	}
+
+	// Add default collections if not specified
+	if len(managerConfig.Collections) == 0 {
+		managerConfig.Collections = []CollectionConfig{
+			{
+				Name: "conversations",
+				Metadata: map[string]interface{}{
+					"description": "Chat conversation history",
+					"type":        "conversation",
+				},
+			},
+			{
+				Name: "documents",
+				Metadata: map[string]interface{}{
+					"description": "Indexed documents and files",
+					"type":        "document",
+				},
+			},
+			{
+				Name: "tools",
+				Metadata: map[string]interface{}{
+					"description": "Tool execution results and outputs",
+					"type":        "tool_output",
+				},
+			},
 		}
+	}
+
+	// Use NewManager to create properly initialized manager
+	manager, err := NewManager(managerConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create manager: %w", err)
 	}
 
 	return manager, nil

@@ -209,7 +209,7 @@ func Load(cfgFile string) (*Config, error) {
 // setDefaults sets all default configuration values
 func setDefaults() {
 	// Ollama defaults
-	viper.SetDefault("ollama.url", "http://localhost:11434")
+	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
 	viper.SetDefault("ollama.model", "qwen3:latest")
 	viper.SetDefault("ollama.system_prompt", "")
 	viper.SetDefault("ollama.timeout", "90s")
@@ -257,7 +257,7 @@ func setDefaults() {
 	viper.SetDefault("vectorstore.enable_persistence", true)
 	viper.SetDefault("vectorstore.embedder.provider", "ollama")
 	viper.SetDefault("vectorstore.embedder.model", "nomic-embed-text")
-	viper.SetDefault("vectorstore.embedder.base_url", "http://localhost:11434")
+	viper.SetDefault("vectorstore.embedder.base_url", "https://ollama.kitty-tetra.ts.net")
 	viper.SetDefault("vectorstore.embedder.api_key", "")
 	viper.SetDefault("vectorstore.indexer.chunk_size", 1000)
 	viper.SetDefault("vectorstore.indexer.chunk_overlap", 200)
@@ -350,7 +350,7 @@ func InitializeDefaults() error {
 	v.SetDefault("show_thinking", true)
 	v.SetDefault("streaming", true)
 
-	v.SetDefault("ollama.url", "http://localhost:11434")
+	v.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
 	v.SetDefault("ollama.model", "qwen3:latest")
 	v.SetDefault("ollama.system_prompt", "")
 	v.SetDefault("ollama.timeout", "90s")
@@ -382,7 +382,7 @@ func InitializeDefaults() error {
 	v.SetDefault("vectorstore.enable_persistence", true)
 	v.SetDefault("vectorstore.embedder.provider", "ollama")
 	v.SetDefault("vectorstore.embedder.model", "nomic-embed-text")
-	v.SetDefault("vectorstore.embedder.base_url", "http://localhost:11434")
+	v.SetDefault("vectorstore.embedder.base_url", "https://ollama.kitty-tetra.ts.net")
 	v.SetDefault("vectorstore.embedder.api_key", "")
 	v.SetDefault("vectorstore.indexer.chunk_size", 1000)
 	v.SetDefault("vectorstore.indexer.chunk_overlap", 200)

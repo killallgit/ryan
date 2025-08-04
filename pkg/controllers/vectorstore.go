@@ -123,18 +123,18 @@ func (c *VectorStoreController) GetStoreMetadata() (*VectorStoreStats, error) {
 	// Check if vector store is configured to be enabled
 	cfg := config.Get()
 	configEnabled := cfg != nil && cfg.VectorStore.Enabled
-
 	manager, err := vectorstore.GetGlobalManager()
 	if err != nil {
 		c.log.Error("Failed to get vector store manager", "error", err)
 		return &VectorStoreStats{
 			IsEnabled:        false,
-			Provider:         "error",
+			Provider:         fmt.Sprintf("error: %v", err),
 			TotalCollections: 0,
 			TotalDocuments:   0,
 		}, nil
 	}
 	if manager == nil {
+		c.log.Info("Vector store manager is nil", "config_enabled", configEnabled)
 		// Vector store is configured as disabled
 		return &VectorStoreStats{
 			IsEnabled:        configEnabled, // Show true if config says enabled but manager is nil
@@ -147,19 +147,25 @@ func (c *VectorStoreController) GetStoreMetadata() (*VectorStoreStats, error) {
 	store := manager.GetStore()
 	collectionNames, err := store.ListCollections()
 	if err != nil {
+		c.log.Error("Failed to list collections", "error", err)
 		return nil, fmt.Errorf("failed to list collections: %w", err)
 	}
+
+	c.log.Debug("Vector store collections found", "count", len(collectionNames), "names", collectionNames)
 
 	totalDocs := 0
 	for _, name := range collectionNames {
 		collection, err := store.GetCollection(name)
 		if err != nil {
+			c.log.Warn("Failed to get collection", "name", name, "error", err)
 			continue
 		}
 		count, err := collection.Count()
 		if err != nil {
+			c.log.Warn("Failed to get collection count", "name", name, "error", err)
 			continue
 		}
+		c.log.Debug("Collection stats", "name", name, "document_count", count)
 		totalDocs += count
 	}
 
