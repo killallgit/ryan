@@ -123,9 +123,9 @@ func NewToolProgressMessage(toolName, command string) Message {
 	if len(command) > 50 {
 		truncatedCommand = command[:47] + "..."
 	}
-	
+
 	content := fmt.Sprintf("%s(%s)", toolName, truncatedCommand)
-	
+
 	return Message{
 		Role:      RoleToolProgress,
 		Content:   content,

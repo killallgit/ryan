@@ -47,12 +47,12 @@ func NewLangChainController(baseURL, model string, toolRegistry *tools.Registry)
 		// Add tool progress message to conversation
 		progressMsg := chat.NewToolProgressMessage(toolName, command)
 		controller.conversation = chat.AddMessage(controller.conversation, progressMsg)
-		
+
 		// Also log to history for debugging
 		if err := logger.LogChatEvent("Tool Execution", fmt.Sprintf("%s(%s)", toolName, command)); err != nil {
 			log.Error("Failed to log tool execution to history", "error", err)
 		}
-		
+
 		log.Debug("Tool execution started", "tool", toolName, "command", command)
 	})
 

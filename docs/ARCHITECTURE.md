@@ -230,16 +230,31 @@ type StreamingChannels struct {
 - **Pure Functions**: Test all business logic in isolation
 - **Mock Dependencies**: HTTP clients, TUI components
 - **Property Testing**: Message handling correctness
+- **Fake Agents**: Deterministic LLM responses via `pkg/testutil`
 
 ### Integration Testing  
 - **Component Interaction**: Controller + Client integration
 - **Real API Testing**: Optional integration with running Ollama
 - **TUI Simulation**: Event injection and screen capture
+- **Fake Streaming**: Test streaming without network dependencies
 
 ### Concurrency Testing
 - **Race Detection**: Run tests with `-race` flag
 - **Deadlock Prevention**: Timeout-based tests
 - **Channel Behavior**: Test all channel communication patterns
+- **Stream Cancellation**: Test context cancellation in streaming
+
+### Test Utilities (`pkg/testutil/`)
+The project includes comprehensive test utilities for LLM testing:
+
+- **FakeChatClient**: Provides deterministic chat responses
+- **FakeStreamingChatClient**: Simulates streaming with configurable chunks
+- **FakeLLM**: Low-level LLM mock with call tracking
+- **Predefined Responses**: Common response patterns for testing
+- **Error Simulation**: Test error conditions and recovery
+- **Tool Call Testing**: Simulate tool execution flows
+
+See [Testing with Fake Agents](testing-with-fake-agents.md) for detailed usage.
 
 ## Decision Records
 
