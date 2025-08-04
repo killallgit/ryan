@@ -30,8 +30,8 @@ type VectorMemoryConfig struct {
 func DefaultVectorMemoryConfig() VectorMemoryConfig {
 	return VectorMemoryConfig{
 		CollectionName: "conversations",
-		MaxRetrieved:   10,
-		ScoreThreshold: 0.7,
+		MaxRetrieved:   20,
+		ScoreThreshold: 0.5,
 	}
 }
 

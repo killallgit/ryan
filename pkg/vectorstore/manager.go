@@ -303,6 +303,13 @@ func DefaultConfig() Config {
 					"type":        "document",
 				},
 			},
+			{
+				Name: "tools",
+				Metadata: map[string]interface{}{
+					"description": "Tool execution results and outputs",
+					"type":        "tool_output",
+				},
+			},
 		},
 		EmbedderConfig: EmbedderConfig{
 			Provider:     "ollama",
