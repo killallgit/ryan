@@ -72,3 +72,69 @@ tasks:
     deps: [build:model-tester]
     cmds:
       - ./bin/model-tester -models "{{.MODELS}}" -url {{default "http://localhost:11434" .OLLAMA_URL}}
+
+  # File Loading and Embedding Testing
+  test:embeddings:
+    desc: Test embedding providers and functionality
+    cmds:
+      - go test -v ./pkg/vectorstore/... -run "TestMockEmbedder|TestEmbedder|TestLangChainEmbedder"
+    env:
+      INTEGRATION_TEST: "true"
+
+  test:file-loading:
+    desc: Test file indexing and loading pipeline
+    cmds:
+      - go test -v ./pkg/chat/... -run "TestDocumentIndexer"
+      - go test -v ./integration/... -run "TestFileLoadingPipeline"
+    env:
+      INTEGRATION_TEST: "true"
+      OLLAMA_URL: '{{default "https://ollama.kitty-tetra.ts.net" .OLLAMA_URL}}'
+
+  test:memory-systems:
+    desc: Test memory integration and vector context management
+    cmds:
+      - go test -v ./pkg/chat/... -run "TestVectorContextManager|TestHybridMemory|TestLangChainVectorMemory"
+    env:
+      INTEGRATION_TEST: "true"
+
+  test:performance:
+    desc: Run performance and load tests
+    cmds:
+      - go test -v ./integration/... -run "TestFileLoadingPerformance"
+    env:
+      INTEGRATION_TEST: "true"
+      PERFORMANCE_TEST: "true"
+
+  test:agents:
+    desc: Test agent integration with file systems
+    cmds:
+      - go test -v ./integration/... -run "TestAgentFileIntegration"
+    env:
+      INTEGRATION_TEST: "true"
+      OLLAMA_URL: '{{default "https://ollama.kitty-tetra.ts.net" .OLLAMA_URL}}'
+
+  test:vectorstore:
+    desc: Run comprehensive vector store tests
+    cmds:
+      - go test -v ./integration/... -run "TestVectorStore"
+    env:
+      INTEGRATION_TEST: "true"
+
+  test:real-embeddings:
+    desc: Test with real embedding providers (requires API keys/services)
+    cmds:
+      - go test -v ./integration/... -run "TestRealEmbeddings"
+    env:
+      INTEGRATION_TEST: "true"
+      TEST_REAL_EMBEDDINGS: "true"
+      OLLAMA_BASE_URL: '{{default "https://ollama.kitty-tetra.ts.net" .OLLAMA_BASE_URL}}'
+      OPENAI_API_KEY: "{{.OPENAI_API_KEY}}"
+
+  test:comprehensive:
+    desc: Run comprehensive test suite for file loading and embeddings
+    cmds:
+      - task: test:embeddings
+      - task: test:file-loading
+      - task: test:memory-systems
+      - task: test:vectorstore
+      - task: test:performance
