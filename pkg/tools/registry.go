@@ -153,7 +153,7 @@ func (r *Registry) GetDefinitions(provider string) ([]ToolDefinition, error) {
 	return definitions, nil
 }
 
-// RegisterBuiltinTools registers the default tools (bash, file_read)
+// RegisterBuiltinTools registers the default tools (bash, file_read, web_fetch, grep, write_file)
 func (r *Registry) RegisterBuiltinTools() error {
 	// Register BashTool
 	bashTool := NewBashTool()
@@ -165,6 +165,24 @@ func (r *Registry) RegisterBuiltinTools() error {
 	fileReadTool := NewFileReadTool()
 	if err := r.Register(fileReadTool); err != nil {
 		return fmt.Errorf("failed to register file read tool: %w", err)
+	}
+
+	// Register WebFetchTool
+	webFetchTool := NewWebFetchTool()
+	if err := r.Register(webFetchTool); err != nil {
+		return fmt.Errorf("failed to register web fetch tool: %w", err)
+	}
+
+	// Register GrepTool 
+	grepTool := NewGrepTool()
+	if err := r.Register(grepTool); err != nil {
+		return fmt.Errorf("failed to register grep tool: %w", err)
+	}
+
+	// Register WriteTool
+	writeTool := NewWriteTool()
+	if err := r.Register(writeTool); err != nil {
+		return fmt.Errorf("failed to register write tool: %w", err)
 	}
 
 	return nil
