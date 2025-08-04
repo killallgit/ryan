@@ -24,12 +24,10 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, "http://localhost:11434", cfg.Ollama.URL)
 	assert.Equal(t, "qwen3:latest", cfg.Ollama.Model)
 	assert.Equal(t, 90*time.Second, cfg.Ollama.Timeout)
-	assert.Equal(t, 10, cfg.Ollama.PollInterval)
 	assert.True(t, cfg.ShowThinking)
 	assert.True(t, cfg.Streaming)
 	assert.Equal(t, "./.ryan/debug.log", cfg.Logging.File)
 	assert.False(t, cfg.Logging.Preserve)
-	assert.True(t, cfg.Tools.Enabled)
 	assert.True(t, cfg.Tools.Bash.Enabled)
 	assert.Equal(t, 90*time.Second, cfg.Tools.Bash.Timeout)
 }
@@ -44,7 +42,6 @@ ollama:
   url: http://test-ollama:11434
   model: test-model
   timeout: "2m"
-  poll_interval: 5
 show_thinking: false
 logging:
   file: /tmp/test.log
@@ -70,7 +67,6 @@ tools:
 	assert.Equal(t, "http://test-ollama:11434", cfg.Ollama.URL)
 	assert.Equal(t, "test-model", cfg.Ollama.Model)
 	assert.Equal(t, 2*time.Minute, cfg.Ollama.Timeout)
-	assert.Equal(t, 5, cfg.Ollama.PollInterval)
 	assert.False(t, cfg.ShowThinking)
 	assert.Equal(t, "/tmp/test.log", cfg.Logging.File)
 	assert.True(t, cfg.Logging.Preserve)
@@ -89,8 +85,7 @@ func TestProcessDurations(t *testing.T) {
 			config: &Config{
 				Ollama: OllamaConfig{TimeoutStr: "1m30s"},
 				Tools: ToolsConfig{
-					Bash:   BashToolConfig{TimeoutStr: "2m"},
-					Search: SearchConfig{TimeoutStr: "30s"},
+					Bash: BashToolConfig{TimeoutStr: "2m"},
 				},
 			},
 			expectErr: false,

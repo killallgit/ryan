@@ -9,13 +9,9 @@ ollama:
     model: qwen3:latest
     system_prompt: examples/SYSTEM_PROMPT.md
     url: https://ollama.kitty-tetra.ts.net
-    poll_interval: 10
     timeout: "1h"
-    use_langchain: true             # Use LangChain for enhanced agent capabilities
 
 tools:
-    enabled: true                    # Enable/disable tool calling system
-    truncate_output: true           # Truncate long tool outputs in TUI
     models:                         # Models that support tool calling
     - deepseek-r1:latest
     - qwen3:latest
@@ -42,8 +38,16 @@ tools:
             - ".py"
             - ".js"
             - ".ts"
-            
-    search:
-        enabled: true               # Enable search functionality (future)
-        timeout: "10s"              # Search operation timeout
+
+# LangChain configuration for enhanced agent capabilities            
+langchain:
+    tools:
+        max_iterations: 5           # Maximum agent iterations
+    memory:
+        type: "buffer"              # Memory type: "buffer" or "window"
+        window_size: 10             # For window memory type
+        max_tokens: 4000            # Maximum tokens in memory
+        summary_threshold: 1000     # Token threshold for summarization
+    prompts:
+        context_injection: true     # Enable context injection
         

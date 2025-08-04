@@ -6,9 +6,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/killallgit/ryan/pkg/config"
 )
 
 // FileReadTool reads file contents with safety constraints
@@ -26,13 +29,13 @@ type FileReadTool struct {
 	MaxLines int
 }
 
-// NewFileReadTool creates a new FileReadTool with default safety settings
+// NewFileReadTool creates a new FileReadTool with configuration-based settings
 func NewFileReadTool() *FileReadTool {
 	home, _ := os.UserHomeDir()
 	wd, _ := os.Getwd()
 
-	// Common text and code file extensions
-	allowedExtensions := []string{
+	// Default extensions if config is not available
+	defaultExtensions := []string{
 		".txt", ".md", ".markdown",
 		".go", ".py", ".js", ".ts", ".jsx", ".tsx",
 		".c", ".cpp", ".h", ".hpp", ".cc", ".cxx",
@@ -47,14 +50,42 @@ func NewFileReadTool() *FileReadTool {
 		".env", ".example",
 	}
 
+	// Try to get configuration, fallback to defaults
+	var allowedExtensions []string
+	var maxFileSize int64 = 10 * 1024 * 1024 // 10MB default
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Config not initialized, use defaults
+				allowedExtensions = defaultExtensions
+			}
+		}()
+		if cfg := config.Get(); cfg != nil {
+			if len(cfg.Tools.FileRead.AllowedExtensions) > 0 {
+				allowedExtensions = cfg.Tools.FileRead.AllowedExtensions
+			} else {
+				allowedExtensions = defaultExtensions
+			}
+
+			if cfg.Tools.FileRead.MaxFileSize != "" {
+				if parsedSize, err := parseFileSize(cfg.Tools.FileRead.MaxFileSize); err == nil {
+					maxFileSize = parsedSize
+				}
+			}
+		} else {
+			allowedExtensions = defaultExtensions
+		}
+	}()
+
 	return &FileReadTool{
 		AllowedPaths: []string{
 			home,
 			wd,
 		},
 		AllowedExtensions: allowedExtensions,
-		MaxFileSize:       10 * 1024 * 1024, // 10MB
-		MaxLines:          10000,            // 10k lines
+		MaxFileSize:       maxFileSize,
+		MaxLines:          10000, // Keep this as a constant for now
 	}
 }
 
@@ -302,4 +333,45 @@ func (ft *FileReadTool) createErrorResult(startTime time.Time, errorMsg string) 
 			ToolName:      ft.Name(),
 		},
 	}
+}
+
+// parseFileSize parses file size strings like "10MB", "1GB", etc.
+func parseFileSize(sizeStr string) (int64, error) {
+	sizeStr = strings.ToUpper(strings.TrimSpace(sizeStr))
+
+	if sizeStr == "" {
+		return 0, fmt.Errorf("empty size string")
+	}
+
+	// Handle numeric-only strings (assume bytes)
+	if val, err := strconv.ParseInt(sizeStr, 10, 64); err == nil {
+		return val, nil
+	}
+
+	// Parse with units
+	var multiplier int64 = 1
+	var numStr string
+
+	if strings.HasSuffix(sizeStr, "GB") {
+		multiplier = 1024 * 1024 * 1024
+		numStr = strings.TrimSuffix(sizeStr, "GB")
+	} else if strings.HasSuffix(sizeStr, "MB") {
+		multiplier = 1024 * 1024
+		numStr = strings.TrimSuffix(sizeStr, "MB")
+	} else if strings.HasSuffix(sizeStr, "KB") {
+		multiplier = 1024
+		numStr = strings.TrimSuffix(sizeStr, "KB")
+	} else if strings.HasSuffix(sizeStr, "B") {
+		multiplier = 1
+		numStr = strings.TrimSuffix(sizeStr, "B")
+	} else {
+		return 0, fmt.Errorf("invalid size format: %s", sizeStr)
+	}
+
+	val, err := strconv.ParseInt(numStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid numeric value: %s", numStr)
+	}
+
+	return val * multiplier, nil
 }

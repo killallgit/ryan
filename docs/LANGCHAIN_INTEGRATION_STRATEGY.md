@@ -9,7 +9,6 @@ Ryan currently has **partial LangChain integration** but is not leveraging the f
 - ✅ Basic LangChain memory wrapper (`LangChainMemory`)
 - ✅ LangChain chat controller that extends base controller
 - ✅ LangChain streaming client using LLM interface
-- ✅ Configuration flag `use_langchain: true`
 - ✅ Conversion utilities between our types and LangChain types
 
 ### What We're Missing 🚧
@@ -241,7 +240,6 @@ langchain:
   enabled: true
   
   streaming:
-    use_langchain: true          # Use LangChain streaming vs custom
     provider_optimization: true  # Provider-specific optimizations
   
   tools:

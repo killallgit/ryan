@@ -33,7 +33,7 @@ func (m ChatViewMode) String() string {
 }
 
 type ChatView struct {
-	controller       ControllerInterface
+	controller       controllers.ChatControllerInterface
 	input            InputField
 	messages         MessageDisplay
 	status           StatusBar
@@ -66,7 +66,7 @@ type ChatView struct {
 	bufferSize          int    // Current buffer size
 }
 
-func NewChatView(controller ControllerInterface, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
+func NewChatView(controller controllers.ChatControllerInterface, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
 	width, height := screen.Size()
 
 	view := &ChatView{

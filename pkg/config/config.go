@@ -58,19 +58,15 @@ type OllamaConfig struct {
 	URL          string        `mapstructure:"url"`
 	Model        string        `mapstructure:"model"`
 	SystemPrompt string        `mapstructure:"system_prompt"`
-	PollInterval int           `mapstructure:"poll_interval"`
 	Timeout      time.Duration `mapstructure:"timeout"`
 	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
 }
 
 // ToolsConfig holds tool-related configuration
 type ToolsConfig struct {
-	Enabled        bool           `mapstructure:"enabled"`
-	TruncateOutput bool           `mapstructure:"truncate_output"`
-	Models         []string       `mapstructure:"models"`
-	Bash           BashToolConfig `mapstructure:"bash"`
-	FileRead       FileReadConfig `mapstructure:"file_read"`
-	Search         SearchConfig   `mapstructure:"search"`
+	Models   []string       `mapstructure:"models"`
+	Bash     BashToolConfig `mapstructure:"bash"`
+	FileRead FileReadConfig `mapstructure:"file_read"`
 }
 
 // BashToolConfig holds bash tool configuration
@@ -87,14 +83,6 @@ type FileReadConfig struct {
 	Enabled           bool     `mapstructure:"enabled"`
 	MaxFileSize       string   `mapstructure:"max_file_size"`
 	AllowedExtensions []string `mapstructure:"allowed_extensions"`
-}
-
-// SearchConfig holds search tool configuration
-type SearchConfig struct {
-	Enabled      bool          `mapstructure:"enabled"`
-	Timeout      time.Duration `mapstructure:"timeout"`
-	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
-	UseLangchain bool          `mapstructure:"use_langchain"`
 }
 
 var (
@@ -169,8 +157,6 @@ func setDefaults() {
 	viper.SetDefault("ollama.model", "qwen3:latest")
 	viper.SetDefault("ollama.system_prompt", "")
 	viper.SetDefault("ollama.timeout", "90s")
-	viper.SetDefault("ollama.poll_interval", 10)
-	viper.SetDefault("ollama.use_langchain", false)
 
 	// General defaults
 	viper.SetDefault("show_thinking", true)
@@ -182,13 +168,9 @@ func setDefaults() {
 	viper.SetDefault("logging.level", "info")
 
 	// Tools defaults
-	viper.SetDefault("tools.enabled", true)
-	viper.SetDefault("tools.truncate_output", true)
 	viper.SetDefault("tools.bash.enabled", true)
 	viper.SetDefault("tools.bash.timeout", "90s")
 	viper.SetDefault("tools.file_read.enabled", true)
-	viper.SetDefault("tools.search.enabled", true)
-	viper.SetDefault("tools.search.timeout", "10s")
 
 	// LangChain defaults
 	viper.SetDefault("langchain.tools.max_iterations", 5)
@@ -223,18 +205,6 @@ func processDurations(cfg *Config) error {
 	} else if cfg.Tools.Bash.Timeout == 0 {
 		// Use default if not set
 		cfg.Tools.Bash.Timeout = 90 * time.Second
-	}
-
-	// Process Search timeout
-	if cfg.Tools.Search.TimeoutStr != "" {
-		d, err := time.ParseDuration(cfg.Tools.Search.TimeoutStr)
-		if err != nil {
-			return fmt.Errorf("invalid tools.search.timeout: %w", err)
-		}
-		cfg.Tools.Search.Timeout = d
-	} else if cfg.Tools.Search.Timeout == 0 {
-		// Use default if not set
-		cfg.Tools.Search.Timeout = 10 * time.Second
 	}
 
 	return nil

@@ -13,12 +13,11 @@ import (
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
-	"github.com/killallgit/ryan/pkg/tools"
 )
 
 type App struct {
 	screen        tcell.Screen
-	controller    ControllerInterface
+	controller    controllers.ChatControllerInterface
 	input         InputField
 	messages      MessageDisplay
 	status        StatusBar
@@ -63,23 +62,9 @@ func checkOllamaConnectivity(baseURL string) error {
 	return nil
 }
 
-// ControllerInterface defines the interface that both ChatController and LangChainController implement
-type ControllerInterface interface {
-	SendUserMessage(content string) (chat.Message, error)
-	GetHistory() []chat.Message
-	GetModel() string
-	SetModel(model string)
-	AddUserMessage(content string)
-	AddErrorMessage(errorMsg string)
-	Reset()
-	StartStreaming(ctx context.Context, content string) (<-chan controllers.StreamingUpdate, error)
-	SetOllamaClient(client interface{})
-	ValidateModel(model string) error
-	GetToolRegistry() *tools.Registry
-	GetTokenUsage() (promptTokens, responseTokens int)
-}
+// Use the canonical ChatControllerInterface from controllers package
 
-func NewApp(controller ControllerInterface) (*App, error) {
+func NewApp(controller controllers.ChatControllerInterface) (*App, error) {
 	log := logger.WithComponent("tui_app")
 	log.Debug("Creating new TUI application")
 

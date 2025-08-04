@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
@@ -26,7 +27,7 @@ func (lca *LangChainControllerAdapter) StartStreaming(ctx context.Context, conte
 	return lca.LangChainController.StartStreaming(ctx, content)
 }
 
-func (lca *LangChainControllerAdapter) SetOllamaClient(client interface{}) {
+func (lca *LangChainControllerAdapter) SetOllamaClient(client controllers.OllamaClient) {
 	lca.LangChainController.SetOllamaClient(client)
 }
 
@@ -36,6 +37,44 @@ func (lca *LangChainControllerAdapter) ValidateModel(model string) error {
 
 func (lca *LangChainControllerAdapter) GetTokenUsage() (promptTokens, responseTokens int) {
 	return lca.LangChainController.GetTokenUsage()
+}
+
+// Add missing methods from ChatControllerInterface
+func (lca *LangChainControllerAdapter) SendUserMessageWithContext(ctx context.Context, content string) (chat.Message, error) {
+	return lca.LangChainController.SendUserMessageWithContext(ctx, content)
+}
+
+func (lca *LangChainControllerAdapter) GetConversation() chat.Conversation {
+	return lca.LangChainController.GetConversation()
+}
+
+func (lca *LangChainControllerAdapter) GetMessageCount() int {
+	return len(lca.LangChainController.GetHistory())
+}
+
+func (lca *LangChainControllerAdapter) GetLastAssistantMessage() (chat.Message, bool) {
+	return chat.GetLastAssistantMessage(lca.LangChainController.GetConversation())
+}
+
+func (lca *LangChainControllerAdapter) GetLastUserMessage() (chat.Message, bool) {
+	return chat.GetLastUserMessage(lca.LangChainController.GetConversation())
+}
+
+func (lca *LangChainControllerAdapter) HasSystemMessage() bool {
+	return chat.HasSystemMessage(lca.LangChainController.GetConversation())
+}
+
+func (lca *LangChainControllerAdapter) SetToolRegistry(registry *tools.Registry) {
+	// Note: LangChainController doesn't support changing tool registry after creation
+	// This is a limitation of the current design
+}
+
+func (lca *LangChainControllerAdapter) SetModelWithValidation(model string) error {
+	if err := lca.LangChainController.ValidateModel(model); err != nil {
+		return err
+	}
+	lca.LangChainController.SetModel(model)
+	return nil
 }
 
 var cfgFile string
