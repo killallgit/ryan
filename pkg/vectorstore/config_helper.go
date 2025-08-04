@@ -7,86 +7,7 @@ import (
 	"github.com/killallgit/ryan/pkg/config"
 )
 
-// NewFromConfig creates a vector store manager from configuration
-func NewFromConfig(cfg *config.VectorStoreConfig) (*Manager, error) {
-	if cfg == nil || !cfg.Enabled {
-		return nil, fmt.Errorf("vector store is not enabled in configuration")
-	}
-
-	// Create embedder config
-	embedderConfig := EmbedderConfig{
-		Provider: cfg.Embedder.Provider,
-		Model:    cfg.Embedder.Model,
-		BaseURL:  cfg.Embedder.BaseURL,
-		APIKey:   cfg.Embedder.APIKey,
-	}
-
-	// Handle API key from environment for security
-	if embedderConfig.Provider == "openai" && embedderConfig.APIKey == "" {
-		embedderConfig.APIKey = os.Getenv("OPENAI_API_KEY")
-	}
-
-	// Create manager config
-	managerConfig := Config{
-		Provider:          cfg.Provider,
-		PersistenceDir:    cfg.PersistenceDir,
-		EnablePersistence: cfg.EnablePersistence,
-		EmbedderConfig:    embedderConfig,
-	}
-
-	// Convert collections config
-	for _, col := range cfg.Collections {
-		managerConfig.Collections = append(managerConfig.Collections, CollectionConfig{
-			Name:     col.Name,
-			Metadata: col.Metadata,
-		})
-	}
-
-	// Create manager
-	manager, err := NewManager(managerConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create vector store manager: %w", err)
-	}
-
-	// Create collections if specified
-	if len(managerConfig.Collections) > 0 {
-		for _, col := range managerConfig.Collections {
-			if _, err := GetOrCreateCollection(manager.GetStore(), col.Name, col.Metadata); err != nil {
-				return nil, fmt.Errorf("failed to create collection %s: %w", col.Name, err)
-			}
-		}
-	}
-
-	return manager, nil
-}
-
-// NewIndexerFromConfig creates a document indexer from configuration
-func NewIndexerFromConfig(store VectorStore, cfg *config.VectorStoreIndexerConfig, collectionName string) (*DocumentIndexer, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("indexer configuration is nil")
-	}
-
-	indexerConfig := IndexerConfig{
-		CollectionName: collectionName,
-		ChunkSize:      cfg.ChunkSize,
-		ChunkOverlap:   cfg.ChunkOverlap,
-	}
-
-	// Validate chunk configuration
-	if indexerConfig.ChunkSize <= 0 {
-		indexerConfig.ChunkSize = 1000 // Default
-	}
-	if indexerConfig.ChunkOverlap < 0 {
-		indexerConfig.ChunkOverlap = 200 // Default
-	}
-	if indexerConfig.ChunkOverlap >= indexerConfig.ChunkSize {
-		return nil, fmt.Errorf("chunk overlap must be less than chunk size")
-	}
-
-	return NewDocumentIndexer(store, indexerConfig)
-}
-
-// InitializeVectorStore is a convenience function to initialize vector store from app config
+// InitializeVectorStore initializes the vector store from global configuration
 func InitializeVectorStore() (*Manager, error) {
 	cfg := config.Get()
 	if cfg == nil {
@@ -97,5 +18,89 @@ func InitializeVectorStore() (*Manager, error) {
 		return nil, nil // Vector store is disabled
 	}
 
-	return NewFromConfig(&cfg.VectorStore)
+	// Create embedder config
+	embedderConfig := EmbedderConfig{
+		Provider: cfg.VectorStore.Embedder.Provider,
+		Model:    cfg.VectorStore.Embedder.Model,
+		BaseURL:  cfg.VectorStore.Embedder.BaseURL,
+		APIKey:   cfg.VectorStore.Embedder.APIKey,
+	}
+
+	// Handle API key from environment for security
+	if embedderConfig.Provider == "openai" && embedderConfig.APIKey == "" {
+		embedderConfig.APIKey = os.Getenv("OPENAI_API_KEY")
+	}
+
+	// Create embedder
+	embedder, err := CreateEmbedder(embedderConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create embedder: %w", err)
+	}
+
+	// Create store
+	var store VectorStore
+	switch cfg.VectorStore.Provider {
+	case "chromem":
+		store, err = NewChromemStore(embedder, cfg.VectorStore.PersistenceDir, cfg.VectorStore.EnablePersistence)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create chromem store: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported vector store provider: %s", cfg.VectorStore.Provider)
+	}
+
+	// Create manager with the store and embedder
+	manager := &Manager{
+		store:    store,
+		embedder: embedder,
+		config: Config{
+			Provider:          cfg.VectorStore.Provider,
+			PersistenceDir:    cfg.VectorStore.PersistenceDir,
+			EnablePersistence: cfg.VectorStore.EnablePersistence,
+			EmbedderConfig:    embedderConfig,
+		},
+	}
+
+	// Create pre-configured collections
+	for _, col := range cfg.VectorStore.Collections {
+		if _, err := GetOrCreateCollection(store, col.Name, col.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to create collection %s: %w", col.Name, err)
+		}
+	}
+
+	return manager, nil
+}
+
+// NewIndexerFromGlobalConfig creates a document indexer using global configuration
+func NewIndexerFromGlobalConfig(collectionName string) (*DocumentIndexer, error) {
+	cfg := config.Get()
+	if cfg == nil {
+		return nil, fmt.Errorf("configuration not initialized")
+	}
+
+	if !cfg.VectorStore.Enabled {
+		return nil, fmt.Errorf("vector store is not enabled")
+	}
+
+	// Initialize vector store if needed
+	manager, err := InitializeVectorStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize vector store: %w", err)
+	}
+
+	indexerConfig := IndexerConfig{
+		CollectionName: collectionName,
+		ChunkSize:      cfg.VectorStore.Indexer.ChunkSize,
+		ChunkOverlap:   cfg.VectorStore.Indexer.ChunkOverlap,
+	}
+
+	// Use defaults if not set
+	if indexerConfig.ChunkSize <= 0 {
+		indexerConfig.ChunkSize = 1000
+	}
+	if indexerConfig.ChunkOverlap < 0 {
+		indexerConfig.ChunkOverlap = 200
+	}
+
+	return NewDocumentIndexer(manager.GetStore(), indexerConfig)
 }
