@@ -263,4 +263,100 @@ var _ = Describe("ChatController", func() {
 			Expect(controller.GetMessageCount()).To(Equal(3)) // system + user + assistant
 		})
 	})
+
+	Describe("Error handling", func() {
+		It("should handle AddErrorMessage", func() {
+			controller.AddErrorMessage("Test error message")
+			
+			history := controller.GetHistory()
+			Expect(history).To(HaveLen(1))
+			Expect(history[0].Role).To(Equal(chat.RoleError))
+			Expect(history[0].Content).To(ContainSubstring("Test error message"))
+		})
+	})
+
+	Describe("Content cleaning", func() {
+		It("should clean thinking blocks from conversation", func() {
+			// First add a message with thinking blocks
+			assistantResponse := chat.NewAssistantMessage("Here is some text <thinking>This is a thinking block</thinking> and more text")
+			chatResponse := chat.ChatResponse{
+				Message:         assistantResponse,
+				PromptEvalCount: 5,
+				EvalCount:       8,
+				Model:           "test-model",
+				Done:            true,
+			}
+			mockClient.On("SendMessageWithResponse", mock.Anything).Return(chatResponse, nil)
+
+			_, err := controller.SendUserMessage("Test")
+			Expect(err).ToNot(HaveOccurred())
+
+			// Verify message has thinking blocks
+			history := controller.GetHistory()
+			Expect(history[1].Content).To(ContainSubstring("<thinking>"))
+
+			// Clean thinking blocks
+			controller.CleanThinkingBlocks()
+
+			// Verify thinking blocks are removed
+			historyAfter := controller.GetHistory()
+			Expect(historyAfter[1].Content).ToNot(ContainSubstring("<thinking>"))
+			Expect(historyAfter[1].Content).To(Equal("Here is some text  and more text"))
+		})
+
+		It("should handle conversation without thinking blocks", func() {
+			// Add a normal message
+			assistantResponse := chat.NewAssistantMessage("This is normal content without thinking blocks")
+			chatResponse := chat.ChatResponse{
+				Message:         assistantResponse,
+				PromptEvalCount: 5,
+				EvalCount:       8,
+				Model:           "test-model",
+				Done:            true,
+			}
+			mockClient.On("SendMessageWithResponse", mock.Anything).Return(chatResponse, nil)
+
+			_, err := controller.SendUserMessage("Test")
+			Expect(err).ToNot(HaveOccurred())
+
+			originalContent := controller.GetHistory()[1].Content
+
+			// Clean thinking blocks (should do nothing)
+			controller.CleanThinkingBlocks()
+
+			// Content should remain unchanged
+			historyAfter := controller.GetHistory()
+			Expect(historyAfter[1].Content).To(Equal(originalContent))
+		})
+	})
+
+	Describe("Model validation", func() {
+		It("should require ollama client to be configured", func() {
+			err := controller.ValidateModel("valid-model")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("ollama client not configured"))
+		})
+
+		It("should require ollama client for empty model validation", func() {
+			err := controller.ValidateModel("")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("ollama client not configured"))
+		})
+
+		It("should require ollama client for SetModelWithValidation", func() {
+			originalModel := controller.GetModel()
+			err := controller.SetModelWithValidation("new-model")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("ollama client not configured"))
+			Expect(controller.GetModel()).To(Equal(originalModel)) // Should remain unchanged
+		})
+
+		It("should require ollama client for empty model in SetModelWithValidation", func() {
+			originalModel := controller.GetModel()
+			err := controller.SetModelWithValidation("")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("ollama client not configured"))
+			Expect(controller.GetModel()).To(Equal(originalModel)) // Should remain unchanged
+		})
+	})
 })
