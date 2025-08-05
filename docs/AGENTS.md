@@ -47,15 +47,15 @@ Add to your `.ryan/settings.yaml`:
 agents:
   # Preferred agent type
   preferred: "ollama-functions"
-  
+
   # Fallback chain - agents to try if preferred fails
   fallback_chain:
     - "openai-functions"
     - "conversational"
-  
+
   # Auto-select best agent based on task
   auto_select: true
-  
+
   # Show agent selection in output
   show_selection: true
 ```

@@ -81,7 +81,7 @@
     "theme": "dark",
     "colors": {
       "primary": "#00ff00",
-      "secondary": "#ffff00", 
+      "secondary": "#ffff00",
       "accent": "#ff6b6b",
       "background": "#1e1e1e",
       "text": "#ffffff"
@@ -107,7 +107,7 @@
     "format": "structured",
     "components": {
       "vectorstore": "debug",
-      "chat": "info", 
+      "chat": "info",
       "tools": "warn",
       "tui": "error"
     }

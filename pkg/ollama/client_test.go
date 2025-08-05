@@ -31,7 +31,7 @@ var _ = Describe("Client", func() {
 					"models": [
 						{
 							"name": "llama3.1:8b",
-							"model": "llama3.1:8b", 
+							"model": "llama3.1:8b",
 							"size": 4661211808,
 							"digest": "abc123",
 							"details": {
@@ -59,7 +59,7 @@ var _ = Describe("Client", func() {
 							"digest": "def456",
 							"details": {
 								"parent_model": "",
-								"format": "gguf", 
+								"format": "gguf",
 								"family": "llama",
 								"families": ["llama"],
 								"parameter_size": "7.2B",

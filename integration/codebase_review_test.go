@@ -351,14 +351,14 @@ func (s *UserService) GetUser(id string) (*User, error) {
 func (s *UserService) CreateUser(name, email string) (*User, error) {
 	// TODO: Validate email format
 	// TODO: Check for duplicate emails
-	
+
 	user := &User{
 		ID:        generateID(),
 		Name:      name,
 		Email:     email,
 		CreatedAt: time.Now(),
 	}
-	
+
 	s.users[user.ID] = user
 	return user, nil
 }
@@ -369,11 +369,11 @@ func (s *UserService) UpdateUser(id, name, email string) error {
 	if !exists {
 		return errors.New("user not found")
 	}
-	
+
 	// FIXME: Add validation
 	user.Name = name
 	user.Email = email
-	
+
 	return nil
 }
 
@@ -405,14 +405,14 @@ func NewAPIHandler(userService *UserService) *APIHandler {
 func (h *APIHandler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	// TODO: Extract user ID from path
 	// TODO: Add error handling
-	
+
 	userID := r.URL.Query().Get("id")
 	user, err := h.userService.GetUser(userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
@@ -423,18 +423,18 @@ func (h *APIHandler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		Name  string ` + "`json:\"name\"`" + `
 		Email string ` + "`json:\"email\"`" + `
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	user, err := h.userService.CreateUser(req.Name, req.Email)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(user)
