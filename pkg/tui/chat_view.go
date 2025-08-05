@@ -41,7 +41,7 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 	}
 	
 	// Set background color for the entire view
-	cv.SetBackgroundColor(ColorBase00)
+	cv.SetBackgroundColor(GetTcellColor(ColorBase00))
 	
 	// Create message display
 	cv.messages = tview.NewTextView().
@@ -50,15 +50,15 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		SetWordWrap(true).
 		SetScrollable(true)
 	cv.messages.SetBorder(false)
-	cv.messages.SetBackgroundColor(ColorBase00)
+	cv.messages.SetBackgroundColor(GetTcellColor(ColorBase00))
 	
 	// Create input field with prompt inside
 	cv.input = tview.NewInputField().
 		SetLabel("> ").
-		SetFieldBackgroundColor(ColorBase00).
-		SetFieldTextColor(ColorBase05).
-		SetLabelColor(ColorOrange)
-	cv.input.SetBackgroundColor(ColorBase00)
+		SetFieldBackgroundColor(GetTcellColor(ColorBase00)).
+		SetFieldTextColor(GetTcellColor(ColorBase05)).
+		SetLabelColor(GetTcellColor(ColorOrange))
+	cv.input.SetBackgroundColor(GetTcellColor(ColorBase00))
 	
 	cv.input.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
@@ -76,7 +76,7 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 	cv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	cv.status.SetBackgroundColor(ColorBase00)
+	cv.status.SetBackgroundColor(GetTcellColor(ColorBase00))
 	cv.updateStatus()
 	
 	// Create padded message area with inner padding
@@ -84,14 +84,14 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		AddItem(nil, 2, 0, false).                    // Left padding
 		AddItem(cv.messages, 0, 1, false).           // Messages content
 		AddItem(nil, 2, 0, false)                    // Right padding
-	messageContainer.SetBackgroundColor(ColorBase00)
+	messageContainer.SetBackgroundColor(GetTcellColor(ColorBase00))
 	
 	// Create padded input area
 	inputContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(nil, 2, 0, false).                    // Left padding
 		AddItem(cv.input, 0, 1, true).               // Input content
 		AddItem(nil, 2, 0, false)                    // Right padding
-	inputContainer.SetBackgroundColor(ColorBase00)
+	inputContainer.SetBackgroundColor(GetTcellColor(ColorBase00))
 	
 	// Layout: top padding, messages with padding, gap, input with padding, status
 	cv.AddItem(nil, 1, 0, false).                   // Top padding

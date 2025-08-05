@@ -5,6 +5,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/controllers"
+	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/killallgit/ryan/pkg/models"
 	"github.com/rivo/tview"
 )
 
@@ -39,16 +41,16 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 		SetSeparator(' ')
 	
 	mv.table.SetBorder(false).SetTitle("")
-	mv.table.SetBackgroundColor(ColorBase00)
+	mv.table.SetBackgroundColor(GetTcellColor(ColorBase00))
 	
 	// Create headers
-	headers := []string{"Name", "Size", "Modified", "Status"}
+	headers := []string{"Name", "Size", "Parameters", "Quantization", "Tools", "Status"}
 	for col, header := range headers {
 		cell := tview.NewTableCell(header).
-			SetTextColor(ColorYellow).
+			SetTextColor(GetTcellColor(ColorYellow)).
 			SetAlign(tview.AlignLeft).
 			SetSelectable(false).
-			SetBackgroundColor(ColorBase01).
+			SetBackgroundColor(GetTcellColor(ColorBase01)).
 			SetExpansion(1)
 		mv.table.SetCell(0, col, cell)
 	}
@@ -57,9 +59,9 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 	mv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	mv.status.SetBackgroundColor(ColorBase01)
+	mv.status.SetBackgroundColor(GetTcellColor(ColorBase01))
 	mv.status.SetTextAlign(tview.AlignCenter)
-	mv.status.SetText("[#5c5044]Press Enter to select model | d to delete | r to refresh | Esc to go back[-]")
+	mv.status.SetText("[#5c5044]Enter: select | d: delete | r: refresh | Esc: back | Tools: [#93b56b]Excellent[-] [#61afaf]Good[-] [#f5b761]Basic[-] [#d95f5f]None[-]")
 	
 	// Create padded table area
 	tableContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -117,8 +119,7 @@ func (mv *ModelView) setupKeyBindings() {
 
 // refreshModels loads and displays the model list
 func (mv *ModelView) refreshModels() {
-	// TODO: Implement actual model loading
-	// For now, show placeholder data
+	log := logger.WithComponent("model_view")
 	
 	// Clear existing rows (except header)
 	rowCount := mv.table.GetRowCount()
@@ -126,38 +127,102 @@ func (mv *ModelView) refreshModels() {
 		mv.table.RemoveRow(i)
 	}
 	
-	// Add sample models
-	models := [][]string{
-		{"llama2:latest", "3.8 GB", "2 days ago", "Ready"},
-		{"mistral:latest", "4.1 GB", "1 week ago", "Ready"},
-		{"codellama:latest", "3.8 GB", "2 weeks ago", "Ready"},
+	// Get models from Ollama via the controller
+	response, err := mv.modelsController.Tags()
+	if err != nil {
+		log.Error("Failed to get models from Ollama", "error", err)
+		mv.showError(fmt.Sprintf("Failed to load models: %v", err))
+		return
+	}
+	
+	if len(response.Models) == 0 {
+		// Show empty state spanning all columns
+		cell := tview.NewTableCell("No models found. Pull a model first.").
+			SetAlign(tview.AlignCenter).
+			SetTextColor(GetTcellColor(ColorMuted)).
+			SetBackgroundColor(GetTcellColor(ColorBase00)).
+			SetExpansion(6) // Updated to span 6 columns
+		mv.table.SetCell(1, 0, cell)
+		return
 	}
 	
 	currentModel := mv.chatController.GetModel()
 	
-	for i, model := range models {
-		for col, text := range model {
+	// Add models to table
+	for i, model := range response.Models {
+		// Convert size to human readable format
+		sizeGB := float64(model.Size) / (1024 * 1024 * 1024)
+		sizeStr := fmt.Sprintf("%.1f GB", sizeGB)
+		
+		// Get parameter size and quantization
+		paramSize := model.Details.ParameterSize
+		if paramSize == "" {
+			paramSize = "Unknown"
+		}
+		
+		quantization := model.Details.QuantizationLevel
+		if quantization == "" {
+			quantization = "Unknown"
+		}
+		
+		// Get tool compatibility info
+		modelInfo := models.GetModelInfo(model.Name)
+		toolsSupport := modelInfo.ToolCompatibility.String()
+		if modelInfo.RecommendedForTools {
+			toolsSupport += " ✓"
+		}
+		
+		// Determine status (could be enhanced to check if model is loaded)
+		status := "Available"
+		if model.Name == currentModel {
+			status = "Current"
+		}
+		
+		// Create table cells
+		modelData := []string{model.Name, sizeStr, paramSize, quantization, toolsSupport, status}
+		
+		for col, text := range modelData {
 			cell := tview.NewTableCell(text).
 				SetAlign(tview.AlignLeft).
 				SetExpansion(1)
 			
-			// Highlight current model
-			if col == 0 && text == currentModel {
-				cell.SetTextColor(ColorGreen)
+			// Color coding based on column content
+			if col == 0 && model.Name == currentModel {
+				// Current model name in green
+				cell.SetTextColor(GetTcellColor(ColorGreen))
+			} else if col == 4 { // Tools column
+				// Color code tool compatibility
+				switch modelInfo.ToolCompatibility {
+				case models.ToolCompatibilityExcellent:
+					cell.SetTextColor(GetTcellColor(ColorGreen))
+				case models.ToolCompatibilityGood:
+					cell.SetTextColor(GetTcellColor(ColorCyan))
+				case models.ToolCompatibilityBasic:
+					cell.SetTextColor(GetTcellColor(ColorYellow))
+				case models.ToolCompatibilityNone:
+					cell.SetTextColor(GetTcellColor(ColorRed))
+				default:
+					cell.SetTextColor(GetTcellColor(ColorMuted))
+				}
+			} else if col == 5 && status == "Current" {
+				// Current status in green
+				cell.SetTextColor(GetTcellColor(ColorGreen))
 			} else {
-				cell.SetTextColor(ColorBase05)
+				cell.SetTextColor(GetTcellColor(ColorBase05))
 			}
 			
 			// Alternate row colors
 			if i%2 == 0 {
-				cell.SetBackgroundColor(ColorBase00)
+				cell.SetBackgroundColor(GetTcellColor(ColorBase00))
 			} else {
-				cell.SetBackgroundColor(ColorBase01)
+				cell.SetBackgroundColor(GetTcellColor(ColorBase01))
 			}
 			
 			mv.table.SetCell(i+1, col, cell)
 		}
 	}
+	
+	mv.showSuccess(fmt.Sprintf("Loaded %d models", len(response.Models)))
 }
 
 // selectModel switches to the selected model
@@ -189,7 +254,23 @@ func (mv *ModelView) confirmDelete(modelName string) {
 
 // deleteModel deletes the specified model
 func (mv *ModelView) deleteModel(modelName string) {
-	// TODO: Implement actual deletion
+	log := logger.WithComponent("model_view")
+	
+	// Don't allow deleting the current model
+	if modelName == mv.chatController.GetModel() {
+		mv.showError("Cannot delete the currently selected model")
+		return
+	}
+	
+	log.Debug("Deleting model", "model", modelName)
+	
+	err := mv.modelsController.Delete(modelName)
+	if err != nil {
+		log.Error("Failed to delete model", "model", modelName, "error", err)
+		mv.showError(fmt.Sprintf("Failed to delete model: %v", err))
+		return
+	}
+	
 	mv.showSuccess(fmt.Sprintf("Model '%s' deleted", modelName))
 	mv.refreshModels()
 }

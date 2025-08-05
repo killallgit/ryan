@@ -9,6 +9,7 @@ import (
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tools"
 	"github.com/rivo/tview"
 )
@@ -68,18 +69,6 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	theme := DefaultTheme()
 	ApplyTheme(theme)
 	
-	// Set application background color
-	tviewApp.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
-		screen.Clear()
-		w, h := screen.Size()
-		for x := 0; x < w; x++ {
-			for y := 0; y < h; y++ {
-				screen.SetContent(x, y, ' ', nil, tcell.StyleDefault.Background(ColorBase00))
-			}
-		}
-		return false
-	})
-	
 	app := &App{
 		app:         tviewApp,
 		pages:       tview.NewPages(),
@@ -93,7 +82,7 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	}
 	
 	// Set background color for pages container
-	app.pages.SetBackgroundColor(ColorBase00)
+	app.pages.SetBackgroundColor(GetTcellColor(ColorBase00))
 	
 	// Initialize views
 	if err := app.initializeViews(); err != nil {
@@ -122,8 +111,13 @@ func (a *App) initializeViews() error {
 	a.pages.AddPage("chat", a.chatView, true, true)
 	log.Debug("Created chat view")
 	
-	// Create model view
-	modelsController := controllers.NewModelsController(nil) // Will be set later
+	// Create model view with Ollama client
+	ollamaURL := a.config.Ollama.URL
+	if ollamaURL == "" {
+		ollamaURL = "https://ollama.kitty-tetra.ts.net" // fallback
+	}
+	ollamaClient := ollama.NewClient(ollamaURL)
+	modelsController := controllers.NewModelsController(ollamaClient)
 	a.modelView = NewModelView(modelsController, a.controller, a.app)
 	a.pages.AddPage("models", a.modelView, true, false)
 	log.Debug("Created model view")
@@ -245,7 +239,7 @@ func (a *App) showViewSwitcher() {
 		})
 	
 	list.SetBorder(false).
-		SetBackgroundColor(ColorBase01)
+		SetBackgroundColor(GetTcellColor(ColorBase01))
 	list.ShowSecondaryText(false)
 	
 	// Setup key bindings for j/k navigation
@@ -276,18 +270,18 @@ func (a *App) showViewSwitcher() {
 	
 	// Create outer container with background
 	outerContainer := tview.NewBox().
-		SetBackgroundColor(ColorBase01)
+		SetBackgroundColor(GetTcellColor(ColorBase01))
 	
 	// Create inner flex for horizontal padding
 	innerFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
-	innerFlex.SetBackgroundColor(ColorBase01)
+	innerFlex.SetBackgroundColor(GetTcellColor(ColorBase01))
 	innerFlex.AddItem(nil, 3, 0, false)  // Left padding
 	innerFlex.AddItem(list, 0, 1, true)  // List content
 	innerFlex.AddItem(nil, 3, 0, false)  // Right padding
 	
 	// Create a wrapper that adds padding between the outer container and list
 	paddedWrapper := tview.NewFlex().SetDirection(tview.FlexRow)
-	paddedWrapper.SetBackgroundColor(ColorBase01)
+	paddedWrapper.SetBackgroundColor(GetTcellColor(ColorBase01))
 	paddedWrapper.AddItem(nil, 2, 0, false)  // Top padding
 	paddedWrapper.AddItem(innerFlex, 0, 1, true)  // Content with horizontal padding
 	paddedWrapper.AddItem(nil, 2, 0, false)  // Bottom padding
