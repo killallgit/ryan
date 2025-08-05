@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/killallgit/ryan/pkg/agents"
+	"github.com/killallgit/ryan/pkg/config"
+	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,10 +44,22 @@ func TestOrchestratorAPI(t *testing.T) {
 
 func TestLangChainControllerAdapter(t *testing.T) {
 	// Test that the adapter implements the required methods
-	adapter := &LangChainControllerAdapter{}
+	// Load config for testing
+	_, err := config.Load("")
+	require.NoError(t, err)
 	
-	// These should compile without errors
-	_ = adapter.ValidateModel("test-model")
+	// Create a minimal LangChain controller for testing
+	controller, err := controllers.NewLangChainController("http://localhost:11434", "test-model", nil)
+	require.NoError(t, err)
+	
+	adapter := &LangChainControllerAdapter{
+		LangChainController: controller,
+	}
+	
+	// These should compile and run without errors
+	err = adapter.ValidateModel("test-model")
+	assert.NoError(t, err)
+	
 	adapter.SetOllamaClient(nil)
 	adapter.CleanThinkingBlocks()
 }
