@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/rivo/tview"
 )
@@ -28,27 +29,27 @@ func NewContextTreeView() *ContextTreeView {
 	
 	// Create tree view
 	root := tview.NewTreeNode("Conversations").
-		SetColor(GetTcellColor(ColorYellow))
+		SetColor(tcell.GetColor(ColorYellow))
 	
 	ctv.tree = tview.NewTreeView().
 		SetRoot(root).
 		SetCurrentNode(root)
 	
 	ctv.tree.SetBorder(false).SetTitle("")
-	ctv.tree.SetBackgroundColor(GetTcellColor(ColorBase00))
+	ctv.tree.SetBackgroundColor(tcell.GetColor(ColorBase00))
 	
 	// Create info panel
 	ctv.info = tview.NewTextView().
 		SetDynamicColors(true).
 		SetWordWrap(true)
 	ctv.info.SetBorder(false).SetTitle("")
-	ctv.info.SetBackgroundColor(GetTcellColor(ColorBase01))
+	ctv.info.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	
 	// Create status bar
 	ctv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	ctv.status.SetBackgroundColor(GetTcellColor(ColorBase01))
+	ctv.status.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	ctv.status.SetTextAlign(tview.AlignCenter)
 	ctv.status.SetText("[#5c5044]Use arrow keys to navigate | Enter to select | Esc to go back[-]")
 	
@@ -106,7 +107,7 @@ func (ctv *ContextTreeView) rebuildTree() {
 			SetSelectable(true)
 		
 		if context.IsActive {
-			node.SetColor(GetTcellColor(ColorGreen))
+			node.SetColor(tcell.GetColor(ColorGreen))
 		}
 		
 		// Add message count
@@ -136,7 +137,7 @@ func (ctv *ContextTreeView) addSampleData() {
 	// Main conversation
 	main := tview.NewTreeNode("Main Conversation").
 		SetReference("main").
-		SetColor(GetTcellColor(ColorGreen))
+		SetColor(tcell.GetColor(ColorGreen))
 	
 	// Add some messages as children
 	msg1 := tview.NewTreeNode("User: Hello").SetSelectable(false)

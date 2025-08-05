@@ -52,16 +52,16 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 		SetSeparator(' ')
 	
 	mv.table.SetBorder(false).SetTitle("")
-	mv.table.SetBackgroundColor(GetTcellColor(ColorBase00))
+	mv.table.SetBackgroundColor(tcell.GetColor(ColorBase00))
 	
 	// Create headers
 	headers := []string{"Name", "Size", "Parameters", "Quantization", "Tools", "Status"}
 	for col, header := range headers {
 		cell := tview.NewTableCell(header).
-			SetTextColor(GetTcellColor(ColorYellow)).
+			SetTextColor(tcell.GetColor(ColorYellow)).
 			SetAlign(tview.AlignLeft).
 			SetSelectable(false).
-			SetBackgroundColor(GetTcellColor(ColorBase01)).
+			SetBackgroundColor(tcell.GetColor(ColorBase01)).
 			SetExpansion(1)
 		mv.table.SetCell(0, col, cell)
 	}
@@ -70,7 +70,7 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 	mv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	mv.status.SetBackgroundColor(GetTcellColor(ColorBase01))
+	mv.status.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	mv.status.SetTextAlign(tview.AlignCenter)
 	mv.status.SetText("[#5c5044]Enter: select | +: download | -: delete | r: refresh | Esc: back | Tools: [#93b56b]Excellent[-] [#61afaf]Good[-] [#f5b761]Basic[-] [#d95f5f]None[-]")
 	
@@ -153,8 +153,8 @@ func (mv *ModelView) refreshModels() {
 		// Show empty state spanning all columns
 		cell := tview.NewTableCell("No models found. Pull a model first.").
 			SetAlign(tview.AlignCenter).
-			SetTextColor(GetTcellColor(ColorMuted)).
-			SetBackgroundColor(GetTcellColor(ColorBase00)).
+			SetTextColor(tcell.GetColor(ColorMuted)).
+			SetBackgroundColor(tcell.GetColor(ColorBase00)).
 			SetExpansion(6) // Updated to span 6 columns
 		mv.table.SetCell(1, 0, cell)
 		return
@@ -203,33 +203,33 @@ func (mv *ModelView) refreshModels() {
 			// Color coding based on column content
 			if col == 0 && model.Name == currentModel {
 				// Current model name in green
-				cell.SetTextColor(GetTcellColor(ColorGreen))
+				cell.SetTextColor(tcell.GetColor(ColorGreen))
 			} else if col == 4 { // Tools column
 				// Color code tool compatibility
 				switch modelInfo.ToolCompatibility {
 				case models.ToolCompatibilityExcellent:
-					cell.SetTextColor(GetTcellColor(ColorGreen))
+					cell.SetTextColor(tcell.GetColor(ColorGreen))
 				case models.ToolCompatibilityGood:
-					cell.SetTextColor(GetTcellColor(ColorCyan))
+					cell.SetTextColor(tcell.GetColor(ColorCyan))
 				case models.ToolCompatibilityBasic:
-					cell.SetTextColor(GetTcellColor(ColorYellow))
+					cell.SetTextColor(tcell.GetColor(ColorYellow))
 				case models.ToolCompatibilityNone:
-					cell.SetTextColor(GetTcellColor(ColorRed))
+					cell.SetTextColor(tcell.GetColor(ColorRed))
 				default:
-					cell.SetTextColor(GetTcellColor(ColorMuted))
+					cell.SetTextColor(tcell.GetColor(ColorMuted))
 				}
 			} else if col == 5 && status == "Current" {
 				// Current status in green
-				cell.SetTextColor(GetTcellColor(ColorGreen))
+				cell.SetTextColor(tcell.GetColor(ColorGreen))
 			} else {
-				cell.SetTextColor(GetTcellColor(ColorBase05))
+				cell.SetTextColor(tcell.GetColor(ColorBase05))
 			}
 			
 			// Alternate row colors
 			if i%2 == 0 {
-				cell.SetBackgroundColor(GetTcellColor(ColorBase00))
+				cell.SetBackgroundColor(tcell.GetColor(ColorBase00))
 			} else {
-				cell.SetBackgroundColor(GetTcellColor(ColorBase01))
+				cell.SetBackgroundColor(tcell.GetColor(ColorBase01))
 			}
 			
 			mv.table.SetCell(i+1, col, cell)
@@ -259,7 +259,7 @@ func (mv *ModelView) confirmDelete(modelName string) {
 		SetTextAlign(tview.AlignCenter).
 		SetWordWrap(true)
 	warningText.SetText(fmt.Sprintf("[#d95f5f]⚠ Delete Model[-]\n\nAre you sure you want to delete '[#f5b761]%s[-]'?\nThis action cannot be undone.", modelName))
-	warningText.SetBackgroundColor(GetTcellColor(ColorBase01))
+	warningText.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	
 	// Create form with buttons
 	form := tview.NewForm().
@@ -271,9 +271,9 @@ func (mv *ModelView) confirmDelete(modelName string) {
 			mv.app.SetRoot(mv, true)
 		})
 	
-	form.SetBackgroundColor(GetTcellColor(ColorBase01))
-	form.SetButtonBackgroundColor(GetTcellColor(ColorBase02))
-	form.SetButtonTextColor(GetTcellColor(ColorBase05))
+	form.SetBackgroundColor(tcell.GetColor(ColorBase01))
+	form.SetButtonBackgroundColor(tcell.GetColor(ColorBase02))
+	form.SetButtonTextColor(tcell.GetColor(ColorBase05))
 	
 	// Handle escape key to cancel
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -290,7 +290,7 @@ func (mv *ModelView) confirmDelete(modelName string) {
 		AddItem(nil, 1, 0, false). // spacer
 		AddItem(form, 0, 1, true)
 	
-	container.SetBackgroundColor(GetTcellColor(ColorBase01))
+	container.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	
 	// Create modal
 	modal := mv.createModal(container, 50, 8)
@@ -338,9 +338,9 @@ func (mv *ModelView) showDownloadModal() {
 	inputField := tview.NewInputField().
 		SetLabel("Model name: ").
 		SetFieldWidth(40).
-		SetFieldBackgroundColor(GetTcellColor(ColorBase01)).
-		SetFieldTextColor(GetTcellColor(ColorBase05)).
-		SetLabelColor(GetTcellColor(ColorBase05))
+		SetFieldBackgroundColor(tcell.GetColor(ColorBase01)).
+		SetFieldTextColor(tcell.GetColor(ColorBase05)).
+		SetLabelColor(tcell.GetColor(ColorBase05))
 	
 	// Create info text
 	infoText := tview.NewTextView().
@@ -348,7 +348,7 @@ func (mv *ModelView) showDownloadModal() {
 		SetWordWrap(true).
 		SetTextAlign(tview.AlignLeft)
 	infoText.SetText("[#61afaf]Examples:[-] llama3.1:8b, qwen2.5:7b, mistral:latest\n[#f5b761]Popular models:[-] llama3.1:8b (recommended), qwen2.5:7b, mistral:7b")
-	infoText.SetBackgroundColor(GetTcellColor(ColorBase01))
+	infoText.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	
 	// Create form
 	form := tview.NewForm().
@@ -364,12 +364,12 @@ func (mv *ModelView) showDownloadModal() {
 			mv.app.SetRoot(mv, true)
 		})
 	
-	form.SetBackgroundColor(GetTcellColor(ColorBase01))
-	form.SetButtonBackgroundColor(GetTcellColor(ColorBase02))
-	form.SetButtonTextColor(GetTcellColor(ColorBase05))
-	form.SetLabelColor(GetTcellColor(ColorBase05))
-	form.SetFieldBackgroundColor(GetTcellColor(ColorBase01))
-	form.SetFieldTextColor(GetTcellColor(ColorBase05))
+	form.SetBackgroundColor(tcell.GetColor(ColorBase01))
+	form.SetButtonBackgroundColor(tcell.GetColor(ColorBase02))
+	form.SetButtonTextColor(tcell.GetColor(ColorBase05))
+	form.SetLabelColor(tcell.GetColor(ColorBase05))
+	form.SetFieldBackgroundColor(tcell.GetColor(ColorBase01))
+	form.SetFieldTextColor(tcell.GetColor(ColorBase05))
 	
 	// Handle escape key to cancel
 	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -386,7 +386,7 @@ func (mv *ModelView) showDownloadModal() {
 		AddItem(nil, 1, 0, false). // spacer
 		AddItem(form, 0, 1, true)
 	
-	container.SetBackgroundColor(GetTcellColor(ColorBase01))
+	container.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	
 	// Create modal
 	modal := mv.createModal(container, 60, 12)
@@ -450,20 +450,20 @@ func (mv *ModelView) startModelDownload(modelName string) {
 func (mv *ModelView) showProgressModal(modelName string) {
 	// Create progress container that we'll update
 	progressContainer := tview.NewFlex().SetDirection(tview.FlexRow)
-	progressContainer.SetBackgroundColor(GetTcellColor(ColorBase01))
+	progressContainer.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	
 	// Create status text
 	statusText := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter)
-	statusText.SetBackgroundColor(GetTcellColor(ColorBase01))
+	statusText.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	statusText.SetText(fmt.Sprintf("Downloading %s...", modelName))
 	
 	// Create progress bar placeholder
 	progressBar := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter)
-	progressBar.SetBackgroundColor(GetTcellColor(ColorBase01))
+	progressBar.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	progressBar.SetText("[#f5b761]Preparing download...[-]")
 	
 	// Create cancel button
@@ -472,8 +472,8 @@ func (mv *ModelView) showProgressModal(modelName string) {
 			// Return to main view (cancellation not implemented yet)
 			mv.app.SetRoot(mv, true)
 		})
-	cancelButton.SetBackgroundColor(GetTcellColor(ColorBase02))
-	cancelButton.SetLabelColor(GetTcellColor(ColorBase05))
+	cancelButton.SetBackgroundColor(tcell.GetColor(ColorBase02))
+	cancelButton.SetLabelColor(tcell.GetColor(ColorBase05))
 	
 	// Store references for updates
 	mv.progressContainer = progressContainer
@@ -528,6 +528,6 @@ func (mv *ModelView) createModal(p tview.Primitive, width, height int) tview.Pri
 			AddItem(p, height, 1, true).
 			AddItem(nil, 0, 1, false), width, 1, true).
 		AddItem(nil, 0, 1, false)
-	modal.SetBackgroundColor(GetTcellColor(ColorBase00)) // Semi-transparent background
+	modal.SetBackgroundColor(tcell.GetColor(ColorBase00)) // Semi-transparent background
 	return modal
 }

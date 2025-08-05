@@ -81,18 +81,13 @@ func DefaultTheme() *Theme {
 	}
 }
 
-// GetTcellColor converts a hex color string to tcell.Color
-func GetTcellColor(hexColor string) tcell.Color {
-	return tcell.GetColor(hexColor)
-}
-
-// ApplyTheme applies the theme to tview defaults
+// ApplyTheme applies the theme to tview defaults using tcell color functions
 func ApplyTheme(theme *Theme) {
-	// Convert hex strings to tcell colors using GetColor
-	tview.Styles.PrimitiveBackgroundColor = GetTcellColor(theme.Background)
-	tview.Styles.ContrastBackgroundColor = GetTcellColor(theme.Background)
-	tview.Styles.MoreContrastBackgroundColor = GetTcellColor(theme.Background)
-	tview.Styles.BorderColor = GetTcellColor(theme.Border)
-	tview.Styles.TitleColor = GetTcellColor(theme.Foreground)
-	tview.Styles.GraphicsColor = GetTcellColor(theme.Border)
+	// Use tcell.GetColor to parse hex color strings (with # prefix)
+	tview.Styles.PrimitiveBackgroundColor = tcell.GetColor(theme.Background)
+	tview.Styles.ContrastBackgroundColor = tcell.GetColor(theme.Background)
+	tview.Styles.MoreContrastBackgroundColor = tcell.GetColor(theme.Background)
+	tview.Styles.BorderColor = tcell.GetColor(theme.Border)
+	tview.Styles.TitleColor = tcell.GetColor(theme.Foreground)
+	tview.Styles.GraphicsColor = tcell.GetColor(theme.Border)
 }
