@@ -244,10 +244,9 @@ func (a *App) showViewSwitcher() {
 			a.pages.RemovePage("view-switcher")
 		})
 	
-	list.SetBorder(true).SetTitle(" Switch View (Ctrl-P) ").
-		SetBackgroundColor(ColorBase01).
-		SetBorderColor(ColorBase03).
-		SetTitleColor(ColorYellow)
+	list.SetBorder(false).
+		SetBackgroundColor(ColorBase01)
+	list.ShowSecondaryText(false)
 	
 	// Setup key bindings for j/k navigation
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -275,8 +274,8 @@ func (a *App) showViewSwitcher() {
 		return event
 	})
 	
-	// Create a modal layout for the list with padding
-	paddedList := tview.NewFlex().SetDirection(tview.FlexRow).
+	// Create a bordered container for the list
+	listContainer := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 1, 0, false).  // Top padding
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
 			AddItem(nil, 2, 0, false).  // Left padding
@@ -284,7 +283,13 @@ func (a *App) showViewSwitcher() {
 			AddItem(nil, 2, 0, false), 0, 1, true).  // Right padding
 		AddItem(nil, 1, 0, false)  // Bottom padding
 	
-	modal := createModal(paddedList, 30, 10)
+	listContainer.SetBorder(true).SetTitle(" Switch View (Ctrl-P) ").
+		SetBackgroundColor(ColorBase01).
+		SetBorderColor(ColorBase03).
+		SetTitleColor(ColorYellow)
+	
+	// Create modal with height to show all 5 items (5 items + padding + border = 9)
+	modal := createModal(listContainer, 30, 9)
 	
 	// Add as overlay
 	a.pages.AddPage("view-switcher", modal, true, true)
