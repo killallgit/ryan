@@ -4,26 +4,29 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // Planner analyzes user prompts and creates execution plans
 type Planner struct {
-	orchestrator   *Orchestrator
-	intentAnalyzer *IntentAnalyzer
-	graphBuilder   *ExecutionGraphBuilder
-	optimizer      *PlanOptimizer
-	log            *logger.Logger
+	orchestrator        *Orchestrator
+	intentAnalyzer      *IntentAnalyzer
+	graphBuilder        *ExecutionGraphBuilder
+	optimizer           *PlanOptimizer
+	hierarchicalPlanner *HierarchicalPlanner
+	log                 *logger.Logger
 }
 
 // NewPlanner creates a new execution planner
 func NewPlanner() *Planner {
 	return &Planner{
-		intentAnalyzer: NewIntentAnalyzer(),
-		graphBuilder:   NewExecutionGraphBuilder(),
-		optimizer:      NewPlanOptimizer(),
-		log:            logger.WithComponent("planner"),
+		intentAnalyzer:      NewIntentAnalyzer(),
+		graphBuilder:        NewExecutionGraphBuilder(),
+		optimizer:           NewPlanOptimizer(),
+		hierarchicalPlanner: NewHierarchicalPlanner(),
+		log:                 logger.WithComponent("planner"),
 	}
 }
 
@@ -524,4 +527,480 @@ func defaultPlanTemplates() map[string]*PlanTemplate {
 			},
 		},
 	}
+}
+
+// HierarchicalPlanner handles multi-level planning for complex projects
+type HierarchicalPlanner struct {
+	projectAnalyzer *ProjectAnalyzer
+	epicPlanner     *EpicPlanner
+	sprintPlanner   *SprintPlanner
+	taskDecomposer  *TaskDecomposer
+	log             *logger.Logger
+}
+
+// NewHierarchicalPlanner creates a new hierarchical planner
+func NewHierarchicalPlanner() *HierarchicalPlanner {
+	return &HierarchicalPlanner{
+		projectAnalyzer: NewProjectAnalyzer(),
+		epicPlanner:     NewEpicPlanner(),
+		sprintPlanner:   NewSprintPlanner(),
+		taskDecomposer:  NewTaskDecomposer(),
+		log:             logger.WithComponent("hierarchical_planner"),
+	}
+}
+
+// PlanProject creates a hierarchical plan for a project
+func (hp *HierarchicalPlanner) PlanProject(ctx context.Context, request string, context *ProjectContext) (*Project, error) {
+	hp.log.Info("Creating hierarchical project plan", "request_preview", truncateString(request, 100))
+
+	// Analyze project requirements
+	analysis := hp.projectAnalyzer.Analyze(request)
+
+	// Create project structure
+	project := &Project{
+		ID:          generateID(),
+		Name:        analysis.ProjectName,
+		Description: request,
+		Context:     context,
+		Status:      ProjectStatusPlanning,
+		CreatedAt:   time.Now(),
+	}
+
+	// Plan epics based on analysis
+	epics, err := hp.epicPlanner.PlanEpics(analysis, context)
+	if err != nil {
+		return nil, fmt.Errorf("failed to plan epics: %w", err)
+	}
+	project.Epics = epics
+
+	// Plan sprints from epics
+	sprints, err := hp.sprintPlanner.PlanSprints(epics, analysis, context)
+	if err != nil {
+		return nil, fmt.Errorf("failed to plan sprints: %w", err)
+	}
+	project.Sprints = sprints
+
+	hp.log.Info("Created hierarchical project plan",
+		"project_id", project.ID,
+		"epics", len(epics),
+		"sprints", len(sprints))
+
+	return project, nil
+}
+
+// ProjectAnalyzer analyzes requests to extract project information
+type ProjectAnalyzer struct {
+	log *logger.Logger
+}
+
+// NewProjectAnalyzer creates a new project analyzer
+func NewProjectAnalyzer() *ProjectAnalyzer {
+	return &ProjectAnalyzer{
+		log: logger.WithComponent("project_analyzer"),
+	}
+}
+
+// Analyze analyzes a request to extract project information
+func (pa *ProjectAnalyzer) Analyze(request string) *ProjectAnalysis {
+	analysis := &ProjectAnalysis{
+		RawRequest:   request,
+		ProjectName:  pa.extractProjectName(request),
+		Scope:        pa.analyzeScope(request),
+		Complexity:   pa.analyzeComplexity(request),
+		Components:   pa.extractComponents(request),
+		Requirements: pa.extractRequirements(request),
+	}
+
+	return analysis
+}
+
+func (pa *ProjectAnalyzer) extractProjectName(request string) string {
+	// Extract project name from request
+	words := strings.Fields(request)
+	if len(words) > 3 {
+		return strings.Join(words[:3], " ")
+	}
+	return "Project"
+}
+
+func (pa *ProjectAnalyzer) analyzeScope(request string) ProjectScope {
+	// Analyze project scope
+	wordCount := len(strings.Fields(request))
+	if wordCount > 100 {
+		return ProjectScopeLarge
+	} else if wordCount > 50 {
+		return ProjectScopeMedium
+	}
+	return ProjectScopeSmall
+}
+
+func (pa *ProjectAnalyzer) analyzeComplexity(request string) float64 {
+	// Simple complexity analysis based on keywords
+	complexity := 0.3 // Base complexity
+
+	complexityKeywords := []string{"integrate", "multiple", "complex", "distributed", "architecture", "system"}
+	for _, keyword := range complexityKeywords {
+		if strings.Contains(strings.ToLower(request), keyword) {
+			complexity += 0.1
+		}
+	}
+
+	if complexity > 1.0 {
+		complexity = 1.0
+	}
+
+	return complexity
+}
+
+func (pa *ProjectAnalyzer) extractComponents(request string) []string {
+	// Extract major components from request
+	components := []string{}
+
+	// Look for common component patterns
+	componentKeywords := []string{"frontend", "backend", "database", "api", "service", "module", "component"}
+	lowerRequest := strings.ToLower(request)
+
+	for _, keyword := range componentKeywords {
+		if strings.Contains(lowerRequest, keyword) {
+			components = append(components, keyword)
+		}
+	}
+
+	return components
+}
+
+func (pa *ProjectAnalyzer) extractRequirements(request string) []string {
+	// Extract requirements from request
+	requirements := []string{}
+
+	// Look for requirement patterns
+	if strings.Contains(strings.ToLower(request), "test") {
+		requirements = append(requirements, "testing")
+	}
+	if strings.Contains(strings.ToLower(request), "document") {
+		requirements = append(requirements, "documentation")
+	}
+	if strings.Contains(strings.ToLower(request), "secure") || strings.Contains(strings.ToLower(request), "security") {
+		requirements = append(requirements, "security")
+	}
+
+	return requirements
+}
+
+// ProjectAnalysis contains the analysis of a project request
+type ProjectAnalysis struct {
+	RawRequest   string
+	ProjectName  string
+	Scope        ProjectScope
+	Complexity   float64
+	Components   []string
+	Requirements []string
+}
+
+// ProjectScope represents the scope of a project
+type ProjectScope string
+
+const (
+	ProjectScopeSmall  ProjectScope = "small"
+	ProjectScopeMedium ProjectScope = "medium"
+	ProjectScopeLarge  ProjectScope = "large"
+)
+
+// EpicPlanner plans epics for a project
+type EpicPlanner struct {
+	log *logger.Logger
+}
+
+// NewEpicPlanner creates a new epic planner
+func NewEpicPlanner() *EpicPlanner {
+	return &EpicPlanner{
+		log: logger.WithComponent("epic_planner"),
+	}
+}
+
+// PlanEpics creates epics based on project analysis
+func (ep *EpicPlanner) PlanEpics(analysis *ProjectAnalysis, context *ProjectContext) ([]*Epic, error) {
+	epics := []*Epic{}
+
+	// Create epics for each major component
+	for i, component := range analysis.Components {
+		epic := &Epic{
+			ID:          generateID(),
+			Title:       fmt.Sprintf("Implement %s", component),
+			Description: fmt.Sprintf("Implementation of %s component", component),
+			Priority:    Priority(10 - i), // Prioritize in order
+			Status:      EpicStatusTodo,
+			Stories:     ep.createStoriesForComponent(component),
+		}
+		epics = append(epics, epic)
+	}
+
+	// Add epics for requirements
+	for _, requirement := range analysis.Requirements {
+		epic := &Epic{
+			ID:          generateID(),
+			Title:       fmt.Sprintf("Ensure %s", requirement),
+			Description: fmt.Sprintf("Implementation of %s requirements", requirement),
+			Priority:    PriorityMedium,
+			Status:      EpicStatusTodo,
+			Stories:     ep.createStoriesForRequirement(requirement),
+		}
+		epics = append(epics, epic)
+	}
+
+	// If no epics created, create a default one
+	if len(epics) == 0 {
+		epics = append(epics, &Epic{
+			ID:          generateID(),
+			Title:       "Core Implementation",
+			Description: analysis.RawRequest,
+			Priority:    PriorityHigh,
+			Status:      EpicStatusTodo,
+			Stories:     ep.createDefaultStories(),
+		})
+	}
+
+	return epics, nil
+}
+
+func (ep *EpicPlanner) createStoriesForComponent(component string) []*UserStory {
+	stories := []*UserStory{
+		{
+			ID:          generateID(),
+			Title:       fmt.Sprintf("Design %s architecture", component),
+			Description: fmt.Sprintf("Design and plan the %s component architecture", component),
+			Points:      5,
+			Priority:    PriorityHigh,
+			Status:      StoryStatusTodo,
+		},
+		{
+			ID:          generateID(),
+			Title:       fmt.Sprintf("Implement %s core", component),
+			Description: fmt.Sprintf("Implement core functionality for %s", component),
+			Points:      8,
+			Priority:    PriorityHigh,
+			Status:      StoryStatusTodo,
+		},
+		{
+			ID:          generateID(),
+			Title:       fmt.Sprintf("Test %s", component),
+			Description: fmt.Sprintf("Create tests for %s component", component),
+			Points:      3,
+			Priority:    PriorityMedium,
+			Status:      StoryStatusTodo,
+		},
+	}
+	return stories
+}
+
+func (ep *EpicPlanner) createStoriesForRequirement(requirement string) []*UserStory {
+	stories := []*UserStory{
+		{
+			ID:          generateID(),
+			Title:       fmt.Sprintf("Implement %s", requirement),
+			Description: fmt.Sprintf("Ensure %s requirements are met", requirement),
+			Points:      5,
+			Priority:    PriorityMedium,
+			Status:      StoryStatusTodo,
+		},
+	}
+	return stories
+}
+
+func (ep *EpicPlanner) createDefaultStories() []*UserStory {
+	return []*UserStory{
+		{
+			ID:          generateID(),
+			Title:       "Initial implementation",
+			Description: "Implement core functionality",
+			Points:      8,
+			Priority:    PriorityHigh,
+			Status:      StoryStatusTodo,
+		},
+	}
+}
+
+// SprintPlanner plans sprints from epics
+type SprintPlanner struct {
+	log *logger.Logger
+}
+
+// NewSprintPlanner creates a new sprint planner
+func NewSprintPlanner() *SprintPlanner {
+	return &SprintPlanner{
+		log: logger.WithComponent("sprint_planner"),
+	}
+}
+
+// PlanSprints creates sprints from epics
+func (sp *SprintPlanner) PlanSprints(epics []*Epic, analysis *ProjectAnalysis, context *ProjectContext) ([]*Sprint, error) {
+	sprints := []*Sprint{}
+
+	// Calculate sprint capacity based on complexity
+	sprintCapacity := sp.calculateSprintCapacity(analysis.Complexity)
+
+	// Group stories into sprints
+	currentSprint := sp.createSprint(1, sprintCapacity)
+	currentCapacity := 0
+
+	for _, epic := range epics {
+		for _, story := range epic.Stories {
+			if currentCapacity+story.Points > sprintCapacity {
+				// Finalize current sprint and start new one
+				sprints = append(sprints, currentSprint)
+				currentSprint = sp.createSprint(len(sprints)+1, sprintCapacity)
+				currentCapacity = 0
+			}
+
+			currentSprint.Stories = append(currentSprint.Stories, story)
+			currentCapacity += story.Points
+		}
+	}
+
+	// Add last sprint if it has stories
+	if len(currentSprint.Stories) > 0 {
+		sprints = append(sprints, currentSprint)
+	}
+
+	return sprints, nil
+}
+
+func (sp *SprintPlanner) calculateSprintCapacity(complexity float64) int {
+	// Base capacity adjusted by complexity
+	baseCapacity := 40
+	adjustedCapacity := float64(baseCapacity) * (1.0 - complexity*0.3)
+	return int(adjustedCapacity)
+}
+
+func (sp *SprintPlanner) createSprint(number int, capacity int) *Sprint {
+	return &Sprint{
+		ID:        generateID(),
+		Number:    number,
+		Name:      fmt.Sprintf("Sprint %d", number),
+		Goal:      fmt.Sprintf("Complete sprint %d objectives", number),
+		StartDate: time.Now().Add(time.Duration(number-1) * 14 * 24 * time.Hour), // 2-week sprints
+		EndDate:   time.Now().Add(time.Duration(number) * 14 * 24 * time.Hour),
+		Status:    SprintStatusPlanning,
+		Stories:   []*UserStory{},
+		Plans:     []*ExecutionPlan{},
+		Capacity:  capacity,
+	}
+}
+
+// TaskDecomposer decomposes stories into executable tasks
+type TaskDecomposer struct {
+	log *logger.Logger
+}
+
+// NewTaskDecomposer creates a new task decomposer
+func NewTaskDecomposer() *TaskDecomposer {
+	return &TaskDecomposer{
+		log: logger.WithComponent("task_decomposer"),
+	}
+}
+
+// DecomposeStory breaks down a user story into tasks
+func (td *TaskDecomposer) DecomposeStory(story *UserStory) []Task {
+	tasks := []Task{}
+
+	// Create tasks based on story type
+	if strings.Contains(strings.ToLower(story.Title), "design") {
+		tasks = append(tasks, td.createDesignTask(story))
+	}
+	if strings.Contains(strings.ToLower(story.Title), "implement") {
+		tasks = append(tasks, td.createImplementationTask(story))
+	}
+	if strings.Contains(strings.ToLower(story.Title), "test") {
+		tasks = append(tasks, td.createTestTask(story))
+	}
+
+	// Default task if none created
+	if len(tasks) == 0 {
+		tasks = append(tasks, td.createDefaultTask(story))
+	}
+
+	return tasks
+}
+
+func (td *TaskDecomposer) createDesignTask(story *UserStory) Task {
+	return Task{
+		ID:    generateID(),
+		Agent: "code_analysis",
+		Request: AgentRequest{
+			Prompt: fmt.Sprintf("Design and analyze architecture for: %s", story.Description),
+		},
+		Priority: int(story.Priority),
+		Timeout:  30 * time.Minute,
+	}
+}
+
+func (td *TaskDecomposer) createImplementationTask(story *UserStory) Task {
+	return Task{
+		ID:    generateID(),
+		Agent: "dispatcher",
+		Request: AgentRequest{
+			Prompt: story.Description,
+		},
+		Priority: int(story.Priority),
+		Timeout:  60 * time.Minute,
+	}
+}
+
+func (td *TaskDecomposer) createTestTask(story *UserStory) Task {
+	return Task{
+		ID:    generateID(),
+		Agent: "dispatcher",
+		Request: AgentRequest{
+			Prompt: fmt.Sprintf("Create comprehensive tests for: %s", story.Description),
+		},
+		Priority: int(story.Priority),
+		Timeout:  30 * time.Minute,
+	}
+}
+
+func (td *TaskDecomposer) createDefaultTask(story *UserStory) Task {
+	return Task{
+		ID:    generateID(),
+		Agent: "dispatcher",
+		Request: AgentRequest{
+			Prompt: story.Description,
+		},
+		Priority: int(story.Priority),
+		Timeout:  45 * time.Minute,
+	}
+}
+
+// Additional methods for the main Planner to support hierarchical planning
+
+// CreateProjectPlan creates a hierarchical project plan for complex requests
+func (p *Planner) CreateProjectPlan(ctx context.Context, request string, projectContext *ProjectContext) (*Project, error) {
+	if p.hierarchicalPlanner == nil {
+		return nil, fmt.Errorf("hierarchical planner not initialized")
+	}
+
+	return p.hierarchicalPlanner.PlanProject(ctx, request, projectContext)
+}
+
+// IsProjectLevelRequest determines if a request requires project-level planning
+func (p *Planner) IsProjectLevelRequest(request string) bool {
+	// Check for project-level indicators
+	projectIndicators := []string{
+		"project", "system", "application", "feature set",
+		"multiple components", "architecture", "full implementation",
+	}
+
+	lowerRequest := strings.ToLower(request)
+	matchCount := 0
+
+	for _, indicator := range projectIndicators {
+		if strings.Contains(lowerRequest, indicator) {
+			matchCount++
+		}
+	}
+
+	// Also check complexity
+	wordCount := len(strings.Fields(request))
+
+	// More lenient criteria: 1 strong indicator or long request
+	return matchCount >= 1 || wordCount > 50
 }

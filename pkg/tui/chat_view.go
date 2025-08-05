@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
@@ -15,17 +16,21 @@ type ChatView struct {
 	*tview.Flex
 
 	// Components
-	messages *tview.TextView
-	input    *tview.InputField
-	status   *tview.TextView
+	messages     *tview.TextView
+	input        *tview.InputField
+	status       *tview.TextView
+	activityView *tview.TextView // New component for activity tree
 
 	// State
-	controller   ControllerInterface
-	app          *tview.Application
-	sending      bool
-	streaming    bool
-	streamID     string
-	streamBuffer string
+	controller    ControllerInterface
+	app           *tview.Application
+	sending       bool
+	streaming     bool
+	streamID      string
+	streamBuffer  string
+	activityTree  string // Current activity tree text
+	spinnerFrame  int
+	spinnerFrames []string
 
 	// Callbacks
 	onSendMessage func(content string)
@@ -34,11 +39,13 @@ type ChatView struct {
 // NewChatView creates a new chat view
 func NewChatView(controller ControllerInterface, app *tview.Application) *ChatView {
 	cv := &ChatView{
-		Flex:       tview.NewFlex().SetDirection(tview.FlexRow),
-		controller: controller,
-		app:        app,
-		sending:    false,
-		streaming:  false,
+		Flex:          tview.NewFlex().SetDirection(tview.FlexRow),
+		controller:    controller,
+		app:           app,
+		sending:       false,
+		streaming:     false,
+		spinnerFrames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
+		spinnerFrame:  0,
 	}
 
 	// Set background color for the entire view
@@ -73,6 +80,15 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		}
 	})
 
+	// Create activity indicator view
+	cv.activityView = tview.NewTextView().
+		SetDynamicColors(true).
+		SetRegions(false).
+		SetWordWrap(false).
+		SetScrollable(false)
+	cv.activityView.SetBackgroundColor(tcell.GetColor(ColorBase00))
+	cv.activityView.SetTextColor(tcell.GetColor(ColorBase04))
+
 	// Create status bar
 	cv.status = tview.NewTextView().
 		SetDynamicColors(true).
@@ -87,6 +103,13 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		AddItem(nil, 2, 0, false)          // Right padding
 	messageContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
+	// Create padded activity area
+	activityContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 2, 0, false).             // Left padding
+		AddItem(cv.activityView, 0, 1, false). // Activity content
+		AddItem(nil, 2, 0, false)              // Right padding
+	activityContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
+
 	// Create padded input area
 	inputContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(nil, 2, 0, false).     // Left padding
@@ -94,12 +117,13 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		AddItem(nil, 2, 0, false)      // Right padding
 	inputContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
-	// Layout: top padding, messages with padding, gap, input with padding, status
+	// Layout: top padding, messages, activity indicator, input, status
 	cv.AddItem(nil, 1, 0, false). // Top padding
-					AddItem(messageContainer, 0, 1, false).
-					AddItem(nil, 1, 0, false).           // Gap between messages and input
-					AddItem(inputContainer, 2, 0, true). // Input area with more height
-					AddItem(cv.status, 1, 0, false)
+					AddItem(messageContainer, 0, 1, false).  // Messages take most space
+					AddItem(activityContainer, 0, 0, false). // Activity indicator (dynamic height)
+					AddItem(nil, 1, 0, false).               // Gap between activity and input
+					AddItem(inputContainer, 2, 0, true).     // Input area with more height
+					AddItem(cv.status, 1, 0, false)          // Status bar
 
 	// Initial message update
 	cv.UpdateMessages()
@@ -257,6 +281,7 @@ func (cv *ChatView) StartStreaming(streamID string) {
 	cv.streamID = streamID
 	cv.streamBuffer = ""
 	cv.updateStatus()
+	cv.startSpinner()
 }
 
 // UpdateStreamingContent updates the streaming message content
@@ -282,13 +307,29 @@ func (cv *ChatView) SetSending(sending bool) {
 	cv.sending = sending
 	cv.input.SetDisabled(sending)
 	cv.updateStatus()
+
+	// Start or stop spinner animation
+	if sending {
+		cv.startSpinner()
+	}
 }
 
 // updateStatus updates the status bar
 func (cv *ChatView) updateStatus() {
 	// Model info (right-aligned)
 	model := cv.controller.GetModel()
-	statusText := fmt.Sprintf("[#f5b761]%s[-]", model)
+	statusText := ""
+
+	// Add status indicators
+	if cv.sending {
+		spinner := cv.spinnerFrames[cv.spinnerFrame]
+		statusText = fmt.Sprintf("[#93b56b]%s Sending...[-] ", spinner)
+	} else if cv.streaming {
+		spinner := cv.spinnerFrames[cv.spinnerFrame]
+		statusText = fmt.Sprintf("[#6b93b5]%s Streaming...[-] ", spinner)
+	}
+
+	statusText += fmt.Sprintf("[#f5b761]%s[-]", model)
 
 	cv.status.SetTextAlign(tview.AlignRight)
 	cv.status.SetText(statusText)
@@ -331,4 +372,82 @@ func (cv *ChatView) InputHandler() func(event *tcell.EventKey, setFocus func(p t
 		// For unhandled keys (like Escape), let the parent handler deal with them
 		// by not returning early - this allows WrapInputHandler to pass them up
 	})
+}
+
+// UpdateActivityTree updates the activity tree display
+func (cv *ChatView) UpdateActivityTree(treeText string) {
+	cv.activityTree = treeText
+
+	// Update the activity view
+	cv.activityView.Clear()
+	if treeText != "" {
+		// Apply color formatting to the tree text
+		formattedTree := cv.formatActivityTree(treeText)
+		cv.activityView.SetText(formattedTree)
+		// Dynamically resize the activity container based on content
+		lines := strings.Count(treeText, "\n") + 1
+		if lines > 5 {
+			lines = 5 // Cap at 5 lines max
+		}
+		// The activity container is the 3rd item (index 2) in the main flex
+		// 0: top padding, 1: messages, 2: activity, 3: gap, 4: input, 5: status
+		if cv.GetItemCount() > 2 {
+			cv.ResizeItem(cv.GetItem(2), lines, 0)
+		}
+	} else {
+		// Hide when no activity by setting height to 0
+		if cv.GetItemCount() > 2 {
+			cv.ResizeItem(cv.GetItem(2), 0, 0)
+		}
+	}
+}
+
+// ClearActivityTree clears the activity tree display
+func (cv *ChatView) ClearActivityTree() {
+	cv.UpdateActivityTree("")
+}
+
+// startSpinner starts the spinner animation
+func (cv *ChatView) startSpinner() {
+	go func() {
+		for cv.sending || cv.streaming {
+			time.Sleep(100 * time.Millisecond)
+			cv.spinnerFrame = (cv.spinnerFrame + 1) % len(cv.spinnerFrames)
+			cv.app.QueueUpdateDraw(func() {
+				cv.updateStatus()
+			})
+		}
+	}()
+}
+
+// formatActivityTree applies color formatting to the activity tree text
+func (cv *ChatView) formatActivityTree(tree string) string {
+	if tree == "" {
+		return ""
+	}
+
+	// Apply basic coloring
+	lines := strings.Split(tree, "\n")
+	for i, line := range lines {
+		// Color the agent names
+		if strings.Contains(line, "Assistant") {
+			lines[i] = strings.Replace(line, "Assistant", "[#6b93b5]Assistant[-]", 1)
+		}
+		if strings.Contains(line, "ChatController") {
+			lines[i] = strings.Replace(line, "ChatController", "[#93b56b]ChatController[-]", 1)
+		}
+
+		// Color the status indicators
+		lines[i] = strings.Replace(lines[i], "●", "[#93b56b]●[-]", -1) // Active - green
+		lines[i] = strings.Replace(lines[i], "○", "[#f5b761]○[-]", -1) // Pending - yellow
+		lines[i] = strings.Replace(lines[i], "✗", "[#d95f5f]✗[-]", -1) // Error - red
+		lines[i] = strings.Replace(lines[i], "✓", "[#93b56b]✓[-]", -1) // Complete - green
+
+		// Color the tree structure
+		lines[i] = strings.Replace(lines[i], "├──", "[#5c5044]├──[-]", -1)
+		lines[i] = strings.Replace(lines[i], "└──", "[#5c5044]└──[-]", -1)
+		lines[i] = strings.Replace(lines[i], "│", "[#5c5044]│[-]", -1)
+	}
+
+	return strings.Join(lines, "\n")
 }

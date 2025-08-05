@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/killallgit/ryan/pkg/agents"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
@@ -158,11 +159,46 @@ func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat
 		return fmt.Errorf("tool registry not available")
 	}
 
+	// Create or get activity tree from context
+	var activityTree *agents.ActivityTree
+	if tree, ok := ctx.Value("activity_tree").(*agents.ActivityTree); ok {
+		activityTree = tree
+	}
+
 	for _, toolCall := range toolCalls {
 		// Add tool progress message to show what tool is being called
 		commandStr := cc.formatToolCommand(toolCall.Function.Name, toolCall.Function.Arguments)
 		progressMsg := chat.NewToolProgressMessage(toolCall.Function.Name, commandStr)
 		cc.conversation = chat.AddMessage(cc.conversation, progressMsg)
+
+		// Create activity node for tool execution if activity tree exists
+		var toolNode *agents.ActivityNode
+		if activityTree != nil {
+			toolNode = &agents.ActivityNode{
+				ID:            fmt.Sprintf("tool_%s_%d", toolCall.Function.Name, time.Now().UnixNano()),
+				AgentName:     "ChatController",
+				Operation:     fmt.Sprintf("%s(%s)", toolCall.Function.Name, commandStr),
+				OperationType: agents.OperationTypeTool,
+				Status:        agents.ActivityStatusActive,
+				StartTime:     time.Now(),
+			}
+			activityTree.AddNode(toolNode)
+
+			// Send activity update through context if channel exists
+			if updateChan, ok := ctx.Value("activity_updates").(chan<- StreamingUpdate); ok {
+				// Pass the raw activity tree - formatting will be done by the TUI
+				select {
+				case updateChan <- StreamingUpdate{
+					Type: AgentActivityUpdate,
+					Metadata: StreamingMetadata{
+						ActivityTree: activityTree.String(), // Use built-in String() method
+					},
+				}:
+				default:
+					// Channel full or closed, skip
+				}
+			}
+		}
 
 		// Execute the tool
 		toolReq := tools.ToolRequest{
@@ -172,6 +208,34 @@ func (cc *ChatController) executeToolCalls(ctx context.Context, toolCalls []chat
 		}
 
 		result, err := cc.toolRegistry.Execute(ctx, toolReq)
+
+		// Update activity node status
+		if toolNode != nil {
+			if err != nil {
+				toolNode.Status = agents.ActivityStatusError
+				toolNode.Error = err
+			} else {
+				toolNode.Status = agents.ActivityStatusComplete
+			}
+			endTime := time.Now()
+			toolNode.EndTime = &endTime
+
+			// Send updated activity tree
+			if updateChan, ok := ctx.Value("activity_updates").(chan<- StreamingUpdate); ok {
+				// Pass the raw activity tree - formatting will be done by the TUI
+				select {
+				case updateChan <- StreamingUpdate{
+					Type: AgentActivityUpdate,
+					Metadata: StreamingMetadata{
+						ActivityTree: activityTree.String(), // Use built-in String() method
+					},
+				}:
+				default:
+					// Channel full or closed, skip
+				}
+			}
+		}
+
 		if err != nil {
 			// Add error result to conversation
 			errorMsg := fmt.Sprintf("Tool execution failed: %s", err.Error())
@@ -437,6 +501,7 @@ const (
 	StreamError
 	ToolExecutionStarted
 	ToolExecutionComplete
+	AgentActivityUpdate // New type for agent activity tree updates
 )
 
 // StreamingMetadata provides additional context about the stream
@@ -445,6 +510,7 @@ type StreamingMetadata struct {
 	ContentLength int
 	Duration      time.Duration
 	Model         string
+	ActivityTree  string // Formatted activity tree for display
 }
 
 // StartStreaming initiates streaming for a user message
@@ -488,13 +554,54 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 	// Create update channel
 	updates := make(chan StreamingUpdate, 100)
 
+	// Create activity tree for tracking operations
+	activityTree := agents.NewActivityTree()
+
+	// Add activity tree and update channel to context
+	ctx = context.WithValue(ctx, "activity_tree", activityTree)
+	ctx = context.WithValue(ctx, "activity_updates", updates)
+
+	// Immediately send stream started to show spinner/status
+	updates <- StreamingUpdate{
+		Type:     StreamStarted,
+		StreamID: "starting",
+		Metadata: StreamingMetadata{
+			Model: cc.conversation.Model,
+		},
+	}
+
 	// Start streaming goroutine
 	go func() {
 		defer close(updates)
 
+		log := logger.WithComponent("chat_controller_streaming")
+
 		accumulator := chat.NewMessageAccumulator()
 
+		// Create initial activity node immediately
+		iterationNode := &agents.ActivityNode{
+			ID:            fmt.Sprintf("chat_main_%d", time.Now().UnixNano()),
+			AgentName:     "Assistant",
+			Operation:     "processing",
+			OperationType: agents.OperationTypeAnalysis,
+			Status:        agents.ActivityStatusActive,
+			StartTime:     time.Now(),
+		}
+		activityTree.AddNode(iterationNode)
+
+		// Send initial activity update immediately
+		updates <- StreamingUpdate{
+			Type: AgentActivityUpdate,
+			Metadata: StreamingMetadata{
+				ActivityTree: activityTree.String(),
+			},
+		}
+		log.Debug("Sent initial activity update", "tree", activityTree.String())
+
 		for i := 0; i < maxIterations; i++ {
+			// Update operation for this iteration
+			iterationNode.Operation = "generating response"
+
 			// Prepare chat request with tools if available
 			var req chat.ChatRequest
 			if cc.toolRegistry != nil {
@@ -543,15 +650,6 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 			startTime := time.Now()
 			var assistantMessage chat.Message
 
-			// Send stream started event
-			updates <- StreamingUpdate{
-				Type:     StreamStarted,
-				StreamID: streamID,
-				Metadata: StreamingMetadata{
-					Model: cc.conversation.Model,
-				},
-			}
-
 			// Process chunks
 			for chunk := range chunks {
 				if chunk.Error != nil {
@@ -585,6 +683,25 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 					},
 				}
 
+				// Periodically update activity progress
+				if stats.ChunkCount%10 == 0 {
+					progress := float64(stats.ChunkCount) / 100.0 * 100
+					if progress > 100 {
+						progress = 90 // Cap at 90% during streaming
+					}
+					iterationNode.UpdateProgress(progress)
+
+					select {
+					case updates <- StreamingUpdate{
+						Type: AgentActivityUpdate,
+						Metadata: StreamingMetadata{
+							ActivityTree: activityTree.String(),
+						},
+					}:
+					default:
+					}
+				}
+
 				// Check if stream is complete
 				if chunk.Done {
 					// Get final message
@@ -606,6 +723,26 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 						// Add assistant message to conversation (with only response content, thinking is excluded)
 						cc.conversation = chat.AddMessage(cc.conversation, assistantMessage)
 
+						// Mark iteration node as complete
+						iterationNode.Status = agents.ActivityStatusComplete
+						endTime := time.Now()
+						iterationNode.EndTime = &endTime
+
+						// Send one more update showing completion
+						select {
+						case updates <- StreamingUpdate{
+							Type: AgentActivityUpdate,
+							Metadata: StreamingMetadata{
+								ActivityTree: activityTree.String(),
+							},
+						}:
+							log.Debug("Sent completion activity update")
+						default:
+						}
+
+						// Don't clear in a goroutine - it will try to send to a closed channel
+						// Instead, just leave the completion status visible
+
 						// Send completion event (with only response content, thinking is excluded)
 						finalStats, _ := accumulator.GetStreamStats(chunk.StreamID)
 						updates <- StreamingUpdate{
@@ -617,6 +754,7 @@ func (cc *ChatController) executeStreamingChat(ctx context.Context, streamingCli
 								ContentLength: len(assistantMessage.Content),
 								Duration:      time.Since(startTime),
 								Model:         chunk.Model,
+								ActivityTree:  activityTree.String(),
 							},
 						}
 					}

@@ -39,6 +39,10 @@ var (
 	ColorInfo      = ColorCyan
 	ColorMuted     = ColorBase03
 	ColorHighlight = ColorYellow
+
+	// Additional colors for activity indicators
+	ColorMagenta = "#d33682" // Magenta for agent spawning
+	ColorViolet  = "#6c71c4" // Violet for planning operations
 )
 
 // Theme represents the color theme configuration
