@@ -1,0 +1,43 @@
+# Agent Configuration Example
+# This file demonstrates how to configure the agent system
+
+# Agent selection and orchestration
+agents:
+  # Preferred agent type (conversational, ollama-functions, openai-functions)
+  preferred: "ollama-functions"
+  
+  # Fallback chain - agents to try if preferred fails
+  fallback_chain:
+    - "openai-functions"
+    - "conversational"
+  
+  # Auto-select best agent based on task analysis
+  auto_select: true
+  
+  # Show agent selection in output
+  show_selection: true
+
+# Ollama configuration
+ollama:
+  url: "http://localhost:11434"
+  model: "llama3.1"
+  
+# Tool configuration
+tools:
+  enabled: true
+  models:
+    - "llama3.1"
+    - "qwen2.5"
+    - "mistral"
+    
+# Langchain specific settings
+langchain:
+  tools:
+    max_iterations: 10
+    autonomous_reasoning: true
+    use_react_pattern: true
+    verbose_logging: false
+  memory:
+    type: "buffer"
+    window_size: 10
+    max_tokens: 4000

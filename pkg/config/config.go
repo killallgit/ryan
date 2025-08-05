@@ -40,6 +40,14 @@ type LangChainPromptConfig struct {
 	ContextInjection bool `mapstructure:"context_injection"`
 }
 
+// AgentsConfig holds agent-related configuration
+type AgentsConfig struct {
+	Preferred      string   `mapstructure:"preferred"`
+	FallbackChain  []string `mapstructure:"fallback_chain"`
+	AutoSelect     bool     `mapstructure:"auto_select"`
+	ShowSelection  bool     `mapstructure:"show_selection"`
+}
+
 // Config represents the application configuration
 type Config struct {
 	Logging        LoggingConfig     `mapstructure:"logging"`
@@ -51,6 +59,7 @@ type Config struct {
 	LangChain      LangChainConfig   `mapstructure:"langchain"`
 	VectorStore    VectorStoreConfig `mapstructure:"vectorstore"`
 	SelfConfigPath string            `mapstructure:"self_config_path"`
+	Agents         AgentsConfig      `mapstructure:"agents"`
 }
 
 // ContextConfig holds context persistence configuration
