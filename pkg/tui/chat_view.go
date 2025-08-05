@@ -128,25 +128,22 @@ func (cv *ChatView) UpdateMessages() {
 			output.WriteString("\n\n")
 		}
 		
-		// Format message based on role
+		// Format message based on role with colors only (no labels)
 		switch msg.Role {
 		case chat.RoleUser, "human":
-			output.WriteString("[#93b56b]You:[-] ")
+			output.WriteString(fmt.Sprintf("[#93b56b]%s[-]", msg.Content))
 		case chat.RoleAssistant:
-			output.WriteString("[#6b93b5]Assistant:[-] ")
+			output.WriteString(fmt.Sprintf("[#6b93b5]%s[-]", msg.Content))
 		case chat.RoleError:
-			output.WriteString("[#d95f5f]Error:[-] ")
+			output.WriteString(fmt.Sprintf("[#d95f5f]%s[-]", msg.Content))
 		default:
-			output.WriteString(fmt.Sprintf("[#f5b761]%s:[-] ", msg.Role))
+			output.WriteString(fmt.Sprintf("[#f5b761]%s[-]", msg.Content))
 		}
-		
-		// Add content
-		output.WriteString(msg.Content)
 	}
 	
 	// Add streaming content if active
 	if cv.streaming && cv.streamBuffer != "" {
-		output.WriteString("\n\n[#6b93b5]Assistant:[-] ")
+		output.WriteString("\n\n[#6b93b5]")
 		output.WriteString(cv.streamBuffer)
 		output.WriteString("[#eb8755]█[-]") // Cursor
 	}
@@ -215,17 +212,24 @@ func (cv *ChatView) InputHandler() func(event *tcell.EventKey, setFocus func(p t
 		switch event.Key() {
 		case tcell.KeyPgUp:
 			cv.messages.ScrollToBeginning()
+			return
 		case tcell.KeyPgDn:
 			cv.messages.ScrollToEnd()
+			return
 		case tcell.KeyUp:
 			// Could implement history navigation here
+			return
 		case tcell.KeyDown:
 			// Could implement history navigation here
-		default:
-			// Pass to input field
-			if cv.input.HasFocus() {
-				cv.input.InputHandler()(event, setFocus)
-			}
+			return
 		}
+		
+		// Pass to input field if it has focus
+		if cv.input.HasFocus() {
+			cv.input.InputHandler()(event, setFocus)
+		}
+		
+		// For unhandled keys (like Escape), let the parent handler deal with them
+		// by not returning early - this allows WrapInputHandler to pass them up
 	})
 }
