@@ -17,7 +17,7 @@ type ViewManager struct {
 	views       map[string]View
 	currentView string
 	menuVisible bool
-	menu        CommandPalette
+	menu        FilterableMenuComponent
 }
 
 func NewViewManager() *ViewManager {
@@ -25,7 +25,7 @@ func NewViewManager() *ViewManager {
 		views:       make(map[string]View),
 		currentView: "",
 		menuVisible: false,
-		menu:        NewCommandPalette(),
+		menu:        NewFilterableMenuComponent(),
 	}
 }
 
@@ -67,7 +67,7 @@ func (vm *ViewManager) SetCurrentView(name string) bool {
 				modelView.Activate()
 			}
 		}
-		
+
 		// If switching to context tree view, update it with current conversation data
 		if name == "context-tree" {
 			log.Debug("Switching to context tree view")
@@ -95,6 +95,9 @@ func (vm *ViewManager) SyncViewState(sending bool) {
 
 func (vm *ViewManager) ToggleMenu() {
 	vm.menuVisible = !vm.menuVisible
+	if vm.menuVisible {
+		vm.menu = vm.menu.WithInputText("").WithInputMode(true)
+	}
 }
 
 func (vm *ViewManager) IsMenuVisible() bool {
@@ -110,23 +113,87 @@ func (vm *ViewManager) HandleMenuKeyEvent(ev *tcell.EventKey) bool {
 		return false
 	}
 
-	// Let the command palette handle the key event
-	newMenu, handled, shouldClose := vm.menu.HandleKeyEvent(ev)
-	vm.menu = newMenu
-	
-	if !handled {
-		return false
-	}
-	
-	if shouldClose {
+	switch ev.Key() {
+	case tcell.KeyEscape:
+		vm.menuVisible = false
+		vm.menu = vm.menu.WithInputText("").WithInputMode(true)
+		return true
+
+	case tcell.KeyEnter:
 		selectedView := vm.menu.GetSelectedOption()
 		if selectedView != "" {
 			vm.SetCurrentView(selectedView)
+			vm.menu = vm.menu.WithInputText("").WithInputMode(true)
+			return true
 		}
-		vm.menuVisible = false
+		return false
+
+	case tcell.KeyTab:
+		vm.menu = vm.menu.WithInputMode(!vm.menu.IsInputMode())
+		return true
+
+	case tcell.KeyUp, tcell.KeyCtrlP:
+		if !vm.menu.IsInputMode() {
+			vm.menu = vm.menu.SelectPrevious()
+		}
+		return true
+
+	case tcell.KeyDown, tcell.KeyCtrlN:
+		if !vm.menu.IsInputMode() {
+			vm.menu = vm.menu.SelectNext()
+		} else {
+			vm.menu = vm.menu.WithInputMode(false)
+		}
+		return true
+
+	case tcell.KeyBackspace, tcell.KeyBackspace2:
+		if vm.menu.IsInputMode() {
+			vm.menu = vm.menu.DeleteChar()
+		}
+		return true
+
+	case tcell.KeyLeft:
+		if vm.menu.IsInputMode() {
+			vm.menu = vm.menu.MoveCursorLeft()
+		}
+		return true
+
+	case tcell.KeyRight:
+		if vm.menu.IsInputMode() {
+			vm.menu = vm.menu.MoveCursorRight()
+		}
+		return true
+
+	default:
+		if ev.Rune() != 0 && vm.menu.IsInputMode() {
+			switch ev.Rune() {
+			case 'j', 'J', 'k', 'K':
+				if !vm.menu.IsInputMode() {
+					if ev.Rune() == 'j' || ev.Rune() == 'J' {
+						vm.menu = vm.menu.SelectNext()
+					} else {
+						vm.menu = vm.menu.SelectPrevious()
+					}
+					return true
+				}
+				fallthrough
+			default:
+				vm.menu = vm.menu.AddChar(ev.Rune())
+				return true
+			}
+		} else if !vm.menu.IsInputMode() {
+			switch ev.Rune() {
+			case 'j', 'J':
+				vm.menu = vm.menu.SelectNext()
+				return true
+			case 'k', 'K':
+				vm.menu = vm.menu.SelectPrevious()
+				return true
+			}
+		}
 	}
-	
-	return true
+
+	return false
 }
 
 func (vm *ViewManager) HandleMenuMouseEvent(ev *tcell.EventMouse) bool {

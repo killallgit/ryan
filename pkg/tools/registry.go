@@ -116,7 +116,7 @@ func (r *Registry) Execute(ctx context.Context, req ToolRequest) (ToolResult, er
 
 	// Execute the tool
 	result, err := tool.Execute(execCtx, req.Parameters)
-	
+
 	// Record the end of execution
 	duration := time.Since(startTime)
 	success := err == nil && result.Success
@@ -238,4 +238,14 @@ func (r *Registry) ResetToolStats(toolName string) {
 // ResetAllToolStats resets all tool statistics
 func (r *Registry) ResetAllToolStats() {
 	r.statsTracker.ResetAll()
+}
+
+// SetToolCompatibility sets the compatibility status for a tool with a specific model
+func (r *Registry) SetToolCompatibility(toolName, modelName string, status ToolCompatibilityStatus) {
+	r.statsTracker.SetToolCompatibility(toolName, modelName, status)
+}
+
+// GetToolCompatibility gets the compatibility status for a tool with a specific model
+func (r *Registry) GetToolCompatibility(toolName, modelName string) ToolCompatibilityStatus {
+	return r.statsTracker.GetToolCompatibility(toolName, modelName)
 }

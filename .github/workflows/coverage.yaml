@@ -1,0 +1,43 @@
+name: coverage
+on:
+  push:
+  pull_request: 
+
+jobs:
+  go-coverage:
+    runs-on: ubuntu-latest
+    permissions: 
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.23'
+
+      - name: Run tests and extract %
+        run: |
+          go test go test ./pkg/... ./cmd/... -coverprofile=coverage.out
+          pct=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')
+          echo "$pct" | tr -d '%' > COVERAGE
+
+      - name: Turn % into Shields-JSON
+        run: |
+          pct=$(cat COVERAGE)
+          if (( $(echo "$pct >= 90" | bc -l) ));  then color="brightgreen"
+          elif (( $(echo "$pct >= 80" | bc -l) )); then color="green"
+          elif (( $(echo "$pct >= 60" | bc -l) )); then color="yellow"
+          else                                         color="orange"; fi
+          cat > coverage.json <<EOF
+          { "schemaVersion":1,
+            "label":"coverage",
+            "message":"${pct}%",
+            "color":"${color}"
+          }
+          EOF
+
+      - name: Commit updated badge data
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: coverage.json
+          message: "chore: update coverage badge"

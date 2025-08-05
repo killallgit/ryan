@@ -18,24 +18,23 @@ import (
 )
 
 type App struct {
-	screen        tcell.Screen
-	controller    ControllerInterface
-	input         InputField
-	messages      MessageDisplay
-	status        StatusBar
-	layout        Layout
-	quit          bool
-	sending       bool          // Track if we're currently sending a message
-	sendStartTime time.Time     // Track when message sending started
-	timeout       time.Duration // Request timeout duration
-	cancelSend    chan bool     // Channel to cancel current send operation
+	screen          tcell.Screen
+	controller      ControllerInterface
+	input           InputField
+	messages        MessageDisplay
+	status          StatusBar
+	layout          Layout
+	quit            bool
+	sending         bool          // Track if we're currently sending a message
+	sendStartTime   time.Time     // Track when message sending started
+	timeout         time.Duration // Request timeout duration
+	cancelSend      chan bool     // Channel to cancel current send operation
 	viewManager     *ViewManager
 	chatView        *ChatView
 	contextTreeView *ContextTreeStandaloneView
 	spinnerTicker   *time.Ticker
-	spinnerStop   chan bool
-	modal         ModalDialog
-	compatibilityTester *tools.CompatibilityTester // Background tool compatibility tester
+	spinnerStop     chan bool
+	modal           ModalDialog
 
 	// Streaming state
 	streaming         bool                     // Track if we're currently streaming
@@ -139,12 +138,7 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	vectorStoreView := NewVectorStoreView(screen)
 	contextTreeView := NewContextTreeStandaloneView()
 	
-	// Initialize compatibility tester for background model tool testing
-	mockTester := &tools.MockModelTester{}
-	compatibilityTester := tools.NewCompatibilityTester(controller.GetToolRegistry(), mockTester)
-	
 	toolsView := NewToolsView(controller.GetToolRegistry())
-	toolsView.SetCompatibilityTester(compatibilityTester)
 	toolsView.SetCurrentModel(controller.GetModel())
 	
 	viewManager.RegisterView("chat", chatView)
@@ -154,33 +148,24 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	viewManager.RegisterView("tools", toolsView)
 	log.Debug("Registered views with view manager", "views", []string{"chat", "models", "vectorstore", "context-tree", "tools"})
 	
-	// Start background compatibility testing for the current model
-	go func() {
-		currentModel := controller.GetModel()
-		if currentModel != "" {
-			log.Debug("Starting background compatibility testing", "model", currentModel)
-			compatibilityTester.TestModelCompatibility(currentModel, 1)
-		}
-	}()
 
 	app := &App{
-		screen:        screen,
-		controller:    controller,
-		input:         NewInputField(width),
-		messages:      NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
-		status:        NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
-		layout:        NewLayout(width, height),
-		quit:          false,
-		sending:       false,
-		timeout:       cfg.Ollama.Timeout,
-		cancelSend:    make(chan bool, 1), // Buffered channel for cancellation
+		screen:          screen,
+		controller:      controller,
+		input:           NewInputField(width),
+		messages:        NewMessageDisplay(width, height-5), // -5 for status, input, and alert areas
+		status:          NewStatusBar(width).WithModel(controller.GetModel()).WithStatus("Ready"),
+		layout:          NewLayout(width, height),
+		quit:            false,
+		sending:         false,
+		timeout:         cfg.Ollama.Timeout,
+		cancelSend:      make(chan bool, 1), // Buffered channel for cancellation
 		viewManager:     viewManager,
 		chatView:        chatView,
 		contextTreeView: contextTreeView,
 		spinnerTicker:   time.NewTicker(100 * time.Millisecond), // Faster animation for smoother spinner
-		spinnerStop:   make(chan bool),
-		modal:         NewModalDialog(),
-		compatibilityTester: compatibilityTester,
+		spinnerStop:     make(chan bool),
+		modal:           NewModalDialog(),
 
 		// Initialize streaming state
 		streaming:         false,
@@ -231,12 +216,6 @@ func (app *App) cleanup() {
 	}
 	if app.spinnerStop != nil {
 		close(app.spinnerStop)
-	}
-	
-	// Shutdown compatibility tester
-	if app.compatibilityTester != nil {
-		log.Debug("Shutting down compatibility tester")
-		app.compatibilityTester.Shutdown()
 	}
 	
 	log.Debug("App cleanup complete")
@@ -803,13 +782,6 @@ func (app *App) handleModelChange(ev *ModelChangeEvent) {
 		log.Debug("Updated ToolsView current model")
 	}
 	
-	// Start background compatibility testing for the new model
-	if app.compatibilityTester != nil {
-		go func() {
-			log.Debug("Starting background compatibility testing for new model", "model", ev.ModelName)
-			app.compatibilityTester.TestModelCompatibility(ev.ModelName, 2) // Higher priority for model changes
-		}()
-	}
 }
 
 // Streaming Event Handlers
