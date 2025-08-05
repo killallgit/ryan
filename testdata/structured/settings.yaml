@@ -13,7 +13,7 @@ vectorstore:
     directory: "./data/vectorstore"
     auto_cleanup: false
     backup_interval: "24h"
-  
+
   embedder:
     provider: "ollama"
     model: "nomic-embed-text"
@@ -22,14 +22,14 @@ vectorstore:
     timeout: 30s
     max_retries: 3
     backoff_base: 100ms
-    
+
   indexing:
     chunk_size: 1000
     chunk_overlap: 200
     max_file_size: "10MB"
     supported_extensions:
       - ".txt"
-      - ".md" 
+      - ".md"
       - ".py"
       - ".go"
       - ".js"
@@ -44,10 +44,10 @@ vectorstore:
       - "*.pyc"
       - "*.log"
 
-# Chat configuration  
+# Chat configuration
 chat:
   default_provider: "ollama"
-  
+
   providers:
     ollama:
       base_url: "http://localhost:11434"
@@ -56,14 +56,14 @@ chat:
           supports_tools: true
           context_length: 8192
         - name: "llama3.1:8b"
-          supports_tools: true 
+          supports_tools: true
           context_length: 4096
         - name: "mistral:latest"
           supports_tools: false
           context_length: 2048
       timeout: 120s
       stream: true
-      
+
     openai:
       api_key: "${OPENAI_API_KEY}"
       models:
@@ -75,7 +75,7 @@ chat:
           context_length: 4096
       timeout: 60s
       stream: true
-      
+
   memory:
     strategy: "hybrid"
     working_memory:
@@ -96,11 +96,11 @@ tools:
   permission_model: "prompt_on_first_use"
   timeout: 30s
   max_concurrent: 5
-  
+
   security:
     allowed_paths:
       - "~/Documents"
-      - "~/Projects" 
+      - "~/Projects"
       - "/tmp"
     forbidden_commands:
       - "rm -rf /"
@@ -112,7 +112,7 @@ tools:
 # TUI configuration
 tui:
   theme: "dark"
-  
+
   colors:
     primary: "#00ff41"
     secondary: "#ffff00"
@@ -122,7 +122,7 @@ tui:
     text: "#f0f6fc"
     text_secondary: "#8b949e"
     border: "#30363d"
-    
+
   layout:
     sidebar_width: 30
     message_padding: 2
@@ -130,7 +130,7 @@ tui:
     show_timestamps: true
     show_metadata: false
     compact_mode: false
-    
+
   keybindings:
     quit: "q"
     help: "?"
@@ -147,14 +147,14 @@ logging:
   level: "info"
   output: "console"
   format: "structured"
-  
+
   components:
     vectorstore: "debug"
     chat: "info"
     tools: "warn"
     tui: "error"
     controllers: "info"
-    
+
   file_output:
     enabled: false
     path: "./logs/ryan.log"
@@ -168,17 +168,17 @@ performance:
     max_usage: "1GB"
     gc_threshold: 0.8
     heap_profile: false
-    
+
   concurrency:
     max_requests: 10
     worker_pool_size: 5
     queue_size: 100
-    
+
   caching:
     enabled: true
     max_size: 1000
     ttl: "1h"
-    
+
   indexing:
     batch_size: 100
     parallel_workers: 4
@@ -191,15 +191,15 @@ development:
   profile_memory: false
   trace_requests: false
   mock_providers: false
-  
+
   testing:
     use_mock_embedder: false
     test_data_path: "./testdata"
     integration_timeout: "5m"
-    
+
 # Feature flags
 features:
-  experimental_chunking: false 
+  experimental_chunking: false
   advanced_search: true
   context_branching: true
   multi_provider_fallback: false

@@ -39,7 +39,7 @@ Usage in Tests:
 These files are designed to test various aspects of the document indexing system:
 
 1. File Type Detection: Different extensions should be properly categorized
-2. Content Chunking: Large files should be split appropriately  
+2. Content Chunking: Large files should be split appropriately
 3. Metadata Extraction: File properties should be captured correctly
 4. Semantic Search: Content should be searchable by meaning, not just keywords
 5. Error Handling: Corrupted or inaccessible files should be handled gracefully

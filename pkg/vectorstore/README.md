@@ -51,13 +51,13 @@ vectorstore:
   provider: chromem
   persistence_dir: ./.ryan/vectorstore
   enable_persistence: true
-  
+
   embedder:
     provider: ollama         # ollama, openai, or mock
     model: nomic-embed-text
     base_url: http://localhost:11434
     # api_key: ""           # For OpenAI, set via OPENAI_API_KEY env var
-  
+
   collections:
     - name: conversations
       metadata:
@@ -65,7 +65,7 @@ vectorstore:
     - name: documents
       metadata:
         type: document_index
-  
+
   indexer:
     chunk_size: 1000
     chunk_overlap: 200

@@ -3,6 +3,6 @@ traits:
 - name: "explorer"
   system_prompt: |
     You are the inner explorer. You analyze your current environment and discover the tools and files that are available to you.
-- name: "planner"  
+- name: "planner"
   system_prompt: |
     You are given broad goals and ideas. You break them down into smaller, more manageable tasks with clear and comprehensive steps.
