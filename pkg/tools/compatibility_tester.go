@@ -10,25 +10,24 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
-
 // CompatibilityResult represents the result of a compatibility test
 type CompatibilityResult struct {
-	ToolName           string                `json:"tool_name"`
-	ModelName          string                `json:"model_name"`
-	Status             ToolCompatibilityStatus   `json:"status"`
-	SupportsToolCalls  bool                  `json:"supports_tool_calls"`
-	SupportsJSONSchema bool                  `json:"supports_json_schema"`
-	TestDuration       time.Duration         `json:"test_duration"`
-	TestedAt           time.Time             `json:"tested_at"`
-	ErrorMessage       string                `json:"error_message,omitempty"`
-	Details            map[string]interface{} `json:"details,omitempty"`
+	ToolName           string                  `json:"tool_name"`
+	ModelName          string                  `json:"model_name"`
+	Status             ToolCompatibilityStatus `json:"status"`
+	SupportsToolCalls  bool                    `json:"supports_tool_calls"`
+	SupportsJSONSchema bool                    `json:"supports_json_schema"`
+	TestDuration       time.Duration           `json:"test_duration"`
+	TestedAt           time.Time               `json:"tested_at"`
+	ErrorMessage       string                  `json:"error_message,omitempty"`
+	Details            map[string]interface{}  `json:"details,omitempty"`
 }
 
 // ModelCapabilityTester is a test interface for model capabilities
 type ModelCapabilityTester interface {
 	// TestToolSupport tests if a model supports tool calling with a specific tool
 	TestToolSupport(ctx context.Context, modelName string, toolDefinition map[string]any) (*CompatibilityResult, error)
-	
+
 	// TestModelCapabilities tests general model capabilities (tool calling, JSON schema support)
 	TestModelCapabilities(ctx context.Context, modelName string) (bool, bool, error)
 }
@@ -60,7 +59,7 @@ type CompatibilityResultHandler func(result *CompatibilityResult)
 // NewCompatibilityTester creates a new compatibility tester
 func NewCompatibilityTester(registry *Registry, modelTester ModelCapabilityTester) *CompatibilityTester {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	tester := &CompatibilityTester{
 		registry:       registry,
 		modelTester:    modelTester,
@@ -71,13 +70,13 @@ func NewCompatibilityTester(registry *Registry, modelTester ModelCapabilityTeste
 		cancel:         cancel,
 		workers:        2, // Run 2 background workers by default
 	}
-	
+
 	// Start background workers
 	for i := 0; i < tester.workers; i++ {
 		tester.wg.Add(1)
 		go tester.worker()
 	}
-	
+
 	return tester
 }
 
@@ -92,9 +91,9 @@ func (ct *CompatibilityTester) AddResultHandler(handler CompatibilityResultHandl
 func (ct *CompatibilityTester) TestModelCompatibility(modelName string, priority int) {
 	log := logger.WithComponent("compatibility_tester")
 	log.Debug("Queuing compatibility tests for model", "model", modelName, "priority", priority)
-	
+
 	tools := ct.registry.GetTools()
-	
+
 	for toolName, tool := range tools {
 		// Mark as testing
 		ct.setResult(modelName, toolName, &CompatibilityResult{
@@ -103,7 +102,7 @@ func (ct *CompatibilityTester) TestModelCompatibility(modelName string, priority
 			Status:    CompatibilityTesting,
 			TestedAt:  time.Now(),
 		})
-		
+
 		// Queue for testing
 		select {
 		case ct.testQueue <- testRequest{
@@ -126,7 +125,7 @@ func (ct *CompatibilityTester) TestModelCompatibility(modelName string, priority
 func (ct *CompatibilityTester) GetCompatibilityResult(modelName, toolName string) *CompatibilityResult {
 	ct.mu.RLock()
 	defer ct.mu.RUnlock()
-	
+
 	if modelResults, exists := ct.results[modelName]; exists {
 		return modelResults[toolName]
 	}
@@ -137,7 +136,7 @@ func (ct *CompatibilityTester) GetCompatibilityResult(modelName, toolName string
 func (ct *CompatibilityTester) GetModelCompatibility(modelName string) map[string]*CompatibilityResult {
 	ct.mu.RLock()
 	defer ct.mu.RUnlock()
-	
+
 	if modelResults, exists := ct.results[modelName]; exists {
 		// Return a copy to prevent external modification
 		results := make(map[string]*CompatibilityResult, len(modelResults))
@@ -154,7 +153,7 @@ func (ct *CompatibilityTester) GetModelCompatibility(modelName string) map[strin
 func (ct *CompatibilityTester) GetAllCompatibilityResults() map[string]map[string]*CompatibilityResult {
 	ct.mu.RLock()
 	defer ct.mu.RUnlock()
-	
+
 	// Return a deep copy to prevent external modification
 	results := make(map[string]map[string]*CompatibilityResult, len(ct.results))
 	for modelName, modelResults := range ct.results {
@@ -171,12 +170,12 @@ func (ct *CompatibilityTester) GetAllCompatibilityResults() map[string]map[strin
 func (ct *CompatibilityTester) setResult(modelName, toolName string, result *CompatibilityResult) {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
-	
+
 	if ct.results[modelName] == nil {
 		ct.results[modelName] = make(map[string]*CompatibilityResult)
 	}
 	ct.results[modelName][toolName] = result
-	
+
 	// Notify handlers
 	for _, handler := range ct.resultHandlers {
 		go handler(result) // Run handlers asynchronously
@@ -187,7 +186,7 @@ func (ct *CompatibilityTester) setResult(modelName, toolName string, result *Com
 func (ct *CompatibilityTester) worker() {
 	defer ct.wg.Done()
 	log := logger.WithComponent("compatibility_tester_worker")
-	
+
 	for {
 		select {
 		case req := <-ct.testQueue:
@@ -203,13 +202,13 @@ func (ct *CompatibilityTester) worker() {
 func (ct *CompatibilityTester) processTestRequest(req testRequest) {
 	log := logger.WithComponent("compatibility_tester")
 	log.Debug("Processing compatibility test", "model", req.modelName, "tool", req.toolName)
-	
+
 	startTime := time.Now()
-	
+
 	// Create a timeout context for this test
 	testCtx, cancel := context.WithTimeout(ct.ctx, 30*time.Second)
 	defer cancel()
-	
+
 	result := &CompatibilityResult{
 		ToolName:     req.toolName,
 		ModelName:    req.modelName,
@@ -218,7 +217,7 @@ func (ct *CompatibilityTester) processTestRequest(req testRequest) {
 		TestedAt:     startTime,
 		Details:      make(map[string]interface{}),
 	}
-	
+
 	// Test model capabilities first (tool calling support, JSON schema support)
 	supportsToolCalls, supportsJSONSchema, err := ct.modelTester.TestModelCapabilities(testCtx, req.modelName)
 	if err != nil {
@@ -229,14 +228,14 @@ func (ct *CompatibilityTester) processTestRequest(req testRequest) {
 		ct.setResult(req.modelName, req.toolName, result)
 		return
 	}
-	
+
 	result.SupportsToolCalls = supportsToolCalls
 	result.SupportsJSONSchema = supportsJSONSchema
 	result.Details["model_capabilities_test"] = map[string]interface{}{
 		"supports_tool_calls":  supportsToolCalls,
 		"supports_json_schema": supportsJSONSchema,
 	}
-	
+
 	// If model doesn't support tool calls, mark as unsupported
 	if !supportsToolCalls {
 		log.Debug("Model does not support tool calls", "model", req.modelName)
@@ -246,7 +245,7 @@ func (ct *CompatibilityTester) processTestRequest(req testRequest) {
 		ct.setResult(req.modelName, req.toolName, result)
 		return
 	}
-	
+
 	// Test specific tool compatibility
 	toolSchema := req.tool.JSONSchema()
 	testResult, err := ct.modelTester.TestToolSupport(testCtx, req.modelName, toolSchema)
@@ -258,7 +257,7 @@ func (ct *CompatibilityTester) processTestRequest(req testRequest) {
 		ct.setResult(req.modelName, req.toolName, result)
 		return
 	}
-	
+
 	// Merge test result
 	if testResult != nil {
 		result.Status = testResult.Status
@@ -272,14 +271,14 @@ func (ct *CompatibilityTester) processTestRequest(req testRequest) {
 		// Default to supported if no specific test result
 		result.Status = CompatibilitySupported
 	}
-	
+
 	result.TestDuration = time.Since(startTime)
-	log.Debug("Completed compatibility test", 
-		"model", req.modelName, 
-		"tool", req.toolName, 
+	log.Debug("Completed compatibility test",
+		"model", req.modelName,
+		"tool", req.toolName,
 		"status", result.Status.String(),
 		"duration", result.TestDuration)
-	
+
 	ct.setResult(req.modelName, req.toolName, result)
 }
 
@@ -287,11 +286,11 @@ func (ct *CompatibilityTester) processTestRequest(req testRequest) {
 func (ct *CompatibilityTester) Shutdown() {
 	log := logger.WithComponent("compatibility_tester")
 	log.Debug("Shutting down compatibility tester")
-	
+
 	ct.cancel()
 	ct.wg.Wait()
 	close(ct.testQueue)
-	
+
 	log.Debug("Compatibility tester shutdown complete")
 }
 
@@ -306,33 +305,33 @@ func (m *MockModelTester) TestToolSupport(ctx context.Context, modelName string,
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-	
+
 	// Mock logic: assume tools are generally supported unless they have complex schemas
 	status := CompatibilitySupported
-	
+
 	// Check if tool has complex parameters that might not be supported
 	if props, ok := toolDefinition["properties"].(map[string]any); ok {
 		if len(props) > 5 {
 			// Complex tools might not be supported by all models
-			if strings.Contains(strings.ToLower(modelName), "small") || 
-			   strings.Contains(strings.ToLower(modelName), "mini") {
+			if strings.Contains(strings.ToLower(modelName), "small") ||
+				strings.Contains(strings.ToLower(modelName), "mini") {
 				status = CompatibilityUnsupported
 			}
 		}
 	}
-	
+
 	result := &CompatibilityResult{
 		Status: status,
 		Details: map[string]interface{}{
-			"mock_test": true,
+			"mock_test":         true,
 			"schema_complexity": len(toolDefinition),
 		},
 	}
-	
+
 	if status == CompatibilityUnsupported {
 		result.ErrorMessage = "Mock: Model appears to have limited tool calling capabilities"
 	}
-	
+
 	return result, nil
 }
 
@@ -344,18 +343,18 @@ func (m *MockModelTester) TestModelCapabilities(ctx context.Context, modelName s
 	case <-ctx.Done():
 		return false, false, ctx.Err()
 	}
-	
+
 	// Mock logic: assume most models support tool calls and JSON schema
 	supportsToolCalls := true
 	supportsJSONSchema := true
-	
+
 	// Some models might not support advanced features
 	if strings.Contains(strings.ToLower(modelName), "base") ||
-	   strings.Contains(strings.ToLower(modelName), "instruct") {
+		strings.Contains(strings.ToLower(modelName), "instruct") {
 		supportsToolCalls = false
 		supportsJSONSchema = false
 	}
-	
+
 	return supportsToolCalls, supportsJSONSchema, nil
 }
 
@@ -375,12 +374,12 @@ func (ct *CompatibilityTester) ClearResults() {
 func (ct *CompatibilityTester) IsModelTested(modelName string) bool {
 	ct.mu.RLock()
 	defer ct.mu.RUnlock()
-	
+
 	modelResults, exists := ct.results[modelName]
 	if !exists {
 		return false
 	}
-	
+
 	tools := ct.registry.GetTools()
 	for toolName := range tools {
 		result, exists := modelResults[toolName]
@@ -388,7 +387,7 @@ func (ct *CompatibilityTester) IsModelTested(modelName string) bool {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -396,7 +395,7 @@ func (ct *CompatibilityTester) IsModelTested(modelName string) bool {
 func (ct *CompatibilityTester) GetCompatibilitySummary(modelName string) (supported, unsupported, testing, total int) {
 	results := ct.GetModelCompatibility(modelName)
 	total = len(ct.registry.GetTools())
-	
+
 	for _, result := range results {
 		switch result.Status {
 		case CompatibilitySupported:
@@ -407,6 +406,6 @@ func (ct *CompatibilityTester) GetCompatibilitySummary(modelName string) (suppor
 			testing++
 		}
 	}
-	
+
 	return supported, unsupported, testing, total
 }

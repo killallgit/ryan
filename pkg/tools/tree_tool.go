@@ -15,57 +15,57 @@ import (
 
 // TreeTool implements enhanced directory operations with advanced filtering and analysis
 type TreeTool struct {
-	log             *logger.Logger
-	maxDepth        int
-	maxFiles        int
-	maxTotalSize    int64
-	followSymlinks  bool
-	showHidden      bool
-	workingDir      string
+	log            *logger.Logger
+	maxDepth       int
+	maxFiles       int
+	maxTotalSize   int64
+	followSymlinks bool
+	showHidden     bool
+	workingDir     string
 }
 
 // TreeEntry represents a file or directory in the tree
 type TreeEntry struct {
-	Name         string            `json:"name"`
-	Path         string            `json:"path"`
-	Type         string            `json:"type"` // "file", "dir", "symlink"
-	Size         int64             `json:"size"`
-	Mode         string            `json:"mode"`
-	ModTime      time.Time         `json:"mod_time"`
-	IsHidden     bool              `json:"is_hidden"`
-	Depth        int               `json:"depth"`
-	Children     []*TreeEntry      `json:"children,omitempty"`
-	Extension    string            `json:"extension,omitempty"`
-	Metadata     map[string]string `json:"metadata,omitempty"`
+	Name      string            `json:"name"`
+	Path      string            `json:"path"`
+	Type      string            `json:"type"` // "file", "dir", "symlink"
+	Size      int64             `json:"size"`
+	Mode      string            `json:"mode"`
+	ModTime   time.Time         `json:"mod_time"`
+	IsHidden  bool              `json:"is_hidden"`
+	Depth     int               `json:"depth"`
+	Children  []*TreeEntry      `json:"children,omitempty"`
+	Extension string            `json:"extension,omitempty"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
 }
 
 // TreeSummary provides statistics about the directory tree
 type TreeSummary struct {
-	TotalFiles      int                    `json:"total_files"`
-	TotalDirs       int                    `json:"total_dirs"`
-	TotalSize       int64                  `json:"total_size"`
-	MaxDepth        int                    `json:"max_depth"`
-	FileTypes       map[string]int         `json:"file_types"`
-	LargestFile     *TreeEntry             `json:"largest_file,omitempty"`
-	DeepestPath     string                 `json:"deepest_path"`
-	HiddenFiles     int                    `json:"hidden_files"`
-	SymlinkCount    int                    `json:"symlink_count"`
-	AccessErrors    []string               `json:"access_errors,omitempty"`
-	SizeDistribution map[string]int        `json:"size_distribution"`
+	TotalFiles       int            `json:"total_files"`
+	TotalDirs        int            `json:"total_dirs"`
+	TotalSize        int64          `json:"total_size"`
+	MaxDepth         int            `json:"max_depth"`
+	FileTypes        map[string]int `json:"file_types"`
+	LargestFile      *TreeEntry     `json:"largest_file,omitempty"`
+	DeepestPath      string         `json:"deepest_path"`
+	HiddenFiles      int            `json:"hidden_files"`
+	SymlinkCount     int            `json:"symlink_count"`
+	AccessErrors     []string       `json:"access_errors,omitempty"`
+	SizeDistribution map[string]int `json:"size_distribution"`
 }
 
 // NewTreeTool creates a new Tree tool with default configuration
 func NewTreeTool() *TreeTool {
 	wd, _ := os.Getwd()
-	
+
 	return &TreeTool{
-		log:             logger.WithComponent("tree_tool"),
-		maxDepth:        20,
-		maxFiles:        10000,
-		maxTotalSize:    1024 * 1024 * 1024, // 1GB limit
-		followSymlinks:  false,
-		showHidden:      false,
-		workingDir:      wd,
+		log:            logger.WithComponent("tree_tool"),
+		maxDepth:       20,
+		maxFiles:       10000,
+		maxTotalSize:   1024 * 1024 * 1024, // 1GB limit
+		followSymlinks: false,
+		showHidden:     false,
+		workingDir:     wd,
 	}
 }
 
@@ -236,11 +236,11 @@ func (tt *TreeTool) Execute(ctx context.Context, params map[string]any) (ToolRes
 		Success: true,
 		Content: content,
 		Data: map[string]any{
-			"root_path":    rootPath,
-			"tree":         root,
-			"summary":      summary,
-			"format":       format,
-			"options":      options,
+			"root_path": rootPath,
+			"tree":      root,
+			"summary":   summary,
+			"format":    format,
+			"options":   options,
 		},
 		Metadata: ToolMetadata{
 			ExecutionTime: time.Since(startTime),
@@ -353,14 +353,14 @@ func (tt *TreeTool) traverseDirectory(ctx context.Context, parent *TreeEntry, op
 			if !options.FollowSymlinks {
 				continue
 			}
-			
+
 			// Resolve symlink
 			resolved, err := filepath.EvalSymlinks(fullPath)
 			if err != nil {
 				summary.AccessErrors = append(summary.AccessErrors, fmt.Sprintf("symlink %s: %v", fullPath, err))
 				continue
 			}
-			
+
 			info, err = os.Stat(resolved)
 			if err != nil {
 				summary.AccessErrors = append(summary.AccessErrors, fmt.Sprintf("symlink target %s: %v", resolved, err))
@@ -369,27 +369,27 @@ func (tt *TreeTool) traverseDirectory(ctx context.Context, parent *TreeEntry, op
 		}
 
 		treeEntry := &TreeEntry{
-			Name:      name,
-			Path:      fullPath,
-			Size:      info.Size(),
-			Mode:      info.Mode().String(),
-			ModTime:   info.ModTime(),
-			IsHidden:  strings.HasPrefix(name, "."),
-			Depth:     depth + 1,
-			Metadata:  make(map[string]string),
+			Name:     name,
+			Path:     fullPath,
+			Size:     info.Size(),
+			Mode:     info.Mode().String(),
+			ModTime:  info.ModTime(),
+			IsHidden: strings.HasPrefix(name, "."),
+			Depth:    depth + 1,
+			Metadata: make(map[string]string),
 		}
 
 		if info.IsDir() {
 			treeEntry.Type = "dir"
 			treeEntry.Children = make([]*TreeEntry, 0)
 			summary.TotalDirs++
-			
+
 			// Update max depth
 			if depth+1 > summary.MaxDepth {
 				summary.MaxDepth = depth + 1
 				summary.DeepestPath = fullPath
 			}
-			
+
 			// Recursively process directory
 			err := tt.traverseDirectory(ctx, treeEntry, options, summary, depth+1)
 			if err != nil {
@@ -397,15 +397,15 @@ func (tt *TreeTool) traverseDirectory(ctx context.Context, parent *TreeEntry, op
 			}
 		} else {
 			treeEntry.Type = "file"
-			
+
 			// Apply file filters
 			if !tt.passesFileFilters(treeEntry, options) {
 				continue
 			}
-			
+
 			summary.TotalFiles++
 			summary.TotalSize += info.Size()
-			
+
 			// Track file extension
 			ext := strings.ToLower(filepath.Ext(name))
 			if ext != "" {
@@ -415,12 +415,12 @@ func (tt *TreeTool) traverseDirectory(ctx context.Context, parent *TreeEntry, op
 			} else {
 				summary.FileTypes["no-extension"]++
 			}
-			
+
 			// Track largest file
 			if summary.LargestFile == nil || info.Size() > summary.LargestFile.Size {
 				summary.LargestFile = treeEntry
 			}
-			
+
 			// Count hidden files
 			if treeEntry.IsHidden {
 				summary.HiddenFiles++
@@ -441,7 +441,7 @@ func (tt *TreeTool) passesFileFilters(entry *TreeEntry, options TreeOptions) boo
 		if ext != "" {
 			ext = ext[1:] // Remove the dot
 		}
-		
+
 		found := false
 		for _, allowedType := range options.FileTypes {
 			if ext == strings.ToLower(allowedType) {
@@ -458,7 +458,7 @@ func (tt *TreeTool) passesFileFilters(entry *TreeEntry, options TreeOptions) boo
 	if options.MinSize > 0 && entry.Size < options.MinSize {
 		return false
 	}
-	
+
 	if options.MaxSize > 0 && entry.Size > options.MaxSize {
 		return false
 	}
@@ -473,7 +473,7 @@ func (tt *TreeTool) matchesExcludePattern(name, fullPath string, patterns []stri
 		if strings.Contains(name, pattern) || strings.Contains(fullPath, pattern) {
 			return true
 		}
-		
+
 		// Check if it's a full path pattern
 		if matched, _ := filepath.Match(pattern, name); matched {
 			return true
@@ -518,12 +518,12 @@ func (tt *TreeTool) sortTree(root *TreeEntry, sortBy string) {
 		if len(entry.Children) > 0 {
 			sort.Slice(entry.Children, func(i, j int) bool {
 				a, b := entry.Children[i], entry.Children[j]
-				
+
 				// Always sort directories first
 				if a.Type != b.Type {
 					return a.Type == "dir"
 				}
-				
+
 				switch sortBy {
 				case "size":
 					return a.Size > b.Size
@@ -558,18 +558,18 @@ func (tt *TreeTool) formatOutput(root *TreeEntry, summary *TreeSummary, format s
 // formatAsTree formats output as a traditional tree view
 func (tt *TreeTool) formatAsTree(root *TreeEntry, showStats bool, summary *TreeSummary) string {
 	var output strings.Builder
-	
+
 	output.WriteString(fmt.Sprintf("Directory tree for: %s\n", root.Path))
 	output.WriteString(strings.Repeat("=", 50))
 	output.WriteString("\n\n")
-	
+
 	tt.printTreeEntry(&output, root, "", true)
-	
+
 	if showStats {
 		output.WriteString("\n")
 		output.WriteString(tt.formatSummary(summary))
 	}
-	
+
 	return output.String()
 }
 
@@ -584,7 +584,7 @@ func (tt *TreeTool) printTreeEntry(output *strings.Builder, entry *TreeEntry, pr
 		connector = "├── "
 		childPrefix = prefix + "│   "
 	}
-	
+
 	// Format entry name with metadata
 	name := entry.Name
 	if entry.Type == "file" {
@@ -594,9 +594,9 @@ func (tt *TreeTool) printTreeEntry(output *strings.Builder, entry *TreeEntry, pr
 	} else if entry.Type == "dir" {
 		name = fmt.Sprintf("%s/", name)
 	}
-	
+
 	output.WriteString(fmt.Sprintf("%s%s%s\n", prefix, connector, name))
-	
+
 	// Print children
 	for i, child := range entry.Children {
 		isChildLast := i == len(entry.Children)-1
@@ -608,36 +608,36 @@ func (tt *TreeTool) printTreeEntry(output *strings.Builder, entry *TreeEntry, pr
 func (tt *TreeTool) formatAsList(root *TreeEntry, showStats bool, summary *TreeSummary) string {
 	var output strings.Builder
 	var files []*TreeEntry
-	
+
 	tt.walkTree(root, func(entry *TreeEntry) {
 		if entry != root {
 			files = append(files, entry)
 		}
 	})
-	
+
 	output.WriteString(fmt.Sprintf("Files in: %s\n", root.Path))
 	output.WriteString(strings.Repeat("=", 50))
 	output.WriteString("\n\n")
-	
+
 	for _, file := range files {
 		indent := strings.Repeat("  ", file.Depth-1)
 		typeChar := "F"
 		if file.Type == "dir" {
 			typeChar = "D"
 		}
-		
+
 		output.WriteString(fmt.Sprintf("%s[%s] %s", indent, typeChar, file.Name))
 		if file.Type == "file" && file.Size > 0 {
 			output.WriteString(fmt.Sprintf(" (%s)", tt.formatSize(file.Size)))
 		}
 		output.WriteString("\n")
 	}
-	
+
 	if showStats {
 		output.WriteString("\n")
 		output.WriteString(tt.formatSummary(summary))
 	}
-	
+
 	return output.String()
 }
 
@@ -650,7 +650,7 @@ func (tt *TreeTool) formatAsJSON(root *TreeEntry, summary *TreeSummary) string {
 // formatSummary formats the tree summary statistics
 func (tt *TreeTool) formatSummary(summary *TreeSummary) string {
 	var output strings.Builder
-	
+
 	output.WriteString("Directory Statistics:\n")
 	output.WriteString(strings.Repeat("-", 30))
 	output.WriteString("\n")
@@ -660,30 +660,30 @@ func (tt *TreeTool) formatSummary(summary *TreeSummary) string {
 	output.WriteString(fmt.Sprintf("Maximum depth:    %d\n", summary.MaxDepth))
 	output.WriteString(fmt.Sprintf("Hidden files:     %d\n", summary.HiddenFiles))
 	output.WriteString(fmt.Sprintf("Symbolic links:   %d\n", summary.SymlinkCount))
-	
+
 	if summary.LargestFile != nil {
-		output.WriteString(fmt.Sprintf("Largest file:     %s (%s)\n", 
+		output.WriteString(fmt.Sprintf("Largest file:     %s (%s)\n",
 			summary.LargestFile.Name, tt.formatSize(summary.LargestFile.Size)))
 	}
-	
+
 	if summary.DeepestPath != "" {
 		output.WriteString(fmt.Sprintf("Deepest path:     %s\n", summary.DeepestPath))
 	}
-	
+
 	if len(summary.FileTypes) > 0 {
 		output.WriteString("\nFile types:\n")
 		for ext, count := range summary.FileTypes {
 			output.WriteString(fmt.Sprintf("  .%s: %d\n", ext, count))
 		}
 	}
-	
+
 	if len(summary.SizeDistribution) > 0 {
 		output.WriteString("\nSize distribution:\n")
 		for size, count := range summary.SizeDistribution {
 			output.WriteString(fmt.Sprintf("  %s: %d files\n", size, count))
 		}
 	}
-	
+
 	if len(summary.AccessErrors) > 0 {
 		output.WriteString(fmt.Sprintf("\nAccess errors: %d\n", len(summary.AccessErrors)))
 		for i, err := range summary.AccessErrors {
@@ -695,7 +695,7 @@ func (tt *TreeTool) formatSummary(summary *TreeSummary) string {
 			output.WriteString(fmt.Sprintf("  ... and %d more\n", len(summary.AccessErrors)-5))
 		}
 	}
-	
+
 	return output.String()
 }
 
@@ -705,13 +705,13 @@ func (tt *TreeTool) formatSize(bytes int64) string {
 	if bytes < unit {
 		return fmt.Sprintf("%d B", bytes)
 	}
-	
+
 	div, exp := int64(unit), 0
 	for n := bytes / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
 	}
-	
+
 	units := []string{"KB", "MB", "GB", "TB"}
 	return fmt.Sprintf("%.1f %s", float64(bytes)/float64(div), units[exp])
 }

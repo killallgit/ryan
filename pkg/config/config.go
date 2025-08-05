@@ -458,7 +458,7 @@ func promptUserForSettingsCreation() bool {
 	if isTestEnvironment() {
 		return false
 	}
-	
+
 	fmt.Print("No .ryan/settings.yaml file found. Would you like to create one with default settings? (y/N): ")
 
 	reader := bufio.NewReader(os.Stdin)
@@ -477,18 +477,18 @@ func isTestEnvironment() bool {
 	if flag.CommandLine.Lookup("test.v") != nil {
 		return true
 	}
-	
+
 	// Check for common test environment variables
 	if os.Getenv("GO_TEST") == "1" || os.Getenv("TESTING") == "1" {
 		return true
 	}
-	
+
 	// Check if any test flags are present in the command line
 	for _, arg := range os.Args {
 		if strings.Contains(arg, "test") && strings.Contains(arg, ".test") {
 			return true
 		}
 	}
-	
+
 	return false
 }

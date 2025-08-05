@@ -21,10 +21,10 @@ func TestASTTool_Basic(t *testing.T) {
 func TestASTTool_JSONSchema(t *testing.T) {
 	tool := NewASTTool()
 	schema := tool.JSONSchema()
-	
+
 	assert.NotNil(t, schema)
 	assert.Contains(t, schema, "properties")
-	
+
 	properties := schema["properties"].(map[string]any)
 	assert.Contains(t, properties, "file_path")
 	assert.Contains(t, properties, "language")
@@ -33,7 +33,7 @@ func TestASTTool_JSONSchema(t *testing.T) {
 
 func TestASTTool_LanguageDetection(t *testing.T) {
 	tool := NewASTTool()
-	
+
 	testCases := []struct {
 		filePath string
 		expected string
@@ -49,7 +49,7 @@ func TestASTTool_LanguageDetection(t *testing.T) {
 		{"test.php", "php"},
 		{"test.unknown", "unknown"},
 	}
-	
+
 	for _, tc := range testCases {
 		result := tool.detectLanguage(tc.filePath)
 		assert.Equal(t, tc.expected, result, "Failed for %s", tc.filePath)
@@ -58,12 +58,12 @@ func TestASTTool_LanguageDetection(t *testing.T) {
 
 func TestASTTool_SupportedLanguages(t *testing.T) {
 	tool := NewASTTool()
-	
+
 	// Test supported languages
 	assert.True(t, tool.isLanguageSupported("go"))
 	assert.True(t, tool.isLanguageSupported("python"))
 	assert.True(t, tool.isLanguageSupported("javascript"))
-	
+
 	// Test unsupported language
 	assert.False(t, tool.isLanguageSupported("unknown"))
 	assert.False(t, tool.isLanguageSupported(""))
@@ -72,13 +72,13 @@ func TestASTTool_SupportedLanguages(t *testing.T) {
 func TestASTTool_ExecuteInvalidParams(t *testing.T) {
 	tool := NewASTTool()
 	ctx := context.Background()
-	
+
 	// Missing file_path
 	result, err := tool.Execute(ctx, map[string]any{})
 	require.NoError(t, err)
 	assert.False(t, result.Success)
 	assert.Contains(t, result.Error, "file_path parameter is required")
-	
+
 	// Empty file_path
 	result, err = tool.Execute(ctx, map[string]any{
 		"file_path": "",
@@ -91,7 +91,7 @@ func TestASTTool_ExecuteInvalidParams(t *testing.T) {
 func TestASTTool_UnsupportedLanguage(t *testing.T) {
 	tool := NewASTTool()
 	ctx := context.Background()
-	
+
 	result, err := tool.Execute(ctx, map[string]any{
 		"file_path": "test.unknown",
 		"language":  "unsupported",
@@ -104,7 +104,7 @@ func TestASTTool_UnsupportedLanguage(t *testing.T) {
 func TestASTTool_GoAnalysisPlaceholder(t *testing.T) {
 	tool := NewASTTool()
 	ctx := context.Background()
-	
+
 	// Create a temporary Go file
 	tmpDir := t.TempDir()
 	goFile := filepath.Join(tmpDir, "test.go")
@@ -125,17 +125,17 @@ type Person struct {
 	Age  int
 }
 `
-	
+
 	err := os.WriteFile(goFile, []byte(goCode), 0644)
 	require.NoError(t, err)
-	
+
 	// Test with current placeholder implementation
 	result, err := tool.Execute(ctx, map[string]any{
 		"file_path":     goFile,
 		"language":      "go",
 		"analysis_type": "full",
 	})
-	
+
 	// Should fail with readFile not implemented
 	require.NoError(t, err)
 	assert.False(t, result.Success)
@@ -145,7 +145,7 @@ type Person struct {
 func TestASTTool_PythonNotImplemented(t *testing.T) {
 	tool := NewASTTool()
 	ctx := context.Background()
-	
+
 	// Create a temporary Python file
 	tmpDir := t.TempDir()
 	pyFile := filepath.Join(tmpDir, "test.py")
@@ -156,15 +156,15 @@ class Person:
     def __init__(self, name):
         self.name = name
 `
-	
+
 	err := os.WriteFile(pyFile, []byte(pyCode), 0644)
 	require.NoError(t, err)
-	
+
 	result, err := tool.Execute(ctx, map[string]any{
 		"file_path": pyFile,
 		"language":  "python",
 	})
-	
+
 	require.NoError(t, err)
 	assert.False(t, result.Success)
 	assert.Contains(t, result.Error, "Python AST analysis not implemented yet")
@@ -173,7 +173,7 @@ class Person:
 func TestASTTool_JSNotImplemented(t *testing.T) {
 	tool := NewASTTool()
 	ctx := context.Background()
-	
+
 	// Create a temporary JS file
 	tmpDir := t.TempDir()
 	jsFile := filepath.Join(tmpDir, "test.js")
@@ -187,15 +187,15 @@ class Person {
     }
 }
 `
-	
+
 	err := os.WriteFile(jsFile, []byte(jsCode), 0644)
 	require.NoError(t, err)
-	
+
 	result, err := tool.Execute(ctx, map[string]any{
 		"file_path": jsFile,
 		"language":  "javascript",
 	})
-	
+
 	require.NoError(t, err)
 	assert.False(t, result.Success)
 	assert.Contains(t, result.Error, "JavaScript/TypeScript AST analysis not implemented yet")
@@ -203,15 +203,15 @@ class Person {
 
 func TestASTTool_AnalysisTypes(t *testing.T) {
 	tool := NewASTTool()
-	
+
 	validTypes := []string{"structure", "symbols", "metrics", "issues", "full"}
-	
+
 	for _, analysisType := range validTypes {
 		result, err := tool.Execute(context.Background(), map[string]any{
 			"file_path":     "nonexistent.go",
 			"analysis_type": analysisType,
 		})
-		
+
 		require.NoError(t, err)
 		// Should fail on file validation or parsing, not on analysis type
 		assert.False(t, result.Success)
@@ -222,7 +222,7 @@ func TestASTTool_AnalysisTypes(t *testing.T) {
 func TestASTTool_ParameterHandling(t *testing.T) {
 	tool := NewASTTool()
 	ctx := context.Background()
-	
+
 	// Test with all optional parameters
 	result, err := tool.Execute(ctx, map[string]any{
 		"file_path":        "test.go",
@@ -231,7 +231,7 @@ func TestASTTool_ParameterHandling(t *testing.T) {
 		"include_children": false,
 		"max_depth":        25.0, // JSON numbers are float64
 	})
-	
+
 	require.NoError(t, err)
 	// Should fail on file validation, but parameters should be processed correctly
 	assert.False(t, result.Success)
@@ -240,16 +240,16 @@ func TestASTTool_ParameterHandling(t *testing.T) {
 func TestASTTool_ResultMetadata(t *testing.T) {
 	tool := NewASTTool()
 	ctx := context.Background()
-	
+
 	start := time.Now()
 	result, err := tool.Execute(ctx, map[string]any{
 		"file_path": "nonexistent.go",
 	})
 	end := time.Now()
-	
+
 	require.NoError(t, err)
 	assert.False(t, result.Success)
-	
+
 	// Check metadata
 	assert.Equal(t, "ast_parse", result.Metadata.ToolName)
 	assert.True(t, result.Metadata.StartTime.After(start.Add(-time.Second)))
@@ -259,7 +259,7 @@ func TestASTTool_ResultMetadata(t *testing.T) {
 
 func TestASTTool_GoHelperMethods(t *testing.T) {
 	tool := NewASTTool()
-	
+
 	// Test visibility detection
 	assert.Equal(t, "public", tool.getGoVisibility("PublicFunction"))
 	assert.Equal(t, "private", tool.getGoVisibility("privateFunction"))
@@ -268,7 +268,7 @@ func TestASTTool_GoHelperMethods(t *testing.T) {
 
 func TestASTTool_FormatResult(t *testing.T) {
 	tool := NewASTTool()
-	
+
 	result := &ASTAnalysisResult{
 		Language:  "go",
 		FilePath:  "test.go",
@@ -286,9 +286,9 @@ func TestASTTool_FormatResult(t *testing.T) {
 			},
 		},
 		Metrics: ASTMetrics{
-			Functions: 2,
-			Classes:   1,
-			Variables: 3,
+			Functions:  2,
+			Classes:    1,
+			Variables:  3,
 			Complexity: 5,
 			MaxNesting: 3,
 		},
@@ -303,17 +303,17 @@ func TestASTTool_FormatResult(t *testing.T) {
 		},
 		Dependencies: []string{"fmt", "os"},
 	}
-	
+
 	// Test different analysis types
 	analysisTypes := []string{"structure", "symbols", "metrics", "issues", "full"}
-	
+
 	for _, analysisType := range analysisTypes {
 		output := tool.formatResult(result, analysisType)
-		
+
 		assert.Contains(t, output, "AST Analysis Results")
 		assert.Contains(t, output, "test.go")
 		assert.Contains(t, output, "10ms")
-		
+
 		switch analysisType {
 		case "structure":
 			assert.Contains(t, output, "AST Structure")
@@ -333,7 +333,7 @@ func TestASTTool_FormatResult(t *testing.T) {
 			assert.Contains(t, output, "Code Metrics")
 			assert.Contains(t, output, "Issues (1)")
 		}
-		
+
 		if analysisType == "full" {
 			assert.Contains(t, output, "Dependencies (2)")
 			assert.Contains(t, output, "fmt")
@@ -361,7 +361,7 @@ func TestASTNode_Structure(t *testing.T) {
 			{Type: "Ident", Name: "param2"},
 		},
 	}
-	
+
 	assert.Equal(t, "FuncDecl", node.Type)
 	assert.Equal(t, "testFunc", node.Name)
 	assert.Equal(t, 10, node.Position.Line)
@@ -371,14 +371,14 @@ func TestASTNode_Structure(t *testing.T) {
 
 func TestSymbol_Structure(t *testing.T) {
 	symbol := Symbol{
-		Name:      "testFunction",
-		Type:      "function",
-		Kind:      "public",
-		Position:  ASTPosition{Line: 5, Column: 1},
-		Signature: "testFunction(a int, b string) error",
+		Name:       "testFunction",
+		Type:       "function",
+		Kind:       "public",
+		Position:   ASTPosition{Line: 5, Column: 1},
+		Signature:  "testFunction(a int, b string) error",
 		References: 3,
 	}
-	
+
 	assert.Equal(t, "testFunction", symbol.Name)
 	assert.Equal(t, "function", symbol.Type)
 	assert.Equal(t, "public", symbol.Kind)
@@ -396,7 +396,7 @@ func TestASTIssue_Structure(t *testing.T) {
 		Severity:   "high",
 		Suggestion: "Break into smaller functions",
 	}
-	
+
 	assert.Equal(t, "warning", issue.Type)
 	assert.Equal(t, "complexity", issue.Category)
 	assert.Contains(t, issue.Message, "complex")

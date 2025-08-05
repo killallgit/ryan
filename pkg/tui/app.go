@@ -137,17 +137,16 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	modelView := NewModelView(modelsController, controller, screen)
 	vectorStoreView := NewVectorStoreView(screen)
 	contextTreeView := NewContextTreeStandaloneView()
-	
+
 	toolsView := NewToolsView(controller.GetToolRegistry())
 	toolsView.SetCurrentModel(controller.GetModel())
-	
+
 	viewManager.RegisterView("chat", chatView)
 	viewManager.RegisterView("models", modelView)
 	viewManager.RegisterView("vectorstore", vectorStoreView)
 	viewManager.RegisterView("context-tree", contextTreeView)
 	viewManager.RegisterView("tools", toolsView)
 	log.Debug("Registered views with view manager", "views", []string{"chat", "models", "vectorstore", "context-tree", "tools"})
-	
 
 	app := &App{
 		screen:          screen,
@@ -209,7 +208,7 @@ func (app *App) Run() error {
 func (app *App) cleanup() {
 	log := logger.WithComponent("tui_app")
 	log.Debug("Starting app cleanup")
-	
+
 	// Stop spinner timer
 	if app.spinnerTicker != nil {
 		app.spinnerTicker.Stop()
@@ -217,7 +216,7 @@ func (app *App) cleanup() {
 	if app.spinnerStop != nil {
 		close(app.spinnerStop)
 	}
-	
+
 	log.Debug("App cleanup complete")
 }
 
@@ -775,13 +774,13 @@ func (app *App) handleModelChange(ev *ModelChangeEvent) {
 	} else {
 		log.Debug("No ChatView available to handle model change")
 	}
-	
+
 	// Update tools view with new model
 	if toolsView, ok := app.viewManager.views["tools"].(*ToolsView); ok {
 		toolsView.SetCurrentModel(ev.ModelName)
 		log.Debug("Updated ToolsView current model")
 	}
-	
+
 }
 
 // Streaming Event Handlers
