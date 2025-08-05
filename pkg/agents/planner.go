@@ -6,12 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/killallgit/ryan/pkg/agents/interfaces"
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // Planner analyzes user prompts and creates execution plans
 type Planner struct {
-	orchestrator        *Orchestrator
+	orchestrator        interfaces.OrchestratorInterface
 	intentAnalyzer      *IntentAnalyzer
 	graphBuilder        *ExecutionGraphBuilder
 	optimizer           *PlanOptimizer
@@ -31,7 +32,7 @@ func NewPlanner() *Planner {
 }
 
 // SetOrchestrator sets the orchestrator reference
-func (p *Planner) SetOrchestrator(o *Orchestrator) {
+func (p *Planner) SetOrchestrator(o interfaces.OrchestratorInterface) {
 	p.orchestrator = o
 }
 
@@ -164,7 +165,7 @@ func NewExecutionGraphBuilder() *ExecutionGraphBuilder {
 }
 
 // BuildGraph creates an execution graph from an intent
-func (gb *ExecutionGraphBuilder) BuildGraph(intent *Intent, orchestrator *Orchestrator) (*ExecutionGraph, error) {
+func (gb *ExecutionGraphBuilder) BuildGraph(intent *Intent, orchestrator OrchestratorInterface) (*ExecutionGraph, error) {
 	// Find matching template
 	template, exists := gb.templates[string(intent.Primary)]
 	if !exists {
@@ -179,22 +180,29 @@ func (gb *ExecutionGraphBuilder) BuildGraph(intent *Intent, orchestrator *Orches
 
 	// Build nodes
 	for _, taskTemplate := range template.Tasks {
-		agent, err := orchestrator.GetAgent(taskTemplate.Agent)
+		_, err := orchestrator.GetAgent(taskTemplate.Agent)
 		if err != nil {
 			gb.log.Warn("Agent not found, skipping", "agent", taskTemplate.Agent)
 			continue
 		}
 
-		node := &GraphNode{
+		task := &Task{
 			ID:           generateID(),
 			Agent:        taskTemplate.Agent,
-			AgentRef:     agent,
 			Priority:     taskTemplate.Priority,
 			Dependencies: taskTemplate.Dependencies,
 			Request: AgentRequest{
 				Prompt:  gb.buildPromptForTask(&taskTemplate, intent),
 				Context: make(map[string]interface{}),
 			},
+		}
+
+		node := &GraphNode{
+			ID:           task.ID,
+			Task:         task,
+			Status:       "pending",
+			Dependencies: taskTemplate.Dependencies,
+			Dependents:   []string{},
 		}
 
 		graph.Nodes[node.ID] = node
@@ -239,10 +247,12 @@ func NewPlanOptimizer() *PlanOptimizer {
 // Optimize converts a graph into an optimized execution plan
 func (po *PlanOptimizer) Optimize(graph *ExecutionGraph, context *ExecutionContext) *ExecutionPlan {
 	plan := &ExecutionPlan{
-		ID:      generateID(),
-		Context: context,
-		Tasks:   make([]Task, 0),
-		Stages:  make([]Stage, 0),
+		ID:     generateID(),
+		Tasks:  make([]Task, 0),
+		Stages: make([]Stage, 0),
+		Metadata: map[string]interface{}{
+			"execution_context": context,
+		},
 	}
 
 	// Topological sort to determine execution order
@@ -252,23 +262,16 @@ func (po *PlanOptimizer) Optimize(graph *ExecutionGraph, context *ExecutionConte
 	for i, nodeIDs := range stages {
 		stage := Stage{
 			ID:    fmt.Sprintf("stage-%d", i),
-			Tasks: make([]string, 0),
+			Tasks: make([]Task, 0),
 		}
 
-		// Create tasks for this stage
+		// Add tasks for this stage
 		for _, nodeID := range nodeIDs {
 			node := graph.Nodes[nodeID]
-			task := Task{
-				ID:           nodeID,
-				Agent:        node.Agent,
-				Request:      node.Request,
-				Priority:     node.Priority,
-				Dependencies: node.Dependencies,
-				Stage:        stage.ID,
+			if node.Task != nil {
+				plan.Tasks = append(plan.Tasks, *node.Task)
+				stage.Tasks = append(stage.Tasks, *node.Task)
 			}
-
-			plan.Tasks = append(plan.Tasks, task)
-			stage.Tasks = append(stage.Tasks, task.ID)
 		}
 
 		plan.Stages = append(plan.Stages, stage)

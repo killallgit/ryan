@@ -356,12 +356,15 @@ var rootCmd = &cobra.Command{
 
 			fmt.Printf("\n=== Execution Info ===\n")
 			fmt.Printf("Duration: %v\n", result.Metadata.Duration)
-			if len(result.Metadata.ToolsUsed) > 0 {
-				fmt.Printf("Tools Used: %v\n", result.Metadata.ToolsUsed)
-			}
-			if len(result.Metadata.FilesProcessed) > 0 {
-				fmt.Printf("Files Processed: %d\n", len(result.Metadata.FilesProcessed))
-			}
+			// TODO: Add ToolsUsed and FilesProcessed when implemented in metadata
+			/*
+				if len(result.Metadata.ToolsUsed) > 0 {
+					fmt.Printf("Tools Used: %v\n", result.Metadata.ToolsUsed)
+				}
+				if len(result.Metadata.FilesProcessed) > 0 {
+					fmt.Printf("Files Processed: %d\n", len(result.Metadata.FilesProcessed))
+				}
+			*/
 
 			// Close log files and exit
 			if err := logger.Close(); err != nil {

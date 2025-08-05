@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/killallgit/ryan/pkg/agents/interfaces"
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // FeedbackLoop handles feedback processing and learning
 type FeedbackLoop struct {
-	orchestrator *Orchestrator
+	orchestrator interfaces.OrchestratorInterface
 	validator    *ResultValidator
 	corrector    *AutoCorrector
 	learner      *PatternLearner
@@ -28,13 +29,13 @@ func NewFeedbackLoop() *FeedbackLoop {
 }
 
 // SetOrchestrator sets the orchestrator reference
-func (fl *FeedbackLoop) SetOrchestrator(o *Orchestrator) {
+func (fl *FeedbackLoop) SetOrchestrator(o interfaces.OrchestratorInterface) {
 	fl.orchestrator = o
 }
 
 // ProcessFeedback processes feedback from agent execution
 func (fl *FeedbackLoop) ProcessFeedback(ctx context.Context, feedback *FeedbackRequest) error {
-	fl.log.Info("Processing feedback", "type", feedback.Type, "source", feedback.SourceTask)
+	fl.log.Info("Processing feedback", "type", feedback.Type, "task_id", feedback.TaskID)
 
 	switch feedback.Type {
 	case FeedbackTypeNeedMoreContext:
@@ -45,6 +46,8 @@ func (fl *FeedbackLoop) ProcessFeedback(ctx context.Context, feedback *FeedbackR
 		return fl.handleRetry(ctx, feedback)
 	case FeedbackTypeRefine:
 		return fl.handleRefine(ctx, feedback)
+	case FeedbackTypeCorrection:
+		return fl.handleCorrection(ctx, feedback)
 	default:
 		return fmt.Errorf("unknown feedback type: %s", feedback.Type)
 	}
@@ -55,7 +58,7 @@ func (fl *FeedbackLoop) handleNeedMoreContext(ctx context.Context, feedback *Fee
 	fl.log.Debug("Handling need more context feedback")
 
 	// Extract what context is needed
-	contextRequest, ok := feedback.Content.(map[string]interface{})
+	contextRequest, ok := feedback.Context["content"].(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("invalid context request format")
 	}
@@ -66,8 +69,10 @@ func (fl *FeedbackLoop) handleNeedMoreContext(ctx context.Context, feedback *Fee
 
 	// Build a new execution plan for context gathering
 	plan := &ExecutionPlan{
-		ID:      generateID(),
-		Context: feedback.Context,
+		ID: generateID(),
+		Metadata: map[string]interface{}{
+			"feedback_context": feedback.Context,
+		},
 		Tasks: []Task{
 			{
 				ID:    generateID(),
@@ -75,32 +80,40 @@ func (fl *FeedbackLoop) handleNeedMoreContext(ctx context.Context, feedback *Fee
 				Request: AgentRequest{
 					Prompt: fmt.Sprintf("Gather additional context about %s for %s", target, contextType),
 					Context: map[string]interface{}{
-						"original_request": feedback.SourceTask,
+						"original_request": feedback.TaskID,
 						"context_type":     contextType,
 					},
 				},
-				Priority: int(PriorityHigh),
+				Priority: 10, // High priority
 			},
 		},
 		Stages: []Stage{
 			{
 				ID:    "context-gathering",
-				Tasks: []string{},
+				Tasks: []Task{}, // Stage tasks are now Task objects, not IDs
 			},
 		},
 	}
 
 	// Execute the context gathering plan
-	results, err := fl.orchestrator.ExecuteWithPlan(ctx, plan, feedback.Context)
+	// Create execution context from feedback context
+	execCtx := &ExecutionContext{
+		RequestID:  feedback.RequestID,
+		SharedData: feedback.Context,
+		Options:    map[string]interface{}{},
+	}
+	results, err := fl.orchestrator.ExecuteWithPlan(ctx, plan, execCtx)
 	if err != nil {
 		return fmt.Errorf("failed to gather additional context: %w", err)
 	}
 
 	// Update the execution context with new information
-	if len(results) > 0 && results[0].Result.Success {
-		feedback.Context.mu.Lock()
-		feedback.Context.SharedData["additional_context"] = results[0].Result
-		feedback.Context.mu.Unlock()
+	if len(results) > 0 {
+		// Store the result in the feedback context
+		if feedback.Context == nil {
+			feedback.Context = make(map[string]interface{})
+		}
+		feedback.Context["additional_context"] = results[0].Result
 	}
 
 	return nil
@@ -133,7 +146,7 @@ func (fl *FeedbackLoop) handleRetry(ctx context.Context, feedback *FeedbackReque
 	fl.log.Debug("Handling retry feedback")
 
 	// Extract retry parameters
-	retryParams, ok := feedback.Content.(map[string]interface{})
+	retryParams, ok := feedback.Context["content"].(map[string]interface{})
 	if !ok {
 		retryParams = make(map[string]interface{})
 	}
@@ -142,7 +155,7 @@ func (fl *FeedbackLoop) handleRetry(ctx context.Context, feedback *FeedbackReque
 	modifiedRequest := fl.modifyRequestForRetry(feedback, retryParams)
 
 	// Re-execute the task
-	agent, err := fl.orchestrator.GetAgent(feedback.TargetTask)
+	agent, err := fl.orchestrator.GetAgent(feedback.TaskID)
 	if err != nil {
 		return fmt.Errorf("agent not found for retry: %w", err)
 	}
@@ -153,9 +166,11 @@ func (fl *FeedbackLoop) handleRetry(ctx context.Context, feedback *FeedbackReque
 	}
 
 	// Update context with retry result
-	feedback.Context.mu.Lock()
-	feedback.Context.SharedData[fmt.Sprintf("retry_%s_result", feedback.SourceTask)] = result
-	feedback.Context.mu.Unlock()
+	// Store retry result in feedback context
+	if feedback.Context == nil {
+		feedback.Context = make(map[string]interface{})
+	}
+	feedback.Context[fmt.Sprintf("retry_%s_result", feedback.TaskID)] = result
 
 	return nil
 }
@@ -165,7 +180,7 @@ func (fl *FeedbackLoop) handleRefine(ctx context.Context, feedback *FeedbackRequ
 	fl.log.Debug("Handling refine feedback")
 
 	// Extract refinement parameters
-	refineParams, ok := feedback.Content.(map[string]interface{})
+	refineParams, ok := feedback.Context["content"].(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("invalid refinement parameters")
 	}
@@ -174,13 +189,63 @@ func (fl *FeedbackLoop) handleRefine(ctx context.Context, feedback *FeedbackRequ
 	plan := fl.createRefinementPlan(feedback, refineParams)
 
 	// Execute refinement
-	results, err := fl.orchestrator.ExecuteWithPlan(ctx, plan, feedback.Context)
+	// Create execution context from feedback context
+	execCtx := &ExecutionContext{
+		RequestID:  feedback.RequestID,
+		SharedData: feedback.Context,
+		Options:    map[string]interface{}{},
+	}
+	results, err := fl.orchestrator.ExecuteWithPlan(ctx, plan, execCtx)
 	if err != nil {
 		return fmt.Errorf("refinement execution failed: %w", err)
 	}
 
 	// Aggregate refined results
-	fl.aggregateRefinedResults(feedback.Context, results)
+	fl.aggregateRefinedResults(execCtx, results)
+
+	return nil
+}
+
+// handleCorrection handles correction feedback
+func (fl *FeedbackLoop) handleCorrection(ctx context.Context, feedback *FeedbackRequest) error {
+	fl.log.Debug("Handling correction feedback")
+
+	// Extract correction parameters
+	correctionParams, ok := feedback.Context["content"].(map[string]interface{})
+	if !ok {
+		correctionParams = make(map[string]interface{})
+	}
+
+	// Apply the correction using the validator and corrector
+	validationResult := fl.validator.Analyze(feedback)
+
+	if validationResult.CanAutoCorrect {
+		correction := fl.corrector.GenerateCorrection(validationResult)
+		if correction != nil {
+			return fl.applyCorrection(ctx, feedback, correction)
+		}
+	}
+
+	// If auto-correction isn't possible, create a manual correction task
+	plan := fl.createCorrectionPlan(feedback, correctionParams)
+
+	// Execute correction plan
+	execCtx := &ExecutionContext{
+		RequestID:  feedback.RequestID,
+		SharedData: feedback.Context,
+		Options:    map[string]interface{}{},
+	}
+
+	results, err := fl.orchestrator.ExecuteWithPlan(ctx, plan, execCtx)
+	if err != nil {
+		return fmt.Errorf("correction execution failed: %w", err)
+	}
+
+	// Store correction results
+	if feedback.Context == nil {
+		feedback.Context = make(map[string]interface{})
+	}
+	feedback.Context[fmt.Sprintf("correction_%s_result", feedback.TaskID)] = results
 
 	return nil
 }
@@ -190,10 +255,10 @@ func (fl *FeedbackLoop) handleRefine(ctx context.Context, feedback *FeedbackRequ
 func (fl *FeedbackLoop) modifyRequestForRetry(feedback *FeedbackRequest, params map[string]interface{}) AgentRequest {
 	// Create modified request based on feedback
 	return AgentRequest{
-		Prompt: fmt.Sprintf("Retry: %v", feedback.Content),
+		Prompt: fmt.Sprintf("Retry: %v", feedback.Context["content"]),
 		Context: map[string]interface{}{
 			"retry_attempt": true,
-			"original_task": feedback.SourceTask,
+			"original_task": feedback.TaskID,
 			"retry_params":  params,
 		},
 	}
@@ -202,25 +267,60 @@ func (fl *FeedbackLoop) modifyRequestForRetry(feedback *FeedbackRequest, params 
 func (fl *FeedbackLoop) createRefinementPlan(feedback *FeedbackRequest, params map[string]interface{}) *ExecutionPlan {
 	// Create a plan for refinement
 	return &ExecutionPlan{
-		ID:      generateID(),
-		Context: feedback.Context,
-		Tasks:   []Task{}, // Would be populated based on refinement needs
-		Stages:  []Stage{},
+		ID: generateID(),
+		Metadata: map[string]interface{}{
+			"feedback_context": feedback.Context,
+		},
+		Tasks:  []Task{}, // Would be populated based on refinement needs
+		Stages: []Stage{},
+	}
+}
+
+func (fl *FeedbackLoop) createCorrectionPlan(feedback *FeedbackRequest, params map[string]interface{}) *ExecutionPlan {
+	// Create a plan for correction
+	return &ExecutionPlan{
+		ID: generateID(),
+		Metadata: map[string]interface{}{
+			"feedback_context": feedback.Context,
+			"correction_type":  "manual",
+		},
+		Tasks: []Task{
+			{
+				ID:    generateID(),
+				Agent: "code_review", // Use code review agent for corrections
+				Request: AgentRequest{
+					Prompt: fmt.Sprintf("Apply correction for task %s: %v", feedback.TaskID, feedback.Message),
+					Context: map[string]interface{}{
+						"original_task":     feedback.TaskID,
+						"correction_params": params,
+						"feedback_message":  feedback.Message,
+					},
+				},
+				Priority: 10, // High priority
+			},
+		},
+		Stages: []Stage{
+			{
+				ID:    "correction-application",
+				Tasks: []Task{}, // Stage tasks are now Task objects, not IDs
+			},
+		},
 	}
 }
 
 func (fl *FeedbackLoop) aggregateRefinedResults(context *ExecutionContext, results []TaskResult) {
-	context.mu.Lock()
-	defer context.mu.Unlock()
+	// Note: ExecutionContext doesn't have mutex - synchronization should be handled externally
 
 	refinedData := make(map[string]interface{})
 	for _, result := range results {
-		if result.Result.Success {
+		if result.Success {
 			refinedData[result.Task.ID] = result.Result
 		}
 	}
 
+	context.Mu.Lock()
 	context.SharedData["refined_results"] = refinedData
+	context.Mu.Unlock()
 }
 
 func (fl *FeedbackLoop) applyCorrection(ctx context.Context, feedback *FeedbackRequest, correction *Correction) error {
@@ -310,7 +410,7 @@ func NewPatternLearner() *PatternLearner {
 // RecordPattern records a pattern from feedback
 func (pl *PatternLearner) RecordPattern(feedback *FeedbackRequest, result *ValidationResult) {
 	// Record patterns for future optimization
-	patternKey := fmt.Sprintf("%s_%s", feedback.Type, feedback.SourceTask)
+	patternKey := fmt.Sprintf("%s_%s", feedback.Type, feedback.TaskID)
 
 	if pattern, exists := pl.patterns[patternKey]; exists {
 		pattern.Occurrences++

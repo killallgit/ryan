@@ -107,11 +107,11 @@ func (c *CodeAnalysisAgent) Execute(ctx context.Context, request AgentRequest) (
 			"types":            allTypes,
 		},
 		Metadata: AgentMetadata{
-			AgentName:      c.Name(),
-			StartTime:      startTime,
-			EndTime:        time.Now(),
-			Duration:       time.Since(startTime),
-			FilesProcessed: getKeys(analysisResults),
+			AgentName: c.Name(),
+			StartTime: startTime,
+			EndTime:   time.Now(),
+			Duration:  time.Since(startTime),
+			// FilesProcessed: getKeys(analysisResults), // TODO: Add to metadata
 		},
 	}, nil
 }
@@ -120,7 +120,10 @@ func (c *CodeAnalysisAgent) Execute(ctx context.Context, request AgentRequest) (
 func (c *CodeAnalysisAgent) getFileContents(request AgentRequest) (map[string]string, error) {
 	// Check execution context
 	if execContext, ok := request.Context["execution_context"].(*ExecutionContext); ok {
-		if fileContents, ok := execContext.SharedData["file_contents"].(map[string]string); ok {
+		execContext.Mu.RLock()
+		fileContents, ok := execContext.SharedData["file_contents"].(map[string]string)
+		execContext.Mu.RUnlock()
+		if ok {
 			return fileContents, nil
 		}
 	}

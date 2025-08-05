@@ -92,11 +92,11 @@ func (c *CodeReviewAgent) Execute(ctx context.Context, request AgentRequest) (Ag
 			"positive_aspects": review.PositiveAspects,
 		},
 		Metadata: AgentMetadata{
-			AgentName:      c.Name(),
-			StartTime:      startTime,
-			EndTime:        time.Now(),
-			Duration:       time.Since(startTime),
-			FilesProcessed: review.FilesReviewed,
+			AgentName: c.Name(),
+			StartTime: startTime,
+			EndTime:   time.Now(),
+			Duration:  time.Since(startTime),
+			// FilesProcessed: review.FilesReviewed, // TODO: Add to metadata
 		},
 	}, nil
 }
@@ -105,7 +105,10 @@ func (c *CodeReviewAgent) Execute(ctx context.Context, request AgentRequest) (Ag
 func (c *CodeReviewAgent) getAnalysisResults(request AgentRequest) (map[string]*FileAnalysis, error) {
 	// Check execution context
 	if execContext, ok := request.Context["execution_context"].(*ExecutionContext); ok {
-		if results, ok := execContext.SharedData["analysis_results"].(map[string]*FileAnalysis); ok {
+		execContext.Mu.RLock()
+		results, ok := execContext.SharedData["analysis_results"].(map[string]*FileAnalysis)
+		execContext.Mu.RUnlock()
+		if ok {
 			return results, nil
 		}
 	}
@@ -124,7 +127,10 @@ func (c *CodeReviewAgent) getAnalysisResults(request AgentRequest) (map[string]*
 func (c *CodeReviewAgent) getFileContents(request AgentRequest) (map[string]string, error) {
 	// Check execution context
 	if execContext, ok := request.Context["execution_context"].(*ExecutionContext); ok {
-		if fileContents, ok := execContext.SharedData["file_contents"].(map[string]string); ok {
+		execContext.Mu.RLock()
+		fileContents, ok := execContext.SharedData["file_contents"].(map[string]string)
+		execContext.Mu.RUnlock()
+		if ok {
 			return fileContents, nil
 		}
 	}

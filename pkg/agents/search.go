@@ -120,7 +120,7 @@ func (s *SearchAgent) Execute(ctx context.Context, request AgentRequest) (AgentR
 			StartTime: startTime,
 			EndTime:   time.Now(),
 			Duration:  time.Since(startTime),
-			ToolsUsed: []string{"grep"},
+			// ToolsUsed: []string{"grep"}, // TODO: Add to metadata
 		},
 	}, nil
 }
@@ -190,7 +190,10 @@ func (s *SearchAgent) determineScope(request AgentRequest) SearchScope {
 
 	// Check for path specifications
 	if execContext, ok := request.Context["execution_context"].(*ExecutionContext); ok {
-		if targetPath, ok := execContext.SharedData["target_path"].(string); ok {
+		execContext.Mu.RLock()
+		targetPath, ok := execContext.SharedData["target_path"].(string)
+		execContext.Mu.RUnlock()
+		if ok {
 			scope.Path = targetPath
 		}
 	}

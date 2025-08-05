@@ -1,34 +1,43 @@
 # Agent Configuration Example
-# This file demonstrates how to configure the agent system
+# This file demonstrates how to configure Ryan's multi-agent system
 
-# Agent selection and orchestration
+# Agent orchestration settings
 agents:
   # Preferred agent type (conversational, ollama-functions, openai-functions)
-  preferred: "ollama-functions"
+  preferred: "conversational"
 
   # Fallback chain - agents to try if preferred fails
   fallback_chain:
+    - "ollama-functions"
     - "openai-functions"
-    - "conversational"
 
   # Auto-select best agent based on task analysis
   auto_select: true
 
   # Show agent selection in output
-  show_selection: true
+  show_selection: false
 
-# Ollama configuration
+  # Built-in specialized agents
+  builtin:
+    dispatcher: true      # Main request routing agent
+    file_operations: true # File system operations
+    code_analysis: true   # AST parsing and code analysis
+    code_review: true     # Code review and suggestions
+    search: true          # Code and content search
+
+# Ollama configuration for agents
 ollama:
   url: "http://localhost:11434"
-  model: "llama3.1"
+  model: "qwen2.5-coder:7b"  # Best for code-related tasks
 
 # Tool configuration
 tools:
   enabled: true
   models:
-    - "llama3.1"
-    - "qwen2.5"
-    - "mistral"
+    - "qwen2.5-coder:7b"
+    - "llama3.2:3b"
+    - "deepseek-coder-v2:16b"
+    - "mistral-nemo"
 
 # Langchain specific settings
 langchain:

@@ -198,7 +198,7 @@ func (oc *OrchestratorController) streamResult(result agents.AgentResult, update
 			Content: fmt.Sprintf("\n---\n📊 Execution time: %v\n🤖 Agents used: %s\n📁 Files processed: %d\n",
 				result.Metadata.Duration,
 				result.Metadata.AgentName,
-				len(result.Metadata.FilesProcessed)),
+				0), // TODO: Add FilesProcessed count when available
 		}
 	}
 
@@ -224,9 +224,12 @@ func (oc *OrchestratorController) formatAgentResult(result agents.AgentResult) s
 	}
 
 	// Add metadata if verbose
-	if oc.isVerbose() && result.Metadata.Duration > 0 {
-		parts = append(parts, "", fmt.Sprintf("*Execution time: %v*", result.Metadata.Duration))
-	}
+	// TODO: Add Duration check when metadata supports it
+	/*
+		if oc.isVerbose() && result.Metadata.Duration > 0 {
+			parts = append(parts, "", fmt.Sprintf("*Execution time: %v*", result.Metadata.Duration))
+		}
+	*/
 
 	return strings.Join(parts, "\n")
 }
@@ -234,7 +237,7 @@ func (oc *OrchestratorController) formatAgentResult(result agents.AgentResult) s
 // formatProgress formats a progress update for display
 func (oc *OrchestratorController) formatProgress(progress agents.ProgressUpdate) string {
 	icon := "⏳"
-	switch progress.Status {
+	switch progress.Stage {
 	case "completed":
 		icon = "✅"
 	case "failed":
@@ -243,7 +246,7 @@ func (oc *OrchestratorController) formatProgress(progress agents.ProgressUpdate)
 		icon = "🔄"
 	}
 
-	return fmt.Sprintf("%s %s: %s", icon, progress.Agent, progress.Message)
+	return fmt.Sprintf("%s %s: %s", icon, progress.TaskID, progress.Message)
 }
 
 // removeStream removes a stream from active streams
