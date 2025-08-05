@@ -16,7 +16,7 @@ tasks:
       - task: "test:unit"
 
   lint:
-    desc: Run linting checks on the codebase
+    desc: Run linting checks on the codebase (includes pre-commit)
     cmds:
       - go fmt ./pkg/... ./integration/... ./cmd/...
       - go vet ./pkg/... ./integration/... ./cmd/...
