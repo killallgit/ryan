@@ -77,7 +77,9 @@ func (d *DispatcherAgent) Execute(ctx context.Context, request AgentRequest) (Ag
 	}
 
 	// Store plan in context
+	execContext.Mu.Lock()
 	execContext.SharedData["execution_plan"] = plan
+	execContext.Mu.Unlock()
 
 	// Build summary of the plan
 	summary := d.buildPlanSummary(plan)
@@ -138,19 +140,14 @@ func (d *DispatcherAgent) buildPlanDetails(plan *ExecutionPlan) string {
 	for i, stage := range plan.Stages {
 		details = append(details, fmt.Sprintf("Stage %d (%s):", i+1, stage.ID))
 
-		for _, taskID := range stage.Tasks {
-			// Find task details
-			for _, task := range plan.Tasks {
-				if task.ID == taskID {
-					details = append(details, fmt.Sprintf("  - %s: %s",
-						task.Agent,
-						truncateString(task.Request.Prompt, 60)))
-					if len(task.Dependencies) > 0 {
-						details = append(details, fmt.Sprintf("    Dependencies: %s",
-							strings.Join(task.Dependencies, ", ")))
-					}
-					break
-				}
+		for _, task := range stage.Tasks {
+			// Task is already in the stage, no need to find it
+			details = append(details, fmt.Sprintf("  - %s: %s",
+				task.Agent,
+				truncateString(task.Request.Prompt, 60)))
+			if len(task.Dependencies) > 0 {
+				details = append(details, fmt.Sprintf("    Dependencies: %s",
+					strings.Join(task.Dependencies, ", ")))
 			}
 		}
 		details = append(details, "")

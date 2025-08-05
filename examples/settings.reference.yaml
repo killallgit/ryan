@@ -1,5 +1,6 @@
 # Ryan Configuration Reference
-# All available configuration options
+# Complete configuration file with all available options
+# Copy this file to .ryan/settings.yaml and customize as needed
 
 # Logging
 logging:
@@ -20,8 +21,8 @@ streaming: true
 # Ollama LLM
 ollama:
   url: http://localhost:11434
-  model: qwen3:latest
-  system_prompt: ""
+  model: qwen2.5-coder:7b  # Recommended for code analysis
+  system_prompt: "examples/SYSTEM_PROMPT.md"
   timeout: 90s
   poll_interval: 10
 

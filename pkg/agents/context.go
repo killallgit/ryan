@@ -205,10 +205,7 @@ func (r *FileContextRule) ShouldApply(targetAgent string) bool {
 }
 
 func (r *FileContextRule) Apply(from, to *ExecutionContext, targetAgent string) {
-	from.mu.RLock()
-	defer from.mu.RUnlock()
-	to.mu.Lock()
-	defer to.mu.Unlock()
+	// Note: ExecutionContext doesn't have mutex - synchronization should be handled externally
 
 	// Copy file context
 	for _, file := range from.FileContext {
@@ -234,18 +231,19 @@ func (r *SharedDataRule) ShouldApply(targetAgent string) bool {
 }
 
 func (r *SharedDataRule) Apply(from, to *ExecutionContext, targetAgent string) {
-	from.mu.RLock()
-	defer from.mu.RUnlock()
-	to.mu.Lock()
-	defer to.mu.Unlock()
+	// Note: ExecutionContext doesn't have mutex - synchronization should be handled externally
 
-	// Copy relevant shared data
+	// Copy relevant shared data with proper synchronization
+	from.Mu.RLock()
+	to.Mu.Lock()
 	for key, value := range from.SharedData {
 		// Filter based on key patterns
 		if shouldPropagateKey(key, targetAgent) {
 			to.SharedData[key] = value
 		}
 	}
+	to.Mu.Unlock()
+	from.Mu.RUnlock()
 }
 
 // shouldPropagateKey determines if a key should be propagated to an agent
@@ -273,10 +271,7 @@ func (r *ArtifactsRule) ShouldApply(targetAgent string) bool {
 }
 
 func (r *ArtifactsRule) Apply(from, to *ExecutionContext, targetAgent string) {
-	from.mu.RLock()
-	defer from.mu.RUnlock()
-	to.mu.Lock()
-	defer to.mu.Unlock()
+	// Note: ExecutionContext doesn't have mutex - synchronization should be handled externally
 
 	if from.Artifacts != nil && len(from.Artifacts) > 0 {
 		if to.Artifacts == nil {

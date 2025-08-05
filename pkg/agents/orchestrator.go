@@ -6,17 +6,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/killallgit/ryan/pkg/agents/interfaces"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/tools"
 )
 
 // Orchestrator coordinates agent execution with advanced planning and feedback loops
 type Orchestrator struct {
-	agents         map[string]Agent
+	agents         map[string]interfaces.Agent
 	executor       *Executor
 	contextManager *ContextManager
 	planner        *Planner
 	feedbackLoop   *FeedbackLoop
+	toolRegistry   *tools.Registry
 	log            *logger.Logger
 	mu             sync.RWMutex
 }
@@ -24,7 +26,7 @@ type Orchestrator struct {
 // NewOrchestrator creates a new agent orchestrator
 func NewOrchestrator() *Orchestrator {
 	o := &Orchestrator{
-		agents:         make(map[string]Agent),
+		agents:         make(map[string]interfaces.Agent),
 		executor:       NewExecutor(),
 		contextManager: NewContextManager(),
 		planner:        NewPlanner(),
@@ -171,7 +173,7 @@ func (o *Orchestrator) ExecuteWithPlan(ctx context.Context, plan *ExecutionPlan,
 }
 
 // GetAgent retrieves a registered agent by name
-func (o *Orchestrator) GetAgent(name string) (Agent, error) {
+func (o *Orchestrator) GetAgent(name string) (interfaces.Agent, error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
@@ -183,15 +185,20 @@ func (o *Orchestrator) GetAgent(name string) (Agent, error) {
 }
 
 // ListAgents returns all registered agents
-func (o *Orchestrator) ListAgents() []Agent {
+func (o *Orchestrator) ListAgents() []interfaces.Agent {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
-	agents := make([]Agent, 0, len(o.agents))
+	agents := make([]interfaces.Agent, 0, len(o.agents))
 	for _, agent := range o.agents {
 		agents = append(agents, agent)
 	}
 	return agents
+}
+
+// GetToolRegistry returns the tool registry
+func (o *Orchestrator) GetToolRegistry() *tools.Registry {
+	return o.toolRegistry
 }
 
 // ProcessFeedback handles feedback from agent execution
@@ -212,7 +219,15 @@ func (o *Orchestrator) aggregateResults(results []TaskResult, plan *ExecutionPla
 	filesMap := make(map[string]bool)
 
 	for _, result := range results {
-		if !result.Result.Success {
+		// Cast result to AgentResult
+		agentResult, ok := result.Result.(AgentResult)
+		if !ok {
+			allSuccess = false
+			failedTasks = append(failedTasks, result.Task.ID)
+			continue
+		}
+
+		if !agentResult.Success {
 			allSuccess = false
 			failedTasks = append(failedTasks, result.Task.ID)
 		} else {
@@ -220,17 +235,20 @@ func (o *Orchestrator) aggregateResults(results []TaskResult, plan *ExecutionPla
 		}
 
 		// Collect details
-		if result.Result.Details != "" {
-			allDetails = append(allDetails, fmt.Sprintf("[%s]: %s", result.Task.Agent, result.Result.Details))
+		if agentResult.Details != "" {
+			allDetails = append(allDetails, fmt.Sprintf("[%s]: %s", result.Task.Agent, agentResult.Details))
 		}
 
 		// Collect unique tools and files
-		for _, tool := range result.Result.Metadata.ToolsUsed {
-			toolsMap[tool] = true
-		}
-		for _, file := range result.Result.Metadata.FilesProcessed {
-			filesMap[file] = true
-		}
+		// TODO: Add ToolsUsed and FilesProcessed to metadata when needed
+		/*
+			for _, tool := range agentResult.Metadata.ToolsUsed {
+				toolsMap[tool] = true
+			}
+			for _, file := range agentResult.Metadata.FilesProcessed {
+				filesMap[file] = true
+			}
+		*/
 	}
 
 	// Convert maps to slices
@@ -253,9 +271,16 @@ func (o *Orchestrator) aggregateResults(results []TaskResult, plan *ExecutionPla
 
 	// Create artifacts map from context
 	artifacts := make(map[string]interface{})
+	ctx.Mu.RLock()
 	if ctx.SharedData != nil {
-		artifacts["shared_data"] = ctx.SharedData
+		// Create a copy to avoid race conditions
+		sharedDataCopy := make(map[string]interface{})
+		for k, v := range ctx.SharedData {
+			sharedDataCopy[k] = v
+		}
+		artifacts["shared_data"] = sharedDataCopy
 	}
+	ctx.Mu.RUnlock()
 	if len(ctx.FileContext) > 0 {
 		artifacts["files"] = ctx.FileContext
 	}
@@ -265,9 +290,9 @@ func (o *Orchestrator) aggregateResults(results []TaskResult, plan *ExecutionPla
 		Summary:   summary,
 		Details:   details,
 		Artifacts: artifacts,
-		Metadata: AgentMetadata{
-			ToolsUsed:      toolsUsed,
-			FilesProcessed: filesProcessed,
+		Metadata:  AgentMetadata{
+			// ToolsUsed:      toolsUsed, // TODO: Add to metadata
+			// FilesProcessed: filesProcessed, // TODO: Add to metadata
 		},
 	}
 }

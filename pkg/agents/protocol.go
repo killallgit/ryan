@@ -3,29 +3,24 @@ package agents
 import (
 	"sync"
 	"time"
+
+	"github.com/killallgit/ryan/pkg/agents/interfaces"
 )
 
-// Message represents a message between agents
-type Message struct {
-	ID        string
-	Type      MessageType
-	Source    string
-	Target    string
-	Payload   interface{}
-	Context   *ExecutionContext
-	Priority  Priority
-	Timestamp time.Time
-}
-
-// MessageType defines the type of message
-type MessageType string
-
-const (
-	MessageTypeRequest  MessageType = "request"
-	MessageTypeResponse MessageType = "response"
-	MessageTypeFeedback MessageType = "feedback"
-	MessageTypeError    MessageType = "error"
-	MessageTypeProgress MessageType = "progress"
+// Type aliases for protocol types
+type (
+	Message          = interfaces.Message
+	ExecutionContext = interfaces.ExecutionContext
+	FileInfo         = interfaces.FileInfo
+	ProgressUpdate   = interfaces.ProgressUpdate
+	Task             = interfaces.Task
+	Stage            = interfaces.Stage
+	ExecutionPlan    = interfaces.ExecutionPlan
+	TaskResult       = interfaces.TaskResult
+	ExecutionGraph   = interfaces.ExecutionGraph
+	GraphNode        = interfaces.GraphNode
+	FeedbackRequest  = interfaces.FeedbackRequest
+	FeedbackResponse = interfaces.FeedbackResponse
 )
 
 // Priority defines message priority
@@ -37,112 +32,18 @@ const (
 	PriorityHigh   Priority = 10
 )
 
-// ExecutionContext represents the shared execution context
-type ExecutionContext struct {
-	SessionID   string
-	RequestID   string
-	UserPrompt  string
-	SharedData  map[string]interface{}
-	FileContext []FileInfo
-	Artifacts   map[string]interface{}
-	Progress    chan<- ProgressUpdate
-	Options     map[string]interface{}
-	mu          sync.RWMutex
-}
-
-// FileInfo represents information about a file
-type FileInfo struct {
-	Path         string
-	LastModified time.Time
-	Size         int64
-	Hash         string
-	Content      string
-}
-
-// ProgressUpdate represents a progress update
-type ProgressUpdate struct {
-	TaskID        string
-	Agent         string
-	Status        string
-	Operation     string        // e.g., "Bash(ls -al)", "Read(file.go)", "SpawnAgent(FileAgent)"
-	OperationType OperationType // tool, agent_spawn, analysis, planning, execution
-	ParentTaskID  string        // For nested operations
-	Progress      float64
-	Message       string
-	Timestamp     time.Time
-}
-
-// Task represents a single task in an execution plan
-type Task struct {
-	ID           string
-	Agent        string
-	Request      AgentRequest
-	Priority     int
-	Dependencies []string
-	Stage        string
-	Timeout      time.Duration
-}
-
-// Stage represents a stage in the execution plan
-type Stage struct {
-	ID    string
-	Tasks []string
-}
-
-// ExecutionPlan represents a complete execution plan
-type ExecutionPlan struct {
-	ID                string
-	Context           *ExecutionContext
-	Tasks             []Task
-	Stages            []Stage
-	EstimatedDuration string
-	CreatedAt         time.Time
-}
-
-// TaskResult represents the result of a task execution
-type TaskResult struct {
-	Task      Task
-	Result    AgentResult
-	Error     error
-	StartTime time.Time
-	EndTime   time.Time
-}
-
-// ExecutionGraph represents a graph of execution nodes
-type ExecutionGraph struct {
-	Nodes map[string]*GraphNode
-	Edges map[string][]string
-}
-
-// GraphNode represents a node in the execution graph
-type GraphNode struct {
-	ID           string
-	Agent        string
-	AgentRef     Agent
-	Request      AgentRequest
-	Priority     int
-	Dependencies []string
-}
-
-// FeedbackRequest represents a feedback request from an agent
-type FeedbackRequest struct {
-	ID         string
-	SourceTask string
-	TargetTask string
-	Type       FeedbackType
-	Content    interface{}
-	Context    *ExecutionContext
-}
-
-// FeedbackType defines types of feedback
-type FeedbackType string
+// OperationType represents different types of operations for progress tracking
+type OperationType string
 
 const (
-	FeedbackTypeNeedMoreContext FeedbackType = "need_more_context"
-	FeedbackTypeValidationError FeedbackType = "validation_error"
-	FeedbackTypeRetry           FeedbackType = "retry"
-	FeedbackTypeRefine          FeedbackType = "refine"
+	OperationTypeTool      OperationType = "tool"
+	OperationTypeAgent     OperationType = "agent_spawn"
+	OperationTypeAnalysis  OperationType = "analysis"
+	OperationTypePlanning  OperationType = "planning"
+	OperationTypeExecution OperationType = "execution"
 )
+
+// Additional protocol types specific to implementation
 
 // MessageBus handles inter-agent communication
 type MessageBus struct {
@@ -157,57 +58,147 @@ func NewMessageBus() *MessageBus {
 	}
 }
 
-// Subscribe subscribes to messages for an agent
-func (mb *MessageBus) Subscribe(agentID string) <-chan Message {
+// Subscribe subscribes to messages for a topic
+func (mb *MessageBus) Subscribe(topic string) <-chan Message {
 	mb.mu.Lock()
 	defer mb.mu.Unlock()
 
 	ch := make(chan Message, 100)
-	mb.subscribers[agentID] = append(mb.subscribers[agentID], ch)
+	mb.subscribers[topic] = append(mb.subscribers[topic], ch)
 	return ch
 }
 
-// Unsubscribe removes a subscription
-func (mb *MessageBus) Unsubscribe(agentID string, ch <-chan Message) {
-	mb.mu.Lock()
-	defer mb.mu.Unlock()
-
-	channels := mb.subscribers[agentID]
-	for i, c := range channels {
-		if c == ch {
-			mb.subscribers[agentID] = append(channels[:i], channels[i+1:]...)
-			close(c)
-			break
-		}
-	}
-}
-
-// Publish publishes a message to the bus
-func (mb *MessageBus) Publish(msg Message) {
+// Publish publishes a message to a topic
+func (mb *MessageBus) Publish(topic string, msg Message) {
 	mb.mu.RLock()
 	defer mb.mu.RUnlock()
 
-	msg.Timestamp = time.Now()
-
-	// Send to target agent's subscribers
-	if channels, exists := mb.subscribers[msg.Target]; exists {
-		for _, ch := range channels {
-			select {
-			case ch <- msg:
-			default:
-				// Channel full, skip
-			}
-		}
-	}
-
-	// Also send to wildcard subscribers
-	if channels, exists := mb.subscribers["*"]; exists {
-		for _, ch := range channels {
-			select {
-			case ch <- msg:
-			default:
-				// Channel full, skip
-			}
+	for _, ch := range mb.subscribers[topic] {
+		select {
+		case ch <- msg:
+		default:
+			// Channel full, skip
 		}
 	}
 }
+
+// Protocol-specific constants
+const (
+	MessageTypeRequest  = "request"
+	MessageTypeResponse = "response"
+	MessageTypeStatus   = "status"
+	MessageTypeError    = "error"
+)
+
+// Feedback type constants
+const (
+	FeedbackTypeApproval        = "approval"
+	FeedbackTypeCorrection      = "correction"
+	FeedbackTypeClarification   = "clarification"
+	FeedbackTypeNeedMoreContext = "need_more_context"
+	FeedbackTypeError           = "error"
+	FeedbackTypeSuccess         = "success"
+	FeedbackTypeValidationError = "validation_error"
+	FeedbackTypeRetry           = "retry"
+	FeedbackTypeRefine          = "refine"
+)
+
+// Hierarchical planning types
+
+// Project represents a hierarchical project
+type Project struct {
+	ID          string
+	Name        string
+	Description string
+	Context     *ProjectContext
+	Status      ProjectStatus
+	Epics       []*Epic
+	Sprints     []*Sprint
+	CreatedAt   time.Time
+}
+
+// ProjectContext provides context for project planning
+type ProjectContext struct {
+	ProjectPath   string
+	Technologies  []string
+	Constraints   map[string]interface{}
+	TeamCapacity  int
+	SprintLength  int
+	Requirements  []string
+}
+
+// ProjectStatus represents project status
+type ProjectStatus string
+
+const (
+	ProjectStatusPlanning    ProjectStatus = "planning"
+	ProjectStatusInProgress  ProjectStatus = "in_progress"
+	ProjectStatusCompleted   ProjectStatus = "completed"
+	ProjectStatusOnHold      ProjectStatus = "on_hold"
+	ProjectStatusCancelled   ProjectStatus = "cancelled"
+)
+
+// Epic represents a major feature or component
+type Epic struct {
+	ID          string
+	Title       string
+	Description string
+	Priority    Priority
+	Status      EpicStatus
+	Stories     []*UserStory
+}
+
+// EpicStatus represents epic status
+type EpicStatus string
+
+const (
+	EpicStatusTodo        EpicStatus = "todo"
+	EpicStatusInProgress  EpicStatus = "in_progress"
+	EpicStatusDone        EpicStatus = "done"
+	EpicStatusBlocked     EpicStatus = "blocked"
+)
+
+// UserStory represents a user story
+type UserStory struct {
+	ID          string
+	Title       string
+	Description string
+	Points      int
+	Priority    Priority
+	Status      StoryStatus
+	Tasks       []Task
+}
+
+// StoryStatus represents story status
+type StoryStatus string
+
+const (
+	StoryStatusTodo        StoryStatus = "todo"
+	StoryStatusInProgress  StoryStatus = "in_progress"
+	StoryStatusDone        StoryStatus = "done"
+	StoryStatusBlocked     StoryStatus = "blocked"
+)
+
+// Sprint represents a development sprint
+type Sprint struct {
+	ID        string
+	Number    int
+	Name      string
+	Goal      string
+	StartDate time.Time
+	EndDate   time.Time
+	Status    SprintStatus
+	Stories   []*UserStory
+	Plans     []*ExecutionPlan
+	Capacity  int
+}
+
+// SprintStatus represents sprint status
+type SprintStatus string
+
+const (
+	SprintStatusPlanning    SprintStatus = "planning"
+	SprintStatusActive      SprintStatus = "active"
+	SprintStatusCompleted   SprintStatus = "completed"
+	SprintStatusCancelled   SprintStatus = "cancelled"
+)

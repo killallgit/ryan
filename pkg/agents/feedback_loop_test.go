@@ -12,18 +12,17 @@ func TestFeedbackLoop_ProcessFeedback(t *testing.T) {
 	fl := NewFeedbackLoop()
 	require.NotNil(t, fl)
 
+	// Set up orchestrator (needed for correction feedback type)
+	o := NewOrchestrator()
+	fl.SetOrchestrator(o)
+
 	// Test with validation error type which has simpler handling
 	feedback := &FeedbackRequest{
-		ID:         "feedback1",
-		SourceTask: "task1",
-		TargetTask: "task2",
-		Type:       FeedbackTypeValidationError,
-		Content:    "Validation failed: missing required field",
-		Context: &ExecutionContext{
-			SessionID:  "test-session",
-			RequestID:  "test-request",
-			SharedData: make(map[string]interface{}),
-		},
+		TaskID:    "task1",
+		RequestID: "test-request",
+		Type:      "correction",
+		Message:   "Validation failed: missing required field",
+		Context:   make(map[string]interface{}),
 	}
 
 	// Process feedback - validation errors are logged but don't fail

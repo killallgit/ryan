@@ -35,3 +35,4 @@ bin/*
 .ryan
 ryan
 !.github/workflows/coverage.yaml
+!CLAUDE.md

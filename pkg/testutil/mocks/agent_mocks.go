@@ -149,19 +149,17 @@ func NewMockPlanner() *MockPlanner {
 	return &MockPlanner{
 		calls: make([]string, 0),
 		planFunc: func(ctx context.Context, request string, execContext *agents.ExecutionContext) (*agents.ExecutionPlan, error) {
+			mockTask := agents.Task{
+				ID:    "task-1",
+				Agent: "mock-agent",
+			}
 			return &agents.ExecutionPlan{
-				ID:      "mock-plan",
-				Context: execContext,
-				Tasks: []agents.Task{
-					{
-						ID:    "task-1",
-						Agent: "mock-agent",
-					},
-				},
+				ID:    "mock-plan",
+				Tasks: []agents.Task{mockTask},
 				Stages: []agents.Stage{
 					{
 						ID:    "stage-1",
-						Tasks: []string{"task-1"},
+						Tasks: []agents.Task{mockTask},
 					},
 				},
 			}, nil

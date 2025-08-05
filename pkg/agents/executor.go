@@ -6,12 +6,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/killallgit/ryan/pkg/agents/interfaces"
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // Executor handles parallel and sequential agent execution
 type Executor struct {
-	orchestrator    *Orchestrator
+	orchestrator    interfaces.OrchestratorInterface
 	workerPool      *WorkerPool
 	taskQueue       *TaskQueue
 	dependencyGraph *DependencyGraph
@@ -31,7 +32,7 @@ func NewExecutor() *Executor {
 }
 
 // SetOrchestrator sets the orchestrator reference
-func (e *Executor) SetOrchestrator(o *Orchestrator) {
+func (e *Executor) SetOrchestrator(o interfaces.OrchestratorInterface) {
 	e.orchestrator = o
 }
 
@@ -71,18 +72,8 @@ func (e *Executor) executeStage(ctx context.Context, stage Stage, plan *Executio
 	results := make([]TaskResult, 0, len(stage.Tasks))
 	errors := make(chan error, len(stage.Tasks))
 
-	for _, taskID := range stage.Tasks {
-		// Find task in plan
-		var task *Task
-		for i := range plan.Tasks {
-			if plan.Tasks[i].ID == taskID {
-				task = &plan.Tasks[i]
-				break
-			}
-		}
-		if task == nil {
-			continue
-		}
+	for i := range stage.Tasks {
+		task := &stage.Tasks[i]
 
 		wg.Add(1)
 		go func(t Task) {
@@ -159,10 +150,12 @@ func (e *Executor) executeTask(ctx context.Context, task Task, execContext *Exec
 	if execContext.Progress != nil {
 		select {
 		case execContext.Progress <- ProgressUpdate{
-			TaskID:    task.ID,
-			Agent:     task.Agent,
-			Status:    "completed",
-			Timestamp: time.Now(),
+			TaskID:      task.ID,
+			Stage:       "execution",
+			Progress:    1.0,
+			Message:     fmt.Sprintf("Task %s completed", task.ID),
+			IsCompleted: true,
+			Timestamp:   time.Now(),
 		}:
 		default:
 			// Channel full, skip
@@ -170,11 +163,10 @@ func (e *Executor) executeTask(ctx context.Context, task Task, execContext *Exec
 	}
 
 	return TaskResult{
-		Task:      task,
-		Result:    result,
-		Error:     nil,
-		StartTime: startTime,
-		EndTime:   time.Now(),
+		Task:     task,
+		Result:   result,
+		Error:    nil,
+		Duration: time.Since(startTime),
 	}, nil
 }
 
@@ -190,7 +182,16 @@ func (e *Executor) prepareTaskContext(task Task, execContext *ExecutionContext) 
 	// Add execution context references
 	context["execution_context"] = execContext
 	context["orchestrator"] = e.orchestrator
-	context["shared_data"] = execContext.SharedData
+
+	// Copy SharedData with proper synchronization
+	execContext.Mu.RLock()
+	sharedDataCopy := make(map[string]interface{})
+	for k, v := range execContext.SharedData {
+		sharedDataCopy[k] = v
+	}
+	execContext.Mu.RUnlock()
+
+	context["shared_data"] = sharedDataCopy
 	context["file_context"] = execContext.FileContext
 
 	return context
@@ -198,9 +199,9 @@ func (e *Executor) prepareTaskContext(task Task, execContext *ExecutionContext) 
 
 // updateExecutionContext updates the execution context with task results
 func (e *Executor) updateExecutionContext(task Task, result AgentResult, execContext *ExecutionContext) {
-	// Store result in shared data
-	execContext.mu.Lock()
-	defer execContext.mu.Unlock()
+	// Store result in shared data with proper synchronization
+	execContext.Mu.Lock()
+	defer execContext.Mu.Unlock()
 
 	if execContext.SharedData == nil {
 		execContext.SharedData = make(map[string]interface{})
@@ -210,24 +211,28 @@ func (e *Executor) updateExecutionContext(task Task, result AgentResult, execCon
 	execContext.SharedData[fmt.Sprintf("task_%s_result", task.ID)] = result
 
 	// Update file context if agent processed files
-	if len(result.Metadata.FilesProcessed) > 0 {
-		for _, file := range result.Metadata.FilesProcessed {
-			// Check if file already in context
-			found := false
-			for _, f := range execContext.FileContext {
-				if f.Path == file {
-					found = true
-					break
+	// TODO: Add FilesProcessed to metadata when needed
+	// This code is commented out until FilesProcessed is added to AgentMetadata
+	/*
+		if len(result.Metadata.FilesProcessed) > 0 {
+			for _, file := range result.Metadata.FilesProcessed {
+				// Check if file already in context
+				found := false
+				for _, f := range execContext.FileContext {
+					if f.Path == file {
+						found = true
+						break
+					}
+				}
+				if !found {
+					execContext.FileContext = append(execContext.FileContext, FileInfo{
+						Path:         file,
+						LastModified: time.Now(),
+					})
 				}
 			}
-			if !found {
-				execContext.FileContext = append(execContext.FileContext, FileInfo{
-					Path:         file,
-					LastModified: time.Now(),
-				})
-			}
 		}
-	}
+	*/
 
 	// Store any artifacts
 	if result.Artifacts != nil {

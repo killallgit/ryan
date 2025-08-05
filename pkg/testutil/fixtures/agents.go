@@ -33,8 +33,6 @@ func CreateTestTask(id, agentName string, deps ...string) agents.Task {
 		Request:      CreateTestAgentRequest("test request for " + agentName),
 		Priority:     1,
 		Dependencies: deps,
-		Stage:        "stage1",
-		Timeout:      30 * time.Second,
 	}
 }
 
@@ -56,15 +54,13 @@ func CreateTestExecutionPlan(taskNames ...string) *agents.ExecutionPlan {
 		tasks[i] = CreateTestTask(taskID, name, deps...)
 	}
 
-	cm := agents.NewContextManager()
 	return &agents.ExecutionPlan{
-		ID:      "test-plan",
-		Context: cm.CreateContext("test-session", "test-req", "test-request"),
-		Tasks:   tasks,
+		ID:    "test-plan",
+		Tasks: tasks,
 		Stages: []agents.Stage{
 			{
 				ID:    "stage1",
-				Tasks: taskIDs,
+				Tasks: tasks,
 			},
 		},
 		EstimatedDuration: "1m",
@@ -75,11 +71,12 @@ func CreateTestExecutionPlan(taskNames ...string) *agents.ExecutionPlan {
 // CreateTestTaskResult creates a test task result
 func CreateTestTaskResult(taskID string, success bool) agents.TaskResult {
 	return agents.TaskResult{
-		Task:      CreateTestTask(taskID, "test-agent"),
-		Result:    CreateTestAgentResult(success, "Task completed"),
-		Error:     nil,
-		StartTime: time.Now().Add(-1 * time.Minute),
-		EndTime:   time.Now(),
+		TaskID:   taskID,
+		Task:     CreateTestTask(taskID, "test-agent"),
+		Success:  success,
+		Result:   CreateTestAgentResult(success, "Task completed"),
+		Error:    nil,
+		Duration: time.Minute,
 	}
 }
 

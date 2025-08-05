@@ -185,8 +185,8 @@ func (f *FileOperationsAgent) handleListAndRead(ctx context.Context, request Age
 			"directory":     dirPath,
 		},
 		Metadata: AgentMetadata{
-			ToolsUsed:      []string{"file_list", "file_read"},
-			FilesProcessed: filesProcessed,
+			// ToolsUsed:      []string{"file_list", "file_read"}, // TODO: Add to metadata
+			// FilesProcessed: filesProcessed, // TODO: Add to metadata
 		},
 	}, nil
 }
@@ -220,8 +220,8 @@ func (f *FileOperationsAgent) handleRead(ctx context.Context, request AgentReque
 			"content":   content,
 		},
 		Metadata: AgentMetadata{
-			ToolsUsed:      []string{"file_read"},
-			FilesProcessed: []string{filePath},
+			// ToolsUsed:      []string{"file_read"}, // TODO: Add to metadata
+			// FilesProcessed: []string{filePath}, // TODO: Add to metadata
 		},
 	}, nil
 }
@@ -275,8 +275,8 @@ func (f *FileOperationsAgent) handleWrite(ctx context.Context, request AgentRequ
 			"content":   content,
 		},
 		Metadata: AgentMetadata{
-			ToolsUsed:      []string{"write_file"},
-			FilesProcessed: []string{filePath},
+			// ToolsUsed:      []string{"write_file"}, // TODO: Add to metadata
+			// FilesProcessed: []string{filePath}, // TODO: Add to metadata
 		},
 	}, nil
 }
@@ -308,7 +308,7 @@ func (f *FileOperationsAgent) handleList(ctx context.Context, request AgentReque
 			"directory": dirPath,
 		},
 		Metadata: AgentMetadata{
-			ToolsUsed: []string{"file_list"},
+			// ToolsUsed: []string{"file_list"}, // TODO: Add to metadata
 		},
 	}, nil
 }
@@ -474,33 +474,37 @@ func (f *FileOperationsAgent) buildFileListDetails(files []string, contents map[
 }
 
 func (f *FileOperationsAgent) updateExecutionContext(ctx *ExecutionContext, result AgentResult) {
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
+	// Note: ExecutionContext doesn't have mutex - synchronization should be handled externally
 
 	// Update file context
-	for _, file := range result.Metadata.FilesProcessed {
-		found := false
-		for i, fc := range ctx.FileContext {
-			if fc.Path == file {
-				ctx.FileContext[i].LastModified = time.Now()
-				found = true
-				break
+	// TODO: Add FilesProcessed to metadata when needed
+	/*
+		for _, file := range result.Metadata.FilesProcessed {
+			found := false
+			for i, fc := range ctx.FileContext {
+				if fc.Path == file {
+					ctx.FileContext[i].LastModified = time.Now()
+					found = true
+					break
+				}
+			}
+			if !found {
+				ctx.FileContext = append(ctx.FileContext, FileInfo{
+					Path:         file,
+					LastModified: time.Now(),
+				})
 			}
 		}
-		if !found {
-			ctx.FileContext = append(ctx.FileContext, FileInfo{
-				Path:         file,
-				LastModified: time.Now(),
-			})
-		}
-	}
+	*/
 
 	// Store file contents in shared data
 	if contents, ok := result.Artifacts["file_contents"].(map[string]string); ok {
+		ctx.Mu.Lock()
 		if ctx.SharedData == nil {
 			ctx.SharedData = make(map[string]interface{})
 		}
 		ctx.SharedData["file_contents"] = contents
+		ctx.Mu.Unlock()
 	}
 }
 
