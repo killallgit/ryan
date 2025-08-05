@@ -47,6 +47,7 @@ type App struct {
 	sending      bool
 	streaming    bool
 	currentView  string
+	previousView string
 	
 	// Channels
 	cancelSend   chan bool
@@ -71,9 +72,10 @@ func NewApp(controller ControllerInterface) (*App, error) {
 		app:         tviewApp,
 		pages:       tview.NewPages(),
 		controller:  controller,
-		sending:     false,
-		streaming:   false,
-		currentView: "chat",
+		sending:      false,
+		streaming:    false,
+		currentView:  "chat",
+		previousView: "chat",
 		cancelSend:  make(chan bool, 1),
 		config:      cfg,
 	}
@@ -153,10 +155,10 @@ func (a *App) setupGlobalKeyBindings() {
 			return nil
 		}
 		
-		// Escape: Return to chat view or quit
+		// Escape: Return to previous view
 		if event.Key() == tcell.KeyEscape {
-			if a.currentView != "chat" {
-				a.switchToView("chat")
+			if a.currentView != a.previousView {
+				a.switchToView(a.previousView)
 				return nil
 			}
 		}
@@ -187,7 +189,10 @@ func (a *App) Stop() {
 
 // switchToView switches to the specified view
 func (a *App) switchToView(viewName string) {
-	a.currentView = viewName
+	if a.currentView != viewName {
+		a.previousView = a.currentView
+		a.currentView = viewName
+	}
 	a.pages.SwitchToPage(viewName)
 	
 	// Update current model in tools view if switching to it
@@ -198,37 +203,73 @@ func (a *App) switchToView(viewName string) {
 
 // showViewSwitcher displays a modal for switching between views
 func (a *App) showViewSwitcher() {
-	// Create a list of available views
+	// Store the previous view
+	previousView := a.currentView
+	
+	// Create a simple list of available views
 	list := tview.NewList().
-		AddItem("Chat", "Main chat interface", '1', func() {
+		AddItem("Chat", "", 0, func() {
 			a.switchToView("chat")
 			a.pages.RemovePage("view-switcher")
 		}).
-		AddItem("Models", "Manage Ollama models", '2', func() {
+		AddItem("Models", "", 0, func() {
 			a.switchToView("models")
 			a.pages.RemovePage("view-switcher")
 		}).
-		AddItem("Tools", "View available tools", '3', func() {
+		AddItem("Tools", "", 0, func() {
 			a.switchToView("tools")
 			a.pages.RemovePage("view-switcher")
 		}).
-		AddItem("Vector Store", "Manage vector store", '4', func() {
+		AddItem("Vector Store", "", 0, func() {
 			a.switchToView("vectorstore")
 			a.pages.RemovePage("view-switcher")
 		}).
-		AddItem("Context Tree", "View conversation tree", '5', func() {
+		AddItem("Context Tree", "", 0, func() {
 			a.switchToView("context-tree")
-			a.pages.RemovePage("view-switcher")
-		}).
-		AddItem("Cancel", "Close this menu", 'q', func() {
 			a.pages.RemovePage("view-switcher")
 		})
 	
-	list.SetBorder(false).SetTitle("Switch View (Ctrl-P)").
-		SetBackgroundColor(ColorBase01)
+	list.SetBorder(true).SetTitle(" Switch View (Ctrl-P) ").
+		SetBackgroundColor(ColorBase01).
+		SetBorderColor(ColorBase03).
+		SetTitleColor(ColorYellow)
 	
-	// Create a modal layout for the list
-	modal := createModal(list, 40, 15)
+	// Setup key bindings for j/k navigation
+	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			a.switchToView(previousView)
+			a.pages.RemovePage("view-switcher")
+			return nil
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'j', 'J':
+				current := list.GetCurrentItem()
+				if current < list.GetItemCount()-1 {
+					list.SetCurrentItem(current + 1)
+				}
+				return nil
+			case 'k', 'K':
+				current := list.GetCurrentItem()
+				if current > 0 {
+					list.SetCurrentItem(current - 1)
+				}
+				return nil
+			}
+		}
+		return event
+	})
+	
+	// Create a modal layout for the list with padding
+	paddedList := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(nil, 1, 0, false).  // Top padding
+		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(nil, 2, 0, false).  // Left padding
+			AddItem(list, 0, 1, true).  // List content
+			AddItem(nil, 2, 0, false), 0, 1, true).  // Right padding
+		AddItem(nil, 1, 0, false)  // Bottom padding
+	
+	modal := createModal(paddedList, 30, 10)
 	
 	// Add as overlay
 	a.pages.AddPage("view-switcher", modal, true, true)

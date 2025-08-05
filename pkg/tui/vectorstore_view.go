@@ -54,11 +54,25 @@ func NewVectorStoreView() *VectorStoreView {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	vv.status.SetBackgroundColor(ColorBase01)
+	vv.status.SetTextAlign(tview.AlignCenter)
 	vv.status.SetText("[#5c5044]Press r to refresh | c to create collection | d to delete | Esc to go back[-]")
 	
-	// Layout
-	vv.AddItem(vv.info, 5, 0, false).
-		AddItem(vv.table, 0, 1, true).
+	// Create padded info area
+	infoContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 2, 0, false).          // Left padding
+		AddItem(vv.info, 0, 1, false).      // Info content
+		AddItem(nil, 2, 0, false)           // Right padding
+	
+	// Create padded table area
+	tableContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 2, 0, false).          // Left padding
+		AddItem(vv.table, 0, 1, true).      // Table content
+		AddItem(nil, 2, 0, false)           // Right padding
+	
+	// Layout with padding
+	vv.AddItem(nil, 1, 0, false).          // Top padding
+		AddItem(infoContainer, 5, 0, false).
+		AddItem(tableContainer, 0, 1, true).
 		AddItem(vv.status, 1, 0, false)
 	
 	// Load initial data

@@ -49,6 +49,7 @@ func NewContextTreeView() *ContextTreeView {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	ctv.status.SetBackgroundColor(ColorBase01)
+	ctv.status.SetTextAlign(tview.AlignCenter)
 	ctv.status.SetText("[#5c5044]Use arrow keys to navigate | Enter to select | Esc to go back[-]")
 	
 	// Layout with horizontal split for tree and info
@@ -56,7 +57,14 @@ func NewContextTreeView() *ContextTreeView {
 		AddItem(ctv.tree, 0, 1, true).
 		AddItem(ctv.info, 0, 1, false)
 	
-	ctv.AddItem(mainContent, 0, 1, true).
+	// Create padded main content area
+	contentContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 2, 0, false).            // Left padding
+		AddItem(mainContent, 0, 1, true).     // Main content
+		AddItem(nil, 2, 0, false)             // Right padding
+	
+	ctv.AddItem(nil, 1, 0, false).            // Top padding
+		AddItem(contentContainer, 0, 1, true).
 		AddItem(ctv.status, 1, 0, false)
 	
 	// Setup selection handler
