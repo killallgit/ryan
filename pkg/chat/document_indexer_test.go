@@ -16,7 +16,7 @@ import (
 func setupTestDocumentIndexer(t *testing.T) (*DocumentIndexer, *vectorstore.Manager, func()) {
 	// Create mock embedder
 	embedder := vectorstore.NewMockEmbedder(384)
-	
+
 	// Create in-memory store
 	store, err := vectorstore.NewChromemStore(embedder, "", false)
 	require.NoError(t, err)
@@ -38,7 +38,7 @@ func setupTestDocumentIndexer(t *testing.T) (*DocumentIndexer, *vectorstore.Mana
 	// Create document indexer
 	indexerConfig := DefaultDocumentIndexerConfig()
 	indexerConfig.CollectionName = "test_documents"
-	
+
 	indexer := NewDocumentIndexer(manager, indexerConfig)
 
 	return indexer, manager, func() {
@@ -128,12 +128,12 @@ func TestDocumentIndexer_ShouldIndexFile(t *testing.T) {
 			// Create a mock file info
 			tmpDir := t.TempDir()
 			filePath := filepath.Join(tmpDir, tt.fileName)
-			
+
 			// Create directory structure if needed
 			dir := filepath.Dir(filePath)
 			err := os.MkdirAll(dir, 0755)
 			require.NoError(t, err)
-			
+
 			// Create file with appropriate size
 			content := strings.Repeat("a", int(tt.fileSize))
 			err = os.WriteFile(filePath, []byte(content), 0644)
@@ -295,7 +295,7 @@ func TestDocumentIndexer_IndexFile_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			filePath := tt.setup()
-			
+
 			err := indexer.IndexFile(ctx, filePath)
 			if tt.expectErr {
 				assert.Error(t, err)
@@ -316,17 +316,17 @@ func TestDocumentIndexer_IndexDirectory(t *testing.T) {
 
 	// Create test directory structure
 	files := map[string]string{
-		"doc1.txt":                    "This is the first document with some content.",
-		"doc2.md":                     "# Second Document\n\nThis is a markdown file.",
-		"code/main.go":                "package main\n\nfunc main() {\n\tprintln(\"Hello\")\n}",
-		"code/helper.py":              "def helper():\n    return 'helper function'",
-		"config/settings.json":        `{"debug": true, "port": 8080}`,
-		"config/app.yaml":             "name: testapp\nversion: 1.0",
-		"node_modules/package.json":   `{"name": "should-be-ignored"}`,
-		".git/config":                 "[core]\nrepositoryformatversion = 0",
-		"__pycache__/module.pyc":      "compiled python bytecode",
-		"large.log":                   "This log file should be ignored",
-		"binary.exe":                  "binary executable content",
+		"doc1.txt":                  "This is the first document with some content.",
+		"doc2.md":                   "# Second Document\n\nThis is a markdown file.",
+		"code/main.go":              "package main\n\nfunc main() {\n\tprintln(\"Hello\")\n}",
+		"code/helper.py":            "def helper():\n    return 'helper function'",
+		"config/settings.json":      `{"debug": true, "port": 8080}`,
+		"config/app.yaml":           "name: testapp\nversion: 1.0",
+		"node_modules/package.json": `{"name": "should-be-ignored"}`,
+		".git/config":               "[core]\nrepositoryformatversion = 0",
+		"__pycache__/module.pyc":    "compiled python bytecode",
+		"large.log":                 "This log file should be ignored",
+		"binary.exe":                "binary executable content",
 	}
 
 	for filePath, content := range files {
@@ -334,7 +334,7 @@ func TestDocumentIndexer_IndexDirectory(t *testing.T) {
 		dir := filepath.Dir(fullPath)
 		err := os.MkdirAll(dir, 0755)
 		require.NoError(t, err)
-		
+
 		err = os.WriteFile(fullPath, []byte(content), 0644)
 		require.NoError(t, err)
 	}
@@ -346,7 +346,7 @@ func TestDocumentIndexer_IndexDirectory(t *testing.T) {
 
 		// Should only index files in the root directory
 		indexedFiles := indexer.GetIndexedFiles()
-		
+
 		rootFilesIndexed := 0
 		for _, indexed := range indexedFiles {
 			rel, err := filepath.Rel(tmpDir, indexed)
@@ -355,9 +355,9 @@ func TestDocumentIndexer_IndexDirectory(t *testing.T) {
 				rootFilesIndexed++
 			}
 		}
-		
+
 		assert.Greater(t, rootFilesIndexed, 0, "Should index some root files")
-		
+
 		// Should not index excluded files
 		for _, indexed := range indexedFiles {
 			assert.NotContains(t, indexed, "node_modules")
@@ -469,11 +469,11 @@ func TestDocumentIndexer_SearchDocuments(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		query          string
-		maxResults     int
-		expectResults  int
-		shouldContain  []string
+		name             string
+		query            string
+		maxResults       int
+		expectResults    int
+		shouldContain    []string
 		shouldNotContain []string
 	}{
 		{
@@ -512,7 +512,7 @@ func TestDocumentIndexer_SearchDocuments(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.LessOrEqual(t, len(results), tt.maxResults, "Should not exceed max results")
-			
+
 			// Check for expected files
 			foundFiles := make(map[string]bool)
 			for _, result := range results {
@@ -653,11 +653,11 @@ func TestDocumentIndexer_AutoIndexFile(t *testing.T) {
 	// Test auto-indexing when disabled
 	indexer.ClearIndex(ctx)
 	indexer.config.AutoIndexFiles = false
-	
+
 	filePath2 := filepath.Join(tmpDir, "no_auto.txt")
 	err = os.WriteFile(filePath2, []byte(content), 0644)
 	require.NoError(t, err)
-	
+
 	indexer.AutoIndexFile(ctx, filePath2)
 	time.Sleep(100 * time.Millisecond)
 
@@ -675,7 +675,7 @@ func TestDocumentIndexer_AutoIndexFile(t *testing.T) {
 func TestDocumentIndexer_Configuration(t *testing.T) {
 	// Test default configuration
 	defaultConfig := DefaultDocumentIndexerConfig()
-	
+
 	assert.Equal(t, "documents", defaultConfig.CollectionName)
 	assert.True(t, defaultConfig.AutoIndexFiles)
 	assert.False(t, defaultConfig.AutoIndexDirectories)

@@ -9,14 +9,14 @@ import (
 
 // CommandPalette is an enhanced menu with search/filter capabilities
 type CommandPalette struct {
-	allOptions      []MenuOption  // All available options
-	filteredOptions []MenuOption  // Options matching current filter
-	selected        int           // Selected index in filtered options
+	allOptions      []MenuOption // All available options
+	filteredOptions []MenuOption // Options matching current filter
+	selected        int          // Selected index in filtered options
 	width           int
 	height          int
-	filterText      string        // Current filter/search text
-	cursorPos       int           // Cursor position in filter text
-	showInput       bool          // Whether to show the input field
+	filterText      string // Current filter/search text
+	cursorPos       int    // Cursor position in filter text
+	showInput       bool   // Whether to show the input field
 }
 
 // NewCommandPalette creates a new command palette
@@ -39,14 +39,14 @@ func (cp CommandPalette) WithOption(name, description string) CommandPalette {
 		Name:        name,
 		Description: description,
 	}
-	
+
 	newAllOptions := make([]MenuOption, len(cp.allOptions)+1)
 	copy(newAllOptions, cp.allOptions)
 	newAllOptions[len(cp.allOptions)] = newOption
-	
+
 	// Recalculate filtered options
 	filteredOptions := cp.filterOptions(newAllOptions, cp.filterText)
-	
+
 	return CommandPalette{
 		allOptions:      newAllOptions,
 		filteredOptions: filteredOptions,
@@ -76,13 +76,13 @@ func (cp CommandPalette) WithSize(width, height int) CommandPalette {
 // WithFilterText updates the filter text and recalculates filtered options
 func (cp CommandPalette) WithFilterText(text string) CommandPalette {
 	filteredOptions := cp.filterOptions(cp.allOptions, text)
-	
+
 	// Reset selection to 0 when filter changes
 	selected := 0
 	if len(filteredOptions) == 0 {
 		selected = -1 // No selection if no options
 	}
-	
+
 	return CommandPalette{
 		allOptions:      cp.allOptions,
 		filteredOptions: filteredOptions,
@@ -103,7 +103,7 @@ func (cp CommandPalette) WithCursorPos(pos int) CommandPalette {
 	if pos > len(cp.filterText) {
 		pos = len(cp.filterText)
 	}
-	
+
 	return CommandPalette{
 		allOptions:      cp.allOptions,
 		filteredOptions: cp.filteredOptions,
@@ -121,12 +121,12 @@ func (cp CommandPalette) SelectNext() CommandPalette {
 	if len(cp.filteredOptions) == 0 {
 		return cp
 	}
-	
+
 	newSelected := cp.selected + 1
 	if newSelected >= len(cp.filteredOptions) {
 		newSelected = 0
 	}
-	
+
 	return CommandPalette{
 		allOptions:      cp.allOptions,
 		filteredOptions: cp.filteredOptions,
@@ -144,12 +144,12 @@ func (cp CommandPalette) SelectPrevious() CommandPalette {
 	if len(cp.filteredOptions) == 0 {
 		return cp
 	}
-	
+
 	newSelected := cp.selected - 1
 	if newSelected < 0 {
 		newSelected = len(cp.filteredOptions) - 1
 	}
-	
+
 	return CommandPalette{
 		allOptions:      cp.allOptions,
 		filteredOptions: cp.filteredOptions,
@@ -178,64 +178,64 @@ func (cp CommandPalette) GetFilterText() string {
 // HandleKeyEvent processes keyboard input for the command palette
 func (cp CommandPalette) HandleKeyEvent(ev *tcell.EventKey) (CommandPalette, bool, bool) {
 	// Returns: (newPalette, handled, shouldClose)
-	
+
 	switch ev.Key() {
 	case tcell.KeyEscape:
 		return cp, true, true
-		
+
 	case tcell.KeyEnter:
 		// Select current option
 		return cp, true, true
-		
+
 	case tcell.KeyTab:
 		// Tab to select without closing (alternative selection method)
 		return cp.SelectNext(), true, false
-		
+
 	case tcell.KeyBacktab: // Shift+Tab
 		return cp.SelectPrevious(), true, false
-		
+
 	case tcell.KeyUp:
 		return cp.SelectPrevious(), true, false
-		
+
 	case tcell.KeyDown:
 		return cp.SelectNext(), true, false
-		
+
 	case tcell.KeyLeft:
 		return cp.WithCursorPos(cp.cursorPos - 1), true, false
-		
+
 	case tcell.KeyRight:
 		return cp.WithCursorPos(cp.cursorPos + 1), true, false
-		
+
 	case tcell.KeyHome:
 		return cp.WithCursorPos(0), true, false
-		
+
 	case tcell.KeyEnd:
 		return cp.WithCursorPos(len(cp.filterText)), true, false
-		
+
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		if cp.cursorPos > 0 {
 			newText := cp.filterText[:cp.cursorPos-1] + cp.filterText[cp.cursorPos:]
 			return cp.WithFilterText(newText).WithCursorPos(cp.cursorPos - 1), true, false
 		}
 		return cp, true, false
-		
+
 	case tcell.KeyDelete:
 		if cp.cursorPos < len(cp.filterText) {
 			newText := cp.filterText[:cp.cursorPos] + cp.filterText[cp.cursorPos+1:]
 			return cp.WithFilterText(newText), true, false
 		}
 		return cp, true, false
-		
+
 	case tcell.KeyCtrlA:
 		return cp.WithCursorPos(0), true, false
-		
+
 	case tcell.KeyCtrlE:
 		return cp.WithCursorPos(len(cp.filterText)), true, false
-		
+
 	case tcell.KeyCtrlU:
 		// Clear line
 		return cp.WithFilterText("").WithCursorPos(0), true, false
-		
+
 	default:
 		// Handle character input
 		if ev.Rune() != 0 && unicode.IsPrint(ev.Rune()) {
@@ -243,7 +243,7 @@ func (cp CommandPalette) HandleKeyEvent(ev *tcell.EventKey) (CommandPalette, boo
 			return cp.WithFilterText(newText).WithCursorPos(cp.cursorPos + 1), true, false
 		}
 	}
-	
+
 	return cp, false, false
 }
 
@@ -255,20 +255,20 @@ func (cp CommandPalette) filterOptions(options []MenuOption, filterText string) 
 		copy(result, options)
 		return result
 	}
-	
+
 	filterLower := strings.ToLower(filterText)
 	var filtered []MenuOption
-	
+
 	for _, option := range options {
 		// Check if filter matches name or description (case insensitive)
 		nameMatch := strings.Contains(strings.ToLower(option.Name), filterLower)
 		descMatch := strings.Contains(strings.ToLower(option.Description), filterLower)
-		
+
 		if nameMatch || descMatch {
 			filtered = append(filtered, option)
 		}
 	}
-	
+
 	return filtered
 }
 
@@ -277,35 +277,35 @@ func (cp CommandPalette) Render(screen tcell.Screen, area Rect) {
 	if area.Width < 8 || area.Height < 4 {
 		return
 	}
-	
+
 	borderStyle := StyleDimText
 	selectedStyle := StyleMenuSelected
 	normalStyle := StyleMenuNormal
 	inputStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlack)
-	
+
 	// Clear the background first to make modal opaque
 	clearArea(screen, area)
 	drawBorder(screen, area, borderStyle)
-	
+
 	currentY := area.Y + 1
-	
+
 	// Render title
 	title := "Command Palette"
 	titleStyle := tcell.StyleDefault.Bold(true).Foreground(tcell.ColorWhite).Background(tcell.ColorBlack)
 	titleX := area.X + (area.Width-len(title))/2
 	renderTextWithLimit(screen, titleX, currentY, area.Width-2, title, titleStyle)
 	currentY++
-	
+
 	// Render search input field if enabled
 	if cp.showInput {
 		// Input field border/label
 		searchLabel := "Search: "
 		renderTextWithLimit(screen, area.X+2, currentY, len(searchLabel), searchLabel, normalStyle)
-		
+
 		// Input field area
 		inputX := area.X + 2 + len(searchLabel)
 		inputWidth := area.Width - 4 - len(searchLabel)
-		
+
 		// Render input text
 		displayText := cp.filterText
 		if len(displayText) > inputWidth {
@@ -316,9 +316,9 @@ func (cp CommandPalette) Render(screen tcell.Screen, area Rect) {
 			}
 			displayText = displayText[start:]
 		}
-		
+
 		renderTextWithLimit(screen, inputX, currentY, inputWidth, displayText, inputStyle)
-		
+
 		// Render cursor
 		cursorX := inputX + cp.cursorPos
 		if cp.cursorPos >= len(displayText) {
@@ -335,10 +335,10 @@ func (cp CommandPalette) Render(screen tcell.Screen, area Rect) {
 				screen.SetContent(cursorX, currentY, ' ', nil, cursorStyle)
 			}
 		}
-		
+
 		currentY += 2 // Skip line after input
 	}
-	
+
 	// Show filter stats
 	if cp.filterText != "" {
 		stats := ""
@@ -354,13 +354,13 @@ func (cp CommandPalette) Render(screen tcell.Screen, area Rect) {
 		renderTextWithLimit(screen, area.X+2, currentY, area.Width-4, stats, statsStyle)
 		currentY++
 	}
-	
+
 	// Render filtered options
 	maxVisibleOptions := area.Y + area.Height - currentY - 1
 	if maxVisibleOptions < 1 {
 		return
 	}
-	
+
 	if len(cp.filteredOptions) == 0 {
 		// Show "no results" message
 		noResultsMsg := "No matching commands"
@@ -372,28 +372,28 @@ func (cp CommandPalette) Render(screen tcell.Screen, area Rect) {
 		renderTextWithLimit(screen, msgX, currentY+1, area.Width-2, noResultsMsg, noResultsStyle)
 		return
 	}
-	
+
 	// Calculate scroll offset to keep selected item visible
 	scrollOffset := 0
 	if cp.selected >= maxVisibleOptions {
 		scrollOffset = cp.selected - maxVisibleOptions + 1
 	}
-	
+
 	// Render visible options
 	for i := scrollOffset; i < len(cp.filteredOptions) && currentY < area.Y+area.Height-1; i++ {
 		option := cp.filteredOptions[i]
-		
+
 		style := normalStyle
 		if i == cp.selected {
 			style = selectedStyle
 		}
-		
+
 		optionText := option.Description
 		maxTextWidth := area.Width - 4
 		if len(optionText) > maxTextWidth && maxTextWidth > 3 {
 			optionText = optionText[:maxTextWidth-3] + "..."
 		}
-		
+
 		// Fill the entire row with the background color for selected item
 		for x := area.X + 1; x < area.X+area.Width-1; x++ {
 			char := ' '
@@ -404,10 +404,10 @@ func (cp CommandPalette) Render(screen tcell.Screen, area Rect) {
 			}
 			screen.SetContent(x, currentY, char, nil, style)
 		}
-		
+
 		currentY++
 	}
-	
+
 	// Show scroll indicators if needed
 	if scrollOffset > 0 {
 		screen.SetContent(area.X+area.Width-2, area.Y+3, '▲', nil, borderStyle)

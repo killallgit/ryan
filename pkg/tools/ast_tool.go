@@ -15,12 +15,12 @@ import (
 
 // ASTTool provides language-specific parsing and analysis capabilities for code review
 type ASTTool struct {
-	log             *logger.Logger
-	supportedLangs  []string
-	maxFileSize     int64
-	maxDepth        int
-	allowedPaths    []string
-	workingDir      string
+	log            *logger.Logger
+	supportedLangs []string
+	maxFileSize    int64
+	maxDepth       int
+	allowedPaths   []string
+	workingDir     string
 }
 
 // ASTNode represents a parsed AST node with metadata
@@ -42,21 +42,21 @@ type ASTPosition struct {
 
 // ASTAnalysisResult contains the parsed AST and analysis metadata
 type ASTAnalysisResult struct {
-	Language      string                 `json:"language"`
-	FilePath      string                 `json:"file_path"`
-	AST           ASTNode                `json:"ast"`
-	Symbols       []Symbol               `json:"symbols"`
-	Dependencies  []string               `json:"dependencies"`
-	Metrics       ASTMetrics             `json:"metrics"`
-	Issues        []ASTIssue             `json:"issues,omitempty"`
-	ParseTime     time.Duration          `json:"parse_time"`
+	Language     string        `json:"language"`
+	FilePath     string        `json:"file_path"`
+	AST          ASTNode       `json:"ast"`
+	Symbols      []Symbol      `json:"symbols"`
+	Dependencies []string      `json:"dependencies"`
+	Metrics      ASTMetrics    `json:"metrics"`
+	Issues       []ASTIssue    `json:"issues,omitempty"`
+	ParseTime    time.Duration `json:"parse_time"`
 }
 
 // Symbol represents a code symbol (function, variable, type, etc.)
 type Symbol struct {
 	Name       string      `json:"name"`
-	Type       string      `json:"type"`     // function, variable, type, etc.
-	Kind       string      `json:"kind"`     // public, private, etc.
+	Type       string      `json:"type"` // function, variable, type, etc.
+	Kind       string      `json:"kind"` // public, private, etc.
 	Position   ASTPosition `json:"position"`
 	Signature  string      `json:"signature,omitempty"`
 	References int         `json:"references"`
@@ -64,30 +64,30 @@ type Symbol struct {
 
 // ASTMetrics contains code metrics extracted from AST
 type ASTMetrics struct {
-	Lines           int     `json:"lines"`
-	Functions       int     `json:"functions"`
-	Classes         int     `json:"classes"`
-	Variables       int     `json:"variables"`
-	Complexity      int     `json:"complexity"`
-	CognitiveLoad   int     `json:"cognitive_load"`
-	MaxNesting      int     `json:"max_nesting"`
-	Duplication     float64 `json:"duplication_ratio"`
+	Lines         int     `json:"lines"`
+	Functions     int     `json:"functions"`
+	Classes       int     `json:"classes"`
+	Variables     int     `json:"variables"`
+	Complexity    int     `json:"complexity"`
+	CognitiveLoad int     `json:"cognitive_load"`
+	MaxNesting    int     `json:"max_nesting"`
+	Duplication   float64 `json:"duplication_ratio"`
 }
 
 // ASTIssue represents a potential code issue found during AST analysis
 type ASTIssue struct {
-	Type        string      `json:"type"`        // warning, error, suggestion
-	Category    string      `json:"category"`    // complexity, style, performance, etc.
-	Message     string      `json:"message"`
-	Position    ASTPosition `json:"position"`
-	Severity    string      `json:"severity"`    // low, medium, high, critical
-	Suggestion  string      `json:"suggestion,omitempty"`
+	Type       string      `json:"type"`     // warning, error, suggestion
+	Category   string      `json:"category"` // complexity, style, performance, etc.
+	Message    string      `json:"message"`
+	Position   ASTPosition `json:"position"`
+	Severity   string      `json:"severity"` // low, medium, high, critical
+	Suggestion string      `json:"suggestion,omitempty"`
 }
 
 // NewASTTool creates a new AST analysis tool
 func NewASTTool() *ASTTool {
 	workingDir := "."
-	
+
 	return &ASTTool{
 		log: logger.WithComponent("ast_tool"),
 		supportedLangs: []string{
@@ -95,7 +95,7 @@ func NewASTTool() *ASTTool {
 			"java", "c", "cpp", "rust", "php",
 		},
 		maxFileSize: 5 * 1024 * 1024, // 5MB
-		maxDepth:    50,               // Maximum AST depth
+		maxDepth:    50,              // Maximum AST depth
 		allowedPaths: []string{
 			workingDir,
 		},
@@ -653,7 +653,7 @@ func (at *ASTTool) formatResult(result *ASTAnalysisResult, analysisType string) 
 	if analysisType == "symbols" || analysisType == "full" {
 		output += fmt.Sprintf("Symbols (%d):\n", len(result.Symbols))
 		for _, symbol := range result.Symbols {
-			output += fmt.Sprintf("  %s %s (%s) at line %d\n", 
+			output += fmt.Sprintf("  %s %s (%s) at line %d\n",
 				symbol.Type, symbol.Name, symbol.Kind, symbol.Position.Line)
 		}
 		output += "\n"
@@ -671,7 +671,7 @@ func (at *ASTTool) formatResult(result *ASTAnalysisResult, analysisType string) 
 	if (analysisType == "issues" || analysisType == "full") && len(result.Issues) > 0 {
 		output += fmt.Sprintf("Issues (%d):\n", len(result.Issues))
 		for _, issue := range result.Issues {
-			output += fmt.Sprintf("  [%s] %s: %s (line %d)\n", 
+			output += fmt.Sprintf("  [%s] %s: %s (line %d)\n",
 				issue.Severity, issue.Category, issue.Message, issue.Position.Line)
 		}
 		output += "\n"

@@ -46,12 +46,12 @@ func TestFileLoadingPipeline(t *testing.T) {
 
 	t.Run("IndexVariousFileTypes", func(t *testing.T) {
 		testDataDir := getTestDataDir(t)
-		
+
 		// Test indexing different file types
 		testFiles := []struct {
-			relPath     string
-			expectType  string
-			searchTerm  string
+			relPath    string
+			expectType string
+			searchTerm string
 		}{
 			{"code/sample.go", "file", "UserService"},
 			{"code/sample.py", "file", "TaskService"},
@@ -64,7 +64,7 @@ func TestFileLoadingPipeline(t *testing.T) {
 
 		for _, tf := range testFiles {
 			filePath := filepath.Join(testDataDir, tf.relPath)
-			
+
 			// Skip if file doesn't exist (not all test files may be present)
 			if _, err := os.Stat(filePath); os.IsNotExist(err) {
 				t.Logf("Skipping %s - file not found", tf.relPath)
@@ -78,7 +78,7 @@ func TestFileLoadingPipeline(t *testing.T) {
 				// Search for content
 				results, err := indexer.SearchDocuments(ctx, tf.searchTerm, 5)
 				require.NoError(t, err)
-				
+
 				// Verify we found relevant content
 				found := false
 				for _, result := range results {
@@ -95,7 +95,7 @@ func TestFileLoadingPipeline(t *testing.T) {
 
 	t.Run("DirectoryIndexing", func(t *testing.T) {
 		testDataDir := getTestDataDir(t)
-		
+
 		// Index entire test directory recursively
 		err := indexer.IndexDirectory(ctx, testDataDir, true)
 		require.NoError(t, err)
@@ -106,24 +106,24 @@ func TestFileLoadingPipeline(t *testing.T) {
 
 		// Test cross-file search capabilities
 		searchTests := []struct {
-			query           string
-			expectedFiles   int
-			mustContain     []string
+			query         string
+			expectedFiles int
+			mustContain   []string
 		}{
 			{
-				query:       "vector database embeddings",
+				query:         "vector database embeddings",
 				expectedFiles: 2, // Should find multiple relevant files
-				mustContain: []string{"documentation.md", "big_document.txt"},
+				mustContain:   []string{"documentation.md", "big_document.txt"},
 			},
 			{
-				query:       "go programming",
-				expectedFiles: 1, // Should find code files  
-				mustContain: []string{"sample.go"},
+				query:         "go programming",
+				expectedFiles: 1, // Should find code files
+				mustContain:   []string{"sample.go"},
 			},
 			{
-				query:       "configuration settings",
+				query:         "configuration settings",
 				expectedFiles: 2, // Should find config files
-				mustContain: []string{"config.json", "settings.yaml"},
+				mustContain:   []string{"config.json", "settings.yaml"},
 			},
 		}
 
@@ -163,7 +163,7 @@ func TestFileLoadingPipeline(t *testing.T) {
 	t.Run("LargeFileChunking", func(t *testing.T) {
 		testDataDir := getTestDataDir(t)
 		largeFile := filepath.Join(testDataDir, "large/big_document.txt")
-		
+
 		if _, err := os.Stat(largeFile); os.IsNotExist(err) {
 			t.Skip("Large test file not found")
 		}
@@ -195,7 +195,7 @@ func TestFileLoadingPipeline(t *testing.T) {
 
 	t.Run("ConcurrentIndexing", func(t *testing.T) {
 		testDataDir := getTestDataDir(t)
-		
+
 		// Clear previous results
 		err := indexer.ClearIndex(ctx)
 		require.NoError(t, err)
@@ -246,14 +246,14 @@ func TestFileLoadingPipeline(t *testing.T) {
 
 		// Verify most files were indexed successfully
 		indexedFiles := indexer.GetIndexedFiles()
-		assert.GreaterOrEqual(t, len(indexedFiles), successCount, 
+		assert.GreaterOrEqual(t, len(indexedFiles), successCount,
 			"Indexed files should match successful indexing operations")
 		assert.Greater(t, successCount, 0, "At least some files should be indexed successfully")
 	})
 
 	t.Run("PersistenceAndRecovery", func(t *testing.T) {
 		testDataDir := getTestDataDir(t)
-		
+
 		// Create a persistent manager
 		persistentConfig := vectorstore.Config{
 			Provider:          "chromem",
@@ -271,11 +271,11 @@ func TestFileLoadingPipeline(t *testing.T) {
 		require.NoError(t, err)
 
 		indexer1 := chat.NewDocumentIndexer(manager1, chat.DocumentIndexerConfig{
-			CollectionName: "persistent_test",
-			AutoIndexFiles: true,
-			MaxFileSize:    1024 * 1024,
+			CollectionName:      "persistent_test",
+			AutoIndexFiles:      true,
+			MaxFileSize:         1024 * 1024,
 			SupportedExtensions: []string{".txt", ".md"},
-			ChunkSize:      500,
+			ChunkSize:           500,
 		})
 
 		// Index a test file
@@ -312,7 +312,7 @@ func TestFileLoadingPipeline(t *testing.T) {
 
 	t.Run("ErrorHandling", func(t *testing.T) {
 		// Test various error conditions
-		
+
 		// Non-existent file
 		err := indexer.IndexFile(ctx, "/non/existent/file.txt")
 		assert.Error(t, err, "Should error on non-existent file")
@@ -325,7 +325,7 @@ func TestFileLoadingPipeline(t *testing.T) {
 		emptyDir := filepath.Join(tempDir, "empty")
 		err = os.MkdirAll(emptyDir, 0755)
 		require.NoError(t, err)
-		
+
 		err = indexer.IndexDirectory(ctx, emptyDir, false)
 		require.NoError(t, err) // Should not error on empty directory
 
@@ -339,7 +339,7 @@ func TestFileLoadingPipeline(t *testing.T) {
 	t.Run("MetadataVerification", func(t *testing.T) {
 		testDataDir := getTestDataDir(t)
 		testFile := filepath.Join(testDataDir, "code/sample.go")
-		
+
 		if _, err := os.Stat(testFile); os.IsNotExist(err) {
 			t.Skip("Test file not found")
 		}
@@ -355,12 +355,12 @@ func TestFileLoadingPipeline(t *testing.T) {
 		// Search and verify metadata
 		results, err := indexer.SearchDocuments(ctx, "main", 5)
 		require.NoError(t, err)
-		
+
 		found := false
 		for _, result := range results {
 			if result.Document.Metadata["file_path"] == testFile {
 				metadata := result.Document.Metadata
-				
+
 				// Verify required metadata fields
 				assert.Equal(t, "file", metadata["type"])
 				assert.Equal(t, "sample.go", metadata["file_name"])
@@ -368,12 +368,12 @@ func TestFileLoadingPipeline(t *testing.T) {
 				assert.NotNil(t, metadata["file_size"])
 				assert.NotNil(t, metadata["modified_time"])
 				assert.NotNil(t, metadata["indexed_at"])
-				
+
 				// Verify file size is reasonable
 				if size, ok := metadata["file_size"].(int64); ok {
 					assert.Greater(t, size, int64(0), "File size should be positive")
 				}
-				
+
 				found = true
 				break
 			}
@@ -387,19 +387,19 @@ func getTestDataDir(t *testing.T) string {
 	// Get the current working directory
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	
+
 	// Navigate up to find testdata directory
 	testDataDir := filepath.Join(wd, "..", "testdata")
 	if _, err := os.Stat(testDataDir); err == nil {
 		return testDataDir
 	}
-	
+
 	// Try from project root
 	testDataDir = filepath.Join(wd, "testdata")
 	if _, err := os.Stat(testDataDir); err == nil {
 		return testDataDir
 	}
-	
+
 	t.Fatal("Could not find testdata directory")
 	return ""
 }
@@ -436,12 +436,12 @@ func TestFileLoadingPerformance(t *testing.T) {
 		// Create multiple test files
 		fileCount := 50
 		files := make([]string, fileCount)
-		
+
 		for i := 0; i < fileCount; i++ {
 			filePath := filepath.Join(tempDir, fmt.Sprintf("test_%d.txt", i))
 			content := fmt.Sprintf("This is test file number %d. It contains some content for indexing performance testing. The content is designed to be meaningful for search purposes.", i)
 			content = strings.Repeat(content+" ", 10) // Make it longer
-			
+
 			err := os.WriteFile(filePath, []byte(content), 0644)
 			require.NoError(t, err)
 			files[i] = filePath
@@ -449,17 +449,17 @@ func TestFileLoadingPerformance(t *testing.T) {
 
 		// Measure indexing time
 		start := time.Now()
-		
+
 		for _, filePath := range files {
 			err := indexer.IndexFile(ctx, filePath)
 			require.NoError(t, err)
 		}
-		
+
 		duration := time.Since(start)
-		
+
 		// Performance assertion - should index 50 files in reasonable time
 		assert.Less(t, duration, 30*time.Second, "Should index %d files in under 30 seconds", fileCount)
-		
+
 		filesPerSecond := float64(fileCount) / duration.Seconds()
 		t.Logf("Indexed %d files in %v (%.2f files/second)", fileCount, duration, filesPerSecond)
 	})
@@ -479,30 +479,30 @@ func TestFileLoadingPerformance(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			for _, query := range searchQueries {
 				start := time.Now()
-				
+
 				results, err := indexer.SearchDocuments(ctx, query, 10)
 				require.NoError(t, err)
 				// Mock embedder may not find semantic matches, so we'll be lenient
 				if len(results) == 0 {
 					t.Logf("No results found for query: %s (this is expected with mock embedder)", query)
 				}
-				
+
 				totalDuration += time.Since(start)
 			}
 		}
 
 		avgDuration := totalDuration / time.Duration(totalQueries)
-		
+
 		// Performance assertion - searches should be fast
 		assert.Less(t, avgDuration, 100*time.Millisecond, "Average search should be under 100ms")
-		
+
 		t.Logf("Average search time: %v over %d queries", avgDuration, totalQueries)
 	})
 
 	t.Run("MemoryUsage", func(t *testing.T) {
 		// This is a basic memory usage check
 		// In a real scenario, you might use runtime.ReadMemStats()
-		
+
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
 		initialMem := m.Alloc
@@ -511,10 +511,10 @@ func TestFileLoadingPerformance(t *testing.T) {
 		for i := 100; i < 200; i++ {
 			filePath := filepath.Join(tempDir, fmt.Sprintf("mem_test_%d.txt", i))
 			content := strings.Repeat(fmt.Sprintf("Memory test content %d ", i), 100)
-			
+
 			err := os.WriteFile(filePath, []byte(content), 0644)
 			require.NoError(t, err)
-			
+
 			err = indexer.IndexFile(ctx, filePath)
 			require.NoError(t, err)
 		}
@@ -525,9 +525,9 @@ func TestFileLoadingPerformance(t *testing.T) {
 
 		// Memory usage should be reasonable (this is a rough check)
 		maxExpectedIncrease := uint64(100 * 1024 * 1024) // 100MB
-		assert.Less(t, memIncrease, maxExpectedIncrease, 
+		assert.Less(t, memIncrease, maxExpectedIncrease,
 			"Memory increase should be reasonable: %d bytes", memIncrease)
-		
+
 		t.Logf("Memory increase: %d bytes (%.2f MB)", memIncrease, float64(memIncrease)/(1024*1024))
 	})
 }

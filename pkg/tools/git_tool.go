@@ -14,11 +14,11 @@ import (
 
 // GitTool implements git repository operations with safety constraints
 type GitTool struct {
-	log         *logger.Logger
-	gitBinary   string
-	workingDir  string
-	timeout     time.Duration
-	allowedOps  []string
+	log        *logger.Logger
+	gitBinary  string
+	workingDir string
+	timeout    time.Duration
+	allowedOps []string
 }
 
 // GitOperation represents a git operation result
@@ -34,22 +34,22 @@ type GitOperation struct {
 
 // GitStatus represents repository status information
 type GitStatus struct {
-	Branch        string   `json:"branch"`
-	Staged        []string `json:"staged"`
-	Modified      []string `json:"modified"`
-	Untracked     []string `json:"untracked"`
-	Deleted       []string `json:"deleted"`
-	Renamed       []string `json:"renamed"`
-	Ahead         int      `json:"ahead"`
-	Behind        int      `json:"behind"`
-	Clean         bool     `json:"clean"`
-	HasConflicts  bool     `json:"has_conflicts"`
+	Branch       string   `json:"branch"`
+	Staged       []string `json:"staged"`
+	Modified     []string `json:"modified"`
+	Untracked    []string `json:"untracked"`
+	Deleted      []string `json:"deleted"`
+	Renamed      []string `json:"renamed"`
+	Ahead        int      `json:"ahead"`
+	Behind       int      `json:"behind"`
+	Clean        bool     `json:"clean"`
+	HasConflicts bool     `json:"has_conflicts"`
 }
 
 // NewGitTool creates a new Git tool with default configuration
 func NewGitTool() *GitTool {
 	wd, _ := os.Getwd()
-	
+
 	tool := &GitTool{
 		log:        logger.WithComponent("git_tool"),
 		workingDir: wd,
@@ -86,7 +86,7 @@ func (gt *GitTool) JSONSchema() map[string]any {
 		"type": "object",
 		"properties": map[string]any{
 			"operation": map[string]any{
-				"type": "string",
+				"type":        "string",
 				"description": "Git operation to perform",
 				"enum": []string{
 					"status", "diff", "log", "branch", "show", "ls-files",
@@ -205,12 +205,12 @@ func (gt *GitTool) Execute(ctx context.Context, params map[string]any) (ToolResu
 		Content: content,
 		Error:   result.Error,
 		Data: map[string]any{
-			"operation":   opStr,
-			"repository":  repoPath,
-			"exit_code":   result.ExitCode,
-			"branch":      result.Branch,
-			"raw_output":  result.Output,
-			"metadata":    result.Metadata,
+			"operation":  opStr,
+			"repository": repoPath,
+			"exit_code":  result.ExitCode,
+			"branch":     result.Branch,
+			"raw_output": result.Output,
+			"metadata":   result.Metadata,
 		},
 		Metadata: ToolMetadata{
 			ExecutionTime: time.Since(startTime),
@@ -236,7 +236,7 @@ type GitOperationParams struct {
 func (gt *GitTool) executeGitOperation(ctx context.Context, operation, repoPath string, params GitOperationParams) (*GitOperation, error) {
 	// Build git command arguments
 	args := gt.buildGitArgs(operation, params)
-	
+
 	// Create command with timeout
 	execCtx, cancel := context.WithTimeout(ctx, gt.timeout)
 	defer cancel()
@@ -282,7 +282,7 @@ func (gt *GitTool) buildGitArgs(operation string, params GitOperationParams) []s
 	switch operation {
 	case "status":
 		args = append(args, "--porcelain=v1", "--branch")
-		
+
 	case "diff":
 		if params.Commit != "" {
 			args = append(args, params.Commit)
@@ -292,7 +292,7 @@ func (gt *GitTool) buildGitArgs(operation string, params GitOperationParams) []s
 		if params.File != "" {
 			args = append(args, "--", params.File)
 		}
-		
+
 	case "log":
 		args = append(args, "--oneline", fmt.Sprintf("-n%d", params.Limit))
 		if params.Branch != "" {
@@ -301,10 +301,10 @@ func (gt *GitTool) buildGitArgs(operation string, params GitOperationParams) []s
 		if params.File != "" {
 			args = append(args, "--", params.File)
 		}
-		
+
 	case "branch":
 		args = append(args, "-v", "-a")
-		
+
 	case "show":
 		if params.Commit != "" {
 			args = append(args, params.Commit)
@@ -312,18 +312,18 @@ func (gt *GitTool) buildGitArgs(operation string, params GitOperationParams) []s
 			args = append(args, "HEAD")
 		}
 		args = append(args, "--stat")
-		
+
 	case "ls-files":
 		args = append(args, "--cached", "--others", "--exclude-standard")
-		
+
 	case "remote":
 		args = append(args, "-v")
-		
+
 	case "blame":
 		if params.File != "" {
 			args = append(args, params.File)
 		}
-		
+
 	case "reflog":
 		args = append(args, "--oneline", fmt.Sprintf("-n%d", params.Limit))
 	}
@@ -338,12 +338,12 @@ func (gt *GitTool) buildGitArgs(operation string, params GitOperationParams) []s
 func (gt *GitTool) getCurrentBranch(repoPath string) string {
 	cmd := exec.Command(gt.gitBinary, "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = repoPath
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return "unknown"
 	}
-	
+
 	return strings.TrimSpace(string(output))
 }
 
@@ -352,10 +352,10 @@ func (gt *GitTool) formatResult(result *GitOperation, format string) string {
 	switch format {
 	case "raw":
 		return result.Output
-		
+
 	case "summary":
 		return gt.createSummary(result)
-		
+
 	case "structured":
 		fallthrough
 	default:
@@ -366,26 +366,26 @@ func (gt *GitTool) formatResult(result *GitOperation, format string) string {
 // createSummary creates a brief summary of the git operation
 func (gt *GitTool) createSummary(result *GitOperation) string {
 	var summary strings.Builder
-	
+
 	summary.WriteString(fmt.Sprintf("Git %s completed", strings.Fields(result.Command)[1]))
 	if result.Branch != "" {
 		summary.WriteString(fmt.Sprintf(" on branch '%s'", result.Branch))
 	}
-	
+
 	if result.ExitCode != 0 {
 		summary.WriteString(fmt.Sprintf(" with exit code %d", result.ExitCode))
 		if result.Error != "" {
 			summary.WriteString(fmt.Sprintf(": %s", result.Error))
 		}
 	}
-	
+
 	return summary.String()
 }
 
 // createStructuredOutput creates formatted output for the git operation
 func (gt *GitTool) createStructuredOutput(result *GitOperation) string {
 	var output strings.Builder
-	
+
 	output.WriteString(fmt.Sprintf("=== Git %s ===\n", strings.Fields(result.Command)[1]))
 	output.WriteString(fmt.Sprintf("Repository: %s\n", result.Repository))
 	if result.Branch != "" {
@@ -393,7 +393,7 @@ func (gt *GitTool) createStructuredOutput(result *GitOperation) string {
 	}
 	output.WriteString(fmt.Sprintf("Exit Code: %d\n", result.ExitCode))
 	output.WriteString("\n")
-	
+
 	if result.Output != "" {
 		output.WriteString("Output:\n")
 		output.WriteString(result.Output)
@@ -401,13 +401,13 @@ func (gt *GitTool) createStructuredOutput(result *GitOperation) string {
 			output.WriteString("\n")
 		}
 	}
-	
+
 	if result.Error != "" {
 		output.WriteString("\nError:\n")
 		output.WriteString(result.Error)
 		output.WriteString("\n")
 	}
-	
+
 	return output.String()
 }
 
@@ -415,13 +415,13 @@ func (gt *GitTool) createStructuredOutput(result *GitOperation) string {
 
 func (gt *GitTool) findGitBinary() string {
 	candidates := []string{"git", "/usr/bin/git", "/usr/local/bin/git", "/opt/homebrew/bin/git"}
-	
+
 	for _, candidate := range candidates {
 		if path, err := exec.LookPath(candidate); err == nil {
 			return path
 		}
 	}
-	
+
 	return ""
 }
 
@@ -439,7 +439,7 @@ func (gt *GitTool) validateRepository(path string) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("path does not exist: %s", path)
 	}
-	
+
 	// Check if it's a git repository
 	gitDir := filepath.Join(path, ".git")
 	if _, err := os.Stat(gitDir); err != nil {
@@ -450,7 +450,7 @@ func (gt *GitTool) validateRepository(path string) error {
 			return fmt.Errorf("not a git repository: %s", path)
 		}
 	}
-	
+
 	return nil
 }
 

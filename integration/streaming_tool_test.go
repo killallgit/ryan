@@ -27,7 +27,7 @@ var _ = Describe("Streaming Tool Calling", func() {
 		if os.Getenv("INTEGRATION_TEST") != "true" {
 			Skip("Integration tests skipped. Set INTEGRATION_TEST=true to run.")
 		}
-		
+
 		// Initialize config
 		err := config.InitializeDefaults()
 		Expect(err).ToNot(HaveOccurred())

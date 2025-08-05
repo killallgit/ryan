@@ -20,44 +20,44 @@ type BatchExecutor struct {
 
 // BatchRequest represents a request to execute multiple tools
 type BatchRequest struct {
-	Tools        []ToolRequest             `json:"tools"`
-	Dependencies map[string][]string       `json:"dependencies,omitempty"` // tool_id -> [dependency_ids]
-	Timeout      time.Duration             `json:"timeout,omitempty"`
-	Context      context.Context           `json:"-"`
-	Progress     chan<- ProgressUpdate     `json:"-"`
+	Tools        []ToolRequest         `json:"tools"`
+	Dependencies map[string][]string   `json:"dependencies,omitempty"` // tool_id -> [dependency_ids]
+	Timeout      time.Duration         `json:"timeout,omitempty"`
+	Context      context.Context       `json:"-"`
+	Progress     chan<- ProgressUpdate `json:"-"`
 }
 
 // BatchResult represents the result of batch tool execution
 type BatchResult struct {
-	Results      map[string]ToolResult     `json:"results"`
-	Errors       map[string]error          `json:"errors,omitempty"`
-	StartTime    time.Time                 `json:"start_time"`
-	EndTime      time.Time                 `json:"end_time"`
-	Duration     time.Duration             `json:"duration"`
-	ToolsCount   int                       `json:"tools_count"`
-	SuccessCount int                       `json:"success_count"`
-	ErrorCount   int                       `json:"error_count"`
-	Metadata     BatchExecutionMetadata    `json:"metadata"`
+	Results      map[string]ToolResult  `json:"results"`
+	Errors       map[string]error       `json:"errors,omitempty"`
+	StartTime    time.Time              `json:"start_time"`
+	EndTime      time.Time              `json:"end_time"`
+	Duration     time.Duration          `json:"duration"`
+	ToolsCount   int                    `json:"tools_count"`
+	SuccessCount int                    `json:"success_count"`
+	ErrorCount   int                    `json:"error_count"`
+	Metadata     BatchExecutionMetadata `json:"metadata"`
 }
 
 // BatchExecutionMetadata contains execution information for the batch
 type BatchExecutionMetadata struct {
-	ConcurrentExecutions int                    `json:"concurrent_executions"`
-	DependencyGraph      *DependencyGraph       `json:"dependency_graph,omitempty"`
-	ExecutionOrder       []string               `json:"execution_order"`
-	ResourceUsage        ResourceUsageStats     `json:"resource_usage"`
+	ConcurrentExecutions int                `json:"concurrent_executions"`
+	DependencyGraph      *DependencyGraph   `json:"dependency_graph,omitempty"`
+	ExecutionOrder       []string           `json:"execution_order"`
+	ResourceUsage        ResourceUsageStats `json:"resource_usage"`
 }
 
 // ProgressUpdate represents a progress update during batch execution
 type ProgressUpdate struct {
-	Type        ProgressType   `json:"type"`
-	ToolID      string         `json:"tool_id"`
-	ToolName    string         `json:"tool_name"`
-	Progress    float64        `json:"progress"`    // 0.0 to 1.0
-	Message     string         `json:"message"`
-	Result      *ToolResult    `json:"result,omitempty"`
-	Error       error          `json:"error,omitempty"`
-	Timestamp   time.Time      `json:"timestamp"`
+	Type      ProgressType `json:"type"`
+	ToolID    string       `json:"tool_id"`
+	ToolName  string       `json:"tool_name"`
+	Progress  float64      `json:"progress"` // 0.0 to 1.0
+	Message   string       `json:"message"`
+	Result    *ToolResult  `json:"result,omitempty"`
+	Error     error        `json:"error,omitempty"`
+	Timestamp time.Time    `json:"timestamp"`
 }
 
 // ProgressType represents the type of progress update
@@ -65,7 +65,7 @@ type ProgressType string
 
 const (
 	ProgressStarted   ProgressType = "started"
-	ProgressProgress  ProgressType = "progress" 
+	ProgressProgress  ProgressType = "progress"
 	ProgressCompleted ProgressType = "completed"
 	ProgressError     ProgressType = "error"
 	ProgressCancelled ProgressType = "cancelled"
@@ -73,11 +73,11 @@ const (
 
 // ResourceUsageStats tracks resource usage during batch execution
 type ResourceUsageStats struct {
-	MaxConcurrent  int           `json:"max_concurrent"`
-	TotalMemoryMB  int64         `json:"total_memory_mb"`
-	PeakMemoryMB   int64         `json:"peak_memory_mb"`
-	CPUTimeMs      int64         `json:"cpu_time_ms"`
-	WallTimeMs     int64         `json:"wall_time_ms"`
+	MaxConcurrent int   `json:"max_concurrent"`
+	TotalMemoryMB int64 `json:"total_memory_mb"`
+	PeakMemoryMB  int64 `json:"peak_memory_mb"`
+	CPUTimeMs     int64 `json:"cpu_time_ms"`
+	WallTimeMs    int64 `json:"wall_time_ms"`
 }
 
 // NewBatchExecutor creates a new batch executor
@@ -112,7 +112,7 @@ func (be *BatchExecutor) WithProgressSink(sink chan<- ProgressUpdate) *BatchExec
 // Execute performs batch tool execution with dependency resolution and concurrency
 func (be *BatchExecutor) Execute(req BatchRequest) (*BatchResult, error) {
 	startTime := time.Now()
-	
+
 	// Validate request
 	if len(req.Tools) == 0 {
 		return nil, fmt.Errorf("no tools specified in batch request")
@@ -159,7 +159,7 @@ func (be *BatchExecutor) Execute(req BatchRequest) (*BatchResult, error) {
 	// Initialize result tracking
 	results := make(map[string]ToolResult)
 	errors := make(map[string]error)
-	
+
 	// Track resource usage
 	resourceStats := ResourceUsageStats{
 		MaxConcurrent: be.maxConcurrent,
@@ -167,7 +167,7 @@ func (be *BatchExecutor) Execute(req BatchRequest) (*BatchResult, error) {
 
 	// Execute tools in dependency order with concurrency control
 	err = be.executeWithConcurrency(ctx, req, depGraph, executionOrder, results, errors, &resourceStats)
-	
+
 	endTime := time.Now()
 	duration := endTime.Sub(startTime)
 
@@ -217,22 +217,22 @@ func (be *BatchExecutor) executeWithConcurrency(
 ) error {
 	// Use a semaphore to control concurrency
 	semaphore := make(chan struct{}, be.maxConcurrent)
-	
+
 	// Results channels
 	resultChan := make(chan toolExecutionResult, len(req.Tools))
-	
+
 	// WaitGroup to track completion
 	var wg sync.WaitGroup
-	
+
 	// Mutex to protect shared state
 	var mu sync.Mutex
-	
+
 	// Track completion status
 	completedTools := make(map[string]bool)
-	
+
 	// Track currently executing tools
 	executingTools := make(map[string]bool)
-	
+
 	// Launch goroutine to process results
 	var resultWg sync.WaitGroup
 	resultWg.Add(1)
@@ -240,7 +240,7 @@ func (be *BatchExecutor) executeWithConcurrency(
 		defer resultWg.Done()
 		be.processResults(resultChan, results, errors, completedTools, &mu)
 	}()
-	
+
 	// Execute tools in dependency order
 	for _, toolID := range executionOrder {
 		// Check if context is cancelled
@@ -249,42 +249,42 @@ func (be *BatchExecutor) executeWithConcurrency(
 			return ctx.Err()
 		default:
 		}
-		
+
 		// Wait for dependencies to complete
 		if err := be.waitForDependencies(ctx, depGraph, toolID, completedTools, &mu); err != nil {
 			return fmt.Errorf("dependency wait failed for tool %s: %w", toolID, err)
 		}
-		
+
 		// Find the tool request
 		var toolReq *ToolRequest
 		for i := range req.Tools {
 			if be.getToolID(&req.Tools[i], i) == toolID {
 				// Create a deep copy to avoid pointer issues
 				toolReqCopy := req.Tools[i]
-				
+
 				// Deep copy the parameters map
 				paramsCopy := make(map[string]any)
 				for k, v := range toolReqCopy.Parameters {
 					paramsCopy[k] = v
 				}
 				toolReqCopy.Parameters = paramsCopy
-				
+
 				toolReq = &toolReqCopy
 				break
 			}
 		}
-		
+
 		if toolReq == nil {
 			return fmt.Errorf("tool request not found for ID: %s", toolID)
 		}
-		
+
 		// Acquire semaphore (wait for available slot)
 		select {
 		case semaphore <- struct{}{}:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-		
+
 		// Launch tool execution
 		wg.Add(1)
 		go func(id string, request ToolRequest) {
@@ -292,12 +292,12 @@ func (be *BatchExecutor) executeWithConcurrency(
 				<-semaphore // Release semaphore
 				wg.Done()
 			}()
-			
+
 			// Mark as executing
 			mu.Lock()
 			executingTools[id] = true
 			mu.Unlock()
-			
+
 			// Send progress update
 			be.sendProgressUpdate(req.Progress, ProgressUpdate{
 				Type:      ProgressStarted,
@@ -307,28 +307,28 @@ func (be *BatchExecutor) executeWithConcurrency(
 				Message:   fmt.Sprintf("Starting execution of %s", request.Name),
 				Timestamp: time.Now(),
 			})
-			
+
 			// Execute the tool
 			result, err := be.executeSingleTool(ctx, request)
-			
+
 			// Send result
 			resultChan <- toolExecutionResult{
 				ID:     id,
 				Result: result,
 				Error:  err,
 			}
-			
+
 			// Mark as no longer executing
 			mu.Lock()
 			delete(executingTools, id)
 			mu.Unlock()
-			
+
 			// Send completion update
 			progressType := ProgressCompleted
 			if err != nil {
 				progressType = ProgressError
 			}
-			
+
 			be.sendProgressUpdate(req.Progress, ProgressUpdate{
 				Type:      progressType,
 				ToolID:    id,
@@ -338,17 +338,17 @@ func (be *BatchExecutor) executeWithConcurrency(
 				Error:     err,
 				Timestamp: time.Now(),
 			})
-			
+
 		}(toolID, *toolReq)
 	}
-	
+
 	// Wait for all tools to complete
 	wg.Wait()
 	close(resultChan)
-	
+
 	// Wait for result processing to complete
 	resultWg.Wait()
-	
+
 	return nil
 }
 
@@ -369,20 +369,20 @@ func (be *BatchExecutor) processResults(
 ) {
 	for result := range resultChan {
 		mu.Lock()
-		
+
 		if result.Error != nil {
 			// Tool execution failed (couldn't run the tool at all)
 			errors[result.ID] = result.Error
 		} else {
 			// Tool executed (but may have failed internally)
 			results[result.ID] = result.Result
-			
+
 			// If the tool result indicates failure, also add to errors
 			if !result.Result.Success && result.Result.Error != "" {
 				errors[result.ID] = fmt.Errorf("tool execution failed: %s", result.Result.Error)
 			}
 		}
-		
+
 		completedTools[result.ID] = true
 		mu.Unlock()
 	}
@@ -400,16 +400,16 @@ func (be *BatchExecutor) waitForDependencies(
 	if node == nil {
 		return fmt.Errorf("tool not found in dependency graph: %s", toolID)
 	}
-	
+
 	// If no dependencies, return immediately
 	if len(node.Dependencies) == 0 {
 		return nil
 	}
-	
+
 	// Poll for dependency completion
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -424,7 +424,7 @@ func (be *BatchExecutor) waitForDependencies(
 				}
 			}
 			mu.Unlock()
-			
+
 			if allCompleted {
 				return nil
 			}
@@ -438,14 +438,14 @@ func (be *BatchExecutor) executeSingleTool(ctx context.Context, req ToolRequest)
 	if req.Context == nil {
 		req.Context = ctx
 	}
-	
+
 	return be.registry.Execute(ctx, req)
 }
 
 // buildDependencyGraph builds a dependency graph from tool requests and dependencies
 func (be *BatchExecutor) buildDependencyGraph(tools []ToolRequest, dependencies map[string][]string) (*DependencyGraph, error) {
 	graph := NewDependencyGraph()
-	
+
 	// Add all tools as nodes
 	for i, tool := range tools {
 		toolID := be.getToolID(&tool, i)
@@ -454,7 +454,7 @@ func (be *BatchExecutor) buildDependencyGraph(tools []ToolRequest, dependencies 
 			return nil, fmt.Errorf("failed to add tool %s to graph: %w", toolID, err)
 		}
 	}
-	
+
 	// Add dependencies
 	for toolID, deps := range dependencies {
 		for _, depID := range deps {
@@ -464,7 +464,7 @@ func (be *BatchExecutor) buildDependencyGraph(tools []ToolRequest, dependencies 
 			}
 		}
 	}
-	
+
 	return graph, nil
 }
 
@@ -493,7 +493,7 @@ func (be *BatchExecutor) sendProgressUpdate(sink chan<- ProgressUpdate, update P
 			// Don't block if the channel is full
 		}
 	}
-	
+
 	// Also send to batch executor's sink if configured
 	if be.progressSink != nil {
 		select {

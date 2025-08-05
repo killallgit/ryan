@@ -38,6 +38,7 @@ func NewToolsView(toolRegistry *tools.Registry) *ToolsView {
 func (v *ToolsView) SetCurrentModel(model string) {
 	v.currentModel = model
 }
+
 // Name returns the view name for registration
 func (v *ToolsView) Name() string {
 	return "tools"
