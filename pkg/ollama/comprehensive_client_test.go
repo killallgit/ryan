@@ -17,18 +17,18 @@ import (
 func TestClient_NewClientWithTimeout(t *testing.T) {
 	baseURL := "http://localhost:11434"
 	timeout := 60 * time.Second
-	
+
 	client := ollama.NewClientWithTimeout(baseURL, timeout)
-	
+
 	assert.NotNil(t, client)
 	// Note: Cannot directly test internal fields as they're private
 }
 
 func TestClient_NewClient(t *testing.T) {
 	baseURL := "http://localhost:11434"
-	
+
 	client := ollama.NewClient(baseURL)
-	
+
 	assert.NotNil(t, client)
 }
 
@@ -91,7 +91,7 @@ func TestClient_Pull(t *testing.T) {
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(tt.statusCode)
-				
+
 				if tt.statusCode == http.StatusOK {
 					// Write streaming responses line by line
 					lines := strings.Split(tt.serverResponse, "\n")
@@ -131,7 +131,7 @@ func TestClient_PullWithProgress(t *testing.T) {
 	}{
 		{
 			name:      "successful pull with progress",
-			modelName: "llama2:latest", 
+			modelName: "llama2:latest",
 			serverResponse: `{"status":"downloading","digest":"sha256:abc123","total":1000,"completed":0}
 {"status":"downloading","digest":"sha256:abc123","total":1000,"completed":500}
 {"status":"success"}`,
@@ -169,7 +169,7 @@ func TestClient_PullWithProgress(t *testing.T) {
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(tt.statusCode)
-				
+
 				if tt.statusCode == http.StatusOK {
 					lines := strings.Split(tt.serverResponse, "\n")
 					for _, line := range lines {
@@ -186,7 +186,7 @@ func TestClient_PullWithProgress(t *testing.T) {
 			defer server.Close()
 
 			client := ollama.NewClient(server.URL)
-			
+
 			var progressCalls []ollama.PullResponse
 			progressCallback := func(status string, completed, total int64) {
 				progressCalls = append(progressCalls, ollama.PullResponse{
@@ -312,10 +312,10 @@ func TestClient_Tags_ErrorScenarios(t *testing.T) {
 			errorContains: "failed to decode tags response",
 		},
 		{
-			name:        "empty models array",
-			statusCode:  http.StatusOK,
+			name:         "empty models array",
+			statusCode:   http.StatusOK,
 			responseBody: `{"models": []}`,
-			expectError: false,
+			expectError:  false,
 		},
 	}
 
@@ -371,10 +371,10 @@ func TestClient_Ps_ErrorScenarios(t *testing.T) {
 			errorContains: "failed to decode ps response",
 		},
 		{
-			name:        "no running models",
-			statusCode:  http.StatusOK,
+			name:         "no running models",
+			statusCode:   http.StatusOK,
 			responseBody: `{"models": []}`,
-			expectError: false,
+			expectError:  false,
 		},
 	}
 
@@ -446,7 +446,7 @@ func TestClient_PullWithProgress_NilCallback(t *testing.T) {
 
 	client := ollama.NewClient(server.URL)
 	ctx := context.Background()
-	
+
 	// Test with nil progress callback - should not crash
 	err := client.PullWithProgress(ctx, "test-model", nil)
 	assert.NoError(t, err)
@@ -464,7 +464,7 @@ func TestProgressCallback(t *testing.T) {
 
 	// Test the callback directly
 	callback("downloading", 500, 1000)
-	
+
 	assert.Equal(t, "downloading", capturedStatus)
 	assert.Equal(t, int64(500), capturedCompleted)
 	assert.Equal(t, int64(1000), capturedTotal)
@@ -473,12 +473,12 @@ func TestProgressCallback(t *testing.T) {
 func TestClient_RequestCreationErrors(t *testing.T) {
 	// Test with invalid request body scenarios
 	client := ollama.NewClient("http://localhost:11434")
-	
+
 	t.Run("PullWithProgress request creation error", func(t *testing.T) {
 		// Create context that's already cancelled
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		
+
 		err := client.PullWithProgress(ctx, "test-model", nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "context canceled")

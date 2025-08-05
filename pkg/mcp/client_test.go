@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewClient(t *testing.T) {
+func TestNewMCPClient(t *testing.T) {
 	config := MCPClientConfig{
 		DefaultTimeout:         30 * time.Second,
 		MaxRetryAttempts:       3,
@@ -263,7 +263,7 @@ func TestClient_ParseToolResult(t *testing.T) {
 
 	t.Run("Parse map result", func(t *testing.T) {
 		result := map[string]interface{}{
-			"content": "structured content",
+			"content":           "structured content",
 			"structuredContent": map[string]interface{}{"key": "value"},
 		}
 		toolResult := &ToolCallResult{}

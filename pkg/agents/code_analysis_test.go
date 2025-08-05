@@ -10,7 +10,7 @@ import (
 
 func TestCodeAnalysisAgent_NewCodeAnalysisAgent(t *testing.T) {
 	agent := NewCodeAnalysisAgent()
-	
+
 	assert.NotNil(t, agent)
 	assert.NotNil(t, agent.astAnalyzer)
 	assert.NotNil(t, agent.symbolResolver)
@@ -97,7 +97,7 @@ func TestCodeAnalysisAgent_CanHandle(t *testing.T) {
 	}
 
 	agent := NewCodeAnalysisAgent()
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			canHandle, confidence := agent.CanHandle(tt.request)
@@ -115,7 +115,7 @@ func TestCodeAnalysisAgent_Execute(t *testing.T) {
 	// Note: The actual CodeAnalysisAgent performs direct AST analysis
 	// and doesn't use external tools
 	agent := NewCodeAnalysisAgent()
-	
+
 	tests := []struct {
 		name        string
 		request     AgentRequest
@@ -176,7 +176,7 @@ type Handler interface {
 		{
 			name: "Missing file content",
 			request: AgentRequest{
-				Prompt: "analyze missing.go",
+				Prompt:  "analyze missing.go",
 				Context: map[string]interface{}{},
 			},
 			expectError: true, // Should return an error for missing content
@@ -188,11 +188,11 @@ type Handler interface {
 	}
 
 	ctx := context.Background()
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := agent.Execute(ctx, tt.request)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -219,20 +219,20 @@ func TestCodeAnalysisAgent_Analyzers(t *testing.T) {
 
 func TestCodeAnalysisAgent_TypeToString(t *testing.T) {
 	agent := NewCodeAnalysisAgent()
-	
+
 	// Since typeToString is private, we test it indirectly through Execute
 	// The function converts AST type expressions to strings
 	// This is covered when analyzing Go files with various type definitions
-	
+
 	ctx := context.Background()
 	request := AgentRequest{
 		Prompt: "analyze type definitions",
 	}
-	
+
 	// The actual type conversion happens internally
 	canHandle, _ := agent.CanHandle(request.Prompt)
 	assert.True(t, canHandle, "Agent should handle analysis request")
-	
+
 	// Test execution context
 	_, _ = agent.Execute(ctx, request)
 }

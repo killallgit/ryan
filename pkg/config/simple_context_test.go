@@ -12,7 +12,7 @@ import (
 func TestContextConfig_BasicFields(t *testing.T) {
 	config := ContextConfig{
 		Directory:        "/tmp/contexts",
-		MaxFileSize:      "10MB", 
+		MaxFileSize:      "10MB",
 		PersistLangChain: true,
 	}
 
@@ -24,7 +24,7 @@ func TestContextConfig_BasicFields(t *testing.T) {
 func TestContextConfig_DefaultValues(t *testing.T) {
 	// Test that default values can be set
 	config := ContextConfig{}
-	
+
 	// Simulate setting defaults
 	config.Directory = "./.ryan/contexts"
 	config.MaxFileSize = "10MB"
@@ -47,7 +47,7 @@ func TestContextConfig_DirectoryPath(t *testing.T) {
 			expected:  "/tmp/contexts",
 		},
 		{
-			name:      "Relative path", 
+			name:      "Relative path",
 			directory: "./contexts",
 			expected:  "./contexts",
 		},
@@ -106,10 +106,10 @@ func TestContextConfig_FileSizeFormats(t *testing.T) {
 			config := ContextConfig{
 				MaxFileSize: tt.maxFileSize,
 			}
-			
+
 			// Just test that the value is stored correctly
 			assert.Equal(t, tt.maxFileSize, config.MaxFileSize)
-			
+
 			// In a real implementation, you'd parse the size here
 			if tt.valid {
 				assert.NotEmpty(t, config.MaxFileSize)
@@ -141,7 +141,7 @@ func TestContextConfig_Integration(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, stat.IsDir())
 	assert.Greater(t, stat.Size(), int64(0))
-	
+
 	// Use the config to verify it contains expected values
 	assert.Equal(t, tmpDir, config.Directory)
 	assert.Equal(t, "5MB", config.MaxFileSize)

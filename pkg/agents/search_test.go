@@ -13,7 +13,7 @@ import (
 func TestSearchAgent_NewSearchAgent(t *testing.T) {
 	registry := tools.NewRegistry()
 	agent := NewSearchAgent(registry)
-	
+
 	assert.NotNil(t, agent)
 	assert.NotNil(t, agent.toolRegistry)
 	assert.NotNil(t, agent.log)
@@ -93,7 +93,7 @@ func TestSearchAgent_CanHandle(t *testing.T) {
 	}
 
 	agent := NewSearchAgent(tools.NewRegistry())
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			canHandle, confidence := agent.CanHandle(tt.request)
@@ -116,7 +116,7 @@ func TestSearchAgent_Execute(t *testing.T) {
 			if !ok {
 				return tools.ToolResult{}, nil
 			}
-			
+
 			// Return mock search results
 			if strings.Contains(pattern, "TODO") {
 				return tools.ToolResult{
@@ -124,7 +124,7 @@ func TestSearchAgent_Execute(t *testing.T) {
 					Content: "file1.go:10: // TODO: implement this\nfile2.go:25: // TODO: add tests",
 				}, nil
 			}
-			
+
 			return tools.ToolResult{
 				Success: true,
 				Content: "No matches found",
@@ -134,9 +134,9 @@ func TestSearchAgent_Execute(t *testing.T) {
 
 	registry := tools.NewRegistry()
 	registry.Register(mockGrepTool)
-	
+
 	agent := NewSearchAgent(registry)
-	
+
 	tests := []struct {
 		name        string
 		request     AgentRequest
@@ -181,11 +181,11 @@ func TestSearchAgent_Execute(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := agent.Execute(ctx, tt.request)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -238,7 +238,7 @@ func TestSearchAgent_ExtractSearchPattern(t *testing.T) {
 	}
 
 	agent := NewSearchAgent(tools.NewRegistry())
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test via CanHandle since extractSearchPattern is private
@@ -255,8 +255,8 @@ type mockTool struct {
 	executeFn func(context.Context, map[string]interface{}) (tools.ToolResult, error)
 }
 
-func (m *mockTool) Name() string { return m.name }
-func (m *mockTool) Description() string { return "Mock tool for testing" }
+func (m *mockTool) Name() string                       { return m.name }
+func (m *mockTool) Description() string                { return "Mock tool for testing" }
 func (m *mockTool) JSONSchema() map[string]interface{} { return nil }
 func (m *mockTool) Execute(ctx context.Context, args map[string]interface{}) (tools.ToolResult, error) {
 	if m.executeFn != nil {

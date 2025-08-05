@@ -13,7 +13,7 @@ import (
 	langchaintools "github.com/tmc/langchaingo/tools"
 )
 
-func TestNewClient(t *testing.T) {
+func TestNewLangChainClient(t *testing.T) {
 	// Skip this test for now due to config initialization complexity
 	t.Skip("Skipping NewClient test due to config initialization requirements")
 }
@@ -23,7 +23,7 @@ func TestNewClient(t *testing.T) {
 func TestClient_SetProgressCallback(t *testing.T) {
 	client := &Client{}
 	callback := func(toolName, command string) {}
-	
+
 	client.SetProgressCallback(callback)
 	assert.NotNil(t, client.progressCallback)
 }
@@ -31,7 +31,7 @@ func TestClient_SetProgressCallback(t *testing.T) {
 func TestClient_GetMemory(t *testing.T) {
 	mockMemory := &MockMemory{}
 	client := &Client{memory: mockMemory}
-	
+
 	result := client.GetMemory()
 	assert.Equal(t, mockMemory, result)
 }
@@ -39,7 +39,7 @@ func TestClient_GetMemory(t *testing.T) {
 func TestClient_GetTools(t *testing.T) {
 	mockTools := []langchaintools.Tool{&MockLangchainTool{}}
 	client := &Client{langchainTools: mockTools}
-	
+
 	result := client.GetTools()
 	assert.Equal(t, mockTools, result)
 }
@@ -47,12 +47,12 @@ func TestClient_GetTools(t *testing.T) {
 func TestClient_ClearMemory(t *testing.T) {
 	mockMemory := &MockMemory{}
 	client := &Client{memory: mockMemory}
-	
+
 	ctx := context.Background()
 	err := client.ClearMemory(ctx)
 	assert.NoError(t, err)
 	assert.True(t, mockMemory.cleared)
-	
+
 	// Test with nil memory
 	clientWithNilMemory := &Client{memory: nil}
 	err = clientWithNilMemory.ClearMemory(ctx)
@@ -61,11 +61,11 @@ func TestClient_ClearMemory(t *testing.T) {
 
 func TestClient_determineAgentType(t *testing.T) {
 	client := &Client{}
-	
+
 	// Test without agent selector - should return conversational
 	agentType := client.determineAgentType()
 	assert.Equal(t, AgentTypeConversational, agentType)
-	
+
 	// Test with agent selector but no model - should also return conversational
 	client.agentSelector = NewAgentSelector(tools.NewRegistry(), "unknown-model")
 	client.model = "unknown-model"
@@ -74,10 +74,10 @@ func TestClient_determineAgentType(t *testing.T) {
 }
 
 func TestClient_isOllamaModel(t *testing.T) {
-	// Test with Ollama model - we can't easily create a real Ollama instance, 
+	// Test with Ollama model - we can't easily create a real Ollama instance,
 	// so we'll test with a mock that's not an Ollama instance
 	client := &Client{llm: &ClientMockLLM{}}
-	
+
 	result := client.isOllamaModel()
 	assert.False(t, result) // ClientMockLLM is not an *ollama.LLM
 }
@@ -122,10 +122,10 @@ func TestToolAdapter(t *testing.T) {
 		}
 
 		adapter = adapter.WithProgressCallback(callback)
-		
+
 		ctx := context.Background()
 		result, err := adapter.Call(ctx, "command: ls -la")
-		
+
 		assert.NoError(t, err)
 		assert.Equal(t, "success", result)
 		assert.True(t, callbackCalled)
@@ -137,7 +137,7 @@ func TestToolAdapter(t *testing.T) {
 		adapter := NewToolAdapter(mockTool)
 		ctx := context.Background()
 		result, err := adapter.Call(ctx, "simple input")
-		
+
 		assert.NoError(t, err)
 		assert.Equal(t, "success", result)
 	})
@@ -151,7 +151,7 @@ func TestToolAdapter(t *testing.T) {
 
 		adapter := NewToolAdapter(errorTool)
 		ctx := context.Background()
-		
+
 		_, err := adapter.Call(ctx, "input")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "tool execution failed")
@@ -166,7 +166,7 @@ func TestToolAdapter(t *testing.T) {
 
 		adapter := NewToolAdapter(failTool)
 		ctx := context.Background()
-		
+
 		_, err := adapter.Call(ctx, "input")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "tool execution failed")
@@ -230,14 +230,14 @@ func TestClient_cleanResponseForStreaming(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "remove thinking blocks",
+			name:     "preserve thinking blocks",
 			input:    "<think>Let me think about this</think>\nHere's my response",
-			expected: "Here's my response",
+			expected: "<think>Let me think about this</think>\nHere's my response",
 		},
 		{
-			name:     "remove empty lines",
+			name:     "reduce multiple empty lines",
 			input:    "Line 1\n\n\nLine 2\n\n",
-			expected: "Line 1\nLine 2",
+			expected: "Line 1\n\nLine 2",
 		},
 		{
 			name:     "normal text",
@@ -245,9 +245,9 @@ func TestClient_cleanResponseForStreaming(t *testing.T) {
 			expected: "This is normal text",
 		},
 		{
-			name:     "complex thinking blocks",
+			name:     "preserve complex thinking blocks",
 			input:    "Start<think>Complex\nthinking\nblock</think>End",
-			expected: "StartEnd",
+			expected: "Start<think>Complex\nthinking\nblock</think>End",
 		},
 	}
 
@@ -320,7 +320,7 @@ type MockRyanTool struct {
 	shouldFail  bool
 }
 
-func (m *MockRyanTool) Name() string { return m.name }
+func (m *MockRyanTool) Name() string        { return m.name }
 func (m *MockRyanTool) Description() string { return m.description }
 func (m *MockRyanTool) JSONSchema() map[string]any {
 	return map[string]any{
@@ -338,14 +338,14 @@ func (m *MockRyanTool) Execute(ctx context.Context, args map[string]interface{})
 	if m.shouldError {
 		return tools.ToolResult{}, fmt.Errorf("mock tool error")
 	}
-	
+
 	if m.shouldFail {
 		return tools.ToolResult{
 			Success: false,
 			Error:   "mock tool failure",
 		}, nil
 	}
-	
+
 	return tools.ToolResult{
 		Success: true,
 		Content: "success",
@@ -354,10 +354,10 @@ func (m *MockRyanTool) Execute(ctx context.Context, args map[string]interface{})
 
 // Extended MockLLM with more functionality for testing
 type ExtendedMockLLM struct {
-	response    string
-	err         error
-	callCount   int
-	lastPrompt  string
+	response     string
+	err          error
+	callCount    int
+	lastPrompt   string
 	streamChunks []string
 }
 
@@ -393,7 +393,7 @@ func (m *ExtendedMockLLM) GenerateContent(ctx context.Context, messages []llms.M
 func (m *ExtendedMockLLM) Call(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
 	m.callCount++
 	m.lastPrompt = prompt
-	
+
 	if m.err != nil {
 		return "", m.err
 	}

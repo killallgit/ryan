@@ -128,7 +128,7 @@ func TestContextManager(t *testing.T) {
 func TestPropagationRules(t *testing.T) {
 	t.Run("FileContextRule", func(t *testing.T) {
 		rule := &FileContextRule{}
-		
+
 		assert.True(t, rule.ShouldApply("any_agent"))
 
 		from := &ExecutionContext{
@@ -155,7 +155,7 @@ func TestPropagationRules(t *testing.T) {
 
 	t.Run("SharedDataRule", func(t *testing.T) {
 		rule := &SharedDataRule{}
-		
+
 		assert.True(t, rule.ShouldApply("any_agent"))
 
 		from := &ExecutionContext{
@@ -185,7 +185,7 @@ func TestPropagationRules(t *testing.T) {
 
 	t.Run("ArtifactsRule", func(t *testing.T) {
 		rule := &ArtifactsRule{}
-		
+
 		assert.True(t, rule.ShouldApply("code_review"))
 		assert.False(t, rule.ShouldApply("dispatcher"))
 

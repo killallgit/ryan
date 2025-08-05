@@ -49,7 +49,7 @@ func TestNewChatControllerFromConfig_WithLLM(t *testing.T) {
 	// This test verifies the factory logic for LangChain controller creation
 	// Note: Actual creation depends on global config/vectorstore initialization
 	// which is not available in unit tests, so we test the logic without actual creation
-	
+
 	mockClient := &MockChatClient{}
 	mockLLM := &MockLLM{}
 	toolRegistry := tools.NewRegistry()
@@ -67,7 +67,7 @@ func TestNewChatControllerFromConfig_WithLLM(t *testing.T) {
 	assert.Equal(t, mockClient, config.Client)
 	assert.Equal(t, "test-model", config.Model)
 	assert.Equal(t, toolRegistry, config.ToolRegistry)
-	
+
 	// Test would attempt to create controller but requires global config init
 	// controller, err := NewChatControllerFromConfig(config)
 	// assert.NoError(t, err)
@@ -92,7 +92,7 @@ func TestNewChatControllerFromConfig_WithSystemPrompt(t *testing.T) {
 	assert.NotEmpty(t, config.SystemPrompt)
 	assert.Equal(t, "Custom system prompt", config.SystemPrompt)
 	assert.NotNil(t, config.LLM)
-	
+
 	// Actual controller creation requires global initialization
 	// controller, err := NewChatControllerFromConfig(config)
 	// This would call NewLangChainChatControllerWithSystem
@@ -118,10 +118,10 @@ func TestNewChatControllerFromConfig_NoLLM(t *testing.T) {
 func TestChatControllerInterface_Compilation(t *testing.T) {
 	// This test ensures that both controller types implement the interface
 	// If they don't, this won't compile
-	
+
 	var _ ChatControllerInterface = (*ChatController)(nil)
 	var _ ChatControllerInterface = (*LangChainChatController)(nil)
-	
+
 	// Test passes if compilation succeeds
 	assert.True(t, true)
 }
@@ -129,12 +129,12 @@ func TestChatControllerInterface_Compilation(t *testing.T) {
 func TestChatControllerInterface_Methods(t *testing.T) {
 	// Test that the interface has all expected methods
 	// This is mainly a documentation test to ensure interface completeness
-	
+
 	var controller ChatControllerInterface
-	
+
 	// These methods should exist (we can't call them with nil, but we can verify they exist)
 	assert.NotNil(t, controller == nil) // Just a basic check that the variable exists
-	
+
 	// The interface should have these methods (compile-time check):
 	// - SendUserMessage(string) (chat.Message, error)
 	// - SendUserMessageWithContext(context.Context, string) (chat.Message, error)
@@ -160,7 +160,7 @@ func TestChatControllerInterface_Methods(t *testing.T) {
 
 func TestControllerConfig_Empty(t *testing.T) {
 	config := ControllerConfig{}
-	
+
 	assert.Nil(t, config.Client)
 	assert.Equal(t, "", config.Model)
 	assert.Equal(t, "", config.SystemPrompt)
@@ -170,12 +170,12 @@ func TestControllerConfig_Empty(t *testing.T) {
 
 func TestControllerConfig_PartialFields(t *testing.T) {
 	mockLLM := &MockLLM{}
-	
+
 	config := ControllerConfig{
 		Model: "test-model",
 		LLM:   mockLLM,
 	}
-	
+
 	assert.Nil(t, config.Client)
 	assert.Equal(t, "test-model", config.Model)
 	assert.Equal(t, "", config.SystemPrompt)
@@ -201,7 +201,7 @@ func TestNewChatControllerFromConfig_MinimalConfig(t *testing.T) {
 	assert.NotEmpty(t, config.Model)
 	assert.Empty(t, config.SystemPrompt) // No system prompt
 	assert.Nil(t, config.ToolRegistry)   // No tools
-	
+
 	// Would route to NewLangChainChatController (no system prompt)
 	// controller, err := NewChatControllerFromConfig(config)
 }

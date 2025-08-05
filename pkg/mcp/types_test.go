@@ -109,15 +109,15 @@ func TestToolDefinition_Validation(t *testing.T) {
 	}`)
 
 	toolDef := ToolDefinition{
-		Name:        "write_file",
-		Description: "Writes content to a file",
-		InputSchema: &inputSchema,
+		Name:         "write_file",
+		Description:  "Writes content to a file",
+		InputSchema:  &inputSchema,
 		OutputSchema: &outputSchema,
-		Category:    "file_operations",
-		Tags:        []string{"file", "write", "io"},
-		Version:     "1.2.0",
-		ServerName:  "file-server",
-		ServerURL:   "http://localhost:8080",
+		Category:     "file_operations",
+		Tags:         []string{"file", "write", "io"},
+		Version:      "1.2.0",
+		ServerName:   "file-server",
+		ServerURL:    "http://localhost:8080",
 		Metadata: map[string]interface{}{
 			"author": "test",
 		},
@@ -164,19 +164,19 @@ func TestServerConfig_Validation(t *testing.T) {
 func TestServerInfo_Validation(t *testing.T) {
 	now := time.Now()
 	info := ServerInfo{
-		Name:            "test-server",
-		URL:             "http://localhost:8080",
-		Status:          "connected",
-		ConnectedAt:     now,
-		LastPing:        now.Add(-5 * time.Second),
-		ResponseTime:    100 * time.Millisecond,
-		Version:         "1.0.0",
+		Name:              "test-server",
+		URL:               "http://localhost:8080",
+		Status:            "connected",
+		ConnectedAt:       now,
+		LastPing:          now.Add(-5 * time.Second),
+		ResponseTime:      100 * time.Millisecond,
+		Version:           "1.0.0",
 		SupportedFeatures: []string{"tool-calling"},
-		AvailableTools:  5,
-		TotalCalls:      100,
-		SuccessfulCalls: 95,
-		FailedCalls:     5,
-		AverageLatency:  150 * time.Millisecond,
+		AvailableTools:    5,
+		TotalCalls:        100,
+		SuccessfulCalls:   95,
+		FailedCalls:       5,
+		AverageLatency:    150 * time.Millisecond,
 	}
 
 	assert.Equal(t, "test-server", info.Name)

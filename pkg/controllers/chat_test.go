@@ -267,7 +267,7 @@ var _ = Describe("ChatController", func() {
 	Describe("Error handling", func() {
 		It("should handle AddErrorMessage", func() {
 			controller.AddErrorMessage("Test error message")
-			
+
 			history := controller.GetHistory()
 			Expect(history).To(HaveLen(1))
 			Expect(history[0].Role).To(Equal(chat.RoleError))

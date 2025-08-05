@@ -119,12 +119,15 @@ func (f *FileOperationsAgent) determineOperation(prompt string) string {
 		return "list_and_read"
 	}
 
-	if strings.Contains(lowerPrompt, "read") {
-		return "read"
-	}
-
 	if strings.Contains(lowerPrompt, "write") || strings.Contains(lowerPrompt, "create") {
 		return "write"
+	}
+
+	if strings.Contains(lowerPrompt, "read") ||
+		strings.Contains(lowerPrompt, "show") ||
+		strings.Contains(lowerPrompt, "contents") ||
+		strings.Contains(lowerPrompt, "content") {
+		return "read"
 	}
 	if strings.Contains(lowerPrompt, "list") {
 		return "list"
@@ -404,7 +407,7 @@ func (f *FileOperationsAgent) extractPath(prompt string) string {
 		}
 	}
 
-	// Look for path-like patterns
+	// Look for path-like patterns (including relative paths and files)
 	words := strings.Fields(prompt)
 	for _, word := range words {
 		// Handle relative paths like ./file.txt or absolute paths /path/file
@@ -412,7 +415,7 @@ func (f *FileOperationsAgent) extractPath(prompt string) string {
 			// Don't trim dots from the beginning for relative paths
 			return strings.Trim(word, "\"',")
 		}
-		
+
 		// Handle file extensions
 		if strings.Contains(word, ".") && len(word) > 1 {
 			// Check if it looks like a filename (has extension)

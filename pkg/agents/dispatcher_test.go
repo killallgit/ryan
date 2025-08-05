@@ -23,7 +23,7 @@ func TestDispatcherAgent_CanHandle(t *testing.T) {
 	for _, request := range tests {
 		t.Run(request, func(t *testing.T) {
 			canHandle, confidence := dispatcher.CanHandle(request)
-			
+
 			// Dispatcher should handle any request
 			assert.True(t, canHandle)
 			assert.Equal(t, 1.0, confidence)

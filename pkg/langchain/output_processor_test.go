@@ -9,36 +9,36 @@ import (
 
 func TestNewOutputProcessor(t *testing.T) {
 	tests := []struct {
-		name            string
-		stripThinking   bool
-		convertReAct    bool
+		name          string
+		stripThinking bool
+		convertReAct  bool
 	}{
 		{
-			name:            "both enabled",
-			stripThinking:   true,
-			convertReAct:    true,
+			name:          "both enabled",
+			stripThinking: true,
+			convertReAct:  true,
 		},
 		{
-			name:            "only strip thinking",
-			stripThinking:   true,
-			convertReAct:    false,
+			name:          "only strip thinking",
+			stripThinking: true,
+			convertReAct:  false,
 		},
 		{
-			name:            "only convert react", 
-			stripThinking:   false,
-			convertReAct:    true,
+			name:          "only convert react",
+			stripThinking: false,
+			convertReAct:  true,
 		},
 		{
-			name:            "both disabled",
-			stripThinking:   false,
-			convertReAct:    false,
+			name:          "both disabled",
+			stripThinking: false,
+			convertReAct:  false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			processor := NewOutputProcessor(tt.stripThinking, tt.convertReAct)
-			
+
 			assert.NotNil(t, processor)
 			assert.Equal(t, tt.stripThinking, processor.stripThinkingBlocks)
 			assert.Equal(t, tt.convertReAct, processor.convertToReAct)
@@ -263,7 +263,7 @@ func TestOutputProcessor_detectToolIntent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.detectToolIntent(tt.input)
-			assert.Equal(t, tt.expected, result, 
+			assert.Equal(t, tt.expected, result,
 				"Expected detectToolIntent=%t for input: %s", tt.expected, tt.input)
 		})
 	}
@@ -468,46 +468,46 @@ func TestOutputProcessor_convertToReActFormat(t *testing.T) {
 
 func TestOutputProcessor_ProcessForAgent(t *testing.T) {
 	tests := []struct {
-		name            string
-		stripThinking   bool
-		convertReAct    bool
-		input           string
-		expectedOutput  string
+		name           string
+		stripThinking  bool
+		convertReAct   bool
+		input          string
+		expectedOutput string
 	}{
 		{
-			name:            "strip thinking only",
-			stripThinking:   true,
-			convertReAct:    false,
-			input:           "<think>Let me think</think>\nI'll help you with that",
-			expectedOutput:  "I'll help you with that",
+			name:           "strip thinking only",
+			stripThinking:  true,
+			convertReAct:   false,
+			input:          "<think>Let me think</think>\nI'll help you with that",
+			expectedOutput: "I'll help you with that",
 		},
 		{
-			name:            "convert to react only",
-			stripThinking:   false,
-			convertReAct:    true,
-			input:           "I'll run ls -la to list files",
-			expectedOutput:  "I need to use a tool to help with this task.\n\nAction: execute_bash\nAction Input: ls -la to list files",
+			name:           "convert to react only",
+			stripThinking:  false,
+			convertReAct:   true,
+			input:          "I'll run ls -la to list files",
+			expectedOutput: "I need to use a tool to help with this task.\n\nAction: execute_bash\nAction Input: ls -la to list files",
 		},
 		{
-			name:            "both processing steps",
-			stripThinking:   true,
-			convertReAct:    true,
-			input:           "<think>Need to list files</think>\nI'll run ls to show files",
-			expectedOutput:  "I need to use a tool to help with this task.\n\nAction: execute_bash\nAction Input: ls to show files",
+			name:           "both processing steps",
+			stripThinking:  true,
+			convertReAct:   true,
+			input:          "<think>Need to list files</think>\nI'll run ls to show files",
+			expectedOutput: "I need to use a tool to help with this task.\n\nAction: execute_bash\nAction Input: ls to show files",
 		},
 		{
-			name:            "no processing needed",
-			stripThinking:   false,
-			convertReAct:    false,
-			input:           "This is a regular response",
-			expectedOutput:  "This is a regular response",
+			name:           "no processing needed",
+			stripThinking:  false,
+			convertReAct:   false,
+			input:          "This is a regular response",
+			expectedOutput: "This is a regular response",
 		},
 		{
-			name:            "thinking blocks but no tool intent",
-			stripThinking:   true,
-			convertReAct:    true,
-			input:           "<think>This is complex</think>\nHere's my explanation",
-			expectedOutput:  "Here's my explanation",
+			name:           "thinking blocks but no tool intent",
+			stripThinking:  true,
+			convertReAct:   true,
+			input:          "<think>This is complex</think>\nHere's my explanation",
+			expectedOutput: "Here's my explanation",
 		},
 	}
 
@@ -574,7 +574,7 @@ func TestOutputProcessor_EdgeCases(t *testing.T) {
 	t.Run("very long input", func(t *testing.T) {
 		longInput := strings.Repeat("This is a very long string. ", 1000) + "I'll run ls to list files"
 		result := processor.ProcessForAgent(longInput)
-		
+
 		// Should still detect the tool intent at the end
 		assert.Contains(t, result, "Action: execute_bash")
 		assert.Contains(t, result, "Action Input: ls")
@@ -583,7 +583,7 @@ func TestOutputProcessor_EdgeCases(t *testing.T) {
 	t.Run("multiple thinking blocks with tool intent", func(t *testing.T) {
 		input := "<think>First thought</think>\nSome text\n<thinking>Second thought</thinking>\nI'll run ps aux | grep docker"
 		result := processor.ProcessForAgent(input)
-		
+
 		// Should remove thinking blocks and convert to ReAct
 		assert.NotContains(t, result, "<think>")
 		assert.NotContains(t, result, "<thinking>")
@@ -594,7 +594,7 @@ func TestOutputProcessor_EdgeCases(t *testing.T) {
 	t.Run("malformed thinking blocks", func(t *testing.T) {
 		input := "<think>Unclosed thinking block\nI'll run ls"
 		result := processor.ProcessForAgent(input)
-		
+
 		// The processor detects tool intent and converts to ReAct format
 		// even with malformed thinking blocks that don't get removed
 		if strings.Contains(result, "Action: execute_bash") {

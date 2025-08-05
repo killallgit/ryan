@@ -139,6 +139,10 @@ func (ia *IntentAnalyzer) findSecondaryIntents(prompt string) []string {
 	if strings.Contains(prompt, "fix") || strings.Contains(prompt, "repair") || strings.Contains(prompt, "and correct") {
 		secondary = append(secondary, "fix")
 	}
+	if strings.Contains(prompt, "and analyze") || strings.Contains(prompt, "analyze") {
+		secondary = append(secondary, "analyze")
+	}
+
 	return secondary
 }
 

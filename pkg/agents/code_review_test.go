@@ -10,7 +10,7 @@ import (
 
 func TestCodeReviewAgent_NewCodeReviewAgent(t *testing.T) {
 	agent := NewCodeReviewAgent()
-	
+
 	assert.NotNil(t, agent)
 	// Agent doesn't use tool registry directly
 	assert.NotNil(t, agent.log)
@@ -90,7 +90,7 @@ func TestCodeReviewAgent_CanHandle(t *testing.T) {
 	}
 
 	agent := NewCodeReviewAgent()
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			canHandle, confidence := agent.CanHandle(tt.request)
@@ -107,7 +107,7 @@ func TestCodeReviewAgent_CanHandle(t *testing.T) {
 func TestCodeReviewAgent_Execute(t *testing.T) {
 	// Code review agent performs analysis without external tools
 	agent := NewCodeReviewAgent()
-	
+
 	tests := []struct {
 		name        string
 		request     AgentRequest
@@ -205,11 +205,11 @@ func runCommand(cmd string) {
 	}
 
 	ctx := context.Background()
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := agent.Execute(ctx, tt.request)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
