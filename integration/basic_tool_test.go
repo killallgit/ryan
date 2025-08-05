@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"os"
 	"strings"
 	"time"
 
@@ -22,6 +23,10 @@ var _ = Describe("Basic Tool Calling", func() {
 	)
 
 	BeforeEach(func() {
+		// Skip integration tests unless explicitly enabled
+		if os.Getenv("INTEGRATION_TEST") != "true" {
+			Skip("Integration tests skipped. Set INTEGRATION_TEST=true to run.")
+		}
 		// Initialize config
 		err := config.InitializeDefaults()
 		Expect(err).ToNot(HaveOccurred())

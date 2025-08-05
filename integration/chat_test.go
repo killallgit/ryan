@@ -26,6 +26,11 @@ var _ = Describe("Chat Integration Tests", func() {
 	)
 
 	BeforeEach(func() {
+		// Skip integration tests unless explicitly enabled
+		if os.Getenv("INTEGRATION_TEST") != "true" {
+			Skip("Integration tests skipped. Set INTEGRATION_TEST=true to run.")
+		}
+		
 		// Get Ollama URL from environment or use default
 		ollamaURL = os.Getenv("OLLAMA_URL")
 		if ollamaURL == "" {
@@ -36,11 +41,6 @@ var _ = Describe("Chat Integration Tests", func() {
 		testModel = os.Getenv("OLLAMA_TEST_MODEL")
 		if testModel == "" {
 			testModel = "qwen3:latest"
-		}
-
-		// Skip if SKIP_INTEGRATION is set
-		if os.Getenv("SKIP_INTEGRATION") != "" {
-			Skip("Integration tests skipped by SKIP_INTEGRATION environment variable")
 		}
 
 		var err error
