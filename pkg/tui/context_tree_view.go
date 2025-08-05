@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/rivo/tview"
 )
@@ -29,25 +28,28 @@ func NewContextTreeView() *ContextTreeView {
 	
 	// Create tree view
 	root := tview.NewTreeNode("Conversations").
-		SetColor(tcell.ColorYellow)
+		SetColor(ColorYellow)
 	
 	ctv.tree = tview.NewTreeView().
 		SetRoot(root).
 		SetCurrentNode(root)
 	
-	ctv.tree.SetBorder(true).SetTitle("Context Tree")
+	ctv.tree.SetBorder(false).SetTitle("")
+	ctv.tree.SetBackgroundColor(ColorBase00)
 	
 	// Create info panel
 	ctv.info = tview.NewTextView().
 		SetDynamicColors(true).
 		SetWordWrap(true)
-	ctv.info.SetBorder(true).SetTitle("Context Info")
+	ctv.info.SetBorder(false).SetTitle("")
+	ctv.info.SetBackgroundColor(ColorBase01)
 	
 	// Create status bar
 	ctv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	ctv.status.SetText("[dim]Use arrow keys to navigate | Enter to select | Esc to go back[white]")
+	ctv.status.SetBackgroundColor(ColorBase01)
+	ctv.status.SetText("[#5c5044]Use arrow keys to navigate | Enter to select | Esc to go back[-]")
 	
 	// Layout with horizontal split for tree and info
 	mainContent := tview.NewFlex().
@@ -96,7 +98,7 @@ func (ctv *ContextTreeView) rebuildTree() {
 			SetSelectable(true)
 		
 		if context.IsActive {
-			node.SetColor(tcell.ColorGreen)
+			node.SetColor(ColorGreen)
 		}
 		
 		// Add message count
@@ -126,7 +128,7 @@ func (ctv *ContextTreeView) addSampleData() {
 	// Main conversation
 	main := tview.NewTreeNode("Main Conversation").
 		SetReference("main").
-		SetColor(tcell.ColorGreen)
+		SetColor(ColorGreen)
 	
 	// Add some messages as children
 	msg1 := tview.NewTreeNode("User: Hello").SetSelectable(false)
@@ -150,22 +152,22 @@ func (ctv *ContextTreeView) addSampleData() {
 
 // showContextInfo displays information about the selected context
 func (ctv *ContextTreeView) showContextInfo(contextID string) {
-	info := fmt.Sprintf("[yellow]Context ID:[white] %s\n\n", contextID)
+	info := fmt.Sprintf("[#f5b761]Context ID:[-] %s\n\n", contextID)
 	
 	if ctv.contextTree != nil && ctv.contextTree.Contexts[contextID] != nil {
 		ctx := ctv.contextTree.Contexts[contextID]
-		info += fmt.Sprintf("[cyan]Title:[white] %s\n", ctx.Title)
-		info += fmt.Sprintf("[cyan]Messages:[white] %d\n", len(ctx.MessageIDs))
-		info += fmt.Sprintf("[cyan]Active:[white] %v\n", ctx.IsActive)
+		info += fmt.Sprintf("[#61afaf]Title:[-] %s\n", ctx.Title)
+		info += fmt.Sprintf("[#61afaf]Messages:[-] %d\n", len(ctx.MessageIDs))
+		info += fmt.Sprintf("[#61afaf]Active:[-] %v\n", ctx.IsActive)
 		
 		if ctx.ParentID != nil {
-			info += fmt.Sprintf("[cyan]Parent:[white] %s\n", *ctx.ParentID)
+			info += fmt.Sprintf("[#61afaf]Parent:[-] %s\n", *ctx.ParentID)
 		}
 	} else {
 		// Sample info for demo
-		info += "[cyan]Title:[white] Sample Context\n"
-		info += "[cyan]Messages:[white] 3\n"
-		info += "[cyan]Created:[white] Just now\n"
+		info += "[#61afaf]Title:[-] Sample Context\n"
+		info += "[#61afaf]Messages:[-] 3\n"
+		info += "[#61afaf]Created:[-] Just now\n"
 	}
 	
 	ctv.info.SetText(info)

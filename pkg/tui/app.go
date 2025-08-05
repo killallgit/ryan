@@ -63,6 +63,10 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	tviewApp := tview.NewApplication()
 	cfg := config.Get()
 	
+	// Apply theme
+	theme := DefaultTheme()
+	ApplyTheme(theme)
+	
 	app := &App{
 		app:         tviewApp,
 		pages:       tview.NewPages(),
@@ -220,7 +224,8 @@ func (a *App) showViewSwitcher() {
 			a.pages.RemovePage("view-switcher")
 		})
 	
-	list.SetBorder(true).SetTitle("Switch View (Ctrl-P)")
+	list.SetBorder(false).SetTitle("Switch View (Ctrl-P)").
+		SetBackgroundColor(ColorBase01)
 	
 	// Create a modal layout for the list
 	modal := createModal(list, 40, 15)

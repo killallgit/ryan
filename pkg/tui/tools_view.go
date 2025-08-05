@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/tools"
 	"github.com/rivo/tview"
 )
@@ -30,19 +29,23 @@ func NewToolsView(registry *tools.Registry) *ToolsView {
 	
 	// Create table for tools
 	tv.table = tview.NewTable().
-		SetBorders(true).
+		SetBorders(false).
 		SetSelectable(true, false).
-		SetFixed(1, 0)
+		SetFixed(1, 0).
+		SetSeparator(' ')
 	
-	tv.table.SetBorder(true).SetTitle("Available Tools")
+	tv.table.SetBorder(false).SetTitle("")
+	tv.table.SetBackgroundColor(ColorBase00)
 	
 	// Create headers
 	headers := []string{"Tool", "Description", "Status"}
 	for col, header := range headers {
 		cell := tview.NewTableCell(header).
-			SetTextColor(tcell.ColorYellow).
-			SetAlign(tview.AlignCenter).
-			SetSelectable(false)
+			SetTextColor(ColorYellow).
+			SetAlign(tview.AlignLeft).
+			SetSelectable(false).
+			SetBackgroundColor(ColorBase01).
+			SetExpansion(1)
 		tv.table.SetCell(0, col, cell)
 	}
 	
@@ -50,6 +53,7 @@ func NewToolsView(registry *tools.Registry) *ToolsView {
 	tv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
+	tv.status.SetBackgroundColor(ColorBase01)
 	
 	// Layout
 	tv.AddItem(tv.table, 0, 1, true).
@@ -94,9 +98,18 @@ func (tv *ToolsView) refreshTools() {
 			toolName = nameable.Name()
 		}
 		
+		// Alternate row colors
+		bgColor := ColorBase00
+		if row%2 == 0 {
+			bgColor = ColorBase01
+		}
+		
 		// Tool name
 		tv.table.SetCell(row, 0, tview.NewTableCell(toolName).
-			SetTextColor(tcell.ColorLightCyan))
+			SetTextColor(ColorCyan).
+			SetAlign(tview.AlignLeft).
+			SetBackgroundColor(bgColor).
+			SetExpansion(1))
 		
 		// Description
 		desc := "Tool description"
@@ -104,11 +117,17 @@ func (tv *ToolsView) refreshTools() {
 			desc = describable.Description()
 		}
 		tv.table.SetCell(row, 1, tview.NewTableCell(desc).
+			SetTextColor(ColorBase05).
+			SetAlign(tview.AlignLeft).
+			SetBackgroundColor(bgColor).
 			SetExpansion(2))
 		
 		// Status
-		status := "[green]Available[white]"
-		tv.table.SetCell(row, 2, tview.NewTableCell(status))
+		status := "[#93b56b]Available[-]"
+		tv.table.SetCell(row, 2, tview.NewTableCell(status).
+			SetAlign(tview.AlignLeft).
+			SetBackgroundColor(bgColor).
+			SetExpansion(1))
 		
 		row++
 	}
@@ -123,9 +142,9 @@ func (tv *ToolsView) updateStatus() {
 		toolCount = len(tv.registry.GetTools())
 	}
 	
-	status := fmt.Sprintf("[yellow]Model:[white] %s | ", tv.currentModel)
-	status += fmt.Sprintf("[cyan]Tools:[white] %d available", toolCount)
-	status += " | [dim]Press Esc to go back[white]"
+	status := fmt.Sprintf("[#f5b761]Model:[-] %s | ", tv.currentModel)
+	status += fmt.Sprintf("[#61afaf]Tools:[-] %d available", toolCount)
+	status += " | [#5c5044]Press Esc to go back[-]"
 	
 	tv.status.SetText(status)
 }

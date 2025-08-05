@@ -33,19 +33,23 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 	
 	// Create table for models
 	mv.table = tview.NewTable().
-		SetBorders(true).
+		SetBorders(false).
 		SetSelectable(true, false).
-		SetFixed(1, 0)
+		SetFixed(1, 0).
+		SetSeparator(' ')
 	
-	mv.table.SetBorder(true).SetTitle("Ollama Models")
+	mv.table.SetBorder(false).SetTitle("")
+	mv.table.SetBackgroundColor(ColorBase00)
 	
 	// Create headers
 	headers := []string{"Name", "Size", "Modified", "Status"}
 	for col, header := range headers {
 		cell := tview.NewTableCell(header).
-			SetTextColor(tcell.ColorYellow).
-			SetAlign(tview.AlignCenter).
-			SetSelectable(false)
+			SetTextColor(ColorYellow).
+			SetAlign(tview.AlignLeft).
+			SetSelectable(false).
+			SetBackgroundColor(ColorBase01).
+			SetExpansion(1)
 		mv.table.SetCell(0, col, cell)
 	}
 	
@@ -53,7 +57,8 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 	mv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	mv.status.SetText("[dim]Press Enter to select model | d to delete | r to refresh | Esc to go back[white]")
+	mv.status.SetBackgroundColor(ColorBase01)
+	mv.status.SetText("[#5c5044]Press Enter to select model | d to delete | r to refresh | Esc to go back[-]")
 	
 	// Layout
 	mv.AddItem(mv.table, 0, 1, true).
@@ -124,11 +129,22 @@ func (mv *ModelView) refreshModels() {
 	
 	for i, model := range models {
 		for col, text := range model {
-			cell := tview.NewTableCell(text)
+			cell := tview.NewTableCell(text).
+				SetAlign(tview.AlignLeft).
+				SetExpansion(1)
 			
 			// Highlight current model
 			if col == 0 && text == currentModel {
-				cell.SetTextColor(tcell.ColorGreen)
+				cell.SetTextColor(ColorGreen)
+			} else {
+				cell.SetTextColor(ColorBase05)
+			}
+			
+			// Alternate row colors
+			if i%2 == 0 {
+				cell.SetBackgroundColor(ColorBase00)
+			} else {
+				cell.SetBackgroundColor(ColorBase01)
 			}
 			
 			mv.table.SetCell(i+1, col, cell)
@@ -172,10 +188,10 @@ func (mv *ModelView) deleteModel(modelName string) {
 
 // showError displays an error message
 func (mv *ModelView) showError(message string) {
-	mv.status.SetText(fmt.Sprintf("[red]Error: %s[white]", message))
+	mv.status.SetText(fmt.Sprintf("[#d95f5f]Error: %s[-]", message))
 }
 
 // showSuccess displays a success message
 func (mv *ModelView) showSuccess(message string) {
-	mv.status.SetText(fmt.Sprintf("[green]✓ %s[white]", message))
+	mv.status.SetText(fmt.Sprintf("[#93b56b]✓ %s[-]", message))
 }

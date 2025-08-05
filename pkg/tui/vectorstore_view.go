@@ -25,22 +25,27 @@ func NewVectorStoreView() *VectorStoreView {
 	vv.info = tview.NewTextView().
 		SetDynamicColors(true).
 		SetWordWrap(true)
-	vv.info.SetBorder(true).SetTitle("Vector Store Status")
+	vv.info.SetBorder(false).SetTitle("")
+	vv.info.SetBackgroundColor(ColorBase01)
 	
 	// Create collections table
 	vv.table = tview.NewTable().
-		SetBorders(true).
+		SetBorders(false).
 		SetSelectable(true, false).
-		SetFixed(1, 0)
-	vv.table.SetBorder(true).SetTitle("Collections")
+		SetFixed(1, 0).
+		SetSeparator(' ')
+	vv.table.SetBorder(false).SetTitle("")
+	vv.table.SetBackgroundColor(ColorBase00)
 	
 	// Create headers
 	headers := []string{"Collection", "Documents", "Embeddings", "Status"}
 	for col, header := range headers {
 		cell := tview.NewTableCell(header).
-			SetTextColor(tcell.ColorYellow).
-			SetAlign(tview.AlignCenter).
-			SetSelectable(false)
+			SetTextColor(ColorYellow).
+			SetAlign(tview.AlignLeft).
+			SetSelectable(false).
+			SetBackgroundColor(ColorBase01).
+			SetExpansion(1)
 		vv.table.SetCell(0, col, cell)
 	}
 	
@@ -48,7 +53,8 @@ func NewVectorStoreView() *VectorStoreView {
 	vv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	vv.status.SetText("[dim]Press r to refresh | c to create collection | d to delete | Esc to go back[white]")
+	vv.status.SetBackgroundColor(ColorBase01)
+	vv.status.SetText("[#5c5044]Press r to refresh | c to create collection | d to delete | Esc to go back[-]")
 	
 	// Layout
 	vv.AddItem(vv.info, 5, 0, false).
@@ -85,11 +91,11 @@ func (vv *VectorStoreView) setupKeyBindings() {
 // refresh updates the vector store information
 func (vv *VectorStoreView) refresh() {
 	// Update info panel
-	info := "[yellow]Vector Store Information[white]\n\n"
-	info += "Provider: [cyan]ChromeM[white]\n"
-	info += "Status: [green]Active[white]\n"
-	info += "Persistence: [cyan]Enabled[white]\n"
-	info += "Embedder: [cyan]Local/all-MiniLM-L6-v2[white]"
+	info := "[#f5b761]Vector Store Information[-]\n\n"
+	info += "Provider: [#61afaf]ChromeM[-]\n"
+	info += "Status: [#93b56b]Active[-]\n"
+	info += "Persistence: [#61afaf]Enabled[-]\n"
+	info += "Embedder: [#61afaf]Local/all-MiniLM-L6-v2[-]"
 	
 	vv.info.SetText(info)
 	
@@ -100,8 +106,23 @@ func (vv *VectorStoreView) refresh() {
 	}
 	
 	// Add sample data
-	vv.table.SetCell(1, 0, tview.NewTableCell("default"))
-	vv.table.SetCell(1, 1, tview.NewTableCell("0"))
-	vv.table.SetCell(1, 2, tview.NewTableCell("0"))
-	vv.table.SetCell(1, 3, tview.NewTableCell("[green]Ready[white]"))
+	vv.table.SetCell(1, 0, tview.NewTableCell("default").
+		SetTextColor(ColorBase05).
+		SetAlign(tview.AlignLeft).
+		SetBackgroundColor(ColorBase00).
+		SetExpansion(1))
+	vv.table.SetCell(1, 1, tview.NewTableCell("0").
+		SetTextColor(ColorBase05).
+		SetAlign(tview.AlignLeft).
+		SetBackgroundColor(ColorBase00).
+		SetExpansion(1))
+	vv.table.SetCell(1, 2, tview.NewTableCell("0").
+		SetTextColor(ColorBase05).
+		SetAlign(tview.AlignLeft).
+		SetBackgroundColor(ColorBase00).
+		SetExpansion(1))
+	vv.table.SetCell(1, 3, tview.NewTableCell("[#93b56b]Ready[-]").
+		SetAlign(tview.AlignLeft).
+		SetBackgroundColor(ColorBase00).
+		SetExpansion(1))
 }
