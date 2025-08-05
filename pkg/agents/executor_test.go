@@ -522,3 +522,59 @@ func TestWorkerPool_Shutdown(t *testing.T) {
 	// This should not panic
 	pool.Shutdown()
 }
+
+func TestExecutor_ExecuteTask(t *testing.T) {
+	ctx := context.Background()
+	e := NewExecutor()
+	o := NewOrchestrator()
+	e.SetOrchestrator(o)
+
+	// Register a mock agent
+	mockAgent := newMockAgent("task-executor", "Task executor agent")
+	mockAgent.SetCanHandle(func(request string) (bool, float64) {
+		return true, 1.0
+	})
+	mockAgent.SetExecute(func(ctx context.Context, req AgentRequest) (AgentResult, error) {
+		return AgentResult{
+			Success: true,
+			Summary: "Task executed successfully",
+			Details: "Detailed execution info",
+			Metadata: AgentMetadata{
+				ToolsUsed: []string{"tool1"},
+			},
+		}, nil
+	})
+	err := o.RegisterAgent(mockAgent)
+	require.NoError(t, err)
+
+	// Create a task to execute
+	task := Task{
+		ID:    "exec-task-1",
+		Agent: "task-executor",
+		Request: AgentRequest{
+			Prompt:  "execute this task",
+			Context: make(map[string]interface{}),
+		},
+		Timeout: 5 * time.Second,
+	}
+
+	// Create execution context
+	execCtx := &ExecutionContext{
+		SessionID:  "test-session",
+		RequestID:  "test-request",
+		UserPrompt: "test prompt",
+		SharedData: make(map[string]interface{}),
+		Progress:   make(chan ProgressUpdate, 100),
+	}
+
+	// Execute the task using internal method (exposed for testing)
+	result, err := e.executeTask(ctx, task, execCtx)
+
+	// Verify the result
+	require.NoError(t, err)
+	assert.True(t, result.Result.Success)
+	assert.Equal(t, "Task executed successfully", result.Result.Summary)
+	assert.Equal(t, task.ID, result.Task.ID)
+	assert.Nil(t, result.Error)
+	assert.Len(t, result.Result.Metadata.ToolsUsed, 1)
+}

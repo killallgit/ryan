@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/killallgit/ryan/pkg/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -479,8 +480,212 @@ func TestOrchestrator_ListAgents(t *testing.T) {
 	assert.True(t, agentNames["agent2"])
 }
 
+// TestOrchestrator_RegisterBuiltinAgents tests registering all built-in agents
+func TestOrchestrator_RegisterBuiltinAgents(t *testing.T) {
+	o := NewOrchestrator()
+
+	// Create a real tool registry since it's a struct not an interface
+	mockRegistry := NewMockToolRegistry()
+
+	// Register built-in agents
+	err := o.RegisterBuiltinAgents(mockRegistry)
+	assert.NoError(t, err)
+
+	// Verify expected agents are registered
+	agents := o.ListAgents()
+	agentNames := make(map[string]bool)
+	for _, agent := range agents {
+		agentNames[agent.Name()] = true
+	}
+
+	// Check for expected built-in agents
+	expectedAgents := []string{
+		"dispatcher",
+		"file_operations",
+		"code_analysis",
+		"code_review",
+		"search",
+	}
+
+	for _, name := range expectedAgents {
+		assert.True(t, agentNames[name], "Expected agent %s to be registered", name)
+	}
+
+	// Verify total count
+	assert.GreaterOrEqual(t, len(agents), len(expectedAgents))
+}
+
+// TestOrchestrator_ExecuteWithPlan tests executing a pre-built plan
+func TestOrchestrator_ExecuteWithPlan(t *testing.T) {
+	ctx := context.Background()
+	o := NewOrchestrator()
+
+	// Create a mock agent
+	mockAgent := newMockAgent("test-agent", "Test agent")
+	mockAgent.SetCanHandle(func(request string) (bool, float64) {
+		return true, 1.0
+	})
+	mockAgent.SetExecute(func(ctx context.Context, req AgentRequest) (AgentResult, error) {
+		return AgentResult{
+			Success: true,
+			Summary: "Task executed",
+		}, nil
+	})
+
+	err := o.RegisterAgent(mockAgent)
+	require.NoError(t, err)
+
+	// Create an execution plan
+	plan := &ExecutionPlan{
+		ID: "test-plan",
+		Tasks: []Task{
+			{
+				ID:    "task1",
+				Agent: "test-agent",
+				Request: AgentRequest{
+					Prompt:  "execute test",
+					Context: make(map[string]interface{}),
+				},
+			},
+		},
+		Stages: []Stage{
+			{
+				ID:    "stage1",
+				Tasks: []string{"task1"},
+			},
+		},
+	}
+
+	// Create execution context
+	execContext := &ExecutionContext{
+		SessionID:  "test-session",
+		RequestID:  "test-request",
+		UserPrompt: "test prompt",
+		SharedData: make(map[string]interface{}),
+		Progress:   make(chan ProgressUpdate, 100),
+	}
+
+	// Execute the plan
+	results, err := o.ExecuteWithPlan(ctx, plan, execContext)
+
+	assert.NoError(t, err)
+	assert.Len(t, results, 1)
+	assert.True(t, results[0].Result.Success)
+}
+
+// TestOrchestrator_ProcessFeedback tests feedback processing
+func TestOrchestrator_ProcessFeedback(t *testing.T) {
+	ctx := context.Background()
+	o := NewOrchestrator()
+
+	// Create feedback request
+	feedback := &FeedbackRequest{
+		ID:         "test-feedback",
+		SourceTask: "test-task",
+		TargetTask: "test-agent",
+		Type:       FeedbackTypeValidationError,
+		Content:    "Test error feedback",
+		Context:    &ExecutionContext{},
+	}
+
+	// Process feedback
+	err := o.ProcessFeedback(ctx, feedback)
+
+	// Should handle gracefully even without specific feedback handling
+	assert.NoError(t, err)
+}
+
+// TestOrchestrator_AggregateResults tests result aggregation
+func TestOrchestrator_AggregateResults(t *testing.T) {
+	o := NewOrchestrator()
+
+	// Create test results
+	results := []TaskResult{
+		{
+			Task: Task{
+				ID:    "task1",
+				Agent: "agent1",
+			},
+			Result: AgentResult{
+				Success: true,
+				Summary: "Task 1 completed",
+				Details: "Details 1",
+				Metadata: AgentMetadata{
+					ToolsUsed:      []string{"tool1"},
+					FilesProcessed: []string{"file1.go"},
+				},
+			},
+		},
+		{
+			Task: Task{
+				ID:    "task2",
+				Agent: "agent2",
+			},
+			Result: AgentResult{
+				Success: false,
+				Summary: "Task 2 failed",
+				Details: "Error details",
+			},
+		},
+		{
+			Task: Task{
+				ID:    "task3",
+				Agent: "agent3",
+			},
+			Result: AgentResult{
+				Success: true,
+				Summary: "Task 3 completed",
+				Details: "Details 3",
+				Metadata: AgentMetadata{
+					ToolsUsed:      []string{"tool2", "tool1"}, // Duplicate tool1
+					FilesProcessed: []string{"file2.go"},
+				},
+			},
+		},
+	}
+
+	plan := &ExecutionPlan{
+		ID:    "test-plan",
+		Tasks: []Task{{ID: "task1"}, {ID: "task2"}, {ID: "task3"}},
+	}
+
+	execContext := &ExecutionContext{
+		SessionID: "test-session",
+	}
+
+	// Aggregate results
+	finalResult := o.aggregateResults(results, plan, execContext)
+
+	// Verify aggregation
+	assert.False(t, finalResult.Success) // Should be false due to task2 failure
+	assert.Contains(t, finalResult.Summary, "2 successful")
+	assert.Contains(t, finalResult.Summary, "1 failed")
+	assert.Len(t, finalResult.Metadata.ToolsUsed, 2)      // tool1 and tool2 (no duplicates)
+	assert.Len(t, finalResult.Metadata.FilesProcessed, 2) // file1.go and file2.go
+}
+
+// TestOrchestrator_Configuration tests orchestrator configuration methods
+func TestOrchestrator_Configuration(t *testing.T) {
+	o := NewOrchestrator()
+
+	// Test that orchestrator has all required components
+	assert.NotNil(t, o.executor)
+	assert.NotNil(t, o.contextManager)
+	assert.NotNil(t, o.planner)
+	assert.NotNil(t, o.feedbackLoop)
+	assert.NotNil(t, o.log)
+
+	// Test that circular references are set up
+	// This is implicitly tested by successful execution tests
+}
+
 // Helper function
 func contains(s, substr string) bool {
 	return len(s) > 0 && len(substr) > 0 &&
 		(s == substr || len(s) >= len(substr))
+}
+
+// NewMockToolRegistry creates a mock tool registry for testing
+func NewMockToolRegistry() *tools.Registry {
+	return tools.NewRegistry()
 }
