@@ -164,10 +164,14 @@ func (a *App) setupGlobalKeyBindings() {
 			return nil
 		}
 		
-		// Escape: Return to previous view
+		// Escape: Return to previous view or chat if nowhere else to go
 		if event.Key() == tcell.KeyEscape {
 			if a.currentView != a.previousView {
 				a.switchToView(a.previousView)
+				return nil
+			} else if a.currentView != "chat" {
+				// If current and previous are the same but not chat, go to chat
+				a.switchToView("chat")
 				return nil
 			}
 		}

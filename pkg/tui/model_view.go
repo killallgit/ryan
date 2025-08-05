@@ -1,7 +1,9 @@
 package tui
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/controllers"
@@ -22,6 +24,15 @@ type ModelView struct {
 	modelsController *controllers.ModelsController
 	chatController   ControllerInterface
 	app              *tview.Application
+	
+	// Modal state
+	pullingModel string
+	pullProgress float64
+	
+	// Progress modal components
+	progressContainer *tview.Flex
+	progressBar       *tview.TextView
+	statusText        *tview.TextView
 }
 
 // NewModelView creates a new model view
@@ -61,7 +72,7 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 		SetTextAlign(tview.AlignLeft)
 	mv.status.SetBackgroundColor(GetTcellColor(ColorBase01))
 	mv.status.SetTextAlign(tview.AlignCenter)
-	mv.status.SetText("[#5c5044]Enter: select | d: delete | r: refresh | Esc: back | Tools: [#93b56b]Excellent[-] [#61afaf]Good[-] [#f5b761]Basic[-] [#d95f5f]None[-]")
+	mv.status.SetText("[#5c5044]Enter: select | +: download | -: delete | r: refresh | Esc: back | Tools: [#93b56b]Excellent[-] [#61afaf]Good[-] [#f5b761]Basic[-] [#d95f5f]None[-]")
 	
 	// Create padded table area
 	tableContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -99,7 +110,10 @@ func (mv *ModelView) setupKeyBindings() {
 			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
-			case 'd', 'D':
+			case '+':
+				mv.showDownloadModal()
+				return nil
+			case '-', 'd', 'D':
 				row, _ := mv.table.GetSelection()
 				if row > 0 {
 					cell := mv.table.GetCell(row, 0)
@@ -239,16 +253,47 @@ func (mv *ModelView) selectModel(modelName string) {
 
 // confirmDelete shows a confirmation dialog for model deletion
 func (mv *ModelView) confirmDelete(modelName string) {
-	modal := tview.NewModal().
-		SetText(fmt.Sprintf("Delete model '%s'?", modelName)).
-		AddButtons([]string{"Delete", "Cancel"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			if buttonLabel == "Delete" {
-				mv.deleteModel(modelName)
-			}
+	// Create warning text
+	warningText := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter).
+		SetWordWrap(true)
+	warningText.SetText(fmt.Sprintf("[#d95f5f]⚠ Delete Model[-]\n\nAre you sure you want to delete '[#f5b761]%s[-]'?\nThis action cannot be undone.", modelName))
+	warningText.SetBackgroundColor(GetTcellColor(ColorBase01))
+	
+	// Create form with buttons
+	form := tview.NewForm().
+		AddButton("Delete", func() {
+			mv.deleteModel(modelName)
+			mv.app.SetRoot(mv, true)
+		}).
+		AddButton("Cancel", func() {
 			mv.app.SetRoot(mv, true)
 		})
 	
+	form.SetBackgroundColor(GetTcellColor(ColorBase01))
+	form.SetButtonBackgroundColor(GetTcellColor(ColorBase02))
+	form.SetButtonTextColor(GetTcellColor(ColorBase05))
+	
+	// Handle escape key to cancel
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			mv.app.SetRoot(mv, true)
+			return nil
+		}
+		return event
+	})
+	
+	// Create container
+	container := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(warningText, 4, 0, false).
+		AddItem(nil, 1, 0, false). // spacer
+		AddItem(form, 0, 1, true)
+	
+	container.SetBackgroundColor(GetTcellColor(ColorBase01))
+	
+	// Create modal
+	modal := mv.createModal(container, 50, 8)
 	mv.app.SetRoot(modal, true)
 }
 
@@ -283,4 +328,206 @@ func (mv *ModelView) showError(message string) {
 // showSuccess displays a success message
 func (mv *ModelView) showSuccess(message string) {
 	mv.status.SetText(fmt.Sprintf("[#93b56b]✓ %s[-]", message))
+}
+
+// showDownloadModal displays a modal for downloading new models
+func (mv *ModelView) showDownloadModal() {
+	log := logger.WithComponent("model_view")
+	
+	// Create input field for model name
+	inputField := tview.NewInputField().
+		SetLabel("Model name: ").
+		SetFieldWidth(40).
+		SetFieldBackgroundColor(GetTcellColor(ColorBase01)).
+		SetFieldTextColor(GetTcellColor(ColorBase05)).
+		SetLabelColor(GetTcellColor(ColorBase05))
+	
+	// Create info text
+	infoText := tview.NewTextView().
+		SetDynamicColors(true).
+		SetWordWrap(true).
+		SetTextAlign(tview.AlignLeft)
+	infoText.SetText("[#61afaf]Examples:[-] llama3.1:8b, qwen2.5:7b, mistral:latest\n[#f5b761]Popular models:[-] llama3.1:8b (recommended), qwen2.5:7b, mistral:7b")
+	infoText.SetBackgroundColor(GetTcellColor(ColorBase01))
+	
+	// Create form
+	form := tview.NewForm().
+		AddFormItem(inputField).
+		AddButton("Download", func() {
+			modelName := strings.TrimSpace(inputField.GetText())
+			if modelName == "" {
+				return
+			}
+			mv.startModelDownload(modelName)
+		}).
+		AddButton("Cancel", func() {
+			mv.app.SetRoot(mv, true)
+		})
+	
+	form.SetBackgroundColor(GetTcellColor(ColorBase01))
+	form.SetButtonBackgroundColor(GetTcellColor(ColorBase02))
+	form.SetButtonTextColor(GetTcellColor(ColorBase05))
+	form.SetLabelColor(GetTcellColor(ColorBase05))
+	form.SetFieldBackgroundColor(GetTcellColor(ColorBase01))
+	form.SetFieldTextColor(GetTcellColor(ColorBase05))
+	
+	// Handle escape key to cancel
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			mv.app.SetRoot(mv, true)
+			return nil
+		}
+		return event
+	})
+	
+	// Create container with info and form
+	container := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(infoText, 3, 0, false).
+		AddItem(nil, 1, 0, false). // spacer
+		AddItem(form, 0, 1, true)
+	
+	container.SetBackgroundColor(GetTcellColor(ColorBase01))
+	
+	// Create modal
+	modal := mv.createModal(container, 60, 12)
+	mv.app.SetRoot(modal, true)
+	
+	log.Debug("Showing download modal")
+}
+
+// startModelDownload starts downloading a model with progress tracking
+func (mv *ModelView) startModelDownload(modelName string) {
+	log := logger.WithComponent("model_view")
+	log.Debug("Starting model download", "model", modelName)
+	
+	mv.pullingModel = modelName
+	mv.pullProgress = 0.0
+	
+	// Create progress modal
+	mv.showProgressModal(modelName)
+	
+	// Start download in goroutine
+	go func() {
+		ctx := context.Background()
+		
+		// Progress callback
+		progressCallback := func(status string, completed, total int64) {
+			if total > 0 {
+				progress := float64(completed) / float64(total) * 100
+				mv.app.QueueUpdateDraw(func() {
+					mv.pullProgress = progress
+					mv.updateProgressModal(status, progress)
+				})
+			} else {
+				// Indeterminate progress
+				mv.app.QueueUpdateDraw(func() {
+					mv.updateProgressModal(status, -1)
+				})
+			}
+		}
+		
+		err := mv.modelsController.PullWithProgress(ctx, modelName, progressCallback)
+		
+		mv.app.QueueUpdateDraw(func() {
+			if err != nil {
+				log.Error("Model download failed", "model", modelName, "error", err)
+				mv.showError(fmt.Sprintf("Failed to download %s: %v", modelName, err))
+			} else {
+				log.Debug("Model download completed", "model", modelName)
+				mv.showSuccess(fmt.Sprintf("Successfully downloaded %s", modelName))
+				mv.refreshModels()
+			}
+			
+			// Close progress modal and return to main view
+			mv.pullingModel = ""
+			mv.pullProgress = 0.0
+			mv.app.SetRoot(mv, true)
+		})
+	}()
+}
+
+// showProgressModal displays a progress modal for model downloading
+func (mv *ModelView) showProgressModal(modelName string) {
+	// Create progress container that we'll update
+	progressContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	progressContainer.SetBackgroundColor(GetTcellColor(ColorBase01))
+	
+	// Create status text
+	statusText := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter)
+	statusText.SetBackgroundColor(GetTcellColor(ColorBase01))
+	statusText.SetText(fmt.Sprintf("Downloading %s...", modelName))
+	
+	// Create progress bar placeholder
+	progressBar := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter)
+	progressBar.SetBackgroundColor(GetTcellColor(ColorBase01))
+	progressBar.SetText("[#f5b761]Preparing download...[-]")
+	
+	// Create cancel button
+	cancelButton := tview.NewButton("Cancel").
+		SetSelectedFunc(func() {
+			// Return to main view (cancellation not implemented yet)
+			mv.app.SetRoot(mv, true)
+		})
+	cancelButton.SetBackgroundColor(GetTcellColor(ColorBase02))
+	cancelButton.SetLabelColor(GetTcellColor(ColorBase05))
+	
+	// Store references for updates
+	mv.progressContainer = progressContainer
+	mv.progressBar = progressBar
+	mv.statusText = statusText
+	
+	// Build container
+	progressContainer.
+		AddItem(statusText, 2, 0, false).
+		AddItem(nil, 1, 0, false). // spacer
+		AddItem(progressBar, 3, 0, false).
+		AddItem(nil, 1, 0, false). // spacer
+		AddItem(cancelButton, 1, 0, true)
+	
+	// Create modal
+	modal := mv.createModal(progressContainer, 50, 10)
+	mv.app.SetRoot(modal, true)
+}
+
+// updateProgressModal updates the progress modal with current status
+func (mv *ModelView) updateProgressModal(status string, progress float64) {
+	if mv.progressBar == nil || mv.statusText == nil {
+		return
+	}
+	
+	// Update status
+	mv.statusText.SetText(fmt.Sprintf("Downloading %s: %s", mv.pullingModel, status))
+	
+	// Update progress bar
+	if progress >= 0 {
+		// Show percentage and visual bar
+		barWidth := 40
+		filledWidth := int(progress / 100.0 * float64(barWidth))
+		emptyWidth := barWidth - filledWidth
+		
+		bar := "[#93b56b]" + strings.Repeat("█", filledWidth) + "[-]" + 
+		      "[#5c5044]" + strings.Repeat("░", emptyWidth) + "[-]"
+		
+		mv.progressBar.SetText(fmt.Sprintf("%s\n%.1f%%", bar, progress))
+	} else {
+		// Indeterminate progress
+		mv.progressBar.SetText("[#f5b761]" + status + "...[-]")
+	}
+}
+
+// createModal creates a centered modal primitive
+func (mv *ModelView) createModal(p tview.Primitive, width, height int) tview.Primitive {
+	modal := tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(p, height, 1, true).
+			AddItem(nil, 0, 1, false), width, 1, true).
+		AddItem(nil, 0, 1, false)
+	modal.SetBackgroundColor(GetTcellColor(ColorBase00)) // Semi-transparent background
+	return modal
 }
