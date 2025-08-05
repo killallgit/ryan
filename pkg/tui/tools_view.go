@@ -577,7 +577,9 @@ func (v *ToolsView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 			v.toolRegistry.ResetAllToolStats()
 		}
 		return true
+
 	case 'j', 'J':
+		// Move down (same as down arrow)
 		if !v.showDetails && len(toolNames) > 0 {
 			if v.selectedRow < len(toolNames)-1 {
 				v.selectedRow++
@@ -585,7 +587,9 @@ func (v *ToolsView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 			}
 		}
 		return true
+
 	case 'k', 'K':
+		// Move up (same as up arrow)
 		if !v.showDetails && len(toolNames) > 0 {
 			if v.selectedRow > 0 {
 				v.selectedRow--
@@ -600,11 +604,21 @@ func (v *ToolsView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 
 // ensureVisible adjusts scroll to keep selected row visible
 func (v *ToolsView) ensureVisible() {
-	visibleRows := v.height - 6 // Account for header, footer, and spacing
+	// Calculate visible rows accounting for table borders and headers
+	visibleRows := v.height - 8 // Account for title, headers, borders, footer
+	if visibleRows < 1 {
+		visibleRows = 1
+	}
+
 	if v.selectedRow < v.scrollY {
 		v.scrollY = v.selectedRow
 	} else if v.selectedRow >= v.scrollY+visibleRows {
 		v.scrollY = v.selectedRow - visibleRows + 1
+	}
+
+	// Ensure scrollY is not negative
+	if v.scrollY < 0 {
+		v.scrollY = 0
 	}
 }
 

@@ -35,3 +35,4 @@ bin/*
 .devbox/*
 .ryan
 ryan
+!.github/workflows/coverage.yaml

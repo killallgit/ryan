@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -283,14 +284,21 @@ func (fmc FilterableMenuComponent) Render(screen tcell.Screen, area Rect) {
 
 	// Render filtered options starting from line 3 (skipping input line and separator)
 	startY := area.Y + 3
-	maxVisibleOptions := area.Height - 4 // account for borders and input line
+	maxVisibleOptions := 5 // Fixed to show only 5 items
+	totalOptions := len(fmc.filteredOptions)
 
-	for i, option := range fmc.filteredOptions {
-		if i >= maxVisibleOptions {
-			break
-		}
+	// Calculate scroll offset to keep selected item visible
+	scrollOffset := 0
+	if fmc.selected >= maxVisibleOptions {
+		scrollOffset = fmc.selected - maxVisibleOptions + 1
+	}
 
-		y := startY + i
+	// Render up to 5 visible options
+	visibleCount := 0
+	for i := scrollOffset; i < totalOptions && visibleCount < maxVisibleOptions; i++ {
+		option := fmc.filteredOptions[i]
+		y := startY + visibleCount
+
 		if y >= area.Y+area.Height-1 {
 			break
 		}
@@ -317,6 +325,26 @@ func (fmc FilterableMenuComponent) Render(screen tcell.Screen, area Rect) {
 				char = optionTextRunes[textIndex]
 			}
 			screen.SetContent(x, y, char, nil, style)
+		}
+		visibleCount++
+	}
+
+	// Show "more items" indicator if there are more options than visible
+	if totalOptions > maxVisibleOptions {
+		moreIndicatorY := startY + visibleCount
+		if moreIndicatorY < area.Y+area.Height-1 {
+			// Show downward arrow and count
+			moreText := fmt.Sprintf("↓ %d more", totalOptions-maxVisibleOptions)
+			moreStyle := tcell.StyleDefault.Foreground(ColorDimText).Dim(true)
+
+			// Center the indicator
+			indicatorX := area.X + (area.Width-len(moreText))/2
+			for i := range len(moreText) {
+				ch := rune(moreText[i])
+				if indicatorX+i < area.X+area.Width-1 {
+					screen.SetContent(indicatorX+i, moreIndicatorY, ch, nil, moreStyle)
+				}
+			}
 		}
 	}
 

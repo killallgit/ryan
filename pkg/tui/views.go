@@ -237,17 +237,29 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 		menuWidth = area.Width - 4 // minimal margin
 	}
 
-	menuHeight := 15 // Fixed height for command palette
-	if menuHeight > area.Height-2 {
-		menuHeight = area.Height - 2 // leave margin
+	// Fixed height for 5 items + input + borders + separator + more indicator
+	maxItems := 5
+	actualItems := len(vm.views)
+	if actualItems > maxItems {
+		actualItems = maxItems
+	}
+
+	menuHeight := actualItems + 4 // items + input + borders + separator
+	if len(vm.views) > maxItems {
+		menuHeight += 1 // space for "more" indicator
 	}
 
 	// Ensure minimum menu size
 	if menuWidth < 30 {
 		menuWidth = 30
 	}
-	if menuHeight < 8 {
-		menuHeight = 8
+
+	// Ensure minimum menu height for the input field
+	if menuHeight < 6 {
+		menuHeight = 6
+	}
+	if menuHeight > area.Height-2 {
+		menuHeight = area.Height - 2 // leave margin
 	}
 
 	menuX := (area.Width - menuWidth) / 2
