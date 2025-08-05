@@ -55,8 +55,15 @@ func NewToolsView(registry *tools.Registry) *ToolsView {
 		SetTextAlign(tview.AlignLeft)
 	tv.status.SetBackgroundColor(ColorBase01)
 	
-	// Layout
-	tv.AddItem(tv.table, 0, 1, true).
+	// Create padded table area
+	tableContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 2, 0, false).          // Left padding
+		AddItem(tv.table, 0, 1, true).      // Table content
+		AddItem(nil, 2, 0, false)           // Right padding
+	
+	// Layout with padding
+	tv.AddItem(nil, 1, 0, false).          // Top padding
+		AddItem(tableContainer, 0, 1, true).
 		AddItem(tv.status, 1, 0, false)
 	
 	// Load tools
@@ -142,9 +149,8 @@ func (tv *ToolsView) updateStatus() {
 		toolCount = len(tv.registry.GetTools())
 	}
 	
-	status := fmt.Sprintf("[#f5b761]Model:[-] %s | ", tv.currentModel)
-	status += fmt.Sprintf("[#61afaf]Tools:[-] %d available", toolCount)
-	status += " | [#5c5044]Press Esc to go back[-]"
+	status := fmt.Sprintf("[#5c5044]%d tools available | Press Esc to go back[-]", toolCount)
 	
+	tv.status.SetTextAlign(tview.AlignCenter)
 	tv.status.SetText(status)
 }

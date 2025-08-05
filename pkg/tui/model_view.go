@@ -58,10 +58,18 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 	mv.status.SetBackgroundColor(ColorBase01)
+	mv.status.SetTextAlign(tview.AlignCenter)
 	mv.status.SetText("[#5c5044]Press Enter to select model | d to delete | r to refresh | Esc to go back[-]")
 	
-	// Layout
-	mv.AddItem(mv.table, 0, 1, true).
+	// Create padded table area
+	tableContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 2, 0, false).          // Left padding
+		AddItem(mv.table, 0, 1, true).      // Table content
+		AddItem(nil, 2, 0, false)           // Right padding
+	
+	// Layout with padding
+	mv.AddItem(nil, 1, 0, false).          // Top padding
+		AddItem(tableContainer, 0, 1, true).
 		AddItem(mv.status, 1, 0, false)
 	
 	// Setup key bindings

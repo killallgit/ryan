@@ -49,12 +49,12 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 	cv.messages.SetBorder(false)
 	cv.messages.SetBackgroundColor(ColorBase00)
 	
-	// Create input field
+	// Create input field with prompt inside
 	cv.input = tview.NewInputField().
 		SetLabel("> ").
 		SetFieldBackgroundColor(ColorBase01).
 		SetFieldTextColor(ColorBase05).
-		SetLabelColor(ColorGreen)
+		SetLabelColor(ColorOrange)
 	
 	cv.input.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
@@ -75,17 +75,17 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 	cv.status.SetBackgroundColor(ColorBase01)
 	cv.updateStatus()
 	
-	// Create padded message area
+	// Create padded message area with inner padding
 	messageContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(nil, 1, 0, false).                    // Left padding
+		AddItem(nil, 2, 0, false).                    // Left padding
 		AddItem(cv.messages, 0, 1, false).           // Messages content
-		AddItem(nil, 1, 0, false)                    // Right padding
+		AddItem(nil, 2, 0, false)                    // Right padding
 	
 	// Create padded input area
 	inputContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(nil, 1, 0, false).                    // Left padding
+		AddItem(nil, 2, 0, false).                    // Left padding
 		AddItem(cv.input, 0, 1, true).               // Input content
-		AddItem(nil, 1, 0, false)                    // Right padding
+		AddItem(nil, 2, 0, false)                    // Right padding
 	
 	// Layout: top padding, messages with padding, gap, input with padding, status
 	cv.AddItem(nil, 1, 0, false).                   // Top padding
@@ -184,33 +184,12 @@ func (cv *ChatView) SetSending(sending bool) {
 
 // updateStatus updates the status bar
 func (cv *ChatView) updateStatus() {
-	var status string
-	
-	// Model info
+	// Model info (right-aligned)
 	model := cv.controller.GetModel()
-	status = fmt.Sprintf("[#f5b761]Model:[-] %s", model)
+	statusText := fmt.Sprintf("[#f5b761]%s[-]", model)
 	
-	// State info
-	if cv.sending {
-		if cv.streaming {
-			status += " [#61afaf]● Streaming...[-]"
-		} else {
-			status += " [#f5b761]● Sending...[-]"
-		}
-	} else {
-		status += " [#93b56b]● Ready[-]"
-	}
-	
-	// Token usage
-	promptTokens, responseTokens := cv.controller.GetTokenUsage()
-	if promptTokens > 0 || responseTokens > 0 {
-		status += fmt.Sprintf(" | [#5c5044]Tokens: %d/%d[-]", promptTokens, responseTokens)
-	}
-	
-	// Help text
-	status += " | [#5c5044]Ctrl-P: Switch View | Ctrl-C: Cancel/Quit[-]"
-	
-	cv.status.SetText(status)
+	cv.status.SetTextAlign(tview.AlignRight)
+	cv.status.SetText(statusText)
 }
 
 // Focus implements tview.Primitive
