@@ -46,13 +46,15 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		SetRegions(true).
 		SetWordWrap(true).
 		SetScrollable(true)
-	cv.messages.SetBorder(true).SetTitle("Chat")
+	cv.messages.SetBorder(false)
+	cv.messages.SetBackgroundColor(ColorBase00)
 	
 	// Create input field
 	cv.input = tview.NewInputField().
 		SetLabel("> ").
-		SetFieldBackgroundColor(tcell.ColorBlack).
-		SetLabelColor(tcell.ColorGreen)
+		SetFieldBackgroundColor(ColorBase01).
+		SetFieldTextColor(ColorBase05).
+		SetLabelColor(ColorGreen)
 	
 	cv.input.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
@@ -70,11 +72,26 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 	cv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
+	cv.status.SetBackgroundColor(ColorBase01)
 	cv.updateStatus()
 	
-	// Layout: messages, input, status
-	cv.AddItem(cv.messages, 0, 1, false).
-		AddItem(cv.input, 1, 0, true).
+	// Create padded message area
+	messageContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 1, 0, false).                    // Left padding
+		AddItem(cv.messages, 0, 1, false).           // Messages content
+		AddItem(nil, 1, 0, false)                    // Right padding
+	
+	// Create padded input area
+	inputContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 1, 0, false).                    // Left padding
+		AddItem(cv.input, 0, 1, true).               // Input content
+		AddItem(nil, 1, 0, false)                    // Right padding
+	
+	// Layout: top padding, messages with padding, gap, input with padding, status
+	cv.AddItem(nil, 1, 0, false).                   // Top padding
+		AddItem(messageContainer, 0, 1, false).
+		AddItem(nil, 1, 0, false).                   // Gap between messages and input
+		AddItem(inputContainer, 2, 0, true).         // Input area with more height
 		AddItem(cv.status, 1, 0, false)
 	
 	// Initial message update
@@ -108,13 +125,13 @@ func (cv *ChatView) UpdateMessages() {
 		// Format message based on role
 		switch msg.Role {
 		case chat.RoleUser, "human":
-			output.WriteString("[green]You:[white] ")
+			output.WriteString("[#93b56b]You:[-] ")
 		case chat.RoleAssistant:
-			output.WriteString("[blue]Assistant:[white] ")
+			output.WriteString("[#6b93b5]Assistant:[-] ")
 		case chat.RoleError:
-			output.WriteString("[red]Error:[white] ")
+			output.WriteString("[#d95f5f]Error:[-] ")
 		default:
-			output.WriteString(fmt.Sprintf("[yellow]%s:[white] ", msg.Role))
+			output.WriteString(fmt.Sprintf("[#f5b761]%s:[-] ", msg.Role))
 		}
 		
 		// Add content
@@ -123,9 +140,9 @@ func (cv *ChatView) UpdateMessages() {
 	
 	// Add streaming content if active
 	if cv.streaming && cv.streamBuffer != "" {
-		output.WriteString("\n\n[blue]Assistant:[white] ")
+		output.WriteString("\n\n[#6b93b5]Assistant:[-] ")
 		output.WriteString(cv.streamBuffer)
-		output.WriteString("█") // Cursor
+		output.WriteString("[#eb8755]█[-]") // Cursor
 	}
 	
 	cv.messages.SetText(output.String())
@@ -171,27 +188,27 @@ func (cv *ChatView) updateStatus() {
 	
 	// Model info
 	model := cv.controller.GetModel()
-	status = fmt.Sprintf("[yellow]Model:[white] %s", model)
+	status = fmt.Sprintf("[#f5b761]Model:[-] %s", model)
 	
 	// State info
 	if cv.sending {
 		if cv.streaming {
-			status += " [cyan]● Streaming...[white]"
+			status += " [#61afaf]● Streaming...[-]"
 		} else {
-			status += " [yellow]● Sending...[white]"
+			status += " [#f5b761]● Sending...[-]"
 		}
 	} else {
-		status += " [green]● Ready[white]"
+		status += " [#93b56b]● Ready[-]"
 	}
 	
 	// Token usage
 	promptTokens, responseTokens := cv.controller.GetTokenUsage()
 	if promptTokens > 0 || responseTokens > 0 {
-		status += fmt.Sprintf(" | [dim]Tokens: %d/%d[white]", promptTokens, responseTokens)
+		status += fmt.Sprintf(" | [#5c5044]Tokens: %d/%d[-]", promptTokens, responseTokens)
 	}
 	
 	// Help text
-	status += " | [dim]Ctrl-P: Switch View | Ctrl-C: Cancel/Quit[white]"
+	status += " | [#5c5044]Ctrl-P: Switch View | Ctrl-C: Cancel/Quit[-]"
 	
 	cv.status.SetText(status)
 }
