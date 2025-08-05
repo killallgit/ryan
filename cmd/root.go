@@ -319,14 +319,15 @@ var rootCmd = &cobra.Command{
 		}
 
 		log.Info("Creating TUI application")
-		// Convert LangChain controller to interface that TUI expects
+		
+		// Create tview-based TUI
 		app, err := tui.NewApp(&LangChainControllerAdapter{langchainController})
 		if err != nil {
 			log.Error("Failed to create TUI application", "error", err)
 			fmt.Printf("Failed to create TUI application: %v\n", err)
 			return
 		}
-
+		
 		log.Info("Starting TUI application")
 		if err := app.Run(); err != nil {
 			log.Error("Application error", "error", err)
