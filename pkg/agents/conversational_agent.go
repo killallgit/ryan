@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	
+
 	"github.com/killallgit/ryan/pkg/langchain"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/models"
@@ -23,7 +23,7 @@ func NewConversationalAgent(config AgentConfig) (LangchainAgent, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create langchain client: %w", err)
 	}
-	
+
 	agent := &ConversationalAgent{
 		BaseLangchainAgent: BaseLangchainAgent{
 			name:         "conversational",
@@ -40,7 +40,7 @@ func NewConversationalAgent(config AgentConfig) (LangchainAgent, error) {
 		client: client,
 		log:    logger.WithComponent("conversational_agent"),
 	}
-	
+
 	return agent, nil
 }
 
@@ -48,7 +48,7 @@ func NewConversationalAgent(config AgentConfig) (LangchainAgent, error) {
 func (c *ConversationalAgent) CanHandle(request string) (bool, float64) {
 	// Conversational agent can handle most requests but with varying confidence
 	lowerRequest := strings.ToLower(request)
-	
+
 	// High confidence for conversational and reasoning tasks
 	if strings.Contains(lowerRequest, "explain") ||
 		strings.Contains(lowerRequest, "think") ||
@@ -56,12 +56,12 @@ func (c *ConversationalAgent) CanHandle(request string) (bool, float64) {
 		strings.Contains(lowerRequest, "analyze") {
 		return true, 0.9
 	}
-	
+
 	// Medium confidence for tool usage
 	if c.toolRegistry != nil && c.toolRegistry.HasTools() {
 		return true, 0.7
 	}
-	
+
 	// Low confidence as fallback
 	return true, 0.5
 }
@@ -71,7 +71,7 @@ func (c *ConversationalAgent) Execute(ctx context.Context, request AgentRequest)
 	c.log.Debug("Executing conversational agent",
 		"prompt", request.Prompt,
 		"model", c.model)
-	
+
 	// Send message through the langchain client
 	response, err := c.client.SendMessage(ctx, request.Prompt)
 	if err != nil {
@@ -81,7 +81,7 @@ func (c *ConversationalAgent) Execute(ctx context.Context, request AgentRequest)
 			Details: err.Error(),
 		}, err
 	}
-	
+
 	return AgentResult{
 		Success: true,
 		Summary: "Conversational agent completed successfully",
@@ -97,7 +97,7 @@ func (c *ConversationalAgent) GetToolCompatibility() []string {
 	if c.toolRegistry == nil {
 		return []string{}
 	}
-	
+
 	tools := c.toolRegistry.GetTools()
 	toolNames := make([]string, 0, len(tools))
 	for _, tool := range tools {

@@ -2,7 +2,7 @@ package agents
 
 import (
 	"context"
-	
+
 	"github.com/killallgit/ryan/pkg/models"
 	"github.com/killallgit/ryan/pkg/tools"
 )
@@ -27,22 +27,22 @@ type ModelRequirements struct {
 // LangchainAgent extends the base Agent interface with Langchain-specific capabilities
 type LangchainAgent interface {
 	Agent
-	
+
 	// GetChainType returns the type of chain this agent uses
 	GetChainType() ChainType
-	
+
 	// GetToolCompatibility returns the list of tools this agent can use
 	GetToolCompatibility() []string
-	
+
 	// GetModelRequirements returns the minimum model requirements
 	GetModelRequirements() ModelRequirements
-	
+
 	// SetToolRegistry sets the tool registry for this agent
 	SetToolRegistry(registry *tools.Registry)
-	
+
 	// SetModel sets the model to use for this agent
 	SetModel(model string) error
-	
+
 	// SupportsStreaming indicates if this agent supports streaming responses
 	SupportsStreaming() bool
 }
@@ -127,7 +127,7 @@ type AgentMetrics struct {
 type AgentSelectorStrategy interface {
 	// SelectAgent chooses the best agent for the given request
 	SelectAgent(ctx context.Context, request string, available []LangchainAgent) (LangchainAgent, error)
-	
+
 	// RankAgents ranks agents by suitability for the request
 	RankAgents(request string, available []LangchainAgent) []LangchainAgent
 }

@@ -3,7 +3,7 @@ package agents
 import (
 	"fmt"
 	"sync"
-	
+
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
@@ -23,10 +23,10 @@ func NewAgentFactory() *AgentFactory {
 		registry: make(map[string]AgentFactoryFunc),
 		log:      logger.WithComponent("agent_factory"),
 	}
-	
+
 	// Register default agents
 	factory.RegisterDefaults()
-	
+
 	return factory
 }
 
@@ -36,7 +36,7 @@ func (f *AgentFactory) RegisterDefaults() {
 	f.Register("ollama-functions", NewOllamaFunctionsAgent)
 	f.Register("openai-functions", NewOpenAIFunctionsAgent)
 	f.Register("react", NewConversationalAgent) // Alias for conversational
-	
+
 	f.log.Debug("Registered default agents",
 		"count", len(f.registry),
 		"types", f.GetRegisteredTypes())
@@ -46,11 +46,11 @@ func (f *AgentFactory) RegisterDefaults() {
 func (f *AgentFactory) Register(agentType string, factoryFunc AgentFactoryFunc) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	if _, exists := f.registry[agentType]; exists {
 		return fmt.Errorf("agent type %s is already registered", agentType)
 	}
-	
+
 	f.registry[agentType] = factoryFunc
 	f.log.Debug("Registered agent type", "type", agentType)
 	return nil
@@ -61,20 +61,20 @@ func (f *AgentFactory) Create(agentType string, config AgentConfig) (LangchainAg
 	f.mu.RLock()
 	factoryFunc, exists := f.registry[agentType]
 	f.mu.RUnlock()
-	
+
 	if !exists {
 		return nil, fmt.Errorf("unknown agent type: %s", agentType)
 	}
-	
+
 	agent, err := factoryFunc(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create agent %s: %w", agentType, err)
 	}
-	
+
 	f.log.Debug("Created agent",
 		"type", agentType,
 		"model", config.Model)
-	
+
 	return agent, nil
 }
 
@@ -82,7 +82,7 @@ func (f *AgentFactory) Create(agentType string, config AgentConfig) (LangchainAg
 func (f *AgentFactory) GetRegisteredTypes() []string {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	types := make([]string, 0, len(f.registry))
 	for agentType := range f.registry {
 		types = append(types, agentType)
@@ -94,7 +94,7 @@ func (f *AgentFactory) GetRegisteredTypes() []string {
 func (f *AgentFactory) IsRegistered(agentType string) bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	_, exists := f.registry[agentType]
 	return exists
 }
@@ -103,7 +103,7 @@ func (f *AgentFactory) IsRegistered(agentType string) bool {
 func (f *AgentFactory) CreateBestAgent(config AgentConfig, request string) (LangchainAgent, error) {
 	// Try to create agents in order of preference
 	preferences := []string{"ollama-functions", "openai-functions", "conversational"}
-	
+
 	for _, agentType := range preferences {
 		agent, err := f.Create(agentType, config)
 		if err != nil {
@@ -112,7 +112,7 @@ func (f *AgentFactory) CreateBestAgent(config AgentConfig, request string) (Lang
 				"error", err)
 			continue
 		}
-		
+
 		// Check if agent can handle the request
 		canHandle, confidence := agent.CanHandle(request)
 		if canHandle && confidence > 0.5 {
@@ -122,7 +122,7 @@ func (f *AgentFactory) CreateBestAgent(config AgentConfig, request string) (Lang
 			return agent, nil
 		}
 	}
-	
+
 	// Fallback to conversational agent
 	return f.Create("conversational", config)
 }

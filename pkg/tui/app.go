@@ -36,23 +36,23 @@ type App struct {
 	app        *tview.Application
 	pages      *tview.Pages
 	controller ControllerInterface
-	
+
 	// Views
 	chatView        *ChatView
 	modelView       *ModelView
 	toolsView       *ToolsView
 	vectorStoreView *VectorStoreView
 	contextTreeView *ContextTreeView
-	
+
 	// State
 	sending      bool
 	streaming    bool
 	currentView  string
 	previousView string
-	
+
 	// Channels
-	cancelSend   chan bool
-	
+	cancelSend chan bool
+
 	// Config
 	config *config.Config
 }
@@ -61,40 +61,40 @@ type App struct {
 func NewApp(controller ControllerInterface) (*App, error) {
 	log := logger.WithComponent("tui_app")
 	log.Debug("Creating new TUI application")
-	
+
 	tviewApp := tview.NewApplication()
 	cfg := config.Get()
-	
+
 	// Apply theme
 	theme := DefaultTheme()
 	ApplyTheme(theme)
-	
+
 	app := &App{
-		app:         tviewApp,
-		pages:       tview.NewPages(),
-		controller:  controller,
+		app:          tviewApp,
+		pages:        tview.NewPages(),
+		controller:   controller,
 		sending:      false,
 		streaming:    false,
 		currentView:  "chat",
 		previousView: "chat",
-		cancelSend:  make(chan bool, 1),
-		config:      cfg,
+		cancelSend:   make(chan bool, 1),
+		config:       cfg,
 	}
-	
+
 	// Set background color for pages container
 	app.pages.SetBackgroundColor(tcell.GetColor(ColorBase00))
-	
+
 	// Initialize views
 	if err := app.initializeViews(); err != nil {
 		return nil, fmt.Errorf("failed to initialize views: %w", err)
 	}
-	
+
 	// Setup global key bindings
 	app.setupGlobalKeyBindings()
-	
+
 	// Set initial focus
 	tviewApp.SetRoot(app.pages, true).SetFocus(app.pages)
-	
+
 	log.Debug("TUI application created successfully")
 	return app, nil
 }
@@ -102,7 +102,7 @@ func NewApp(controller ControllerInterface) (*App, error) {
 // initializeViews creates and registers all application views
 func (a *App) initializeViews() error {
 	log := logger.WithComponent("tview_app")
-	
+
 	// Create chat view
 	a.chatView = NewChatView(a.controller, a.app)
 	a.chatView.SetSendMessageHandler(func(content string) {
@@ -110,7 +110,7 @@ func (a *App) initializeViews() error {
 	})
 	a.pages.AddPage("chat", a.chatView, true, true)
 	log.Debug("Created chat view")
-	
+
 	// Create model view with Ollama client
 	ollamaURL := a.config.Ollama.URL
 	if ollamaURL == "" {
@@ -121,22 +121,22 @@ func (a *App) initializeViews() error {
 	a.modelView = NewModelView(modelsController, a.controller, a.app)
 	a.pages.AddPage("models", a.modelView, true, false)
 	log.Debug("Created model view")
-	
+
 	// Create tools view
 	a.toolsView = NewToolsView(a.controller.GetToolRegistry())
 	a.pages.AddPage("tools", a.toolsView, true, false)
 	log.Debug("Created tools view")
-	
+
 	// Create vector store view
 	a.vectorStoreView = NewVectorStoreView()
 	a.pages.AddPage("vectorstore", a.vectorStoreView, true, false)
 	log.Debug("Created vector store view")
-	
+
 	// Create context tree view
 	a.contextTreeView = NewContextTreeView()
 	a.pages.AddPage("context-tree", a.contextTreeView, true, false)
 	log.Debug("Created context tree view")
-	
+
 	return nil
 }
 
@@ -148,7 +148,7 @@ func (a *App) setupGlobalKeyBindings() {
 			a.showViewSwitcher()
 			return nil
 		}
-		
+
 		// Ctrl-C: Cancel operation or quit
 		if event.Key() == tcell.KeyCtrlC {
 			if a.sending {
@@ -163,7 +163,7 @@ func (a *App) setupGlobalKeyBindings() {
 			}
 			return nil
 		}
-		
+
 		// Escape: Return to previous view or chat if nowhere else to go
 		if event.Key() == tcell.KeyEscape {
 			if a.currentView != a.previousView {
@@ -175,7 +175,7 @@ func (a *App) setupGlobalKeyBindings() {
 				return nil
 			}
 		}
-		
+
 		// Ctrl-1 through Ctrl-5: Quick view switching
 		if event.Key() >= tcell.KeyCtrlA && event.Key() <= tcell.KeyCtrlE {
 			views := []string{"chat", "models", "tools", "vectorstore", "context-tree"}
@@ -185,7 +185,7 @@ func (a *App) setupGlobalKeyBindings() {
 				return nil
 			}
 		}
-		
+
 		return event
 	})
 }
@@ -207,7 +207,7 @@ func (a *App) switchToView(viewName string) {
 		a.currentView = viewName
 	}
 	a.pages.SwitchToPage(viewName)
-	
+
 	// Update current model in tools view if switching to it
 	if viewName == "tools" && a.toolsView != nil {
 		a.toolsView.SetCurrentModel(a.controller.GetModel())
@@ -218,7 +218,7 @@ func (a *App) switchToView(viewName string) {
 func (a *App) showViewSwitcher() {
 	// Store the previous view
 	previousView := a.currentView
-	
+
 	// Create a simple list of available views
 	list := tview.NewList().
 		AddItem("Chat", "", 0, func() {
@@ -241,11 +241,11 @@ func (a *App) showViewSwitcher() {
 			a.switchToView("context-tree")
 			a.pages.RemovePage("view-switcher")
 		})
-	
+
 	list.SetBorder(false).
 		SetBackgroundColor(tcell.GetColor(ColorBase01))
 	list.ShowSecondaryText(false)
-	
+
 	// Setup key bindings for j/k navigation
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -271,33 +271,33 @@ func (a *App) showViewSwitcher() {
 		}
 		return event
 	})
-	
+
 	// Create outer container with background
 	outerContainer := tview.NewBox().
 		SetBackgroundColor(tcell.GetColor(ColorBase01))
-	
+
 	// Create inner flex for horizontal padding
 	innerFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
 	innerFlex.SetBackgroundColor(tcell.GetColor(ColorBase01))
-	innerFlex.AddItem(nil, 3, 0, false)  // Left padding
-	innerFlex.AddItem(list, 0, 1, true)  // List content
-	innerFlex.AddItem(nil, 3, 0, false)  // Right padding
-	
+	innerFlex.AddItem(nil, 3, 0, false) // Left padding
+	innerFlex.AddItem(list, 0, 1, true) // List content
+	innerFlex.AddItem(nil, 3, 0, false) // Right padding
+
 	// Create a wrapper that adds padding between the outer container and list
 	paddedWrapper := tview.NewFlex().SetDirection(tview.FlexRow)
 	paddedWrapper.SetBackgroundColor(tcell.GetColor(ColorBase01))
-	paddedWrapper.AddItem(nil, 2, 0, false)  // Top padding
-	paddedWrapper.AddItem(innerFlex, 0, 1, true)  // Content with horizontal padding
-	paddedWrapper.AddItem(nil, 2, 0, false)  // Bottom padding
-	
+	paddedWrapper.AddItem(nil, 2, 0, false)      // Top padding
+	paddedWrapper.AddItem(innerFlex, 0, 1, true) // Content with horizontal padding
+	paddedWrapper.AddItem(nil, 2, 0, false)      // Bottom padding
+
 	// Stack the background and padded content
 	modalContent := tview.NewPages().
 		AddPage("bg", outerContainer, true, true).
 		AddPage("content", paddedWrapper, true, true)
-	
+
 	// Create modal with height to show all 5 items plus padding
 	modal := createModal(modalContent, 30, 9)
-	
+
 	// Add as overlay
 	a.pages.AddPage("view-switcher", modal, true, true)
 }
@@ -311,7 +311,7 @@ func createModal(p tview.Primitive, width, height int) tview.Primitive {
 			AddItem(p, height, 1, true).
 			AddItem(nil, 0, 1, false), width, 1, true).
 		AddItem(nil, 0, 1, false)
-	modal.SetBackgroundColor(tcell.ColorDefault)  // Transparent to show the base background
+	modal.SetBackgroundColor(tcell.ColorDefault) // Transparent to show the base background
 	return modal
 }
 
@@ -320,17 +320,17 @@ func (a *App) SendMessage(content string) {
 	if a.sending {
 		return
 	}
-	
+
 	log := logger.WithComponent("tview_app")
 	log.Debug("Sending message", "content", content)
-	
+
 	a.sending = true
 	a.chatView.SetSending(true)
-	
+
 	// Add user message
 	a.controller.AddUserMessage(content)
 	a.chatView.UpdateMessages()
-	
+
 	// Send message in goroutine
 	go func() {
 		defer func() {
@@ -339,11 +339,11 @@ func (a *App) SendMessage(content string) {
 				a.chatView.SetSending(false)
 			})
 		}()
-		
+
 		// Create context with cancel
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		
+
 		// Monitor for cancellation
 		go func() {
 			select {
@@ -352,7 +352,7 @@ func (a *App) SendMessage(content string) {
 			case <-ctx.Done():
 			}
 		}()
-		
+
 		// Start streaming
 		updates, err := a.controller.StartStreaming(ctx, content)
 		if err != nil {
@@ -363,7 +363,7 @@ func (a *App) SendMessage(content string) {
 			})
 			return
 		}
-		
+
 		// Process updates
 		a.processStreamingUpdates(updates)
 	}()
@@ -373,7 +373,7 @@ func (a *App) SendMessage(content string) {
 func (a *App) processStreamingUpdates(updates <-chan controllers.StreamingUpdate) {
 	log := logger.WithComponent("tview_app")
 	streamingContent := ""
-	
+
 	for update := range updates {
 		switch update.Type {
 		case controllers.StreamStarted:
@@ -382,14 +382,14 @@ func (a *App) processStreamingUpdates(updates <-chan controllers.StreamingUpdate
 				a.streaming = true
 				a.chatView.StartStreaming(update.StreamID)
 			})
-			
+
 		case controllers.ChunkReceived:
 			streamingContent += update.Content
 			content := streamingContent // Capture for closure
 			a.app.QueueUpdateDraw(func() {
 				a.chatView.UpdateStreamingContent(update.StreamID, content)
 			})
-			
+
 		case controllers.MessageComplete:
 			log.Debug("Message complete", "id", update.StreamID)
 			finalMsg := update.Message
@@ -398,7 +398,7 @@ func (a *App) processStreamingUpdates(updates <-chan controllers.StreamingUpdate
 				a.chatView.CompleteStreaming(update.StreamID, finalMsg)
 				a.chatView.UpdateMessages()
 			})
-			
+
 		case controllers.StreamError:
 			log.Error("Stream error", "error", update.Error)
 			a.app.QueueUpdateDraw(func() {

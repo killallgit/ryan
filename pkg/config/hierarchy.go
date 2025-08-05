@@ -29,24 +29,24 @@ func (ch *ConfigHierarchy) ResolveEffectiveConfig() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load global config: %w", err)
 	}
-	
+
 	projectConfig, err := ch.contextManager.GetProjectConfig("")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load project config: %w", err)
 	}
-	
+
 	// Start with system defaults (lowest priority)
 	effectiveConfig := ch.getSystemDefaults()
-	
+
 	// Apply global configuration overrides
 	ch.applyGlobalConfigOverrides(effectiveConfig, globalConfig)
-	
+
 	// Apply project configuration overrides
 	ch.applyProjectConfigOverrides(effectiveConfig, projectConfig)
-	
+
 	// Apply environment variable overrides (highest priority)
 	ch.applyEnvironmentOverrides(effectiveConfig)
-	
+
 	return effectiveConfig, nil
 }
 
@@ -137,10 +137,10 @@ func (ch *ConfigHierarchy) applyGlobalConfigOverrides(config *Config, globalConf
 	if globalConfig.Verbose {
 		config.Logging.Level = "debug"
 	}
-	
+
 	// Apply theme and editor mode settings if they affect configuration
 	// Note: Some global settings like theme might be handled by the UI layer
-	
+
 	// Apply environment variable overrides from global config
 	for key, value := range globalConfig.Env {
 		os.Setenv(key, value)
@@ -151,13 +151,13 @@ func (ch *ConfigHierarchy) applyGlobalConfigOverrides(config *Config, globalConf
 func (ch *ConfigHierarchy) applyProjectConfigOverrides(config *Config, projectConfig *ProjectConfig) {
 	// Project-specific overrides can be added here
 	// For now, most project config is used directly by the bridge
-	
+
 	// Example: If project has specific tool restrictions
 	if len(projectConfig.AllowedTools) > 0 {
 		// This would be handled by the bridge's IsToolAllowed method
 		// but we could also modify the config here if needed
 	}
-	
+
 	// Apply ignore patterns to relevant tools
 	if len(projectConfig.IgnorePatterns) > 0 {
 		// This could affect file read tool or search tool behavior
@@ -172,52 +172,52 @@ func (ch *ConfigHierarchy) applyEnvironmentOverrides(config *Config) {
 		"RYAN_LOG_FILE":     func(v string) { config.Logging.LogFile = v },
 		"RYAN_LOG_LEVEL":    func(v string) { config.Logging.Level = v },
 		"RYAN_LOG_PRESERVE": func(v string) { config.Logging.Preserve = parseBool(v) },
-		
+
 		// Ollama configuration
-		"RYAN_OLLAMA_URL":    func(v string) { config.Ollama.URL = v },
-		"RYAN_OLLAMA_MODEL":  func(v string) { config.Ollama.Model = v },
+		"RYAN_OLLAMA_URL":           func(v string) { config.Ollama.URL = v },
+		"RYAN_OLLAMA_MODEL":         func(v string) { config.Ollama.Model = v },
 		"RYAN_OLLAMA_SYSTEM_PROMPT": func(v string) { config.Ollama.SystemPrompt = v },
-		"RYAN_OLLAMA_TIMEOUT": func(v string) { 
+		"RYAN_OLLAMA_TIMEOUT": func(v string) {
 			if d, err := time.ParseDuration(v); err == nil {
 				config.Ollama.Timeout = d
 			}
 		},
-		
+
 		// General configuration
 		"RYAN_SHOW_THINKING": func(v string) { config.ShowThinking = parseBool(v) },
 		"RYAN_STREAMING":     func(v string) { config.Streaming = parseBool(v) },
-		
+
 		// Tools configuration
 		"RYAN_TOOLS_ENABLED": func(v string) { config.Tools.Enabled = parseBool(v) },
 		"RYAN_BASH_ENABLED":  func(v string) { config.Tools.Bash.Enabled = parseBool(v) },
-		"RYAN_BASH_TIMEOUT":  func(v string) {
+		"RYAN_BASH_TIMEOUT": func(v string) {
 			if d, err := time.ParseDuration(v); err == nil {
 				config.Tools.Bash.Timeout = d
 			}
 		},
-		
+
 		// Vector store configuration
-		"RYAN_VECTORSTORE_ENABLED": func(v string) { config.VectorStore.Enabled = parseBool(v) },
-		"RYAN_VECTORSTORE_PROVIDER": func(v string) { config.VectorStore.Provider = v },
+		"RYAN_VECTORSTORE_ENABLED":         func(v string) { config.VectorStore.Enabled = parseBool(v) },
+		"RYAN_VECTORSTORE_PROVIDER":        func(v string) { config.VectorStore.Provider = v },
 		"RYAN_VECTORSTORE_PERSISTENCE_DIR": func(v string) { config.VectorStore.PersistenceDir = v },
-		"RYAN_EMBEDDER_PROVIDER": func(v string) { config.VectorStore.Embedder.Provider = v },
-		"RYAN_EMBEDDER_MODEL":    func(v string) { config.VectorStore.Embedder.Model = v },
-		"RYAN_EMBEDDER_BASE_URL": func(v string) { config.VectorStore.Embedder.BaseURL = v },
-		"RYAN_EMBEDDER_API_KEY":  func(v string) { config.VectorStore.Embedder.APIKey = v },
-		
+		"RYAN_EMBEDDER_PROVIDER":           func(v string) { config.VectorStore.Embedder.Provider = v },
+		"RYAN_EMBEDDER_MODEL":              func(v string) { config.VectorStore.Embedder.Model = v },
+		"RYAN_EMBEDDER_BASE_URL":           func(v string) { config.VectorStore.Embedder.BaseURL = v },
+		"RYAN_EMBEDDER_API_KEY":            func(v string) { config.VectorStore.Embedder.APIKey = v },
+
 		// Configuration directory override
 		"RYAN_CONFIG_DIR": func(v string) {
 			// This affects where configurations are stored, handled by GetGlobalConfigPath
 		},
 	}
-	
+
 	// Apply environment variable overrides
 	for envVar, setter := range envMappings {
 		if value := os.Getenv(envVar); value != "" {
 			setter(value)
 		}
 	}
-	
+
 	// Special handling for complex environment variables
 	ch.applyComplexEnvironmentOverrides(config)
 }
@@ -232,7 +232,7 @@ func (ch *ConfigHierarchy) applyComplexEnvironmentOverrides(config *Config) {
 			config.Tools.Models[i] = strings.TrimSpace(model)
 		}
 	}
-	
+
 	// Handle RYAN_BASH_ALLOWED_PATHS (comma-separated list)
 	if pathsEnv := os.Getenv("RYAN_BASH_ALLOWED_PATHS"); pathsEnv != "" {
 		config.Tools.Bash.AllowedPaths = strings.Split(pathsEnv, ",")
@@ -240,7 +240,7 @@ func (ch *ConfigHierarchy) applyComplexEnvironmentOverrides(config *Config) {
 			config.Tools.Bash.AllowedPaths[i] = strings.TrimSpace(path)
 		}
 	}
-	
+
 	// Handle RYAN_FILE_READ_ALLOWED_EXTENSIONS (comma-separated list)
 	if extEnv := os.Getenv("RYAN_FILE_READ_ALLOWED_EXTENSIONS"); extEnv != "" {
 		config.Tools.FileRead.AllowedExtensions = strings.Split(extEnv, ",")
@@ -248,14 +248,14 @@ func (ch *ConfigHierarchy) applyComplexEnvironmentOverrides(config *Config) {
 			config.Tools.FileRead.AllowedExtensions[i] = strings.TrimSpace(ext)
 		}
 	}
-	
+
 	// Handle numeric environment variables
 	if pollIntervalEnv := os.Getenv("RYAN_OLLAMA_POLL_INTERVAL"); pollIntervalEnv != "" {
 		if interval, err := strconv.Atoi(pollIntervalEnv); err == nil {
 			config.Ollama.PollInterval = interval
 		}
 	}
-	
+
 	if maxIterEnv := os.Getenv("RYAN_LANGCHAIN_MAX_ITERATIONS"); maxIterEnv != "" {
 		if maxIter, err := strconv.Atoi(maxIterEnv); err == nil {
 			config.LangChain.Tools.MaxIterations = maxIter
@@ -275,17 +275,17 @@ func (ch *ConfigHierarchy) GetConfigValue(keyPath string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return ch.getValueByPath(config, keyPath)
 }
 
 // getValueByPath extracts a value from the config struct using dot notation
 func (ch *ConfigHierarchy) getValueByPath(config *Config, keyPath string) (interface{}, error) {
 	parts := strings.Split(keyPath, ".")
-	
+
 	// Use reflection to navigate the struct
 	value := reflect.ValueOf(config).Elem()
-	
+
 	for _, part := range parts {
 		// Handle field names case-insensitively
 		field := ch.findFieldByName(value, part)
@@ -294,21 +294,21 @@ func (ch *ConfigHierarchy) getValueByPath(config *Config, keyPath string) (inter
 		}
 		value = field
 	}
-	
+
 	return value.Interface(), nil
 }
 
 // findFieldByName finds a struct field by name (case-insensitive)
 func (ch *ConfigHierarchy) findFieldByName(structValue reflect.Value, fieldName string) reflect.Value {
 	structType := structValue.Type()
-	
+
 	for i := 0; i < structValue.NumField(); i++ {
 		field := structType.Field(i)
 		if strings.EqualFold(field.Name, fieldName) {
 			return structValue.Field(i)
 		}
 	}
-	
+
 	return reflect.Value{}
 }
 
@@ -330,7 +330,7 @@ func (ch *ConfigHierarchy) setGlobalConfigValue(keyPath string, value interface{
 	if err != nil {
 		return err
 	}
-	
+
 	// For now, handle common global settings
 	switch keyPath {
 	case "verbose":
@@ -348,7 +348,7 @@ func (ch *ConfigHierarchy) setGlobalConfigValue(keyPath string, value interface{
 	default:
 		return fmt.Errorf("global setting not supported: %s", keyPath)
 	}
-	
+
 	// Save global configuration
 	return ch.contextManager.saveGlobalConfigAtomic(globalConfig)
 }
@@ -359,12 +359,12 @@ func (ch *ConfigHierarchy) setProjectConfigValue(keyPath string, value interface
 	if err != nil {
 		return err
 	}
-	
+
 	projectRoot, err := ch.contextManager.GetProjectRoot()
 	if err != nil {
 		return err
 	}
-	
+
 	// Handle project-specific settings
 	switch keyPath {
 	case "trustDialogAccepted":
@@ -374,7 +374,7 @@ func (ch *ConfigHierarchy) setProjectConfigValue(keyPath string, value interface
 	default:
 		return fmt.Errorf("project setting not supported: %s", keyPath)
 	}
-	
+
 	// Save project configuration
 	return ch.contextManager.SaveProjectConfig(projectRoot, projectConfig)
 }

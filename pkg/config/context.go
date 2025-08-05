@@ -14,12 +14,12 @@ import (
 // ContextManager implements Claude CLI's two-tier configuration system
 // with Global (system-wide) + Project (project-specific) configurations
 type ContextManager struct {
-	mu           sync.RWMutex
-	globalConfig *GlobalConfig
+	mu             sync.RWMutex
+	globalConfig   *GlobalConfig
 	projectConfigs map[string]*ProjectConfig
-	cache        *LRUCache
-	projectRoot  string
-	deltaStorage *GlobalConfigDeltaStorage
+	cache          *LRUCache
+	projectRoot    string
+	deltaStorage   *GlobalConfigDeltaStorage
 }
 
 // GlobalConfig represents system-wide configuration
@@ -36,22 +36,22 @@ type GlobalConfig struct {
 	HasSeenTasksHint         bool   `json:"hasSeenTasksHint"`
 	QueuedCommandUpHintCount int    `json:"queuedCommandUpHintCount"`
 	DiffTool                 string `json:"diffTool"`
-	
+
 	// Custom API key management
 	CustomAPIKeyResponses struct {
 		Approved []string `json:"approved"`
 		Rejected []string `json:"rejected"`
 	} `json:"customApiKeyResponses"`
-	
+
 	// Environment variable overrides
 	Env map[string]string `json:"env"`
-	
+
 	// Tips and onboarding state
 	TipsHistory map[string]interface{} `json:"tipsHistory"`
-	
+
 	// Project-specific configurations stored within global config
 	Projects map[string]*ProjectConfig `json:"projects"`
-	
+
 	// Configuration metadata
 	LastModified time.Time `json:"lastModified"`
 	Version      string    `json:"version"`
@@ -61,27 +61,27 @@ type GlobalConfig struct {
 type ProjectConfig struct {
 	// Tool permissions and allowed tools
 	AllowedTools []string `json:"allowedTools"`
-	
+
 	// Conversation history for this project
 	History []ConversationMessage `json:"history"`
-	
+
 	// MCP (Model Context Protocol) configuration
-	MCPContextUris       []string          `json:"mcpContextUris"`
-	MCPServers          map[string]interface{} `json:"mcpServers"`
-	EnabledMCPServers   []string          `json:"enabledMcpjsonServers"`
-	DisabledMCPServers  []string          `json:"disabledMcpjsonServers"`
-	
+	MCPContextUris     []string               `json:"mcpContextUris"`
+	MCPServers         map[string]interface{} `json:"mcpServers"`
+	EnabledMCPServers  []string               `json:"enabledMcpjsonServers"`
+	DisabledMCPServers []string               `json:"disabledMcpjsonServers"`
+
 	// Security and trust settings
 	HasTrustDialogAccepted bool `json:"hasTrustDialogAccepted"`
-	
+
 	// File and pattern management
 	IgnorePatterns []string `json:"ignorePatterns"`
-	
+
 	// Onboarding and UX state
 	ProjectOnboardingSeenCount              int  `json:"projectOnboardingSeenCount"`
 	HasClaudeMdExternalIncludesApproved     bool `json:"hasClaudeMdExternalIncludesApproved"`
 	HasClaudeMdExternalIncludesWarningShown bool `json:"hasClaudeMdExternalIncludesWarningShown"`
-	
+
 	// Project metadata
 	ProjectRoot  string    `json:"projectRoot"`
 	LastModified time.Time `json:"lastModified"`
@@ -89,19 +89,19 @@ type ProjectConfig struct {
 
 // ConversationMessage represents a message in the conversation history
 type ConversationMessage struct {
-	ID        string    `json:"id"`
-	Role      string    `json:"role"` // "user", "assistant", "system"
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
+	ID        string                 `json:"id"`
+	Role      string                 `json:"role"` // "user", "assistant", "system"
+	Content   string                 `json:"content"`
+	Timestamp time.Time              `json:"timestamp"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // LRUCache implements a simple LRU cache with a maximum size of 50 items
 type LRUCache struct {
-	mu       sync.RWMutex
-	maxSize  int
-	items    map[string]*cacheItem
-	order    []string // Maintain access order
+	mu      sync.RWMutex
+	maxSize int
+	items   map[string]*cacheItem
+	order   []string // Maintain access order
 }
 
 type cacheItem struct {
@@ -114,7 +114,7 @@ func NewLRUCache(maxSize int) *LRUCache {
 	if maxSize <= 0 {
 		maxSize = 50 // Default cache size matching Claude CLI
 	}
-	
+
 	return &LRUCache{
 		maxSize: maxSize,
 		items:   make(map[string]*cacheItem),
@@ -126,16 +126,16 @@ func NewLRUCache(maxSize int) *LRUCache {
 func (c *LRUCache) Get(key string) (interface{}, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	item, exists := c.items[key]
 	if !exists {
 		return nil, false
 	}
-	
+
 	// Update access time and move to end (most recently used)
 	item.lastAccess = time.Now()
 	c.moveToEnd(key)
-	
+
 	return item.value, true
 }
 
@@ -143,7 +143,7 @@ func (c *LRUCache) Get(key string) (interface{}, bool) {
 func (c *LRUCache) Set(key string, value interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	// If item already exists, update it
 	if item, exists := c.items[key]; exists {
 		item.value = value
@@ -151,12 +151,12 @@ func (c *LRUCache) Set(key string, value interface{}) {
 		c.moveToEnd(key)
 		return
 	}
-	
+
 	// If cache is full, remove least recently used item
 	if len(c.items) >= c.maxSize {
 		c.removeLRU()
 	}
-	
+
 	// Add new item
 	c.items[key] = &cacheItem{
 		value:      value,
@@ -183,7 +183,7 @@ func (c *LRUCache) removeLRU() {
 	if len(c.order) == 0 {
 		return
 	}
-	
+
 	// Remove the first item (least recently used)
 	key := c.order[0]
 	delete(c.items, key)
@@ -194,8 +194,8 @@ func (c *LRUCache) removeLRU() {
 func NewContextManager() *ContextManager {
 	return &ContextManager{
 		projectConfigs: make(map[string]*ProjectConfig),
-		cache:         NewLRUCache(50),
-		deltaStorage:  NewGlobalConfigDeltaStorage(),
+		cache:          NewLRUCache(50),
+		deltaStorage:   NewGlobalConfigDeltaStorage(),
 	}
 }
 
@@ -210,13 +210,13 @@ func (cm *ContextManager) GetProjectRoot() (string, error) {
 			return root, nil
 		}
 	}
-	
+
 	// Fallback to current working directory
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current working directory: %w", err)
 	}
-	
+
 	return cwd, nil
 }
 
@@ -226,19 +226,19 @@ func (cm *ContextManager) GetGlobalConfigPath() (string, error) {
 	if configDir := os.Getenv("RYAN_CONFIG_DIR"); configDir != "" {
 		return filepath.Join(configDir, "config.json"), nil
 	}
-	
+
 	// Use standard location
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
 	}
-	
+
 	// Check for new format first: ~/.ryan/config.json
 	newPath := filepath.Join(home, ".ryan", "config.json")
 	if _, err := os.Stat(newPath); err == nil {
 		return newPath, nil
 	}
-	
+
 	// Fallback to legacy format: ~/.ryan.json
 	legacyPath := filepath.Join(home, ".ryan.json")
 	return legacyPath, nil
@@ -250,14 +250,14 @@ func (cm *ContextManager) LoadGlobalConfig() (*GlobalConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check cache first
 	if cached, found := cm.cache.Get("global_config"); found {
 		if config, ok := cached.(*GlobalConfig); ok {
 			return config, nil
 		}
 	}
-	
+
 	// Load from file
 	config, err := cm.loadGlobalConfigFromFile(configPath)
 	if err != nil {
@@ -268,14 +268,14 @@ func (cm *ContextManager) LoadGlobalConfig() (*GlobalConfig, error) {
 			return nil, err
 		}
 	}
-	
+
 	// Cache the result
 	cm.cache.Set("global_config", config)
-	
+
 	cm.mu.Lock()
 	cm.globalConfig = config
 	cm.mu.Unlock()
-	
+
 	return config, nil
 }
 
@@ -286,7 +286,7 @@ func (cm *ContextManager) loadGlobalConfigFromFile(configPath string) (*GlobalCo
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Try to detect if this is a delta format file
 	var deltaTest map[string]interface{}
 	if json.Unmarshal(data, &deltaTest) == nil {
@@ -296,42 +296,42 @@ func (cm *ContextManager) loadGlobalConfigFromFile(configPath string) (*GlobalCo
 			if err != nil {
 				return nil, fmt.Errorf("failed to load delta configuration: %w", err)
 			}
-			
+
 			// Initialize Projects map if nil
 			if config.Projects == nil {
 				config.Projects = make(map[string]*ProjectConfig)
 			}
-			
+
 			return config, nil
 		}
 	}
-	
+
 	// Legacy format - full configuration
 	var config GlobalConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse configuration file: %w", err)
 	}
-	
+
 	// Initialize Projects map if nil
 	if config.Projects == nil {
 		config.Projects = make(map[string]*ProjectConfig)
 	}
-	
+
 	return &config, nil
 }
 
 // getDefaultGlobalConfig returns the default global configuration
 func (cm *ContextManager) getDefaultGlobalConfig() *GlobalConfig {
 	return &GlobalConfig{
-		NumStartups:           0,
-		Theme:                 "dark",
-		PreferredNotifChannel: "auto",
-		Verbose:               false,
-		EditorMode:           "normal",
-		AutoCompactEnabled:   true,
-		HasSeenTasksHint:     false,
+		NumStartups:              0,
+		Theme:                    "dark",
+		PreferredNotifChannel:    "auto",
+		Verbose:                  false,
+		EditorMode:               "normal",
+		AutoCompactEnabled:       true,
+		HasSeenTasksHint:         false,
 		QueuedCommandUpHintCount: 0,
-		DiffTool:             "auto",
+		DiffTool:                 "auto",
 		CustomAPIKeyResponses: struct {
 			Approved []string `json:"approved"`
 			Rejected []string `json:"rejected"`
@@ -356,7 +356,7 @@ func (cm *ContextManager) GetProjectConfig(projectRoot string) (*ProjectConfig, 
 			return nil, err
 		}
 	}
-	
+
 	// Check cache first
 	cacheKey := fmt.Sprintf("project_config_%s", projectRoot)
 	if cached, found := cm.cache.Get(cacheKey); found {
@@ -364,13 +364,13 @@ func (cm *ContextManager) GetProjectConfig(projectRoot string) (*ProjectConfig, 
 			return config, nil
 		}
 	}
-	
+
 	// Load global config to access project configurations
 	globalConfig, err := cm.LoadGlobalConfig()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Get project config from global config
 	projectConfig, exists := globalConfig.Projects[projectRoot]
 	if !exists {
@@ -378,15 +378,15 @@ func (cm *ContextManager) GetProjectConfig(projectRoot string) (*ProjectConfig, 
 		projectConfig = cm.getDefaultProjectConfig(projectRoot)
 		globalConfig.Projects[projectRoot] = projectConfig
 	}
-	
+
 	// Cache the result
 	cm.cache.Set(cacheKey, projectConfig)
-	
+
 	cm.mu.Lock()
 	cm.projectConfigs[projectRoot] = projectConfig
 	cm.projectRoot = projectRoot
 	cm.mu.Unlock()
-	
+
 	return projectConfig, nil
 }
 
@@ -395,17 +395,17 @@ func (cm *ContextManager) getDefaultProjectConfig(projectRoot string) *ProjectCo
 	return &ProjectConfig{
 		AllowedTools:                            []string{},
 		History:                                 []ConversationMessage{},
-		MCPContextUris:                         []string{},
-		MCPServers:                             make(map[string]interface{}),
-		EnabledMCPServers:                      []string{},
-		DisabledMCPServers:                     []string{},
-		HasTrustDialogAccepted:                 false,
-		IgnorePatterns:                         []string{},
-		ProjectOnboardingSeenCount:             0,
-		HasClaudeMdExternalIncludesApproved:    false,
+		MCPContextUris:                          []string{},
+		MCPServers:                              make(map[string]interface{}),
+		EnabledMCPServers:                       []string{},
+		DisabledMCPServers:                      []string{},
+		HasTrustDialogAccepted:                  false,
+		IgnorePatterns:                          []string{},
+		ProjectOnboardingSeenCount:              0,
+		HasClaudeMdExternalIncludesApproved:     false,
 		HasClaudeMdExternalIncludesWarningShown: false,
-		ProjectRoot:                            projectRoot,
-		LastModified:                           time.Now(),
+		ProjectRoot:                             projectRoot,
+		LastModified:                            time.Now(),
 	}
 }
 
@@ -417,22 +417,22 @@ func (cm *ContextManager) GetEffectiveConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	projectRoot, err := cm.GetProjectRoot()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	projectConfig, err := cm.GetProjectConfig(projectRoot)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Create the effective configuration by merging
 	// This will be used to populate the existing Config struct
 	// For now, return the existing configuration with context awareness
 	existingConfig := Get()
-	
+
 	// Add context information to the existing config
 	// This is a bridge to maintain compatibility while we migrate
 	if existingConfig != nil {
@@ -443,7 +443,7 @@ func (cm *ContextManager) GetEffectiveConfig() (*Config, error) {
 		cm.projectConfigs[projectRoot] = projectConfig
 		cm.mu.Unlock()
 	}
-	
+
 	return existingConfig, nil
 }
 
@@ -456,50 +456,50 @@ func (cm *ContextManager) SaveProjectConfig(projectRoot string, config *ProjectC
 			return err
 		}
 	}
-	
+
 	// Load global config
 	globalConfig, err := cm.LoadGlobalConfig()
 	if err != nil {
 		return err
 	}
-	
+
 	// Update project config in global config
 	config.LastModified = time.Now()
 	globalConfig.Projects[projectRoot] = config
 	globalConfig.LastModified = time.Now()
-	
+
 	// Save global config with atomic operations
 	if err := cm.saveGlobalConfigAtomic(globalConfig); err != nil {
 		return err
 	}
-	
+
 	// Update cache
 	cm.cache.Set("global_config", globalConfig)
 	cacheKey := fmt.Sprintf("project_config_%s", projectRoot)
 	cm.cache.Set(cacheKey, config)
-	
+
 	// Update in-memory state
 	cm.mu.Lock()
 	cm.globalConfig = globalConfig
 	cm.projectConfigs[projectRoot] = config
 	cm.mu.Unlock()
-	
+
 	return nil
 }
 
 // saveGlobalConfigAtomic saves the global configuration using atomic write operations with file locking and delta storage
 func (cm *ContextManager) saveGlobalConfigAtomic(config *GlobalConfig) error {
-	configPath, err := cm.GetGlobalConfigPath() 
+	configPath, err := cm.GetGlobalConfigPath()
 	if err != nil {
 		return err
 	}
-	
+
 	// Ensure directory exists
 	dir := filepath.Dir(configPath)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
-	
+
 	// Use delta storage for efficient persistence
 	return cm.deltaStorage.SaveDelta(config, configPath)
 }

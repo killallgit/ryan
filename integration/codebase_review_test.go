@@ -130,7 +130,7 @@ func TestCodebaseReviewPipeline(t *testing.T) {
 
 			// Note: Many tools have directory restrictions by default
 			// In a real scenario, you would configure these or use unrestricted tools
-			
+
 			// Use grep to find TODOs instead of reading files directly
 			grepTool, exists := registry.Get("grep")
 			require.True(t, exists, "grep tool should exist")
@@ -145,11 +145,11 @@ func TestCodebaseReviewPipeline(t *testing.T) {
 
 			// For this test, we'll demonstrate that the tools exist and can execute
 			// Real usage would require proper configuration of allowed paths
-			
+
 			toolList := registry.List()
 			t.Logf("Available tools: %v", toolList)
 			assert.GreaterOrEqual(t, len(toolList), 8, "Should have at least 8 tools registered")
-			
+
 			// Verify specific tools exist
 			expectedTools := []string{"execute_bash", "read_file", "write_file", "grep", "web_fetch", "git", "tree", "ast_parse"}
 			for _, toolName := range expectedTools {
@@ -468,7 +468,7 @@ func TestUserService(t *testing.T) {
 // generateUpdatedReadme creates an updated README based on code analysis
 func generateUpdatedReadme(original, astAnalysis, projectStructure string) string {
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	
+
 	return fmt.Sprintf(`# Mock Project
 
 This is a mock project for testing the codebase review pipeline.
@@ -486,12 +486,12 @@ Based on code analysis, this project provides the following API endpoints:
 ### User Management API
 
 - **GET /users/{id}** - Retrieve a user by ID
-  - Handler: ` + "`HandleGetUser`" + `
+  - Handler: `+"`HandleGetUser`"+`
   - Returns: User object or 404 if not found
 
 - **POST /users** - Create a new user
-  - Handler: ` + "`HandleCreateUser`" + `
-  - Request body: ` + "`{\"name\": string, \"email\": string}`" + `
+  - Handler: `+"`HandleCreateUser`"+`
+  - Request body: `+"`{\"name\": string, \"email\": string}`"+`
   - Returns: Created user object with 201 status
 
 ## Code Structure
@@ -499,9 +499,9 @@ Based on code analysis, this project provides the following API endpoints:
 ### Core Services
 
 - **UserService**: Handles user-related operations
-  - ` + "`GetUser(id string)`" + ` - Retrieves a user by ID
-  - ` + "`CreateUser(name, email string)`" + ` - Creates a new user
-  - ` + "`UpdateUser(id, name, email string)`" + ` - Updates an existing user
+  - `+"`GetUser(id string)`"+` - Retrieves a user by ID
+  - `+"`CreateUser(name, email string)`"+` - Creates a new user
+  - `+"`UpdateUser(id, name, email string)`"+` - Updates an existing user
 
 ### API Handlers
 

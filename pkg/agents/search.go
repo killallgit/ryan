@@ -37,18 +37,18 @@ func (s *SearchAgent) Description() string {
 // CanHandle determines if this agent can handle the request
 func (s *SearchAgent) CanHandle(request string) (bool, float64) {
 	lowerRequest := strings.ToLower(request)
-	
+
 	keywords := []string{
 		"search", "find", "grep", "locate",
 		"where is", "look for", "search for",
 	}
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(lowerRequest, keyword) {
 			return true, 0.8
 		}
 	}
-	
+
 	return false, 0.0
 }
 
@@ -82,13 +82,13 @@ func (s *SearchAgent) Execute(ctx context.Context, request AgentRequest) (AgentR
 
 	// Execute search
 	result, err := grepTool.Execute(ctx, map[string]interface{}{
-		"pattern":      pattern,
-		"path":         scope.Path,
-		"glob":         scope.Glob,
-		"output_mode":  "content",
-		"-n":           true,  // Show line numbers
-		"-i":           scope.CaseInsensitive,
-		"head_limit":   100,   // Limit results
+		"pattern":     pattern,
+		"path":        scope.Path,
+		"glob":        scope.Glob,
+		"output_mode": "content",
+		"-n":          true, // Show line numbers
+		"-i":          scope.CaseInsensitive,
+		"head_limit":  100, // Limit results
 	})
 
 	if err != nil {
@@ -101,7 +101,7 @@ func (s *SearchAgent) Execute(ctx context.Context, request AgentRequest) (AgentR
 
 	// Process results
 	matches := s.processSearchResults(result.Content)
-	
+
 	// Build summary and details
 	summary := fmt.Sprintf("Found %d matches for '%s'", len(matches), pattern)
 	details := s.buildSearchDetails(matches, pattern)
@@ -133,7 +133,7 @@ func (s *SearchAgent) extractSearchPattern(prompt string) string {
 			return prompt[start+1 : start+1+end]
 		}
 	}
-	
+
 	if start := strings.Index(prompt, "'"); start != -1 {
 		if end := strings.Index(prompt[start+1:], "'"); end != -1 {
 			return prompt[start+1 : start+1+end]
@@ -143,7 +143,7 @@ func (s *SearchAgent) extractSearchPattern(prompt string) string {
 	// Look for pattern after keywords
 	keywords := []string{" for ", " search ", " find ", " grep "}
 	lowerPrompt := strings.ToLower(prompt)
-	
+
 	for _, keyword := range keywords {
 		if idx := strings.Index(lowerPrompt, keyword); idx != -1 {
 			pattern := prompt[idx+len(keyword):]
@@ -167,8 +167,8 @@ func (s *SearchAgent) extractSearchPattern(prompt string) string {
 // determineScope determines the search scope from the request
 func (s *SearchAgent) determineScope(request AgentRequest) SearchScope {
 	scope := SearchScope{
-		Path: ".",
-		Glob: "",
+		Path:            ".",
+		Glob:            "",
 		CaseInsensitive: false,
 	}
 

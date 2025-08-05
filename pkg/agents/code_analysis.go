@@ -41,18 +41,18 @@ func (c *CodeAnalysisAgent) Description() string {
 // CanHandle determines if this agent can handle the request
 func (c *CodeAnalysisAgent) CanHandle(request string) (bool, float64) {
 	lowerRequest := strings.ToLower(request)
-	
+
 	keywords := []string{
 		"analyze", "ast", "structure", "symbols",
 		"functions", "types", "interfaces", "patterns",
 	}
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(lowerRequest, keyword) {
 			return true, 0.8
 		}
 	}
-	
+
 	return false, 0.0
 }
 
@@ -84,7 +84,7 @@ func (c *CodeAnalysisAgent) Execute(ctx context.Context, request AgentRequest) (
 				c.log.Warn("Failed to analyze file", "file", filePath, "error", err)
 				continue
 			}
-			
+
 			analysisResults[filePath] = analysis
 			allSymbols = append(allSymbols, analysis.Symbols...)
 			allFunctions = append(allFunctions, analysis.Functions...)
@@ -168,7 +168,7 @@ func (c *CodeAnalysisAgent) analyzeGoFile(filePath, content string) (*FileAnalys
 				Type: "function",
 				Pos:  fn.Position,
 			})
-			
+
 		case *ast.GenDecl:
 			if x.Tok == token.TYPE {
 				for _, spec := range x.Specs {
@@ -203,7 +203,7 @@ func (c *CodeAnalysisAgent) extractImports(file *ast.File) []string {
 
 func (c *CodeAnalysisAgent) extractFunction(fn *ast.FuncDecl, fset *token.FileSet) Function {
 	pos := fset.Position(fn.Pos())
-	
+
 	function := Function{
 		Name:     fn.Name.Name,
 		Position: fmt.Sprintf("%s:%d", pos.Filename, pos.Line),
@@ -238,7 +238,7 @@ func (c *CodeAnalysisAgent) extractFunction(fn *ast.FuncDecl, fset *token.FileSe
 
 func (c *CodeAnalysisAgent) extractType(spec *ast.TypeSpec, fset *token.FileSet) Type {
 	pos := fset.Position(spec.Pos())
-	
+
 	typ := Type{
 		Name:     spec.Name.Name,
 		Position: fmt.Sprintf("%s:%d", pos.Filename, pos.Line),
@@ -325,7 +325,7 @@ func (c *CodeAnalysisAgent) buildDetails(results map[string]*FileAnalysis) strin
 	for filePath, analysis := range results {
 		details = append(details, fmt.Sprintf("File: %s", filePath))
 		details = append(details, fmt.Sprintf("  Package: %s", analysis.Package))
-		
+
 		if len(analysis.Functions) > 0 {
 			details = append(details, "  Functions:")
 			for _, fn := range analysis.Functions {

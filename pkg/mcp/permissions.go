@@ -21,13 +21,13 @@ type PermissionManager struct {
 	toolRules    map[string][]PermissionRule
 	fileRules    []FilePermissionRule
 	contextRules map[string][]PermissionRule
-	
+
 	// Configuration
 	defaultAction string // "allow", "deny", "ask"
-	
+
 	// Synchronization
 	mu sync.RWMutex
-	
+
 	// Dependencies
 	configBridge *config.ConfigurationBridge
 	logger       *logger.Logger
@@ -35,36 +35,36 @@ type PermissionManager struct {
 
 // PermissionRule represents a permission rule
 type PermissionRule struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+
 	// Rule matching
-	ToolPattern     string   `json:"toolPattern,omitempty"`     // Regex pattern for tool names
-	ActionPattern   string   `json:"actionPattern,omitempty"`   // Regex pattern for actions
-	ParameterRules  []ParameterRule `json:"parameterRules,omitempty"`
-	
+	ToolPattern    string          `json:"toolPattern,omitempty"`   // Regex pattern for tool names
+	ActionPattern  string          `json:"actionPattern,omitempty"` // Regex pattern for actions
+	ParameterRules []ParameterRule `json:"parameterRules,omitempty"`
+
 	// Decision
-	Action      string `json:"action"`      // "allow", "deny", "ask", "passthrough"
-	Conditions  []string `json:"conditions,omitempty"`
-	
+	Action     string   `json:"action"` // "allow", "deny", "ask", "passthrough"
+	Conditions []string `json:"conditions,omitempty"`
+
 	// Scope and timing
-	Scope       string     `json:"scope"`       // "global", "project", "session"
-	ExpiresAt   *time.Time `json:"expiresAt,omitempty"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
-	
+	Scope     string     `json:"scope"` // "global", "project", "session"
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+
 	// Metadata
-	Priority    int                    `json:"priority"`    // Higher priority rules are evaluated first
-	Tags        []string               `json:"tags,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Priority int                    `json:"priority"` // Higher priority rules are evaluated first
+	Tags     []string               `json:"tags,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ParameterRule represents a rule for tool parameters
 type ParameterRule struct {
-	Parameter string `json:"parameter"`
-	Pattern   string `json:"pattern,omitempty"`   // Regex pattern for parameter value
-	Required  *bool  `json:"required,omitempty"`  // Whether parameter is required
+	Parameter string   `json:"parameter"`
+	Pattern   string   `json:"pattern,omitempty"`  // Regex pattern for parameter value
+	Required  *bool    `json:"required,omitempty"` // Whether parameter is required
 	MinValue  *float64 `json:"minValue,omitempty"` // Minimum numeric value
 	MaxValue  *float64 `json:"maxValue,omitempty"` // Maximum numeric value
 }
@@ -72,13 +72,13 @@ type ParameterRule struct {
 // FilePermissionRule represents a file-specific permission rule
 type FilePermissionRule struct {
 	PermissionRule
-	
+
 	// File-specific fields
-	PathPattern     string   `json:"pathPattern"`     // Glob pattern for file paths
-	Operation       string   `json:"operation"`       // "read", "write", "execute", "delete"
-	AllowedPaths    []string `json:"allowedPaths,omitempty"`
-	DeniedPaths     []string `json:"deniedPaths,omitempty"`
-	MaxFileSize     int64    `json:"maxFileSize,omitempty"`
+	PathPattern       string   `json:"pathPattern"` // Glob pattern for file paths
+	Operation         string   `json:"operation"`   // "read", "write", "execute", "delete"
+	AllowedPaths      []string `json:"allowedPaths,omitempty"`
+	DeniedPaths       []string `json:"deniedPaths,omitempty"`
+	MaxFileSize       int64    `json:"maxFileSize,omitempty"`
 	AllowedExtensions []string `json:"allowedExtensions,omitempty"`
 }
 
@@ -90,15 +90,15 @@ type PermissionEvaluationContext struct {
 	UserID      string                 `json:"userId,omitempty"`
 	SessionID   string                 `json:"sessionId,omitempty"`
 	ProjectRoot string                 `json:"projectRoot,omitempty"`
-	
+
 	// File context (for file operations)
 	FilePath      string `json:"filePath,omitempty"`
 	FileOperation string `json:"fileOperation,omitempty"`
 	FileSize      int64  `json:"fileSize,omitempty"`
-	
+
 	// Working directory context
 	WorkingDirectory string `json:"workingDirectory,omitempty"`
-	
+
 	// Additional context
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
@@ -108,7 +108,7 @@ func NewPermissionManager(defaultAction string, configBridge *config.Configurati
 	if defaultAction == "" {
 		defaultAction = "ask" // Default to asking user
 	}
-	
+
 	return &PermissionManager{
 		toolRules:     make(map[string][]PermissionRule),
 		contextRules:  make(map[string][]PermissionRule),
@@ -122,22 +122,22 @@ func NewPermissionManager(defaultAction string, configBridge *config.Configurati
 func (pm *PermissionManager) CanExecuteTool(ctx context.Context, toolName string, params map[string]interface{}) (PermissionResult, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	evalCtx := PermissionEvaluationContext{
 		ToolName:   toolName,
 		Parameters: params,
 	}
-	
+
 	// Extract context information if available
 	if pm.configBridge != nil {
 		if projectConfig, err := pm.configBridge.GetProjectConfig(); err == nil {
 			evalCtx.ProjectRoot = projectConfig.ProjectRoot
 		}
 	}
-	
+
 	// Add file context if this is a file operation
 	pm.extractFileContext(&evalCtx)
-	
+
 	return pm.evaluatePermission(evalCtx)
 }
 
@@ -145,13 +145,13 @@ func (pm *PermissionManager) CanExecuteTool(ctx context.Context, toolName string
 func (pm *PermissionManager) CanAccessResource(ctx context.Context, resourceType, resourcePath string) (PermissionResult, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	evalCtx := PermissionEvaluationContext{
 		ToolName:      fmt.Sprintf("%s_access", resourceType),
 		FilePath:      resourcePath,
 		FileOperation: "access",
 	}
-	
+
 	return pm.evaluatePermission(evalCtx)
 }
 
@@ -159,44 +159,44 @@ func (pm *PermissionManager) CanAccessResource(ctx context.Context, resourceType
 func (pm *PermissionManager) evaluatePermission(ctx PermissionEvaluationContext) (PermissionResult, error) {
 	// Tier 1: System Rules (highest priority)
 	if result, matched := pm.evaluateSystemRules(ctx); matched {
-		pm.logger.Debug("Permission decision from system rules", 
+		pm.logger.Debug("Permission decision from system rules",
 			"tool", ctx.ToolName, "action", result.Action, "reason", result.Reason)
 		return result, nil
 	}
-	
+
 	// Tier 2: Tool-specific Rules
 	if result, matched := pm.evaluateToolRules(ctx); matched {
-		pm.logger.Debug("Permission decision from tool rules", 
+		pm.logger.Debug("Permission decision from tool rules",
 			"tool", ctx.ToolName, "action", result.Action, "reason", result.Reason)
 		return result, nil
 	}
-	
+
 	// Tier 3: File Rules (if applicable)
 	if ctx.FilePath != "" {
 		if result, matched := pm.evaluateFileRules(ctx); matched {
-			pm.logger.Debug("Permission decision from file rules", 
+			pm.logger.Debug("Permission decision from file rules",
 				"tool", ctx.ToolName, "file", ctx.FilePath, "action", result.Action, "reason", result.Reason)
 			return result, nil
 		}
 	}
-	
+
 	// Tier 4: Context Rules
 	if result, matched := pm.evaluateContextRules(ctx); matched {
-		pm.logger.Debug("Permission decision from context rules", 
+		pm.logger.Debug("Permission decision from context rules",
 			"tool", ctx.ToolName, "action", result.Action, "reason", result.Reason)
 		return result, nil
 	}
-	
+
 	// Default action
 	result := PermissionResult{
 		Allowed: pm.defaultAction == "allow",
 		Action:  pm.defaultAction,
 		Reason:  fmt.Sprintf("Default action for tool %s", ctx.ToolName),
 	}
-	
-	pm.logger.Debug("Permission decision from default action", 
+
+	pm.logger.Debug("Permission decision from default action",
 		"tool", ctx.ToolName, "action", result.Action)
-	
+
 	return result, nil
 }
 
@@ -220,7 +220,7 @@ func (pm *PermissionManager) evaluateToolRules(ctx PermissionEvaluationContext) 
 			}
 		}
 	}
-	
+
 	// Check wildcard tool rules
 	for toolPattern, rules := range pm.toolRules {
 		if matched, _ := regexp.MatchString(toolPattern, ctx.ToolName); matched {
@@ -231,7 +231,7 @@ func (pm *PermissionManager) evaluateToolRules(ctx PermissionEvaluationContext) 
 			}
 		}
 	}
-	
+
 	return PermissionResult{}, false
 }
 
@@ -257,7 +257,7 @@ func (pm *PermissionManager) evaluateContextRules(ctx PermissionEvaluationContex
 			}
 		}
 	}
-	
+
 	// Evaluate session context rules
 	if ctx.SessionID != "" {
 		if rules, exists := pm.contextRules[ctx.SessionID]; exists {
@@ -268,7 +268,7 @@ func (pm *PermissionManager) evaluateContextRules(ctx PermissionEvaluationContex
 			}
 		}
 	}
-	
+
 	return PermissionResult{}, false
 }
 
@@ -278,21 +278,21 @@ func (pm *PermissionManager) ruleMatches(rule PermissionRule, ctx PermissionEval
 	if rule.ExpiresAt != nil && time.Now().After(*rule.ExpiresAt) {
 		return false
 	}
-	
+
 	// Check tool pattern
 	if rule.ToolPattern != "" {
 		if matched, _ := regexp.MatchString(rule.ToolPattern, ctx.ToolName); !matched {
 			return false
 		}
 	}
-	
+
 	// Check parameter rules
 	for _, paramRule := range rule.ParameterRules {
 		if !pm.parameterRuleMatches(paramRule, ctx.Parameters) {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -302,19 +302,19 @@ func (pm *PermissionManager) fileRuleMatches(rule FilePermissionRule, ctx Permis
 	if !pm.ruleMatches(rule.PermissionRule, ctx) {
 		return false
 	}
-	
+
 	// Check file-specific conditions
 	if rule.Operation != "" && rule.Operation != ctx.FileOperation {
 		return false
 	}
-	
+
 	// Check path pattern
 	if rule.PathPattern != "" {
 		if matched, _ := filepath.Match(rule.PathPattern, ctx.FilePath); !matched {
 			return false
 		}
 	}
-	
+
 	// Check allowed paths
 	if len(rule.AllowedPaths) > 0 {
 		allowed := false
@@ -328,19 +328,19 @@ func (pm *PermissionManager) fileRuleMatches(rule FilePermissionRule, ctx Permis
 			return false
 		}
 	}
-	
+
 	// Check denied paths
 	for _, deniedPath := range rule.DeniedPaths {
 		if strings.HasPrefix(ctx.FilePath, deniedPath) {
 			return false
 		}
 	}
-	
+
 	// Check file size
 	if rule.MaxFileSize > 0 && ctx.FileSize > rule.MaxFileSize {
 		return false
 	}
-	
+
 	// Check file extension
 	if len(rule.AllowedExtensions) > 0 {
 		ext := strings.ToLower(filepath.Ext(ctx.FilePath))
@@ -355,37 +355,37 @@ func (pm *PermissionManager) fileRuleMatches(rule FilePermissionRule, ctx Permis
 			return false
 		}
 	}
-	
+
 	return true
 }
 
 // parameterRuleMatches checks if a parameter rule matches
 func (pm *PermissionManager) parameterRuleMatches(rule ParameterRule, params map[string]interface{}) bool {
 	value, exists := params[rule.Parameter]
-	
+
 	// Check if required parameter is missing
 	if rule.Required != nil && *rule.Required && !exists {
 		return false
 	}
-	
+
 	if !exists {
 		return true // Parameter not present and not required
 	}
-	
+
 	// Check pattern matching for string values
 	if rule.Pattern != "" {
 		if str, ok := value.(string); ok {
-			if matched, _ := regexp.MatchString(rule.Pattern, str); !matched {  
+			if matched, _ := regexp.MatchString(rule.Pattern, str); !matched {
 				return false
 			}
 		}
 	}
-	
+
 	// Check numeric bounds
 	if rule.MinValue != nil || rule.MaxValue != nil {
 		var numValue float64
 		var ok bool
-		
+
 		switch v := value.(type) {
 		case float64:
 			numValue, ok = v, true
@@ -394,7 +394,7 @@ func (pm *PermissionManager) parameterRuleMatches(rule ParameterRule, params map
 		case int64:
 			numValue, ok = float64(v), true
 		}
-		
+
 		if ok {
 			if rule.MinValue != nil && numValue < *rule.MinValue {
 				return false
@@ -404,7 +404,7 @@ func (pm *PermissionManager) parameterRuleMatches(rule ParameterRule, params map
 			}
 		}
 	}
-	
+
 	return true
 }
 
@@ -420,9 +420,9 @@ func (pm *PermissionManager) createResultFromRule(rule PermissionRule, ruleType 
 			"ruleType": ruleType,
 		},
 	}
-	
+
 	result.Allowed = (rule.Action == "allow")
-	
+
 	return result
 }
 
@@ -430,7 +430,7 @@ func (pm *PermissionManager) createResultFromRule(rule PermissionRule, ruleType 
 func (pm *PermissionManager) extractFileContext(ctx *PermissionEvaluationContext) {
 	// Common file parameter names
 	fileParams := []string{"path", "file", "filename", "filepath", "file_path"}
-	
+
 	for _, param := range fileParams {
 		if value, exists := ctx.Parameters[param]; exists {
 			if filePath, ok := value.(string); ok {
@@ -439,7 +439,7 @@ func (pm *PermissionManager) extractFileContext(ctx *PermissionEvaluationContext
 			}
 		}
 	}
-	
+
 	// Determine operation from tool name
 	toolName := strings.ToLower(ctx.ToolName)
 	if strings.Contains(toolName, "read") || strings.Contains(toolName, "get") {
@@ -459,7 +459,7 @@ func (pm *PermissionManager) extractFileContext(ctx *PermissionEvaluationContext
 func (pm *PermissionManager) GrantToolPermission(toolName string, scope string) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	rule := PermissionRule{
 		ID:          fmt.Sprintf("grant_%s_%d", toolName, time.Now().Unix()),
 		Name:        fmt.Sprintf("Grant %s", toolName),
@@ -471,7 +471,7 @@ func (pm *PermissionManager) GrantToolPermission(toolName string, scope string) 
 		UpdatedAt:   time.Now(),
 		Priority:    100,
 	}
-	
+
 	// Add to appropriate rule set based on scope
 	switch scope {
 	case "global":
@@ -485,7 +485,7 @@ func (pm *PermissionManager) GrantToolPermission(toolName string, scope string) 
 	default:
 		pm.toolRules[toolName] = append(pm.toolRules[toolName], rule)
 	}
-	
+
 	pm.logger.Info("Granted tool permission", "tool", toolName, "scope", scope)
 	return nil
 }
@@ -494,7 +494,7 @@ func (pm *PermissionManager) GrantToolPermission(toolName string, scope string) 
 func (pm *PermissionManager) RevokeToolPermission(toolName string, scope string) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	// Add a deny rule with higher priority
 	rule := PermissionRule{
 		ID:          fmt.Sprintf("revoke_%s_%d", toolName, time.Now().Unix()),
@@ -507,7 +507,7 @@ func (pm *PermissionManager) RevokeToolPermission(toolName string, scope string)
 		UpdatedAt:   time.Now(),
 		Priority:    200, // Higher priority than grant rules
 	}
-	
+
 	// Add to appropriate rule set
 	switch scope {
 	case "global":
@@ -521,7 +521,7 @@ func (pm *PermissionManager) RevokeToolPermission(toolName string, scope string)
 	default:
 		pm.toolRules[toolName] = append(pm.toolRules[toolName], rule)
 	}
-	
+
 	pm.logger.Info("Revoked tool permission", "tool", toolName, "scope", scope)
 	return nil
 }
@@ -530,25 +530,25 @@ func (pm *PermissionManager) RevokeToolPermission(toolName string, scope string)
 func (pm *PermissionManager) ListToolPermissions(toolName string) ([]Permission, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
-	
+
 	var permissions []Permission
-	
+
 	// Check all rule sets for this tool
 	allRules := make([]PermissionRule, 0)
-	
+
 	// System rules
 	allRules = append(allRules, pm.systemRules...)
-	
+
 	// Tool rules
 	if rules, exists := pm.toolRules[toolName]; exists {
 		allRules = append(allRules, rules...)
 	}
-	
+
 	// Context rules
 	for _, rules := range pm.contextRules {
 		allRules = append(allRules, rules...)
 	}
-	
+
 	// Convert rules to permissions
 	for _, rule := range allRules {
 		if rule.ToolPattern != "" {
@@ -566,7 +566,7 @@ func (pm *PermissionManager) ListToolPermissions(toolName string) ([]Permission,
 			}
 		}
 	}
-	
+
 	return permissions, nil
 }
 
@@ -574,7 +574,7 @@ func (pm *PermissionManager) ListToolPermissions(toolName string) ([]Permission,
 func (pm *PermissionManager) LoadDefaultRules() {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	
+
 	// Default system rules for security
 	pm.systemRules = []PermissionRule{
 		{
@@ -606,6 +606,6 @@ func (pm *PermissionManager) LoadDefaultRules() {
 			Priority:    100,
 		},
 	}
-	
+
 	pm.logger.Info("Loaded default permission rules", "count", len(pm.systemRules))
 }

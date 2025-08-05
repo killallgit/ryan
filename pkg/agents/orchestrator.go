@@ -31,16 +31,16 @@ func NewOrchestrator() *Orchestrator {
 		feedbackLoop:   NewFeedbackLoop(),
 		log:            logger.WithComponent("orchestrator"),
 	}
-	
+
 	// Set up circular references
 	o.executor.SetOrchestrator(o)
 	o.planner.SetOrchestrator(o)
 	o.feedbackLoop.SetOrchestrator(o)
-	
+
 	// Register built-in dispatcher agent
 	dispatcher := NewDispatcherAgent(o)
 	o.RegisterAgent(dispatcher)
-	
+
 	return o
 }
 
@@ -199,12 +199,12 @@ func (o *Orchestrator) aggregateResults(results []TaskResult, plan *ExecutionPla
 		} else {
 			successfulTasks = append(successfulTasks, result.Task.ID)
 		}
-		
+
 		// Collect details
 		if result.Result.Details != "" {
 			allDetails = append(allDetails, fmt.Sprintf("[%s]: %s", result.Task.Agent, result.Result.Details))
 		}
-		
+
 		// Collect unique tools and files
 		for _, tool := range result.Result.Metadata.ToolsUsed {
 			toolsMap[tool] = true
@@ -223,7 +223,7 @@ func (o *Orchestrator) aggregateResults(results []TaskResult, plan *ExecutionPla
 	}
 
 	// Build summary
-	summary := fmt.Sprintf("Executed %d tasks (%d successful, %d failed)", 
+	summary := fmt.Sprintf("Executed %d tasks (%d successful, %d failed)",
 		len(results), len(successfulTasks), len(failedTasks))
 
 	// Combine all details
@@ -242,9 +242,9 @@ func (o *Orchestrator) aggregateResults(results []TaskResult, plan *ExecutionPla
 	}
 
 	return AgentResult{
-		Success: allSuccess,
-		Summary: summary,
-		Details: details,
+		Success:   allSuccess,
+		Summary:   summary,
+		Details:   details,
 		Artifacts: artifacts,
 		Metadata: AgentMetadata{
 			ToolsUsed:      toolsUsed,

@@ -31,7 +31,7 @@ type OrchestratorController struct {
 func NewOrchestratorController(conversation chat.Conversation, toolRegistry *tools.Registry) (*OrchestratorController, error) {
 	// Create orchestrator
 	orchestrator := agents.NewOrchestrator()
-	
+
 	// Register built-in agents
 	if err := orchestrator.RegisterBuiltinAgents(toolRegistry); err != nil {
 		return nil, fmt.Errorf("failed to register agents: %w", err)
@@ -94,10 +94,10 @@ func (oc *OrchestratorController) StartStreaming(ctx context.Context, content st
 	// Create agent stream
 	streamID := generateStreamID()
 	stream := &AgentStream{
-		ID:       streamID,
-		Updates:  updates,
-		Context:  ctx,
-		Started:  time.Now(),
+		ID:      streamID,
+		Updates: updates,
+		Context: ctx,
+		Started: time.Now(),
 	}
 
 	oc.mu.Lock()
@@ -154,7 +154,7 @@ func (oc *OrchestratorController) monitorProgress(progressChan <-chan agents.Pro
 			Type:    ChunkReceived,
 			Content: oc.formatProgress(progress),
 		}
-		
+
 		select {
 		case updates <- update:
 		default:
@@ -185,7 +185,7 @@ func (oc *OrchestratorController) streamResult(result agents.AgentResult, update
 				Type:    ChunkReceived,
 				Content: line + "\n",
 			}
-			
+
 			// Small delay for effect
 			time.Sleep(10 * time.Millisecond)
 		}
@@ -194,7 +194,7 @@ func (oc *OrchestratorController) streamResult(result agents.AgentResult, update
 	// Stream metadata
 	if result.Metadata.AgentName != "" {
 		updates <- StreamingUpdate{
-			Type:    ChunkReceived,
+			Type: ChunkReceived,
 			Content: fmt.Sprintf("\n---\n📊 Execution time: %v\n🤖 Agents used: %s\n📁 Files processed: %d\n",
 				result.Metadata.Duration,
 				result.Metadata.AgentName,
@@ -324,7 +324,6 @@ func (oc *OrchestratorController) CleanThinkingBlocks() {
 }
 
 // Supporting types
-
 
 // StreamManager manages streaming operations
 type StreamManager struct {

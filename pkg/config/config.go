@@ -42,10 +42,10 @@ type LangChainPromptConfig struct {
 
 // AgentsConfig holds agent-related configuration
 type AgentsConfig struct {
-	Preferred      string   `mapstructure:"preferred"`
-	FallbackChain  []string `mapstructure:"fallback_chain"`
-	AutoSelect     bool     `mapstructure:"auto_select"`
-	ShowSelection  bool     `mapstructure:"show_selection"`
+	Preferred     string   `mapstructure:"preferred"`
+	FallbackChain []string `mapstructure:"fallback_chain"`
+	AutoSelect    bool     `mapstructure:"auto_select"`
+	ShowSelection bool     `mapstructure:"show_selection"`
 }
 
 // Config represents the application configuration

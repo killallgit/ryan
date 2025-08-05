@@ -17,13 +17,13 @@ import (
 
 // LangChainController wraps the LangChain client to work with the existing controller interface
 type LangChainController struct {
-	client          *langchain.Client
-	model           string
-	toolRegistry    *tools.Registry
-	conversation    chat.Conversation
-	log             *logger.Logger
-	historyFile     string
-	orchestrator    *agents.LangchainOrchestrator
+	client       *langchain.Client
+	model        string
+	toolRegistry *tools.Registry
+	conversation chat.Conversation
+	log          *logger.Logger
+	historyFile  string
+	orchestrator *agents.LangchainOrchestrator
 }
 
 // NewLangChainController creates a new controller using the LangChain client
@@ -99,7 +99,7 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 	// Use orchestrator if available, otherwise use the client directly
 	var response string
 	var err error
-	
+
 	if lc.orchestrator != nil {
 		// Use the orchestrator to select and execute with the best agent
 		options := map[string]interface{}{
@@ -126,7 +126,7 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 		return errMsg, fmt.Errorf("failed to send message: %w", err)
 	}
 
-	// Create assistant message from response
+	// Create assistant message from response (preserve thinking blocks for display)
 	assistantMsg := chat.NewAssistantMessage(response)
 	lc.conversation = chat.AddMessage(lc.conversation, assistantMsg)
 

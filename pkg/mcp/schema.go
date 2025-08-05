@@ -13,20 +13,20 @@ import (
 // SchemaCache implements LRU caching for JSON schema validators
 // This provides the performance optimization that Claude CLI uses
 type SchemaCache struct {
-	mu       sync.RWMutex
-	maxSize  int
-	ttl      time.Duration
-	items    map[string]*schemaCacheItem
-	lru      *list.List // For LRU eviction
+	mu      sync.RWMutex
+	maxSize int
+	ttl     time.Duration
+	items   map[string]*schemaCacheItem
+	lru     *list.List // For LRU eviction
 }
 
 // schemaCacheItem represents a cached schema validator
 type schemaCacheItem struct {
-	key         string
-	validator   *gojsonschema.Schema
-	createdAt   time.Time
-	lastUsed    time.Time
-	element     *list.Element // For LRU list
+	key       string
+	validator *gojsonschema.Schema
+	createdAt time.Time
+	lastUsed  time.Time
+	element   *list.Element // For LRU list
 }
 
 // NewSchemaCache creates a new schema cache with the specified size and TTL
@@ -37,7 +37,7 @@ func NewSchemaCache(maxSize int, ttl time.Duration) *SchemaCache {
 	if ttl <= 0 {
 		ttl = 30 * time.Minute // Default TTL
 	}
-	
+
 	return &SchemaCache{
 		maxSize: maxSize,
 		ttl:     ttl,
@@ -50,24 +50,24 @@ func NewSchemaCache(maxSize int, ttl time.Duration) *SchemaCache {
 func (sc *SchemaCache) GetValidator(toolName string, schemaType string) (*gojsonschema.Schema, bool) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	
+
 	key := sc.makeKey(toolName, schemaType)
 	item, exists := sc.items[key]
-	
+
 	if !exists {
 		return nil, false
 	}
-	
+
 	// Check if item has expired
 	if time.Since(item.createdAt) > sc.ttl {
 		sc.removeItem(item)
 		return nil, false
 	}
-	
+
 	// Update last used time and move to front of LRU list
 	item.lastUsed = time.Now()
 	sc.lru.MoveToFront(item.element)
-	
+
 	return item.validator, true
 }
 
@@ -79,20 +79,20 @@ func (sc *SchemaCache) SetValidator(toolName string, schemaType string, schema *
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile schema: %w", err)
 	}
-	
+
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	
+
 	key := sc.makeKey(toolName, schemaType)
-	
+
 	// Check if we need to evict items
 	sc.evictIfNecessary()
-	
+
 	// Remove existing item if it exists
 	if existingItem, exists := sc.items[key]; exists {
 		sc.removeItem(existingItem)
 	}
-	
+
 	// Create new item
 	item := &schemaCacheItem{
 		key:       key,
@@ -100,11 +100,11 @@ func (sc *SchemaCache) SetValidator(toolName string, schemaType string, schema *
 		createdAt: time.Now(),
 		lastUsed:  time.Now(),
 	}
-	
+
 	// Add to cache
 	item.element = sc.lru.PushFront(item)
 	sc.items[key] = item
-	
+
 	return validator, nil
 }
 
@@ -117,7 +117,7 @@ func (sc *SchemaCache) CacheToolSchemas(tools []ToolDefinition) error {
 				return fmt.Errorf("failed to cache input schema for tool %s: %w", tool.Name, err)
 			}
 		}
-		
+
 		// Cache output schema if present
 		if tool.OutputSchema != nil {
 			if _, err := sc.SetValidator(tool.Name, "output", tool.OutputSchema); err != nil {
@@ -125,7 +125,7 @@ func (sc *SchemaCache) CacheToolSchemas(tools []ToolDefinition) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -158,7 +158,7 @@ func (sc *SchemaCache) makeKey(toolName string, schemaType string) string {
 func (sc *SchemaCache) Clear() {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	
+
 	sc.items = make(map[string]*schemaCacheItem)
 	sc.lru = list.New()
 }
@@ -174,13 +174,13 @@ func (sc *SchemaCache) Size() int {
 func (sc *SchemaCache) Stats() SchemaCacheStats {
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
-	
+
 	stats := SchemaCacheStats{
 		Size:    len(sc.items),
 		MaxSize: sc.maxSize,
 		TTL:     sc.ttl,
 	}
-	
+
 	// Calculate expired items
 	now := time.Now()
 	for _, item := range sc.items {
@@ -188,7 +188,7 @@ func (sc *SchemaCache) Stats() SchemaCacheStats {
 			stats.ExpiredItems++
 		}
 	}
-	
+
 	return stats
 }
 
@@ -229,7 +229,7 @@ func (v *JSONSchemaValidator) ValidateInput(toolName string, input map[string]in
 			if err != nil {
 				return fmt.Errorf("failed to get schema for tool %s: %w", toolName, err)
 			}
-			
+
 			if schema != nil {
 				validator, err = v.cache.SetValidator(toolName, "input", schema)
 				if err != nil {
@@ -237,20 +237,20 @@ func (v *JSONSchemaValidator) ValidateInput(toolName string, input map[string]in
 				}
 			}
 		}
-		
+
 		if validator == nil {
 			// No schema available, skip validation
 			return nil
 		}
 	}
-	
+
 	// Validate input
 	inputLoader := gojsonschema.NewGoLoader(input)
 	result, err := validator.Validate(inputLoader)
 	if err != nil {
 		return fmt.Errorf("validation error: %w", err)
 	}
-	
+
 	if !result.Valid() {
 		errors := make([]string, len(result.Errors()))
 		for i, err := range result.Errors() {
@@ -258,7 +258,7 @@ func (v *JSONSchemaValidator) ValidateInput(toolName string, input map[string]in
 		}
 		return fmt.Errorf("input validation failed: %v", errors)
 	}
-	
+
 	return nil
 }
 
@@ -273,7 +273,7 @@ func (v *JSONSchemaValidator) ValidateOutput(toolName string, output interface{}
 			if err != nil {
 				return fmt.Errorf("failed to get schema for tool %s: %w", toolName, err)
 			}
-			
+
 			if schema != nil {
 				validator, err = v.cache.SetValidator(toolName, "output", schema)
 				if err != nil {
@@ -281,20 +281,20 @@ func (v *JSONSchemaValidator) ValidateOutput(toolName string, output interface{}
 				}
 			}
 		}
-		
+
 		if validator == nil {
 			// No schema available, skip validation
 			return nil
 		}
 	}
-	
+
 	// Validate output
 	outputLoader := gojsonschema.NewGoLoader(output)
 	result, err := validator.Validate(outputLoader)
 	if err != nil {
 		return fmt.Errorf("validation error: %w", err)
 	}
-	
+
 	if !result.Valid() {
 		errors := make([]string, len(result.Errors()))
 		for i, err := range result.Errors() {
@@ -302,7 +302,7 @@ func (v *JSONSchemaValidator) ValidateOutput(toolName string, output interface{}
 		}
 		return fmt.Errorf("output validation failed: %v", errors)
 	}
-	
+
 	return nil
 }
 
@@ -311,7 +311,7 @@ func (v *JSONSchemaValidator) GetInputSchema(toolName string) (*json.RawMessage,
 	if v.client == nil {
 		return nil, fmt.Errorf("no MCP client configured")
 	}
-	
+
 	return v.client.GetToolSchema("", toolName)
 }
 
@@ -320,7 +320,7 @@ func (v *JSONSchemaValidator) GetOutputSchema(toolName string) (*json.RawMessage
 	if v.client == nil {
 		return nil, fmt.Errorf("no MCP client configured")
 	}
-	
+
 	return v.client.GetToolSchema("", toolName)
 }
 
@@ -331,22 +331,22 @@ func (c *Client) GetToolSchema(serverName, toolName string) (*json.RawMessage, e
 	// Find the server and tool
 	var conn *ServerConnection
 	var tool ToolDefinition
-	
+
 	if serverName != "" {
 		// Look for specific server
 		c.serversMu.RLock()
 		var exists bool
 		conn, exists = c.servers[serverName]
 		c.serversMu.RUnlock()
-		
+
 		if !exists {
 			return nil, fmt.Errorf("server not found: %s", serverName)
 		}
-		
+
 		conn.toolsMu.RLock()
 		tool, exists = conn.tools[toolName]
 		conn.toolsMu.RUnlock()
-		
+
 		if !exists {
 			return nil, fmt.Errorf("tool not found on server %s: %s", serverName, toolName)
 		}
@@ -356,12 +356,12 @@ func (c *Client) GetToolSchema(serverName, toolName string) (*json.RawMessage, e
 		if err != nil {
 			return nil, err
 		}
-		
+
 		conn.toolsMu.RLock()
 		tool = conn.tools[toolName]
 		conn.toolsMu.RUnlock()
 	}
-	
+
 	// Return input schema (could be extended to specify input vs output)
 	return tool.InputSchema, nil
 }
@@ -371,7 +371,7 @@ func (c *Client) CacheToolSchemas(tools []ToolDefinition) error {
 	if c.schemaCache == nil {
 		return nil // Caching disabled
 	}
-	
+
 	return c.schemaCache.CacheToolSchemas(tools)
 }
 
@@ -380,6 +380,6 @@ func (c *Client) ValidateToolOutput(toolName string, output interface{}) error {
 	if c.validator == nil {
 		return nil // Validation disabled
 	}
-	
+
 	return c.validator.ValidateOutput(toolName, output)
 }

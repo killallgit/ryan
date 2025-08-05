@@ -45,25 +45,25 @@ func (f *FileOperationsAgent) Description() string {
 // CanHandle determines if this agent can handle the request
 func (f *FileOperationsAgent) CanHandle(request string) (bool, float64) {
 	lowerRequest := strings.ToLower(request)
-	
+
 	// High confidence keywords
 	highConfidenceKeywords := []string{
 		"list files", "read files", "read all files",
 		"create file", "write file", "update file",
 		"list and read", "gather files", "file content",
 	}
-	
+
 	for _, keyword := range highConfidenceKeywords {
 		if strings.Contains(lowerRequest, keyword) {
 			return true, 0.9
 		}
 	}
-	
+
 	// Medium confidence keywords
 	if strings.Contains(lowerRequest, "file") || strings.Contains(lowerRequest, "directory") {
 		return true, 0.6
 	}
-	
+
 	return false, 0.0
 }
 
@@ -74,10 +74,10 @@ func (f *FileOperationsAgent) Execute(ctx context.Context, request AgentRequest)
 
 	// Determine operation type
 	operation := f.determineOperation(request.Prompt)
-	
+
 	var result AgentResult
 	var err error
-	
+
 	switch operation {
 	case "list_and_read":
 		result, err = f.handleListAndRead(ctx, request)
@@ -94,43 +94,43 @@ func (f *FileOperationsAgent) Execute(ctx context.Context, request AgentRequest)
 			Details: fmt.Sprintf("Could not determine operation from: %s", request.Prompt),
 		}
 	}
-	
+
 	// Update metadata
 	result.Metadata.AgentName = f.Name()
 	result.Metadata.StartTime = startTime
 	result.Metadata.EndTime = time.Now()
 	result.Metadata.Duration = time.Since(startTime)
-	
+
 	// Update execution context if provided
 	if execContext, ok := request.Context["execution_context"].(*ExecutionContext); ok {
 		f.updateExecutionContext(execContext, result)
 	}
-	
+
 	return result, err
 }
 
 // determineOperation determines what kind of file operation is requested
 func (f *FileOperationsAgent) determineOperation(prompt string) string {
 	lowerPrompt := strings.ToLower(prompt)
-	
-	if strings.Contains(lowerPrompt, "list and read") || 
-	   strings.Contains(lowerPrompt, "read all files") ||
-	   strings.Contains(lowerPrompt, "gather") {
+
+	if strings.Contains(lowerPrompt, "list and read") ||
+		strings.Contains(lowerPrompt, "read all files") ||
+		strings.Contains(lowerPrompt, "gather") {
 		return "list_and_read"
 	}
-	
+
 	if strings.Contains(lowerPrompt, "read") {
 		return "read"
 	}
-	
+
 	if strings.Contains(lowerPrompt, "write") || strings.Contains(lowerPrompt, "create") {
 		return "write"
 	}
-	
+
 	if strings.Contains(lowerPrompt, "list") {
 		return "list"
 	}
-	
+
 	return "unknown"
 }
 
@@ -141,9 +141,9 @@ func (f *FileOperationsAgent) handleListAndRead(ctx context.Context, request Age
 	if dirPath == "" {
 		dirPath = "."
 	}
-	
+
 	f.log.Info("Listing and reading files", "directory", dirPath)
-	
+
 	// List files
 	files, err := f.listFiles(dirPath)
 	if err != nil {
@@ -153,11 +153,11 @@ func (f *FileOperationsAgent) handleListAndRead(ctx context.Context, request Age
 			Details: err.Error(),
 		}, err
 	}
-	
+
 	// Read files in batch
 	fileContents := make(map[string]string)
 	filesProcessed := []string{}
-	
+
 	for _, file := range files {
 		if f.shouldReadFile(file) {
 			content, err := f.readFileWithCache(file)
@@ -169,10 +169,10 @@ func (f *FileOperationsAgent) handleListAndRead(ctx context.Context, request Age
 			filesProcessed = append(filesProcessed, file)
 		}
 	}
-	
+
 	// Build result
 	details := f.buildFileListDetails(files, fileContents)
-	
+
 	return AgentResult{
 		Success: true,
 		Summary: fmt.Sprintf("Listed and read %d files in %s", len(filesProcessed), dirPath),
@@ -199,7 +199,7 @@ func (f *FileOperationsAgent) handleRead(ctx context.Context, request AgentReque
 			Details: "Please specify a file path to read",
 		}, nil
 	}
-	
+
 	content, err := f.readFileWithCache(filePath)
 	if err != nil {
 		return AgentResult{
@@ -208,7 +208,7 @@ func (f *FileOperationsAgent) handleRead(ctx context.Context, request AgentReque
 			Details: err.Error(),
 		}, err
 	}
-	
+
 	return AgentResult{
 		Success: true,
 		Summary: fmt.Sprintf("Successfully read file: %s", filePath),
@@ -229,7 +229,7 @@ func (f *FileOperationsAgent) handleWrite(ctx context.Context, request AgentRequ
 	// Extract file path and content
 	filePath := f.extractPath(request.Prompt)
 	content := f.extractContent(request.Prompt, request.Context)
-	
+
 	if filePath == "" {
 		return AgentResult{
 			Success: false,
@@ -237,7 +237,7 @@ func (f *FileOperationsAgent) handleWrite(ctx context.Context, request AgentRequ
 			Details: "Please specify a file path to write to",
 		}, nil
 	}
-	
+
 	// Use write tool
 	writeTool, exists := f.toolRegistry.Get("write_file")
 	if !exists {
@@ -247,12 +247,12 @@ func (f *FileOperationsAgent) handleWrite(ctx context.Context, request AgentRequ
 			Details: "The write_file tool is not registered",
 		}, fmt.Errorf("write_file tool not available")
 	}
-	
+
 	result, err := writeTool.Execute(ctx, map[string]interface{}{
 		"file_path": filePath,
 		"content":   content,
 	})
-	
+
 	if err != nil {
 		return AgentResult{
 			Success: false,
@@ -260,10 +260,10 @@ func (f *FileOperationsAgent) handleWrite(ctx context.Context, request AgentRequ
 			Details: err.Error(),
 		}, err
 	}
-	
+
 	// Invalidate cache for this file
 	f.fileCache.Invalidate(filePath)
-	
+
 	return AgentResult{
 		Success: true,
 		Summary: fmt.Sprintf("Successfully wrote to file: %s", filePath),
@@ -285,7 +285,7 @@ func (f *FileOperationsAgent) handleList(ctx context.Context, request AgentReque
 	if dirPath == "" {
 		dirPath = "."
 	}
-	
+
 	files, err := f.listFiles(dirPath)
 	if err != nil {
 		return AgentResult{
@@ -294,9 +294,9 @@ func (f *FileOperationsAgent) handleList(ctx context.Context, request AgentReque
 			Details: err.Error(),
 		}, err
 	}
-	
+
 	details := strings.Join(files, "\n")
-	
+
 	return AgentResult{
 		Success: true,
 		Summary: fmt.Sprintf("Listed %d files in %s", len(files), dirPath),
@@ -315,19 +315,19 @@ func (f *FileOperationsAgent) handleList(ctx context.Context, request AgentReque
 
 func (f *FileOperationsAgent) listFiles(dirPath string) ([]string, error) {
 	var files []string
-	
+
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip files we can't access
 		}
-		
+
 		if !info.IsDir() {
 			files = append(files, path)
 		}
-		
+
 		return nil
 	})
-	
+
 	return files, err
 }
 
@@ -336,51 +336,51 @@ func (f *FileOperationsAgent) readFileWithCache(filePath string) (string, error)
 	if content, ok := f.fileCache.Get(filePath); ok {
 		return content, nil
 	}
-	
+
 	// Read file
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
-	
+
 	content := string(data)
-	
+
 	// Cache the content
 	f.fileCache.Set(filePath, content)
-	
+
 	return content, nil
 }
 
 func (f *FileOperationsAgent) shouldReadFile(filePath string) bool {
 	// Skip binary files, large files, etc.
 	ext := strings.ToLower(filepath.Ext(filePath))
-	
+
 	// Common text file extensions
 	textExts := []string{
 		".go", ".js", ".ts", ".py", ".java", ".c", ".cpp", ".h",
 		".txt", ".md", ".yml", ".yaml", ".json", ".xml", ".html",
 		".css", ".scss", ".less", ".sh", ".bash", ".zsh",
 	}
-	
+
 	for _, textExt := range textExts {
 		if ext == textExt {
 			return true
 		}
 	}
-	
+
 	// Check if it's a no-extension text file (like Makefile, Dockerfile)
 	base := filepath.Base(filePath)
 	textFiles := []string{
 		"Makefile", "Dockerfile", "README", "LICENSE",
 		"Taskfile", ".gitignore", ".env",
 	}
-	
+
 	for _, textFile := range textFiles {
 		if base == textFile {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -391,7 +391,7 @@ func (f *FileOperationsAgent) extractPath(prompt string) string {
 			return prompt[start+1 : start+1+end]
 		}
 	}
-	
+
 	// Look for paths after common keywords
 	keywords := []string{" in ", " from ", " at ", " of "}
 	for _, keyword := range keywords {
@@ -404,7 +404,7 @@ func (f *FileOperationsAgent) extractPath(prompt string) string {
 			return strings.TrimSpace(pathPart)
 		}
 	}
-	
+
 	// Look for path-like patterns
 	words := strings.Fields(prompt)
 	for _, word := range words {
@@ -412,7 +412,7 @@ func (f *FileOperationsAgent) extractPath(prompt string) string {
 			return strings.Trim(word, "\"',.")
 		}
 	}
-	
+
 	return ""
 }
 
@@ -421,30 +421,30 @@ func (f *FileOperationsAgent) extractContent(prompt string, context map[string]i
 	if content, ok := context["content"].(string); ok {
 		return content
 	}
-	
+
 	// Try to extract from prompt
 	patterns := []string{
 		"with content:",
 		"content:",
 		"containing:",
 	}
-	
+
 	lowerPrompt := strings.ToLower(prompt)
 	for _, pattern := range patterns {
 		if idx := strings.Index(lowerPrompt, pattern); idx != -1 {
 			return strings.TrimSpace(prompt[idx+len(pattern):])
 		}
 	}
-	
+
 	return ""
 }
 
 func (f *FileOperationsAgent) buildFileListDetails(files []string, contents map[string]string) string {
 	var details []string
-	
+
 	details = append(details, fmt.Sprintf("Found %d files:", len(files)))
 	details = append(details, "")
-	
+
 	for _, file := range files {
 		details = append(details, fmt.Sprintf("File: %s", file))
 		if content, ok := contents[file]; ok {
@@ -457,14 +457,14 @@ func (f *FileOperationsAgent) buildFileListDetails(files []string, contents map[
 		}
 		details = append(details, "")
 	}
-	
+
 	return strings.Join(details, "\n")
 }
 
 func (f *FileOperationsAgent) updateExecutionContext(ctx *ExecutionContext, result AgentResult) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
-	
+
 	// Update file context
 	for _, file := range result.Metadata.FilesProcessed {
 		found := false
@@ -482,7 +482,7 @@ func (f *FileOperationsAgent) updateExecutionContext(ctx *ExecutionContext, resu
 			})
 		}
 	}
-	
+
 	// Store file contents in shared data
 	if contents, ok := result.Artifacts["file_contents"].(map[string]string); ok {
 		if ctx.SharedData == nil {

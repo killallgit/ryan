@@ -223,13 +223,13 @@ var rootCmd = &cobra.Command{
 
 		// Create agent orchestrator if agent type is specified or configured
 		var agentOrchestrator *agents.LangchainOrchestrator
-		
+
 		// Determine preferred agent (CLI flag takes precedence over config)
 		finalAgentType := agentType
 		if finalAgentType == "" && cfg.Agents.Preferred != "" {
 			finalAgentType = cfg.Agents.Preferred
 		}
-		
+
 		// Determine fallback chain (CLI flag takes precedence over config)
 		var finalFallbackChain []string
 		if fallbackAgents != "" {
@@ -237,10 +237,10 @@ var rootCmd = &cobra.Command{
 		} else if len(cfg.Agents.FallbackChain) > 0 {
 			finalFallbackChain = cfg.Agents.FallbackChain
 		}
-		
+
 		if finalAgentType != "" || len(finalFallbackChain) > 0 || cfg.Agents.AutoSelect {
 			agentOrchestrator = agents.NewLangchainOrchestrator(toolRegistry)
-			
+
 			// Set preferred agent if specified
 			if finalAgentType != "" {
 				if err := agentOrchestrator.SetPreferredAgent(finalAgentType); err != nil {
@@ -253,7 +253,7 @@ var rootCmd = &cobra.Command{
 					}
 				}
 			}
-			
+
 			// Set fallback chain if specified
 			if len(finalFallbackChain) > 0 {
 				if err := agentOrchestrator.SetFallbackChain(finalFallbackChain); err != nil {
@@ -296,7 +296,7 @@ var rootCmd = &cobra.Command{
 				log.Debug("Created LangChain controller without system prompt or tools")
 			}
 		}
-		
+
 		// Set the orchestrator in the controller if available
 		if agentOrchestrator != nil {
 			langchainController.SetAgentOrchestrator(agentOrchestrator)
@@ -318,17 +318,17 @@ var rootCmd = &cobra.Command{
 			}
 
 			log.Info("Executing direct prompt", "prompt", directPrompt)
-			
+
 			// Create orchestrator with new API
 			orchestrator := agents.NewOrchestrator()
-			
+
 			// Register built-in agents with tool registry
 			if err := orchestrator.RegisterBuiltinAgents(toolRegistry); err != nil {
 				log.Error("Failed to register built-in agents", "error", err)
 				fmt.Printf("Failed to register agents: %v\n", err)
 				return
 			}
-			
+
 			// Execute the prompt
 			ctx := context.Background()
 			result, err := orchestrator.Execute(ctx, directPrompt, nil)
@@ -337,23 +337,23 @@ var rootCmd = &cobra.Command{
 				fmt.Printf("Error: %v\n", err)
 				return
 			}
-			
+
 			// Output results
 			fmt.Printf("\n=== Agent: %s ===\n", result.Metadata.AgentName)
 			fmt.Printf("Status: %s\n", map[bool]string{true: "Success", false: "Failed"}[result.Success])
 			fmt.Printf("Summary: %s\n\n", result.Summary)
-			
+
 			if result.Details != "" {
 				fmt.Printf("=== Details ===\n%s\n", result.Details)
 			}
-			
+
 			if len(result.Artifacts) > 0 {
 				fmt.Printf("\n=== Artifacts ===\n")
 				for key, value := range result.Artifacts {
 					fmt.Printf("%s: %v\n", key, value)
 				}
 			}
-			
+
 			fmt.Printf("\n=== Execution Info ===\n")
 			fmt.Printf("Duration: %v\n", result.Metadata.Duration)
 			if len(result.Metadata.ToolsUsed) > 0 {
@@ -362,18 +362,18 @@ var rootCmd = &cobra.Command{
 			if len(result.Metadata.FilesProcessed) > 0 {
 				fmt.Printf("Files Processed: %d\n", len(result.Metadata.FilesProcessed))
 			}
-			
+
 			// Close log files and exit
 			if err := logger.Close(); err != nil {
 				fmt.Printf("Failed to close log files: %v\n", err)
 			}
-			
+
 			// Exit after direct prompt execution
 			return
 		}
 
 		log.Info("Creating TUI application")
-		
+
 		// Create tview-based TUI
 		app, err := tui.NewApp(&LangChainControllerAdapter{langchainController})
 		if err != nil {
@@ -381,7 +381,7 @@ var rootCmd = &cobra.Command{
 			fmt.Printf("Failed to create TUI application: %v\n", err)
 			return
 		}
-		
+
 		log.Info("Starting TUI application")
 		if err := app.Run(); err != nil {
 			log.Error("Application error", "error", err)

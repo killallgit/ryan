@@ -311,7 +311,7 @@ func NewPatternLearner() *PatternLearner {
 func (pl *PatternLearner) RecordPattern(feedback *FeedbackRequest, result *ValidationResult) {
 	// Record patterns for future optimization
 	patternKey := fmt.Sprintf("%s_%s", feedback.Type, feedback.SourceTask)
-	
+
 	if pattern, exists := pl.patterns[patternKey]; exists {
 		pattern.Occurrences++
 		pattern.LastSeen = time.Now()

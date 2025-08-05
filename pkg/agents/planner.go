@@ -10,20 +10,20 @@ import (
 
 // Planner analyzes user prompts and creates execution plans
 type Planner struct {
-	orchestrator    *Orchestrator
-	intentAnalyzer  *IntentAnalyzer
-	graphBuilder    *ExecutionGraphBuilder
-	optimizer       *PlanOptimizer
-	log             *logger.Logger
+	orchestrator   *Orchestrator
+	intentAnalyzer *IntentAnalyzer
+	graphBuilder   *ExecutionGraphBuilder
+	optimizer      *PlanOptimizer
+	log            *logger.Logger
 }
 
 // NewPlanner creates a new execution planner
 func NewPlanner() *Planner {
 	return &Planner{
-		intentAnalyzer:  NewIntentAnalyzer(),
-		graphBuilder:    NewExecutionGraphBuilder(),
-		optimizer:       NewPlanOptimizer(),
-		log:             logger.WithComponent("planner"),
+		intentAnalyzer: NewIntentAnalyzer(),
+		graphBuilder:   NewExecutionGraphBuilder(),
+		optimizer:      NewPlanOptimizer(),
+		log:            logger.WithComponent("planner"),
 	}
 }
 
@@ -53,7 +53,7 @@ func (p *Planner) CreateExecutionPlan(ctx context.Context, request string, execC
 	// Optimize the plan
 	plan := p.optimizer.Optimize(graph, execContext)
 
-	p.log.Info("Created execution plan", 
+	p.log.Info("Created execution plan",
 		"tasks", len(plan.Tasks),
 		"stages", len(plan.Stages),
 		"estimated_duration", plan.EstimatedDuration)
@@ -78,7 +78,7 @@ func NewIntentAnalyzer() *IntentAnalyzer {
 // Analyze extracts intent from a user prompt
 func (ia *IntentAnalyzer) Analyze(prompt string) (*Intent, error) {
 	lowerPrompt := strings.ToLower(prompt)
-	
+
 	intent := &Intent{
 		RawPrompt: prompt,
 		Entities:  make(map[string]string),
@@ -89,13 +89,13 @@ func (ia *IntentAnalyzer) Analyze(prompt string) (*Intent, error) {
 		if pattern.Matches(lowerPrompt) {
 			intent.Primary = pattern.IntentType
 			intent.Confidence = pattern.GetConfidence(lowerPrompt)
-			
+
 			// Extract entities
 			entities := pattern.ExtractEntities(prompt)
 			for k, v := range entities {
 				intent.Entities[k] = v
 			}
-			
+
 			break
 		}
 	}
@@ -115,7 +115,7 @@ func (ia *IntentAnalyzer) Analyze(prompt string) (*Intent, error) {
 // findSecondaryIntents identifies additional intents in the prompt
 func (ia *IntentAnalyzer) findSecondaryIntents(prompt string) []string {
 	var secondary []string
-	
+
 	// Check for common secondary patterns
 	if strings.Contains(prompt, "and test") || strings.Contains(prompt, "with tests") {
 		secondary = append(secondary, "test")
@@ -126,7 +126,7 @@ func (ia *IntentAnalyzer) findSecondaryIntents(prompt string) []string {
 	if strings.Contains(prompt, "optimize") || strings.Contains(prompt, "performance") {
 		secondary = append(secondary, "optimize")
 	}
-	
+
 	return secondary
 }
 
@@ -179,7 +179,7 @@ func (gb *ExecutionGraphBuilder) BuildGraph(intent *Intent, orchestrator *Orches
 		}
 
 		graph.Nodes[node.ID] = node
-		
+
 		// Build edges based on dependencies
 		for _, dep := range taskTemplate.Dependencies {
 			graph.Edges[dep] = append(graph.Edges[dep], node.ID)
@@ -192,16 +192,16 @@ func (gb *ExecutionGraphBuilder) BuildGraph(intent *Intent, orchestrator *Orches
 // buildPromptForTask creates a specific prompt for a task based on intent
 func (gb *ExecutionGraphBuilder) buildPromptForTask(task *TaskTemplate, intent *Intent) string {
 	prompt := task.PromptTemplate
-	
+
 	// Replace raw_prompt placeholder
 	prompt = strings.ReplaceAll(prompt, "{raw_prompt}", intent.RawPrompt)
-	
+
 	// Replace placeholders with entities
 	for key, value := range intent.Entities {
 		placeholder := fmt.Sprintf("{%s}", key)
 		prompt = strings.ReplaceAll(prompt, placeholder, value)
 	}
-	
+
 	return prompt
 }
 
@@ -220,22 +220,22 @@ func NewPlanOptimizer() *PlanOptimizer {
 // Optimize converts a graph into an optimized execution plan
 func (po *PlanOptimizer) Optimize(graph *ExecutionGraph, context *ExecutionContext) *ExecutionPlan {
 	plan := &ExecutionPlan{
-		ID:        generateID(),
-		Context:   context,
-		Tasks:     make([]Task, 0),
-		Stages:    make([]Stage, 0),
+		ID:      generateID(),
+		Context: context,
+		Tasks:   make([]Task, 0),
+		Stages:  make([]Stage, 0),
 	}
 
 	// Topological sort to determine execution order
 	stages := po.topologicalSort(graph)
-	
+
 	// Create stages
 	for i, nodeIDs := range stages {
 		stage := Stage{
 			ID:    fmt.Sprintf("stage-%d", i),
 			Tasks: make([]string, 0),
 		}
-		
+
 		// Create tasks for this stage
 		for _, nodeID := range nodeIDs {
 			node := graph.Nodes[nodeID]
@@ -247,11 +247,11 @@ func (po *PlanOptimizer) Optimize(graph *ExecutionGraph, context *ExecutionConte
 				Dependencies: node.Dependencies,
 				Stage:        stage.ID,
 			}
-			
+
 			plan.Tasks = append(plan.Tasks, task)
 			stage.Tasks = append(stage.Tasks, task.ID)
 		}
-		
+
 		plan.Stages = append(plan.Stages, stage)
 	}
 
@@ -266,16 +266,16 @@ func (po *PlanOptimizer) topologicalSort(graph *ExecutionGraph) [][]string {
 	// Simple level-based topological sort
 	levels := make([][]string, 0)
 	visited := make(map[string]bool)
-	
+
 	// Find nodes with no dependencies
 	for {
 		level := make([]string, 0)
-		
+
 		for nodeID, node := range graph.Nodes {
 			if visited[nodeID] {
 				continue
 			}
-			
+
 			// Check if all dependencies are satisfied
 			canExecute := true
 			for _, dep := range node.Dependencies {
@@ -284,24 +284,24 @@ func (po *PlanOptimizer) topologicalSort(graph *ExecutionGraph) [][]string {
 					break
 				}
 			}
-			
+
 			if canExecute {
 				level = append(level, nodeID)
 			}
 		}
-		
+
 		if len(level) == 0 {
 			break
 		}
-		
+
 		// Mark as visited
 		for _, nodeID := range level {
 			visited[nodeID] = true
 		}
-		
+
 		levels = append(levels, level)
 	}
-	
+
 	return levels
 }
 
@@ -354,7 +354,7 @@ func (ip *IntentPattern) GetConfidence(prompt string) float64 {
 
 func (ip *IntentPattern) ExtractEntities(prompt string) map[string]string {
 	entities := make(map[string]string)
-	
+
 	// Simple entity extraction - would be more sophisticated in practice
 	for _, extract := range ip.Extract {
 		switch extract {
@@ -378,7 +378,7 @@ func (ip *IntentPattern) ExtractEntities(prompt string) map[string]string {
 			}
 		}
 	}
-	
+
 	return entities
 }
 
