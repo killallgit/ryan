@@ -1,255 +1,121 @@
-# TUI Patterns & tcell Best Practices
+# TUI Patterns & tview Best Practices
 
-## tcell Library Overview
+## tview Library Overview
 
-tcell is a low-level terminal control library that provides direct access to terminal capabilities. Unlike higher-level TUI frameworks, tcell gives us complete control over the terminal interface, making it ideal for responsive streaming applications.
+tview is a rich terminal user interface library for Go that provides high-level widgets and components. Built on top of tcell, tview abstracts away the low-level terminal control, allowing us to focus on application logic and user experience.
 
-### Key tcell Advantages for Chat TUI
-- **Event-Driven Architecture**: Clean separation of input and output
-- **Non-Blocking Operations**: Essential for streaming interfaces
-- **Cross-Platform**: Works consistently across terminals
-- **Mouse Support**: Enhanced user interaction
-- **Resize Handling**: Graceful terminal size changes
+### Key tview Advantages for Chat TUI
+- **Rich Widget Library**: Pre-built components like TextView, InputField, Table, TreeView
+- **Built-in Layout Management**: Flexible box layouts with automatic resizing
+- **Thread-Safe Updates**: QueueUpdateDraw for safe concurrent UI updates
+- **Event Handling**: Simplified keyboard and mouse event handling
+- **Focus Management**: Automatic focus traversal between components
 
-## Core tcell Patterns
+## Core tview Patterns
 
-### 1. Screen Initialization & Cleanup
+### 1. Application Structure
 ```go
-func initializeScreen() (tcell.Screen, error) {
-    screen, err := tcell.NewScreen()
-    if err != nil {
-        return nil, err
-    }
+// Main application structure
+type App struct {
+    app        *tview.Application
+    pages      *tview.Pages       // For view switching
+    controller ControllerInterface
     
-    if err := screen.Init(); err != nil {
-        return nil, err
-    }
-    
-    // Set default style
-    defStyle := tcell.StyleDefault.
-        Background(tcell.ColorReset).
-        Foreground(tcell.ColorReset)
-    screen.SetStyle(defStyle)
-    
-    // Enable features we need
-    screen.EnableMouse()
-    screen.EnablePaste()
-    screen.Clear()
-    
-    return screen, nil
+    // Views
+    chatView        *ChatView
+    modelView       *ModelView
+    toolsView       *ToolsView
+    vectorStoreView *VectorStoreView
+    contextTreeView *ContextTreeView
 }
 
-func cleanupScreen(screen tcell.Screen) {
-    // Critical: Always clean up properly
-    screen.Fini()
-}
-
-// Proper error handling with cleanup
-func runApp() error {
-    screen, err := initializeScreen()
-    if err != nil {
-        return err
+// Initialize tview application
+func NewApp(controller ControllerInterface) (*App, error) {
+    tviewApp := tview.NewApplication()
+    
+    app := &App{
+        app:         tviewApp,
+        pages:       tview.NewPages(),
+        controller:  controller,
+        currentView: "chat",
     }
     
-    // Ensure cleanup happens even on panic
-    defer func() {
-        if r := recover(); r != nil {
-            screen.Fini()
-            panic(r) // Re-raise panic after cleanup
-        }
-    }()
-    defer screen.Fini()
+    // Initialize views
+    if err := app.initializeViews(); err != nil {
+        return nil, fmt.Errorf("failed to initialize views: %w", err)
+    }
     
-    return eventLoop(screen)
+    // Set root and run
+    tviewApp.SetRoot(app.pages, true).SetFocus(app.pages)
+    return app, nil
 }
 ```
 
-### 2. Event Loop Structure
+### 2. View Management with Pages
 ```go
-type EventHandler interface {
-    HandleKey(*tcell.EventKey) bool      // Returns true if handled
-    HandleMouse(*tcell.EventMouse) bool
-    HandleResize(*tcell.EventResize) bool
-    HandleInterrupt(*tcell.EventInterrupt) bool
+// Using tview.Pages for view switching
+func (a *App) initializeViews() error {
+    // Create and add views to pages
+    a.chatView = NewChatView(a.controller, a.app)
+    a.pages.AddPage("chat", a.chatView, true, true)
+    
+    a.modelView = NewModelView(modelsController, a.controller, a.app)
+    a.pages.AddPage("models", a.modelView, true, false)
+    
+    // Add more views...
+    return nil
 }
 
-func eventLoop(screen tcell.Screen) error {
-    handler := NewChatEventHandler()
-    
-    for {
-        // Show updates to screen
-        screen.Show()
-        
-        // Poll for next event (blocks until event arrives)
-        event := screen.PollEvent()
-        
-        var handled bool
-        switch ev := event.(type) {
-        case *tcell.EventKey:
-            handled = handler.HandleKey(ev)
-            if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
-                return nil // Exit application
-            }
-            
-        case *tcell.EventMouse:
-            handled = handler.HandleMouse(ev)
-            
-        case *tcell.EventResize:
-            screen.Sync() // Important: sync after resize
-            handled = handler.HandleResize(ev)
-            
-        case *tcell.EventInterrupt:
-            // Custom events from other goroutines
-            handled = handler.HandleInterrupt(ev)
-        }
-        
-        if !handled {
-            // Log unhandled events for debugging
-            logUnhandledEvent(event)
-        }
-    }
+// Switch between views
+func (a *App) switchToView(viewName string) {
+    a.currentView = viewName
+    a.pages.SwitchToPage(viewName)
 }
 ```
 
-### 3. Safe Content Rendering
+### 3. Component-Based Views
 ```go
-// Helper function to safely render text within bounds
-func renderText(screen tcell.Screen, x, y, maxWidth int, text string, style tcell.Style) int {
-    col := x
-    for _, r := range []rune(text) {
-        if col >= x+maxWidth {
-            break // Don't exceed bounds
-        }
-        screen.SetContent(col, y, r, nil, style)
-        col++
-    }
-    return col - x // Return characters rendered
-}
-
-// Multi-line text rendering with word wrapping
-func renderTextBlock(screen tcell.Screen, rect Rect, text string, style tcell.Style) {
-    words := strings.Fields(text)
-    row := rect.Y
-    col := rect.X
+// Chat view using tview widgets
+type ChatView struct {
+    *tview.Flex                     // Embed Flex for layout
+    messages     *tview.TextView     // For displaying messages
+    input        *tview.InputField   // For user input
+    status       *tview.TextView     // For status line
+    spinner      *Spinner            // Custom spinner component
     
-    for _, word := range words {
-        wordLen := len([]rune(word))
-        
-        // Check if word fits on current line
-        if col+wordLen > rect.X+rect.Width {
-            row++
-            col = rect.X
-            
-            // Check if we have room for another line
-            if row >= rect.Y+rect.Height {
-                break
-            }
-        }
-        
-        // Render the word
-        for _, r := range []rune(word) {
-            screen.SetContent(col, row, r, nil, style)
-            col++
-        }
-        
-        // Add space after word (if room)
-        if col < rect.X+rect.Width {
-            screen.SetContent(col, row, ' ', nil, style)
-            col++
-        }
-    }
-}
-```
-
-### 4. Component-Based Rendering
-```go
-type Rect struct {
-    X, Y, Width, Height int
+    controller   ControllerInterface
+    app          *tview.Application
 }
 
-type Component interface {
-    Render(screen tcell.Screen, rect Rect)
-    MinSize() (width, height int)
-}
-
-// Message display component
-type MessageList struct {
-    Messages []Message
-    Scroll   int
-    Styles   MessageStyles
-}
-
-// Alert display component for spinner and errors
-type AlertDisplay struct {
-    IsSpinnerVisible bool
-    SpinnerFrame     int
-    SpinnerText      string
-    ErrorMessage     string
-    Width            int
-}
-
-func (ml *MessageList) Render(screen tcell.Screen, rect Rect) {
-    // Clear the area first
-    ml.clearArea(screen, rect)
-    
-    // Calculate visible message range
-    visibleStart := ml.Scroll
-    visibleEnd := min(len(ml.Messages), visibleStart+rect.Height)
-    
-    row := rect.Y
-    for i := visibleStart; i < visibleEnd; i++ {
-        msg := ml.Messages[i]
-        style := ml.getStyleForRole(msg.Role)
-        
-        // Render message with prefix
-        prefix := ml.getRolePrefix(msg.Role)
-        col := renderText(screen, rect.X, row, rect.Width, prefix, style)
-        renderText(screen, rect.X+col, row, rect.Width-col, msg.Content, style)
-        
-        row++
-        if row >= rect.Y+rect.Height {
-            break
-        }
-    }
-}
-
-func (ml *MessageList) clearArea(screen tcell.Screen, rect Rect) {
-    clearStyle := tcell.StyleDefault.Background(tcell.ColorReset)
-    for y := rect.Y; y < rect.Y+rect.Height; y++ {
-        for x := rect.X; x < rect.X+rect.Width; x++ {
-            screen.SetContent(x, y, ' ', nil, clearStyle)
-        }
-    }
-}
-
-// Alert display rendering with base16 colors
-func (ad *AlertDisplay) Render(screen tcell.Screen, rect Rect) {
-    // Clear the alert area
-    clearStyle := tcell.StyleDefault.Background(tcell.ColorReset)
-    for x := rect.X; x < rect.X+rect.Width; x++ {
-        screen.SetContent(x, rect.Y, ' ', nil, clearStyle)
+func NewChatView(controller ControllerInterface, app *tview.Application) *ChatView {
+    cv := &ChatView{
+        Flex:       tview.NewFlex().SetDirection(tview.FlexRow),
+        messages:   tview.NewTextView(),
+        input:      tview.NewInputField(),
+        status:     tview.NewTextView(),
+        spinner:    NewSpinner(app),
+        controller: controller,
+        app:        app,
     }
     
-    var content string
-    var style tcell.Style
+    // Configure widgets
+    cv.messages.
+        SetDynamicColors(true).
+        SetRegions(true).
+        SetWordWrap(true).
+        SetScrollable(true)
     
-    if ad.ErrorMessage != "" {
-        // Base16 red color for errors
-        style = tcell.StyleDefault.Foreground(tcell.NewRGBColor(220, 50, 47))
-        content = ad.ErrorMessage
-    } else if ad.IsSpinnerVisible {
-        // Default style for spinner
-        style = tcell.StyleDefault.Foreground(tcell.ColorWhite)
-        
-        // Spinner animation frames
-        frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-        spinner := frames[ad.SpinnerFrame%len(frames)]
-        content = spinner + " " + ad.SpinnerText
-    }
+    cv.input.
+        SetLabel("> ").
+        SetFieldBackgroundColor(tcell.ColorDefault)
     
-    if content != "" {
-        renderText(screen, rect.X, rect.Y, rect.Width, content, style)
-    }
+    // Build layout
+    cv.AddItem(cv.messages, 0, 1, false).
+        AddItem(cv.spinner, 1, 0, false).
+        AddItem(cv.input, 1, 0, true).
+        AddItem(cv.status, 1, 0, false)
+    
+    return cv
 }
 ```
 
@@ -257,552 +123,469 @@ func (ad *AlertDisplay) Render(screen tcell.Screen, rect Rect) {
 
 ### 1. Safe UI Updates from Goroutines
 ```go
-// CRITICAL PATTERN: Never update UI directly from goroutines
-type StreamingApp struct {
-    screen       tcell.Screen
-    messageList  *MessageList
-    updateQueue  chan UIUpdate
-}
-
-type UIUpdate struct {
-    Type UpdateType
-    Data interface{}
-}
-
-type UpdateType int
-const (
-    MessageChunkUpdate UpdateType = iota
-    MessageCompleteUpdate
-    StatusUpdate
-    ErrorUpdate
-)
-
-// Goroutine-safe method to queue UI updates
-func (app *StreamingApp) QueueMessageChunk(streamID string, content string) {
-    // This is safe to call from any goroutine
-    app.screen.PostEvent(tcell.NewEventInterrupt(&UIUpdate{
-        Type: MessageChunkUpdate,
-        Data: MessageChunkData{
-            StreamID: streamID,
-            Content:  content,
-        },
-    }))
-}
-
-// Handle updates in main event loop only
-func (app *StreamingApp) handleInterrupt(ev *tcell.EventInterrupt) bool {
-    if update, ok := ev.Data().(*UIUpdate); ok {
+// CRITICAL PATTERN: Always use QueueUpdateDraw for concurrent updates
+func (a *App) processStreamingUpdates(updates <-chan controllers.StreamingUpdate) {
+    streamingContent := ""
+    
+    for update := range updates {
         switch update.Type {
-        case MessageChunkUpdate:
-            data := update.Data.(MessageChunkData)
-            app.updateStreamingMessage(data.StreamID, data.Content)
-            return true
+        case controllers.ChunkReceived:
+            streamingContent += update.Content
+            content := streamingContent // Capture for closure
             
-        case MessageCompleteUpdate:
-            data := update.Data.(MessageCompleteData)
-            app.finalizeMessage(data.Message)
-            return true
+            // Thread-safe UI update
+            a.app.QueueUpdateDraw(func() {
+                a.chatView.UpdateStreamingContent(update.StreamID, content)
+            })
+            
+        case controllers.MessageComplete:
+            finalMsg := update.Message
+            
+            // Thread-safe UI update
+            a.app.QueueUpdateDraw(func() {
+                a.streaming = false
+                a.chatView.CompleteStreaming(update.StreamID, finalMsg)
+                a.chatView.UpdateMessages()
+            })
         }
     }
-    return false
 }
 ```
 
-### 2. Input Handling During Streaming
+### 2. Input Handling with Event Callbacks
 ```go
-type InputState struct {
-    buffer     []rune
-    cursor     int
-    isEnabled  bool  // Disable during streaming if needed
-}
-
-func (app *StreamingApp) handleKeyEvent(ev *tcell.EventKey) bool {
-    if !app.inputState.isEnabled {
-        return true // Consume but don't process
-    }
-    
-    switch ev.Key() {
-    case tcell.KeyEnter:
-        message := string(app.inputState.buffer)
-        app.inputState.buffer = app.inputState.buffer[:0]
-        app.inputState.cursor = 0
-        
-        // Start streaming (this will disable input until complete)
-        app.startStreaming(message)
-        return true
-        
-    case tcell.KeyBackspace, tcell.KeyBackspace2:
-        if app.inputState.cursor > 0 {
-            app.inputState.cursor--
-            app.inputState.buffer = append(
-                app.inputState.buffer[:app.inputState.cursor],
-                app.inputState.buffer[app.inputState.cursor+1:]...,
-            )
+// Set up input handling
+func (cv *ChatView) setupInputHandlers() {
+    cv.input.SetDoneFunc(func(key tcell.Key) {
+        if key == tcell.KeyEnter {
+            text := cv.input.GetText()
+            if text != "" {
+                cv.input.SetText("")
+                if cv.sendHandler != nil {
+                    cv.sendHandler(text)
+                }
+            }
         }
-        return true
-        
-    case tcell.KeyRune:
-        // Insert character at cursor position
-        char := ev.Rune()
-        app.inputState.buffer = append(
-            app.inputState.buffer[:app.inputState.cursor],
-            append([]rune{char}, app.inputState.buffer[app.inputState.cursor:]...)...,
-        )
-        app.inputState.cursor++
-        return true
-    }
+    })
     
-    return false
-}
-```
-
-### 3. Responsive Layout Management
-```go
-type Layout struct {
-    screenWidth  int
-    screenHeight int
-    messageArea  Rect
-    alertArea    Rect    // NEW: Alert area for spinner/errors
-    inputArea    Rect
-    statusArea   Rect
-}
-
-func (app *StreamingApp) calculateLayout() Layout {
-    w, h := app.screen.Size()
-    
-    // Reserve bottom 3 lines for alert, input and status
-    statusHeight := 1
-    inputHeight := 1  
-    alertHeight := 1
-    messageHeight := h - statusHeight - inputHeight - alertHeight
-    if messageHeight < 1 {
-        messageHeight = 1
-    }
-    
-    return Layout{
-        screenWidth:  w,
-        screenHeight: h,
-        messageArea: Rect{
-            X: 0, Y: 0,
-            Width: w, Height: messageHeight,
-        },
-        alertArea: Rect{
-            X: 0, Y: messageHeight,
-            Width: w, Height: alertHeight,
-        },
-        inputArea: Rect{
-            X: 0, Y: messageHeight + alertHeight,
-            Width: w, Height: inputHeight,
-        },
-        statusArea: Rect{
-            X: 0, Y: h - statusHeight,
-            Width: w, Height: statusHeight,
-        },
-    }
-}
-
-func (app *StreamingApp) handleResize(ev *tcell.EventResize) bool {
-    app.layout = app.calculateLayout()
-    
-    // Adjust scroll position if needed
-    maxScroll := len(app.messageList.Messages) - app.layout.messageArea.Height
-    if app.messageList.Scroll > maxScroll {
-        app.messageList.Scroll = max(0, maxScroll)
-    }
-    
-    return true
-}
-```
-
-## Event-Driven Non-Blocking Patterns
-
-### Current Implementation: Custom Events
-Our TUI uses a custom event system to maintain responsiveness during API calls:
-
-```go
-// Custom event types in pkg/tui/events.go
-type MessageResponseEvent struct {
-    tcell.EventTime
-    Message chat.Message
-}
-
-type MessageErrorEvent struct {
-    tcell.EventTime
-    Error error
-}
-
-// Event handling in main loop
-func (app *App) handleEvent(event tcell.Event) {
-    switch ev := event.(type) {
-    case *tcell.EventKey:
-        app.handleKeyEvent(ev)
-    case *MessageResponseEvent:
-        app.handleMessageResponse(ev)
-    case *MessageErrorEvent:
-        app.handleMessageError(ev)
-    }
-}
-```
-
-### Non-Blocking Message Flow
-```go
-func (app *App) sendMessage() {
-    // 1. Update UI immediately
-    app.input = app.input.Clear()
-    app.sending = true
-    app.status = app.status.WithStatus("Sending...")
-    
-    // 2. API call in background
-    go func() {
-        response, err := app.controller.SendUserMessage(content)
-        
-        // 3. Post result back to main thread
-        if err != nil {
-            app.screen.PostEvent(NewMessageErrorEvent(err))
-        } else {
-            app.screen.PostEvent(NewMessageResponseEvent(response))
+    // Additional key handling
+    cv.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        // Handle special keys
+        switch event.Key() {
+        case tcell.KeyCtrlC:
+            // Cancel current operation
+            return nil
+        case tcell.KeyTab:
+            // Trigger autocomplete
+            return nil
         }
-    }()
-    // 4. Function returns immediately - UI stays responsive
+        return event
+    })
 }
 ```
 
-### State Management for Concurrency
+### 3. Custom Components
 ```go
-type App struct {
-    // ... other fields
-    sending bool  // Prevents multiple concurrent requests
+// Custom spinner component
+type Spinner struct {
+    *tview.TextView
+    app        *tview.Application
+    isRunning  bool
+    frame      int
+    text       string
+    stopChan   chan bool
 }
 
-// In key handler
-case tcell.KeyEnter:
-    if !app.sending {  // Only send if not already sending
-        app.sendMessage()
+func NewSpinner(app *tview.Application) *Spinner {
+    s := &Spinner{
+        TextView: tview.NewTextView(),
+        app:      app,
+        stopChan: make(chan bool, 1),
     }
-```
-
-### Benefits of This Pattern
-- ✅ **UI Never Blocks**: Users can scroll, navigate during API calls
-- ✅ **Thread Safe**: Uses tcell's built-in PostEvent mechanism
-- ✅ **Clean Error Handling**: Errors displayed without blocking
-- ✅ **Extensible**: Easy to add more event types (perfect for streaming)
-
-## Streaming-Specific UI Patterns (Future)
-
-### 1. Progressive Message Display
-```go
-type StreamingMessage struct {
-    ID          string
-    Role        string
-    Content     strings.Builder // Efficient string accumulation
-    IsComplete  bool
-    StartTime   time.Time
-    LastUpdate  time.Time
+    s.SetTextAlign(tview.AlignLeft)
+    return s
 }
 
-func (app *StreamingApp) updateStreamingMessage(streamID, chunk string) {
-    // Find or create streaming message
-    msg := app.findOrCreateStreamingMessage(streamID)
-    
-    // Append chunk to content
-    msg.Content.WriteString(chunk)
-    msg.LastUpdate = time.Now()
-    
-    // Auto-scroll to bottom if user is at bottom
-    if app.isScrolledToBottom() {
-        app.scrollToBottom()
-    }
-    
-    // Mark screen for redraw
-    app.screen.Show()
-}
-
-func (app *StreamingApp) isScrolledToBottom() bool {
-    maxScroll := len(app.messageList.Messages) - app.layout.messageArea.Height
-    return app.messageList.Scroll >= maxScroll
-}
-```
-
-### 2. Typing Indicators
-```go
-type TypingIndicator struct {
-    IsVisible bool
-    StartTime time.Time
-    Animation int // Animation frame
-}
-
-func (app *StreamingApp) renderTypingIndicator(screen tcell.Screen, rect Rect) {
-    if !app.typingIndicator.IsVisible {
+func (s *Spinner) Start(text string) {
+    if s.isRunning {
         return
     }
     
-    // Animate typing dots
-    frames := []string{"   ", ".  ", ".. ", "..."}
-    frame := frames[app.typingIndicator.Animation%len(frames)]
+    s.isRunning = true
+    s.text = text
+    s.frame = 0
     
-    style := tcell.StyleDefault.Foreground(tcell.ColorGray)
-    prefix := "Assistant is typing"
+    go func() {
+        frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+        ticker := time.NewTicker(100 * time.Millisecond)
+        defer ticker.Stop()
+        
+        for {
+            select {
+            case <-ticker.C:
+                s.frame = (s.frame + 1) % len(frames)
+                // Thread-safe update
+                s.app.QueueUpdateDraw(func() {
+                    s.SetText(fmt.Sprintf("%s %s", frames[s.frame], s.text))
+                })
+            case <-s.stopChan:
+                return
+            }
+        }
+    }()
+}
+```
+
+## Advanced tview Features
+
+### 1. Modal Dialogs
+```go
+// Create a modal for view switching
+func (a *App) showViewSwitcher() {
+    list := tview.NewList().
+        AddItem("Chat", "Main chat interface", '1', func() {
+            a.switchToView("chat")
+            a.pages.RemovePage("view-switcher")
+        }).
+        AddItem("Models", "Manage Ollama models", '2', func() {
+            a.switchToView("models")
+            a.pages.RemovePage("view-switcher")
+        })
     
-    renderText(screen, rect.X, rect.Y, rect.Width, prefix+frame, style)
+    list.SetBorder(true).SetTitle("Switch View (Ctrl-P)")
+    
+    // Create centered modal
+    modal := createModal(list, 40, 15)
+    a.pages.AddPage("view-switcher", modal, true, true)
 }
 
-func (app *StreamingApp) updateTypingAnimation() {
-    if app.typingIndicator.IsVisible {
-        app.typingIndicator.Animation++
-        // Update every 500ms
-        if time.Since(app.typingIndicator.StartTime) > 500*time.Millisecond {
-            app.typingIndicator.StartTime = time.Now()
+func createModal(p tview.Primitive, width, height int) tview.Primitive {
+    return tview.NewFlex().
+        AddItem(nil, 0, 1, false).
+        AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+            AddItem(nil, 0, 1, false).
+            AddItem(p, height, 1, true).
+            AddItem(nil, 0, 1, false), width, 1, true).
+        AddItem(nil, 0, 1, false)
+}
+```
+
+### 2. Table for Data Display
+```go
+// Tools view with table
+type ToolsView struct {
+    *tview.Flex
+    table    *tview.Table
+    details  *tview.TextView
+    registry *tools.Registry
+}
+
+func (tv *ToolsView) populateTable() {
+    tv.table.Clear()
+    
+    // Headers
+    headers := []string{"Tool", "Description", "Category", "Status"}
+    for col, header := range headers {
+        tv.table.SetCell(0, col,
+            tview.NewTableCell(header).
+                SetTextColor(tcell.ColorYellow).
+                SetAttributes(tcell.AttrBold))
+    }
+    
+    // Data rows
+    for row, tool := range tv.registry.ListTools() {
+        tv.table.SetCell(row+1, 0, tview.NewTableCell(tool.Name))
+        tv.table.SetCell(row+1, 1, tview.NewTableCell(tool.Description))
+        tv.table.SetCell(row+1, 2, tview.NewTableCell(tool.Category))
+        tv.table.SetCell(row+1, 3, tview.NewTableCell(tool.Status))
+    }
+    
+    // Selection handler
+    tv.table.SetSelectionChangedFunc(func(row, col int) {
+        if row > 0 {
+            tool := tv.registry.GetTool(row - 1)
+            tv.details.SetText(tool.GetDetails())
         }
+    })
+}
+```
+
+### 3. TreeView for Hierarchical Data
+```go
+// Context tree view
+type ContextTreeView struct {
+    *tview.Flex
+    tree *tview.TreeView
+    root *tview.TreeNode
+}
+
+func (ctv *ContextTreeView) buildTree(conversations []Conversation) {
+    ctv.root = tview.NewTreeNode("Conversations").
+        SetColor(tcell.ColorYellow)
+    
+    for _, conv := range conversations {
+        convNode := tview.NewTreeNode(conv.Title).
+            SetReference(conv.ID)
+        
+        // Add messages as child nodes
+        for _, msg := range conv.Messages {
+            msgNode := tview.NewTreeNode(msg.Preview).
+                SetReference(msg.ID)
+            convNode.AddChild(msgNode)
+        }
+        
+        ctv.root.AddChild(convNode)
+    }
+    
+    ctv.tree.SetRoot(ctv.root).
+        SetCurrentNode(ctv.root)
+}
+```
+
+### 4. Dynamic Color and Formatting
+```go
+// Format messages with colors
+func (cv *ChatView) formatMessage(msg chat.Message) string {
+    timestamp := msg.Timestamp.Format("15:04:05")
+    
+    switch msg.Role {
+    case "human":
+        return fmt.Sprintf("[blue]%s [You]:[white] %s", timestamp, msg.Content)
+    case "assistant":
+        return fmt.Sprintf("[green]%s [Assistant]:[white] %s", timestamp, msg.Content)
+    case "system":
+        return fmt.Sprintf("[yellow]%s [System]:[white] %s", timestamp, msg.Content)
+    case "error":
+        return fmt.Sprintf("[red]%s [Error]:[white] %s", timestamp, msg.Content)
+    default:
+        return fmt.Sprintf("%s [%s]: %s", timestamp, msg.Role, msg.Content)
     }
 }
 ```
 
-### 3. Status and Error Display
-```go
-type StatusBar struct {
-    Message   string
-    Type      StatusType
-    Timestamp time.Time
-}
+## Event-Driven Patterns
 
-type StatusType int
+### 1. Global Key Bindings
+```go
+func (a *App) setupGlobalKeyBindings() {
+    a.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        // Ctrl-P: Toggle command palette
+        if event.Key() == tcell.KeyCtrlP {
+            a.showViewSwitcher()
+            return nil
+        }
+        
+        // Ctrl-C: Cancel or quit
+        if event.Key() == tcell.KeyCtrlC {
+            if a.sending {
+                select {
+                case a.cancelSend <- true:
+                default:
+                }
+            } else {
+                a.app.Stop()
+            }
+            return nil
+        }
+        
+        // Ctrl-1 through Ctrl-5: Quick view switching
+        if event.Key() >= tcell.KeyCtrlA && event.Key() <= tcell.KeyCtrlE {
+            views := []string{"chat", "models", "tools", "vectorstore", "context-tree"}
+            index := int(event.Key() - tcell.KeyCtrlA)
+            if index < len(views) {
+                a.switchToView(views[index])
+                return nil
+            }
+        }
+        
+        return event
+    })
+}
+```
+
+### 2. Context-Aware Input Handling
+```go
+// Different input modes
+type InputMode int
 const (
-    StatusInfo StatusType = iota
-    StatusSuccess
-    StatusWarning
-    StatusError
+    InputModeNormal InputMode = iota
+    InputModeVim
+    InputModeSearch
 )
 
-func (sb *StatusBar) Render(screen tcell.Screen, rect Rect) {
-    style := sb.getStatusStyle()
-    
-    // Clear status area
-    for x := rect.X; x < rect.X+rect.Width; x++ {
-        screen.SetContent(x, rect.Y, ' ', nil, style)
-    }
-    
-    // Render status message
-    renderText(screen, rect.X, rect.Y, rect.Width, sb.Message, style)
-}
-
-func (sb *StatusBar) getStatusStyle() tcell.Style {
-    base := tcell.StyleDefault
-    switch sb.Type {
-    case StatusError:
-        return base.Foreground(tcell.ColorWhite).Background(tcell.ColorRed)
-    case StatusWarning:
-        return base.Foreground(tcell.ColorBlack).Background(tcell.ColorYellow)
-    case StatusSuccess:
-        return base.Foreground(tcell.ColorWhite).Background(tcell.ColorGreen)
+func (cv *ChatView) handleInputMode(event *tcell.EventKey) *tcell.EventKey {
+    switch cv.inputMode {
+    case InputModeVim:
+        return cv.handleVimKeys(event)
+    case InputModeSearch:
+        return cv.handleSearchKeys(event)
     default:
-        return base.Foreground(tcell.ColorWhite).Background(tcell.ColorBlue)
-    }
-}
-```
-
-## Advanced tcell Features
-
-### 1. Mouse Support
-```go
-func (app *StreamingApp) handleMouse(ev *tcell.EventMouse) bool {
-    x, y := ev.Position()
-    buttons := ev.Buttons()
-    
-    // Check which area was clicked
-    if app.layout.messageArea.Contains(x, y) {
-        if buttons&tcell.WheelUp != 0 {
-            app.scrollUp(3)
-            return true
-        }
-        if buttons&tcell.WheelDown != 0 {
-            app.scrollDown(3)
-            return true
-        }
-    }
-    
-    return false
-}
-
-func (r Rect) Contains(x, y int) bool {
-    return x >= r.X && x < r.X+r.Width && y >= r.Y && y < r.Y+r.Height
-}
-```
-
-### 2. Clipboard Support
-```go
-func (app *StreamingApp) handlePaste(ev *tcell.EventPaste) bool {
-    if ev.Start() {
-        app.pasteMode = true
-        app.pasteBuffer.Reset()
-        return true
-    } else {
-        app.pasteMode = false
-        pastedText := app.pasteBuffer.String()
-        app.insertTextAtCursor(pastedText)
-        return true
-    }
-}
-```
-
-### 3. Color and Styling
-```go
-type Theme struct {
-    UserMessage      tcell.Style
-    AssistantMessage tcell.Style
-    SystemMessage    tcell.Style
-    InputField       tcell.Style
-    StatusBar        tcell.Style
-    ErrorMessage     tcell.Style
-}
-
-func DefaultTheme() Theme {
-    return Theme{
-        UserMessage: tcell.StyleDefault.
-            Foreground(tcell.ColorBlue).
-            Bold(true),
-        AssistantMessage: tcell.StyleDefault.
-            Foreground(tcell.ColorGreen),
-        SystemMessage: tcell.StyleDefault.
-            Foreground(tcell.ColorGray).
-            Italic(true),
-        InputField: tcell.StyleDefault.
-            Background(tcell.ColorDarkGray),
-        StatusBar: tcell.StyleDefault.
-            Background(tcell.ColorBlue).
-            Foreground(tcell.ColorWhite),
-        ErrorMessage: tcell.StyleDefault.
-            Foreground(tcell.ColorRed).
-            Bold(true),
-    }
-}
-```
-
-## Testing TUI Components
-
-### 1. Component Unit Testing
-```go
-func TestMessageListRender(t *testing.T) {
-    // Create a simulation screen for testing
-    screen := tcell.NewSimulationScreen("UTF-8")
-    screen.Init()
-    screen.SetSize(80, 24)
-    
-    messages := []Message{
-        {Role: "user", Content: "Hello"},
-        {Role: "assistant", Content: "Hi there!"},
-    }
-    
-    messageList := &MessageList{Messages: messages}
-    rect := Rect{X: 0, Y: 0, Width: 80, Height: 20}
-    
-    messageList.Render(screen, rect)
-    
-    // Verify content was rendered correctly
-    contents, width, height := screen.GetContents()
-    
-    // Check that messages appear in output
-    screenText := string(contents)
-    assert.Contains(t, screenText, "Hello")
-    assert.Contains(t, screenText, "Hi there!")
-}
-```
-
-### 2. Event Simulation Testing
-```go
-func TestKeyboardInput(t *testing.T) {
-    screen := tcell.NewSimulationScreen("UTF-8")
-    screen.Init()
-    
-    app := NewStreamingApp(screen)
-    
-    // Simulate typing
-    screen.InjectKey(tcell.KeyRune, 'H', tcell.ModNone)
-    screen.InjectKey(tcell.KeyRune, 'i', tcell.ModNone)
-    screen.InjectKey(tcell.KeyEnter, 0, tcell.ModNone)
-    
-    // Process events
-    for i := 0; i < 3; i++ {
-        event := screen.PollEvent()
-        app.handleEvent(event)
-    }
-    
-    // Verify input was processed
-    assert.Equal(t, "Hi", app.getLastUserInput())
-}
-```
-
-### 3. Layout Testing
-```go
-func TestResponsiveLayout(t *testing.T) {
-    app := &StreamingApp{}
-    
-    // Test various screen sizes
-    sizes := []struct{ w, h int }{
-        {80, 24}, {120, 40}, {40, 10},
-    }
-    
-    for _, size := range sizes {
-        app.screen = createMockScreen(size.w, size.h)
-        layout := app.calculateLayout()
-        
-        // Verify layout constraints
-        assert.True(t, layout.messageArea.Height >= 1)
-        assert.Equal(t, layout.inputArea.Height, 1)
-        assert.Equal(t, layout.statusArea.Height, 1)
-        assert.Equal(t, layout.messageArea.Height+2, size.h)
+        return event
     }
 }
 ```
 
 ## Performance Optimizations
 
-### 1. Minimal Redraws
+### 1. Efficient Message Rendering
 ```go
-type DirtyRegions struct {
-    messageArea bool
-    inputArea   bool
-    statusArea  bool
+// Only update visible messages
+func (cv *ChatView) UpdateMessages() {
+    cv.messages.Clear()
+    
+    history := cv.controller.GetHistory()
+    visibleMessages := cv.getVisibleMessages(history)
+    
+    var content strings.Builder
+    for _, msg := range visibleMessages {
+        content.WriteString(cv.formatMessage(msg))
+        content.WriteString("\n\n")
+    }
+    
+    cv.messages.SetText(content.String())
+    cv.messages.ScrollToEnd()
 }
 
-func (app *StreamingApp) render() {
-    if app.dirty.messageArea {
-        app.messageList.Render(app.screen, app.layout.messageArea)
-        app.dirty.messageArea = false
-    }
+func (cv *ChatView) getVisibleMessages(history []chat.Message) []chat.Message {
+    // Implement windowing for large histories
+    _, _, _, height := cv.messages.GetRect()
+    estimatedLinesPerMessage := 3
+    maxMessages := height / estimatedLinesPerMessage
     
-    if app.dirty.inputArea {
-        app.inputField.Render(app.screen, app.layout.inputArea)
-        app.dirty.inputArea = false
+    if len(history) > maxMessages {
+        return history[len(history)-maxMessages:]
     }
-    
-    if app.dirty.statusArea {
-        app.statusBar.Render(app.screen, app.layout.statusArea)
-        app.dirty.statusArea = false
-    }
+    return history
 }
 ```
 
-### 2. Efficient Text Handling
+### 2. Debounced Updates
 ```go
-// Use strings.Builder for efficient text accumulation
-type EfficientMessageBuffer struct {
-    builder strings.Builder
-    lines   []int // Track line start positions for fast scrolling
+// Debounce rapid updates during streaming
+type Debouncer struct {
+    timer    *time.Timer
+    duration time.Duration
+    fn       func()
+    mu       sync.Mutex
 }
 
-func (emb *EfficientMessageBuffer) AppendChunk(chunk string) {
-    emb.builder.WriteString(chunk)
-    
-    // Update line positions for new content
-    start := emb.builder.Len() - len(chunk)
-    for i, r := range chunk {
-        if r == '\n' {
-            emb.lines = append(emb.lines, start+i+1)
-        }
+func NewDebouncer(duration time.Duration, fn func()) *Debouncer {
+    return &Debouncer{
+        duration: duration,
+        fn:       fn,
     }
 }
+
+func (d *Debouncer) Call() {
+    d.mu.Lock()
+    defer d.mu.Unlock()
+    
+    if d.timer != nil {
+        d.timer.Stop()
+    }
+    
+    d.timer = time.AfterFunc(d.duration, d.fn)
+}
 ```
+
+## Testing tview Applications
+
+### 1. Component Testing
+```go
+func TestChatView(t *testing.T) {
+    // Create test application
+    app := tview.NewApplication()
+    controller := &MockController{}
+    
+    chatView := NewChatView(controller, app)
+    
+    // Test message display
+    controller.messages = []chat.Message{
+        {Role: "human", Content: "Hello"},
+        {Role: "assistant", Content: "Hi there!"},
+    }
+    
+    chatView.UpdateMessages()
+    
+    // Verify content
+    content := chatView.messages.GetText(false)
+    assert.Contains(t, content, "Hello")
+    assert.Contains(t, content, "Hi there!")
+}
+```
+
+### 2. Event Simulation
+```go
+func TestKeyboardShortcuts(t *testing.T) {
+    app := &App{
+        app:         tview.NewApplication(),
+        pages:       tview.NewPages(),
+        currentView: "chat",
+    }
+    
+    // Simulate Ctrl-P
+    event := tcell.NewEventKey(tcell.KeyCtrlP, 0, tcell.ModCtrl)
+    handled := app.handleGlobalKey(event)
+    
+    assert.True(t, handled)
+    assert.True(t, app.pages.HasPage("view-switcher"))
+}
+```
+
+### 3. Streaming Simulation
+```go
+func TestStreamingUpdates(t *testing.T) {
+    app := &App{
+        app:      tview.NewApplication(),
+        chatView: NewChatView(nil, nil),
+    }
+    
+    updates := make(chan controllers.StreamingUpdate)
+    
+    go app.processStreamingUpdates(updates)
+    
+    // Send test updates
+    updates <- controllers.StreamingUpdate{
+        Type:     controllers.StreamStarted,
+        StreamID: "test-123",
+    }
+    
+    updates <- controllers.StreamingUpdate{
+        Type:     controllers.ChunkReceived,
+        StreamID: "test-123",
+        Content:  "Hello ",
+    }
+    
+    updates <- controllers.StreamingUpdate{
+        Type:     controllers.ChunkReceived,
+        StreamID: "test-123",
+        Content:  "world!",
+    }
+    
+    close(updates)
+    
+    // Verify final content
+    time.Sleep(100 * time.Millisecond) // Allow updates to process
+    assert.Equal(t, "Hello world!", app.chatView.streamingContent)
+}
+```
+
+## Migration from tcell to tview
+
+### Key Differences
+1. **Event Handling**: tview provides higher-level event callbacks instead of raw event loops
+2. **Layout Management**: Use Flex containers instead of manual coordinate calculations
+3. **Component Lifecycle**: tview manages component rendering and updates automatically
+4. **Thread Safety**: Always use QueueUpdateDraw instead of direct updates
+5. **Focus Management**: tview handles focus traversal between components
+
+### Benefits of tview
+- **Reduced Code**: ~80% less code compared to raw tcell implementation
+- **Built-in Components**: Rich set of widgets out of the box
+- **Automatic Layout**: Responsive design without manual calculations
+- **Better Abstractions**: Focus on business logic instead of terminal mechanics
+- **Easier Testing**: Higher-level APIs are easier to test
 
 ---
 
-*This document provides the foundational patterns for implementing a responsive, streaming-capable TUI using tcell*
+*This document provides the foundational patterns for implementing a responsive, streaming-capable TUI using tview*
