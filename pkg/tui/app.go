@@ -274,19 +274,19 @@ func (a *App) showViewSwitcher() {
 		return event
 	})
 	
-	// Create a container for the list with padding
+	// Create a container for the list with generous padding
 	listContainer := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(nil, 1, 0, false).  // Top padding
+		AddItem(nil, 2, 0, false).  // Top padding (increased)
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem(nil, 2, 0, false).  // Left padding
+			AddItem(nil, 4, 0, false).  // Left padding (increased)
 			AddItem(list, 0, 1, true).  // List content
-			AddItem(nil, 2, 0, false), 0, 1, true).  // Right padding
-		AddItem(nil, 1, 0, false)  // Bottom padding
+			AddItem(nil, 4, 0, false), 0, 1, true).  // Right padding (increased)
+		AddItem(nil, 2, 0, false)  // Bottom padding (increased)
 	
 	listContainer.SetBackgroundColor(ColorBase01)
 	
-	// Create modal with height to show all 5 items (5 items + padding = 7)
-	modal := createModal(listContainer, 30, 7)
+	// Create modal with height to show all 5 items (5 items + increased padding = 9)
+	modal := createModal(listContainer, 34, 9)
 	
 	// Add as overlay
 	a.pages.AddPage("view-switcher", modal, true, true)
