@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/killallgit/ryan/pkg/agents"
+	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
@@ -16,17 +18,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// LangChainControllerAdapter adapts LangChainController to ChatController interface
+// LangChainControllerAdapter adapts LangChainController to both ChatControllerInterface and TUI ControllerInterface
 type LangChainControllerAdapter struct {
 	*controllers.LangChainController
 }
 
-// Implement any missing methods needed by the TUI
+// Implement any missing methods needed by the interface
 func (lca *LangChainControllerAdapter) StartStreaming(ctx context.Context, content string) (<-chan controllers.StreamingUpdate, error) {
 	return lca.LangChainController.StartStreaming(ctx, content)
 }
 
+// SetOllamaClient accepts any type to satisfy tui.ControllerInterface
 func (lca *LangChainControllerAdapter) SetOllamaClient(client any) {
+	// LangChainController also expects any type, so we can pass it directly
 	lca.LangChainController.SetOllamaClient(client)
 }
 
@@ -42,7 +46,63 @@ func (lca *LangChainControllerAdapter) CleanThinkingBlocks() {
 	lca.LangChainController.CleanThinkingBlocks()
 }
 
+// GetLastAssistantMessage returns the last assistant message from the conversation
+func (lca *LangChainControllerAdapter) GetLastAssistantMessage() (chat.Message, bool) {
+	history := lca.GetHistory()
+	for i := len(history) - 1; i >= 0; i-- {
+		if history[i].Role == "assistant" {
+			return history[i], true
+		}
+	}
+	return chat.Message{}, false
+}
+
+// GetLastUserMessage returns the last user message from the conversation
+func (lca *LangChainControllerAdapter) GetLastUserMessage() (chat.Message, bool) {
+	history := lca.GetHistory()
+	for i := len(history) - 1; i >= 0; i-- {
+		if history[i].Role == "human" {
+			return history[i], true
+		}
+	}
+	return chat.Message{}, false
+}
+
+// GetMessageCount returns the number of messages in the conversation
+func (lca *LangChainControllerAdapter) GetMessageCount() int {
+	return len(lca.GetHistory())
+}
+
+// HasSystemMessage returns true if the conversation has a system message
+func (lca *LangChainControllerAdapter) HasSystemMessage() bool {
+	history := lca.GetHistory()
+	for _, msg := range history {
+		if msg.Role == "system" {
+			return true
+		}
+	}
+	return false
+}
+
+// SetModelWithValidation sets the model after validating it
+func (lca *LangChainControllerAdapter) SetModelWithValidation(model string) error {
+	if err := lca.ValidateModel(model); err != nil {
+		return err
+	}
+	lca.SetModel(model)
+	return nil
+}
+
+// SetToolRegistry sets the tool registry
+func (lca *LangChainControllerAdapter) SetToolRegistry(registry *tools.Registry) {
+	// LangChainController doesn't have SetToolRegistry method
+	// The tool registry is set during construction via NewLangChainController
+	// This is a no-op for compatibility with the interface
+}
+
 var cfgFile string
+var directPrompt string
+var noTUI bool
 
 var rootCmd = &cobra.Command{
 	Use:   "ryan",
@@ -196,6 +256,68 @@ var rootCmd = &cobra.Command{
 			log.Debug("Continuing from previous chat history")
 		}
 
+		// Check if we should execute a direct prompt
+		if directPrompt != "" || noTUI {
+			if directPrompt == "" {
+				fmt.Printf("Error: --prompt is required when using --no-tui\n")
+				return
+			}
+
+			log.Info("Executing direct prompt", "prompt", directPrompt)
+			
+			// Create orchestrator with new API
+			orchestrator := agents.NewOrchestrator()
+			
+			// Register built-in agents with tool registry
+			if err := orchestrator.RegisterBuiltinAgents(toolRegistry); err != nil {
+				log.Error("Failed to register built-in agents", "error", err)
+				fmt.Printf("Failed to register agents: %v\n", err)
+				return
+			}
+			
+			// Execute the prompt
+			ctx := context.Background()
+			result, err := orchestrator.Execute(ctx, directPrompt, nil)
+			if err != nil {
+				log.Error("Failed to execute prompt", "error", err)
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+			
+			// Output results
+			fmt.Printf("\n=== Agent: %s ===\n", result.Metadata.AgentName)
+			fmt.Printf("Status: %s\n", map[bool]string{true: "Success", false: "Failed"}[result.Success])
+			fmt.Printf("Summary: %s\n\n", result.Summary)
+			
+			if result.Details != "" {
+				fmt.Printf("=== Details ===\n%s\n", result.Details)
+			}
+			
+			if len(result.Artifacts) > 0 {
+				fmt.Printf("\n=== Artifacts ===\n")
+				for key, value := range result.Artifacts {
+					fmt.Printf("%s: %v\n", key, value)
+				}
+			}
+			
+			fmt.Printf("\n=== Execution Info ===\n")
+			fmt.Printf("Duration: %v\n", result.Metadata.Duration)
+			if len(result.Metadata.ToolsUsed) > 0 {
+				fmt.Printf("Tools Used: %v\n", result.Metadata.ToolsUsed)
+			}
+			if len(result.Metadata.FilesProcessed) > 0 {
+				fmt.Printf("Files Processed: %d\n", len(result.Metadata.FilesProcessed))
+			}
+			
+			// Close log files and exit
+			if err := logger.Close(); err != nil {
+				fmt.Printf("Failed to close log files: %v\n", err)
+			}
+			
+			// Exit after direct prompt execution
+			return
+		}
+
 		log.Info("Creating TUI application")
 		// Convert LangChain controller to interface that TUI expects
 		app, err := tui.NewApp(&LangChainControllerAdapter{langchainController})
@@ -232,4 +354,6 @@ func init() {
 	rootCmd.PersistentFlags().String("model", "", "model to use (overrides config)")
 	rootCmd.PersistentFlags().String("ollama.system_prompt", "", "system prompt to use (overrides config)")
 	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")
+	rootCmd.PersistentFlags().StringVarP(&directPrompt, "prompt", "p", "", "execute a prompt directly without entering TUI")
+	rootCmd.PersistentFlags().BoolVar(&noTUI, "no-tui", false, "run without TUI (requires --prompt)")
 }
