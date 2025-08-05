@@ -412,3 +412,106 @@ func createTestRequest(prompt string) AgentRequest {
 		Options: make(map[string]interface{}),
 	}
 }
+
+func TestTaskQueue(t *testing.T) {
+	queue := NewTaskQueue()
+	
+	t.Run("Enqueue and Dequeue", func(t *testing.T) {
+		task := Task{
+			ID:       "test1",
+			Agent:    "test_agent",
+			Request:  createTestRequest("test prompt"),
+			Priority: 1,
+		}
+		
+		queue.Enqueue(task)
+		
+		dequeuedTask, ok := queue.Dequeue()
+		assert.True(t, ok)
+		assert.Equal(t, "test1", dequeuedTask.ID)
+		
+		// Queue should be empty now
+		_, ok = queue.Dequeue()
+		assert.False(t, ok)
+	})
+}
+
+func TestDependencyGraph_CanExecute(t *testing.T) {
+	graph := NewDependencyGraph()
+	
+	// Need to manually build dependencies since we're testing the low-level function
+	graph.dependencies = map[string][]string{
+		"dependent": {"dep1", "dep2"},
+	}
+	
+	t.Run("No dependencies", func(t *testing.T) {
+		completed := make(map[string]bool)
+		canExecute := graph.CanExecute("independent", completed)
+		assert.True(t, canExecute)
+	})
+	
+	t.Run("With completed dependencies", func(t *testing.T) {
+		completed := map[string]bool{
+			"dep1": true,
+			"dep2": true,
+		}
+		
+		canExecute := graph.CanExecute("dependent", completed)
+		assert.True(t, canExecute)
+	})
+	
+	t.Run("With incomplete dependencies", func(t *testing.T) {
+		completed := map[string]bool{
+			"dep1": true,
+			"dep2": false,
+		}
+		
+		canExecute := graph.CanExecute("dependent", completed)
+		assert.False(t, canExecute)
+	})
+}
+
+func TestProgressTracker_GetProgress(t *testing.T) {
+	tracker := NewProgressTracker()
+	
+	planID := "test-plan"
+	tracker.StartPlan(planID, 3) // 3 total tasks
+	
+	progress, ok := tracker.GetProgress(planID)
+	assert.True(t, ok)
+	assert.Equal(t, 0, progress.CompletedTasks)
+	assert.Equal(t, 3, progress.TotalTasks)
+	
+	// Complete a task
+	tracker.StartTask("task1")
+	tracker.CompleteTask("task1")
+	
+	progress, ok = tracker.GetProgress(planID)
+	assert.True(t, ok)
+	assert.Equal(t, 1, progress.CompletedTasks)
+}
+
+func TestWorkerPool_Submit(t *testing.T) {
+	pool := NewWorkerPool(1)
+	defer pool.Shutdown()
+	
+	executed := false
+	
+	job := func() {
+		executed = true
+	}
+	
+	pool.Submit(job)
+	
+	// Give some time for the job to execute
+	time.Sleep(100 * time.Millisecond)
+	
+	assert.True(t, executed)
+}
+
+func TestWorkerPool_Shutdown(t *testing.T) {
+	pool := NewWorkerPool(1)
+	
+	// This should not panic
+	pool.Shutdown()
+}

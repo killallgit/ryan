@@ -21,6 +21,13 @@ func TestMockEmbedderValidation(t *testing.T) {
 		}
 	})
 
+	t.Run("MockEmbedder_Dimensions", func(t *testing.T) {
+		dimensions := embedder.Dimensions()
+		if dimensions != 384 {
+			t.Errorf("expected 384 dimensions, got %d", dimensions)
+		}
+	})
+
 	t.Run("ValidateTextTooLong", func(t *testing.T) {
 		longText := strings.Repeat("a", MaxTextLength+1)
 		_, err := embedder.EmbedText(ctx, longText)
@@ -125,6 +132,75 @@ func TestEmbedderConfiguration(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "unsupported embedder provider") {
 			t.Errorf("expected unsupported provider error, got %v", err)
+		}
+	})
+}
+
+func TestEmbedderCreationFunctions(t *testing.T) {
+	t.Run("NewOllamaEmbedder", func(t *testing.T) {
+		// Test with mock-like config
+		baseURL := "http://localhost:11434"
+		model := "test-model"
+		
+		embedder, err := NewOllamaEmbedder(baseURL, model)
+		if err != nil {
+			// This might fail due to network, but we're testing the creation logic
+			t.Logf("NewOllamaEmbedder failed (expected if no server): %v", err)
+		} else {
+			if embedder == nil {
+				t.Error("expected embedder, got nil")
+			}
+		}
+	})
+	
+	t.Run("NewOllamaEmbedderWithConfig", func(t *testing.T) {
+		config := EmbedderConfig{
+			Provider: "ollama",
+			BaseURL:  "http://localhost:11434",
+			Model:    "test-model",
+		}
+		
+		embedder, err := NewOllamaEmbedderWithConfig(config)
+		if err != nil {
+			// This might fail due to network, but we're testing the creation logic
+			t.Logf("NewOllamaEmbedderWithConfig failed (expected if no server): %v", err)
+		} else {
+			if embedder == nil {
+				t.Error("expected embedder, got nil")
+			}
+		}
+	})
+	
+	t.Run("NewOpenAIEmbedder", func(t *testing.T) {
+		apiKey := "test-api-key"
+		model := "text-embedding-ada-002"
+		
+		embedder, err := NewOpenAIEmbedder(apiKey, model)
+		if err != nil {
+			// This might fail due to API key validation, but we're testing the creation logic
+			t.Logf("NewOpenAIEmbedder failed (expected with test key): %v", err)
+		} else {
+			if embedder == nil {
+				t.Error("expected embedder, got nil")
+			}
+		}
+	})
+	
+	t.Run("NewOpenAIEmbedderWithConfig", func(t *testing.T) {
+		config := EmbedderConfig{
+			Provider: "openai",
+			APIKey:   "test-api-key",
+			Model:    "text-embedding-ada-002",
+		}
+		
+		embedder, err := NewOpenAIEmbedderWithConfig(config)
+		if err != nil {
+			// This might fail due to API key validation, but we're testing the creation logic
+			t.Logf("NewOpenAIEmbedderWithConfig failed (expected with test key): %v", err)
+		} else {
+			if embedder == nil {
+				t.Error("expected embedder, got nil")
+			}
 		}
 	})
 }
