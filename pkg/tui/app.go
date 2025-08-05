@@ -68,6 +68,18 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	theme := DefaultTheme()
 	ApplyTheme(theme)
 	
+	// Set application background color
+	tviewApp.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
+		screen.Clear()
+		w, h := screen.Size()
+		for x := 0; x < w; x++ {
+			for y := 0; y < h; y++ {
+				screen.SetContent(x, y, ' ', nil, tcell.StyleDefault.Background(ColorBase00))
+			}
+		}
+		return false
+	})
+	
 	app := &App{
 		app:         tviewApp,
 		pages:       tview.NewPages(),
@@ -79,6 +91,9 @@ func NewApp(controller ControllerInterface) (*App, error) {
 		cancelSend:  make(chan bool, 1),
 		config:      cfg,
 	}
+	
+	// Set background color for pages container
+	app.pages.SetBackgroundColor(ColorBase00)
 	
 	// Initialize views
 	if err := app.initializeViews(); err != nil {
