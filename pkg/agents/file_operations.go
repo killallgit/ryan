@@ -126,7 +126,6 @@ func (f *FileOperationsAgent) determineOperation(prompt string) string {
 	if strings.Contains(lowerPrompt, "write") || strings.Contains(lowerPrompt, "create") {
 		return "write"
 	}
-
 	if strings.Contains(lowerPrompt, "list") {
 		return "list"
 	}
@@ -408,8 +407,18 @@ func (f *FileOperationsAgent) extractPath(prompt string) string {
 	// Look for path-like patterns
 	words := strings.Fields(prompt)
 	for _, word := range words {
-		if strings.Contains(word, "/") || strings.HasSuffix(word, ".go") {
-			return strings.Trim(word, "\"',.")
+		// Handle relative paths like ./file.txt or absolute paths /path/file
+		if strings.Contains(word, "/") {
+			// Don't trim dots from the beginning for relative paths
+			return strings.Trim(word, "\"',")
+		}
+		
+		// Handle file extensions
+		if strings.Contains(word, ".") && len(word) > 1 {
+			// Check if it looks like a filename (has extension)
+			if dotIdx := strings.LastIndex(word, "."); dotIdx > 0 && dotIdx < len(word)-1 {
+				return strings.Trim(word, "\"',")
+			}
 		}
 	}
 

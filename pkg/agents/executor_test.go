@@ -495,10 +495,13 @@ func TestWorkerPool_Submit(t *testing.T) {
 	pool := NewWorkerPool(1)
 	defer pool.Shutdown()
 	
-	executed := false
+	var executed bool
+	var mu sync.Mutex
 	
 	job := func() {
+		mu.Lock()
 		executed = true
+		mu.Unlock()
 	}
 	
 	pool.Submit(job)
@@ -506,7 +509,11 @@ func TestWorkerPool_Submit(t *testing.T) {
 	// Give some time for the job to execute
 	time.Sleep(100 * time.Millisecond)
 	
-	assert.True(t, executed)
+	mu.Lock()
+	result := executed
+	mu.Unlock()
+	
+	assert.True(t, result)
 }
 
 func TestWorkerPool_Shutdown(t *testing.T) {

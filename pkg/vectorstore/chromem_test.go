@@ -110,8 +110,8 @@ func TestChromemCollection_QueryWithEmbedding(t *testing.T) {
 	for _, result := range results {
 		assert.NotEmpty(t, result.Document.ID)
 		assert.NotEmpty(t, result.Document.Content)
-		assert.GreaterOrEqual(t, result.Score, 0.0)
-		assert.LessOrEqual(t, result.Score, 1.0)
+		assert.GreaterOrEqual(t, result.Score, float32(0.0))
+		assert.LessOrEqual(t, result.Score, float32(1.0))
 	}
 }
 
