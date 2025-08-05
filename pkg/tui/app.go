@@ -325,11 +325,14 @@ func (a *App) SendMessage(content string) {
 	log.Debug("Sending message", "content", content)
 
 	a.sending = true
-	a.chatView.SetSending(true)
 
+	// Update UI immediately to show sending state
+	a.chatView.SetSending(true)
 	// Add user message
 	a.controller.AddUserMessage(content)
 	a.chatView.UpdateMessages()
+	// Force immediate redraw
+	a.app.Draw()
 
 	// Send message in goroutine
 	go func() {
@@ -405,6 +408,19 @@ func (a *App) processStreamingUpdates(updates <-chan controllers.StreamingUpdate
 				a.streaming = false
 				a.controller.AddErrorMessage(fmt.Sprintf("Stream error: %v", update.Error))
 				a.chatView.UpdateMessages()
+			})
+
+		case controllers.AgentActivityUpdate:
+			// Update the activity tree display with formatted output
+			activityTreeStr := update.Metadata.ActivityTree
+			log.Debug("Received activity update", "tree_length", len(activityTreeStr))
+			a.app.QueueUpdateDraw(func() {
+				if a.chatView != nil {
+					// The activity tree string is already formatted by the controller
+					// Just pass it to the chat view for display
+					a.chatView.UpdateActivityTree(activityTreeStr)
+					log.Debug("Updated chat view with activity tree")
+				}
 			})
 		}
 	}

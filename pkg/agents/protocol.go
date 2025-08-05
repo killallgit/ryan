@@ -61,12 +61,15 @@ type FileInfo struct {
 
 // ProgressUpdate represents a progress update
 type ProgressUpdate struct {
-	TaskID    string
-	Agent     string
-	Status    string
-	Progress  float64
-	Message   string
-	Timestamp time.Time
+	TaskID        string
+	Agent         string
+	Status        string
+	Operation     string        // e.g., "Bash(ls -al)", "Read(file.go)", "SpawnAgent(FileAgent)"
+	OperationType OperationType // tool, agent_spawn, analysis, planning, execution
+	ParentTaskID  string        // For nested operations
+	Progress      float64
+	Message       string
+	Timestamp     time.Time
 }
 
 // Task represents a single task in an execution plan
