@@ -24,7 +24,7 @@ jobs:
 
       - name: Run tests and extract %
         run: |
-          go test go test ./pkg/... ./cmd/... -coverprofile=coverage.out
+          go test ./pkg/... ./cmd/... -coverprofile=coverage.out
           pct=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')
           echo "$pct" | tr -d '%' > COVERAGE
 
