@@ -26,7 +26,7 @@ func NewVectorStoreView() *VectorStoreView {
 		SetDynamicColors(true).
 		SetWordWrap(true)
 	vv.info.SetBorder(false).SetTitle("")
-	vv.info.SetBackgroundColor(GetTcellColor(ColorBase01))
+	vv.info.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	
 	// Create collections table
 	vv.table = tview.NewTable().
@@ -35,16 +35,16 @@ func NewVectorStoreView() *VectorStoreView {
 		SetFixed(1, 0).
 		SetSeparator(' ')
 	vv.table.SetBorder(false).SetTitle("")
-	vv.table.SetBackgroundColor(GetTcellColor(ColorBase00))
+	vv.table.SetBackgroundColor(tcell.GetColor(ColorBase00))
 	
 	// Create headers
 	headers := []string{"Collection", "Documents", "Embeddings", "Status"}
 	for col, header := range headers {
 		cell := tview.NewTableCell(header).
-			SetTextColor(GetTcellColor(ColorYellow)).
+			SetTextColor(tcell.GetColor(ColorYellow)).
 			SetAlign(tview.AlignLeft).
 			SetSelectable(false).
-			SetBackgroundColor(GetTcellColor(ColorBase01)).
+			SetBackgroundColor(tcell.GetColor(ColorBase01)).
 			SetExpansion(1)
 		vv.table.SetCell(0, col, cell)
 	}
@@ -53,7 +53,7 @@ func NewVectorStoreView() *VectorStoreView {
 	vv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	vv.status.SetBackgroundColor(GetTcellColor(ColorBase01))
+	vv.status.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	vv.status.SetTextAlign(tview.AlignCenter)
 	vv.status.SetText("[#5c5044]Press r to refresh | c to create collection | d to delete | Esc to go back[-]")
 	
@@ -121,22 +121,22 @@ func (vv *VectorStoreView) refresh() {
 	
 	// Add sample data
 	vv.table.SetCell(1, 0, tview.NewTableCell("default").
-		SetTextColor(GetTcellColor(ColorBase05)).
+		SetTextColor(tcell.GetColor(ColorBase05)).
 		SetAlign(tview.AlignLeft).
-		SetBackgroundColor(GetTcellColor(ColorBase00)).
+		SetBackgroundColor(tcell.GetColor(ColorBase00)).
 		SetExpansion(1))
 	vv.table.SetCell(1, 1, tview.NewTableCell("0").
-		SetTextColor(GetTcellColor(ColorBase05)).
+		SetTextColor(tcell.GetColor(ColorBase05)).
 		SetAlign(tview.AlignLeft).
-		SetBackgroundColor(GetTcellColor(ColorBase00)).
+		SetBackgroundColor(tcell.GetColor(ColorBase00)).
 		SetExpansion(1))
 	vv.table.SetCell(1, 2, tview.NewTableCell("0").
-		SetTextColor(GetTcellColor(ColorBase05)).
+		SetTextColor(tcell.GetColor(ColorBase05)).
 		SetAlign(tview.AlignLeft).
-		SetBackgroundColor(GetTcellColor(ColorBase00)).
+		SetBackgroundColor(tcell.GetColor(ColorBase00)).
 		SetExpansion(1))
 	vv.table.SetCell(1, 3, tview.NewTableCell("[#93b56b]Ready[-]").
 		SetAlign(tview.AlignLeft).
-		SetBackgroundColor(GetTcellColor(ColorBase00)).
+		SetBackgroundColor(tcell.GetColor(ColorBase00)).
 		SetExpansion(1))
 }

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/tools"
 	"github.com/rivo/tview"
 )
@@ -35,16 +36,16 @@ func NewToolsView(registry *tools.Registry) *ToolsView {
 		SetSeparator(' ')
 	
 	tv.table.SetBorder(false).SetTitle("")
-	tv.table.SetBackgroundColor(GetTcellColor(ColorBase00))
+	tv.table.SetBackgroundColor(tcell.GetColor(ColorBase00))
 	
 	// Create headers
 	headers := []string{"Tool", "Description", "Status"}
 	for col, header := range headers {
 		cell := tview.NewTableCell(header).
-			SetTextColor(GetTcellColor(ColorYellow)).
+			SetTextColor(tcell.GetColor(ColorYellow)).
 			SetAlign(tview.AlignLeft).
 			SetSelectable(false).
-			SetBackgroundColor(GetTcellColor(ColorBase01)).
+			SetBackgroundColor(tcell.GetColor(ColorBase01)).
 			SetExpansion(1)
 		tv.table.SetCell(0, col, cell)
 	}
@@ -53,7 +54,7 @@ func NewToolsView(registry *tools.Registry) *ToolsView {
 	tv.status = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	tv.status.SetBackgroundColor(GetTcellColor(ColorBase01))
+	tv.status.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	
 	// Create padded table area
 	tableContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -106,14 +107,14 @@ func (tv *ToolsView) refreshTools() {
 		}
 		
 		// Alternate row colors
-		bgColor := GetTcellColor(ColorBase00)
+		bgColor := tcell.GetColor(ColorBase00)
 		if row%2 == 0 {
-			bgColor = GetTcellColor(ColorBase01)
+			bgColor = tcell.GetColor(ColorBase01)
 		}
 		
 		// Tool name
 		tv.table.SetCell(row, 0, tview.NewTableCell(toolName).
-			SetTextColor(GetTcellColor(ColorCyan)).
+			SetTextColor(tcell.GetColor(ColorCyan)).
 			SetAlign(tview.AlignLeft).
 			SetBackgroundColor(bgColor).
 			SetExpansion(1))
@@ -124,7 +125,7 @@ func (tv *ToolsView) refreshTools() {
 			desc = describable.Description()
 		}
 		tv.table.SetCell(row, 1, tview.NewTableCell(desc).
-			SetTextColor(GetTcellColor(ColorBase05)).
+			SetTextColor(tcell.GetColor(ColorBase05)).
 			SetAlign(tview.AlignLeft).
 			SetBackgroundColor(bgColor).
 			SetExpansion(2))

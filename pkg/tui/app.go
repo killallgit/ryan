@@ -82,7 +82,7 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	}
 	
 	// Set background color for pages container
-	app.pages.SetBackgroundColor(GetTcellColor(ColorBase00))
+	app.pages.SetBackgroundColor(tcell.GetColor(ColorBase00))
 	
 	// Initialize views
 	if err := app.initializeViews(); err != nil {
@@ -243,7 +243,7 @@ func (a *App) showViewSwitcher() {
 		})
 	
 	list.SetBorder(false).
-		SetBackgroundColor(GetTcellColor(ColorBase01))
+		SetBackgroundColor(tcell.GetColor(ColorBase01))
 	list.ShowSecondaryText(false)
 	
 	// Setup key bindings for j/k navigation
@@ -274,18 +274,18 @@ func (a *App) showViewSwitcher() {
 	
 	// Create outer container with background
 	outerContainer := tview.NewBox().
-		SetBackgroundColor(GetTcellColor(ColorBase01))
+		SetBackgroundColor(tcell.GetColor(ColorBase01))
 	
 	// Create inner flex for horizontal padding
 	innerFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
-	innerFlex.SetBackgroundColor(GetTcellColor(ColorBase01))
+	innerFlex.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	innerFlex.AddItem(nil, 3, 0, false)  // Left padding
 	innerFlex.AddItem(list, 0, 1, true)  // List content
 	innerFlex.AddItem(nil, 3, 0, false)  // Right padding
 	
 	// Create a wrapper that adds padding between the outer container and list
 	paddedWrapper := tview.NewFlex().SetDirection(tview.FlexRow)
-	paddedWrapper.SetBackgroundColor(GetTcellColor(ColorBase01))
+	paddedWrapper.SetBackgroundColor(tcell.GetColor(ColorBase01))
 	paddedWrapper.AddItem(nil, 2, 0, false)  // Top padding
 	paddedWrapper.AddItem(innerFlex, 0, 1, true)  // Content with horizontal padding
 	paddedWrapper.AddItem(nil, 2, 0, false)  // Bottom padding
