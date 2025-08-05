@@ -23,7 +23,7 @@ tasks:
       - ./bin/ryan
   test:
     cmds:
-      - go test ./pkg/... ./integration/... ./cmd/...
+      - go test -coverprofile=coverage.out ./pkg/... ./integration/... ./cmd/...
   
   test:unit:
     desc: Run only unit tests (excludes integration tests)
