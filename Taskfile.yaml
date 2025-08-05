@@ -20,6 +20,7 @@ tasks:
     cmds:
       - go fmt ./pkg/... ./integration/... ./cmd/...
       - go vet ./pkg/... ./integration/... ./cmd/...
+      - uvx pre-commit run --all-files
   build:
     cmds:
     - go build -o bin/ryan main.go
