@@ -17,7 +17,7 @@ type ViewManager struct {
 	views       map[string]View
 	currentView string
 	menuVisible bool
-	menu        MenuComponent
+	menu        CommandPalette
 }
 
 func NewViewManager() *ViewManager {
@@ -25,7 +25,7 @@ func NewViewManager() *ViewManager {
 		views:       make(map[string]View),
 		currentView: "",
 		menuVisible: false,
-		menu:        NewMenuComponent(),
+		menu:        NewCommandPalette(),
 	}
 }
 
@@ -110,41 +110,23 @@ func (vm *ViewManager) HandleMenuKeyEvent(ev *tcell.EventKey) bool {
 		return false
 	}
 
-	switch ev.Key() {
-	case tcell.KeyEscape:
-		vm.menuVisible = false
-		return true
-
-	case tcell.KeyEnter:
+	// Let the command palette handle the key event
+	newMenu, handled, shouldClose := vm.menu.HandleKeyEvent(ev)
+	vm.menu = newMenu
+	
+	if !handled {
+		return false
+	}
+	
+	if shouldClose {
 		selectedView := vm.menu.GetSelectedOption()
 		if selectedView != "" {
 			vm.SetCurrentView(selectedView)
-			return true
 		}
-		return false
-
-	case tcell.KeyUp, tcell.KeyCtrlP:
-		vm.menu = vm.menu.SelectPrevious()
-		return true
-
-	case tcell.KeyDown, tcell.KeyCtrlN:
-		vm.menu = vm.menu.SelectNext()
-		return true
-
-	default:
-		if ev.Rune() != 0 {
-			switch ev.Rune() {
-			case 'j', 'J':
-				vm.menu = vm.menu.SelectNext()
-				return true
-			case 'k', 'K':
-				vm.menu = vm.menu.SelectPrevious()
-				return true
-			}
-		}
+		vm.menuVisible = false
 	}
-
-	return false
+	
+	return true
 }
 
 func (vm *ViewManager) HandleMenuMouseEvent(ev *tcell.EventMouse) bool {
@@ -182,37 +164,23 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 		return
 	}
 
-	// Calculate optimal menu width based on content - wider command palette style
-	maxDescLen := 0
-	for _, view := range vm.views {
-		descLen := len(view.Description())
-		if descLen > maxDescLen {
-			maxDescLen = descLen
-		}
+	// Command palette style: larger, centered modal
+	menuWidth := 70 // Fixed width for consistency
+	if menuWidth > area.Width-4 {
+		menuWidth = area.Width - 4 // minimal margin
 	}
 
-	// Command palette style: wider menu with more padding
-	menuWidth := maxDescLen + 8 // description + padding
-	if menuWidth < 60 {
-		menuWidth = 60 // minimum width for command palette
-	}
-	if menuWidth > area.Width-6 {
-		menuWidth = area.Width - 6 // minimal margin
+	menuHeight := 15 // Fixed height for command palette
+	if menuHeight > area.Height-2 {
+		menuHeight = area.Height - 2 // leave margin
 	}
 
-	// Ensure minimum menu width
+	// Ensure minimum menu size
 	if menuWidth < 30 {
 		menuWidth = 30
 	}
-
-	menuHeight := len(vm.views) + 2 // options + borders only (no header/footer)
-
-	// Ensure minimum menu height
-	if menuHeight < 6 {
-		menuHeight = 6
-	}
-	if menuHeight > area.Height-2 {
-		menuHeight = area.Height - 2 // leave margin
+	if menuHeight < 8 {
+		menuHeight = 8
 	}
 
 	menuX := (area.Width - menuWidth) / 2
@@ -234,5 +202,7 @@ func (vm *ViewManager) renderMenu(screen tcell.Screen, area Rect) {
 		Height: menuHeight,
 	}
 
+	// Update command palette size and render
+	vm.menu = vm.menu.WithSize(menuWidth, menuHeight)
 	vm.menu.Render(screen, menuArea)
 }

@@ -12,24 +12,38 @@ import (
 
 // ToolsView displays registered tools and their statistics
 type ToolsView struct {
-	toolRegistry *tools.Registry
-	width        int
-	height       int
-	scrollY      int
-	selectedRow  int
-	showDetails  bool
+	toolRegistry       *tools.Registry
+	compatibilityTester *tools.CompatibilityTester
+	currentModel       string
+	width              int
+	height             int
+	scrollY            int
+	selectedRow        int
+	showDetails        bool
 }
 
 // NewToolsView creates a new tools view
 func NewToolsView(toolRegistry *tools.Registry) *ToolsView {
 	return &ToolsView{
-		toolRegistry: toolRegistry,
-		width:        80,
-		height:       24,
-		scrollY:      0,
-		selectedRow:  0,
-		showDetails:  false,
+		toolRegistry:       toolRegistry,
+		compatibilityTester: nil, // Will be set via SetCompatibilityTester
+		currentModel:       "",
+		width:              80,
+		height:             24,
+		scrollY:            0,
+		selectedRow:        0,
+		showDetails:        false,
 	}
+}
+
+// SetCompatibilityTester sets the compatibility tester for this view
+func (v *ToolsView) SetCompatibilityTester(tester *tools.CompatibilityTester) {
+	v.compatibilityTester = tester
+}
+
+// SetCurrentModel sets the current model to show compatibility for
+func (v *ToolsView) SetCurrentModel(modelName string) {
+	v.currentModel = modelName
 }
 
 // Name returns the view name for registration
@@ -186,8 +200,16 @@ func (v *ToolsView) renderToolsList(screen tcell.Screen, area Rect, toolNames []
 		}
 	}
 
+	// Compatibility column (12 chars)
+	compatX := headerX + 85
+	for i, ch := range "Compatibility" {
+		if compatX+i < area.X+area.Width {
+			screen.SetContent(compatX+i, area.Y, ch, nil, headerStyle)
+		}
+	}
+
 	// Avg Time column
-	avgTimeX := headerX + 85
+	avgTimeX := headerX + 98
 	for i, ch := range "Avg Time" {
 		if avgTimeX+i < area.X+area.Width {
 			screen.SetContent(avgTimeX+i, area.Y, ch, nil, headerStyle)
@@ -272,6 +294,40 @@ func (v *ToolsView) renderToolsList(screen tcell.Screen, area Rect, toolNames []
 		for j, ch := range runningText {
 			if runningX+j < area.X+area.Width {
 				screen.SetContent(runningX+j, rowY, ch, nil, runningStyle)
+			}
+		}
+
+		// Compatibility status
+		compatText := "Unknown"
+		compatStyle := rowStyle
+		if v.compatibilityTester != nil && v.currentModel != "" {
+			if result := v.compatibilityTester.GetCompatibilityResult(v.currentModel, toolName); result != nil {
+				switch result.Status {
+				case tools.CompatibilitySupported:
+					compatText = "✓ Supported"
+					compatStyle = rowStyle.Foreground(tcell.ColorGreen)
+				case tools.CompatibilityUnsupported:
+					compatText = "✗ Unsupported"
+					compatStyle = rowStyle.Foreground(tcell.ColorRed)
+				case tools.CompatibilityTesting:
+					compatText = "⋯ Testing"
+					compatStyle = rowStyle.Foreground(tcell.ColorYellow)
+				case tools.CompatibilityError:
+					compatText = "! Error"
+					compatStyle = rowStyle.Foreground(tcell.ColorRed)
+				default:
+					compatText = "? Unknown"
+					compatStyle = rowStyle.Foreground(tcell.ColorGray)
+				}
+			}
+		}
+		// Truncate if too long
+		if len(compatText) > 12 {
+			compatText = compatText[:9] + "..."
+		}
+		for j, ch := range compatText {
+			if compatX+j < area.X+area.Width {
+				screen.SetContent(compatX+j, rowY, ch, nil, compatStyle)
 			}
 		}
 

@@ -22,9 +22,9 @@ var _ = Describe("Streaming Integration Tests", func() {
 	)
 
 	BeforeEach(func() {
-		// Skip if SKIP_STREAMING_INTEGRATION is set
-		if os.Getenv("SKIP_STREAMING_INTEGRATION") == "1" {
-			Skip("Streaming integration tests skipped (SKIP_STREAMING_INTEGRATION=1)")
+		// Skip integration tests unless explicitly enabled
+		if os.Getenv("INTEGRATION_TEST") != "true" {
+			Skip("Integration tests skipped. Set INTEGRATION_TEST=true to run.")
 		}
 
 		// Configure test settings

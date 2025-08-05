@@ -49,7 +49,7 @@ func DefaultDocumentIndexerConfig() DocumentIndexerConfig {
 		ExcludePatterns: []string{
 			"node_modules", ".git", ".svn", "vendor", "__pycache__", ".pytest_cache",
 			"build", "dist", "target", "bin", "obj", ".vscode", ".idea",
-			"*.min.js", "*.min.css", "*.bundle.js", "*.lock", "*.sum",
+			"*.min.js", "*.min.css", "*.bundle.js", "*.lock", "*.sum", "*.log",
 		},
 		ChunkSize:      1000,
 		UpdateInterval: 5 * time.Minute,

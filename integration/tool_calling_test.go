@@ -30,6 +30,11 @@ var _ = Describe("Tool Calling Integration", func() {
 	)
 
 	BeforeEach(func() {
+		// Skip integration tests unless explicitly enabled
+		if os.Getenv("INTEGRATION_TEST") != "true" {
+			Skip("Integration tests skipped. Set INTEGRATION_TEST=true to run.")
+		}
+		
 		// Get Ollama URL from environment or use default
 		ollamaURL = os.Getenv("OLLAMA_URL")
 		if ollamaURL == "" {
