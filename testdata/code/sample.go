@@ -35,7 +35,7 @@ func (us *UserService) CreateUser(ctx context.Context, name, email string) (*Use
 	if name == "" {
 		return nil, fmt.Errorf("name cannot be empty")
 	}
-	
+
 	if email == "" {
 		return nil, fmt.Errorf("email cannot be empty")
 	}

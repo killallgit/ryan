@@ -204,7 +204,7 @@ The vector store is designed to handle:
 ## Future Enhancements
 
 - Distributed vector storage
-- Advanced chunking strategies  
+- Advanced chunking strategies
 - Multi-modal embeddings (text + code)
 - Real-time indexing capabilities
 - Enhanced metadata filtering
