@@ -274,19 +274,31 @@ func (a *App) showViewSwitcher() {
 		return event
 	})
 	
-	// Create a container for the list with generous padding
-	listContainer := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(nil, 2, 0, false).  // Top padding (increased)
-		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem(nil, 4, 0, false).  // Left padding (increased)
-			AddItem(list, 0, 1, true).  // List content
-			AddItem(nil, 4, 0, false), 0, 1, true).  // Right padding (increased)
-		AddItem(nil, 2, 0, false)  // Bottom padding (increased)
+	// Create outer container with background
+	outerContainer := tview.NewBox().
+		SetBackgroundColor(ColorBase01)
 	
-	listContainer.SetBackgroundColor(ColorBase01)
+	// Create inner flex for horizontal padding
+	innerFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
+	innerFlex.SetBackgroundColor(ColorBase01)
+	innerFlex.AddItem(nil, 3, 0, false)  // Left padding
+	innerFlex.AddItem(list, 0, 1, true)  // List content
+	innerFlex.AddItem(nil, 3, 0, false)  // Right padding
 	
-	// Create modal with height to show all 5 items (5 items + increased padding = 9)
-	modal := createModal(listContainer, 34, 9)
+	// Create a wrapper that adds padding between the outer container and list
+	paddedWrapper := tview.NewFlex().SetDirection(tview.FlexRow)
+	paddedWrapper.SetBackgroundColor(ColorBase01)
+	paddedWrapper.AddItem(nil, 2, 0, false)  // Top padding
+	paddedWrapper.AddItem(innerFlex, 0, 1, true)  // Content with horizontal padding
+	paddedWrapper.AddItem(nil, 2, 0, false)  // Bottom padding
+	
+	// Stack the background and padded content
+	modalContent := tview.NewPages().
+		AddPage("bg", outerContainer, true, true).
+		AddPage("content", paddedWrapper, true, true)
+	
+	// Create modal with height to show all 5 items plus padding
+	modal := createModal(modalContent, 30, 9)
 	
 	// Add as overlay
 	a.pages.AddPage("view-switcher", modal, true, true)
