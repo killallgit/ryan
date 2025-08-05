@@ -10,39 +10,12 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
-// CompatibilityStatus represents the compatibility status of a tool with a model
-type CompatibilityStatus int
-
-const (
-	CompatibilityUnknown CompatibilityStatus = iota
-	CompatibilityTesting
-	CompatibilitySupported
-	CompatibilityUnsupported
-	CompatibilityError
-)
-
-func (cs CompatibilityStatus) String() string {
-	switch cs {
-	case CompatibilityUnknown:
-		return "Unknown"
-	case CompatibilityTesting:
-		return "Testing"
-	case CompatibilitySupported:
-		return "Supported"
-	case CompatibilityUnsupported:
-		return "Unsupported"
-	case CompatibilityError:
-		return "Error"
-	default:
-		return "Unknown"
-	}
-}
 
 // CompatibilityResult represents the result of a compatibility test
 type CompatibilityResult struct {
 	ToolName           string                `json:"tool_name"`
 	ModelName          string                `json:"model_name"`
-	Status             CompatibilityStatus   `json:"status"`
+	Status             ToolCompatibilityStatus   `json:"status"`
 	SupportsToolCalls  bool                  `json:"supports_tool_calls"`
 	SupportsJSONSchema bool                  `json:"supports_json_schema"`
 	TestDuration       time.Duration         `json:"test_duration"`

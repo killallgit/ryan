@@ -12,40 +12,32 @@ import (
 
 // ToolsView displays registered tools and their statistics
 type ToolsView struct {
-	toolRegistry       *tools.Registry
-	compatibilityTester *tools.CompatibilityTester
-	currentModel       string
-	width              int
-	height             int
-	scrollY            int
-	selectedRow        int
-	showDetails        bool
+	toolRegistry *tools.Registry
+	width        int
+	height       int
+	scrollY      int
+	selectedRow  int
+	showDetails  bool
+	currentModel string
 }
 
 // NewToolsView creates a new tools view
 func NewToolsView(toolRegistry *tools.Registry) *ToolsView {
 	return &ToolsView{
-		toolRegistry:       toolRegistry,
-		compatibilityTester: nil, // Will be set via SetCompatibilityTester
-		currentModel:       "",
-		width:              80,
-		height:             24,
-		scrollY:            0,
-		selectedRow:        0,
-		showDetails:        false,
+		toolRegistry: toolRegistry,
+		width:        80,
+		height:       24,
+		scrollY:      0,
+		selectedRow:  0,
+		showDetails:  false,
+		currentModel: "",
 	}
 }
 
-// SetCompatibilityTester sets the compatibility tester for this view
-func (v *ToolsView) SetCompatibilityTester(tester *tools.CompatibilityTester) {
-	v.compatibilityTester = tester
+// SetCurrentModel updates the current model for compatibility display
+func (v *ToolsView) SetCurrentModel(model string) {
+	v.currentModel = model
 }
-
-// SetCurrentModel sets the current model to show compatibility for
-func (v *ToolsView) SetCurrentModel(modelName string) {
-	v.currentModel = modelName
-}
-
 // Name returns the view name for registration
 func (v *ToolsView) Name() string {
 	return "tools"
@@ -137,7 +129,7 @@ func (v *ToolsView) renderFooter(screen tcell.Screen, area Rect) {
 	}
 
 	// Render instructions
-	instructions := "↑/↓: Navigate | Enter: Details | R: Reset Stats | Escape: Back to chat"
+	instructions := "↑/↓/j/k: Navigate | Enter: Details | R: Reset Stats | Escape: Back to chat"
 	if v.showDetails {
 		instructions = "Escape: Back to list | R: Reset this tool's stats"
 	}
@@ -155,11 +147,6 @@ func (v *ToolsView) renderToolsList(screen tcell.Screen, area Rect, toolNames []
 	// Render column headers
 	headerStyle := tcell.StyleDefault.Bold(true).Foreground(tcell.ColorWhite).Background(tcell.ColorBlack)
 	headerX := area.X + 2
-
-	screen.SetContent(headerX, area.Y, 'N', nil, headerStyle)
-	screen.SetContent(headerX+1, area.Y, 'a', nil, headerStyle)
-	screen.SetContent(headerX+2, area.Y, 'm', nil, headerStyle)
-	screen.SetContent(headerX+3, area.Y, 'e', nil, headerStyle)
 
 	// Tool Name column (20 chars)
 	for i, ch := range "Tool Name" {
@@ -200,19 +187,19 @@ func (v *ToolsView) renderToolsList(screen tcell.Screen, area Rect, toolNames []
 		}
 	}
 
-	// Compatibility column (12 chars)
-	compatX := headerX + 85
-	for i, ch := range "Compatibility" {
-		if compatX+i < area.X+area.Width {
-			screen.SetContent(compatX+i, area.Y, ch, nil, headerStyle)
-		}
-	}
-
 	// Avg Time column
-	avgTimeX := headerX + 98
+	avgTimeX := headerX + 85
 	for i, ch := range "Avg Time" {
 		if avgTimeX+i < area.X+area.Width {
 			screen.SetContent(avgTimeX+i, area.Y, ch, nil, headerStyle)
+		}
+	}
+
+	// Compatibility column
+	compatX := headerX + 95
+	for i, ch := range "Compat" {
+		if compatX+i < area.X+area.Width {
+			screen.SetContent(compatX+i, area.Y, ch, nil, headerStyle)
 		}
 	}
 
@@ -222,7 +209,7 @@ func (v *ToolsView) renderToolsList(screen tcell.Screen, area Rect, toolNames []
 		if i < v.scrollY {
 			continue
 		}
-		
+
 		rowY := startY + i - v.scrollY
 		if rowY >= area.Y+area.Height {
 			break
@@ -297,40 +284,6 @@ func (v *ToolsView) renderToolsList(screen tcell.Screen, area Rect, toolNames []
 			}
 		}
 
-		// Compatibility status
-		compatText := "Unknown"
-		compatStyle := rowStyle
-		if v.compatibilityTester != nil && v.currentModel != "" {
-			if result := v.compatibilityTester.GetCompatibilityResult(v.currentModel, toolName); result != nil {
-				switch result.Status {
-				case tools.CompatibilitySupported:
-					compatText = "✓ Supported"
-					compatStyle = rowStyle.Foreground(tcell.ColorGreen)
-				case tools.CompatibilityUnsupported:
-					compatText = "✗ Unsupported"
-					compatStyle = rowStyle.Foreground(tcell.ColorRed)
-				case tools.CompatibilityTesting:
-					compatText = "⋯ Testing"
-					compatStyle = rowStyle.Foreground(tcell.ColorYellow)
-				case tools.CompatibilityError:
-					compatText = "! Error"
-					compatStyle = rowStyle.Foreground(tcell.ColorRed)
-				default:
-					compatText = "? Unknown"
-					compatStyle = rowStyle.Foreground(tcell.ColorGray)
-				}
-			}
-		}
-		// Truncate if too long
-		if len(compatText) > 12 {
-			compatText = compatText[:9] + "..."
-		}
-		for j, ch := range compatText {
-			if compatX+j < area.X+area.Width {
-				screen.SetContent(compatX+j, rowY, ch, nil, compatStyle)
-			}
-		}
-
 		// Average time
 		avgTimeText := "N/A"
 		if stats.CallCount > 0 {
@@ -342,8 +295,37 @@ func (v *ToolsView) renderToolsList(screen tcell.Screen, area Rect, toolNames []
 			}
 		}
 
+		// Compatibility status
+		compatText := "Unknown"
+		compatStyle := rowStyle
+		if v.currentModel != "" {
+			compatStatus := v.toolRegistry.GetToolCompatibility(toolName, v.currentModel)
+			compatText = compatStatus.String()
+
+			// Color code compatibility status
+			switch compatStatus {
+			case tools.CompatibilitySupported:
+				compatStyle = rowStyle.Foreground(tcell.ColorGreen)
+			case tools.CompatibilityUnsupported:
+				compatStyle = rowStyle.Foreground(tcell.ColorRed)
+			case tools.CompatibilityTesting:
+				compatStyle = rowStyle.Foreground(tcell.ColorYellow)
+			default:
+				compatStyle = rowStyle.Foreground(tcell.ColorGray)
+			}
+		}
+		for j, ch := range compatText {
+			if compatX+j < area.X+area.Width {
+				screen.SetContent(compatX+j, rowY, ch, nil, compatStyle)
+			}
+		}
+
 		// Fill the rest of the row
-		for x := avgTimeX + len(avgTimeText); x < area.X+area.Width; x++ {
+		fillStartX := compatX + len(compatText)
+		if fillStartX < avgTimeX+len(avgTimeText) {
+			fillStartX = avgTimeX + len(avgTimeText)
+		}
+		for x := fillStartX; x < area.X+area.Width; x++ {
 			screen.SetContent(x, rowY, ' ', nil, rowStyle)
 		}
 	}
@@ -421,6 +403,37 @@ func (v *ToolsView) renderToolDetails(screen tcell.Screen, area Rect, toolName s
 			y++
 		}
 	}
+
+	// Model Compatibility
+	if v.currentModel != "" {
+		y++
+		v.renderLine(screen, area.X, y, "Model Compatibility:", labelStyle)
+		y++
+
+		compatStatus := v.toolRegistry.GetToolCompatibility(toolName, v.currentModel)
+		compatText := fmt.Sprintf("Model %s: %s", v.currentModel, compatStatus.String())
+
+		compatStyle := normalStyle
+		switch compatStatus {
+		case tools.CompatibilitySupported:
+			compatStyle = normalStyle.Foreground(tcell.ColorGreen)
+		case tools.CompatibilityUnsupported:
+			compatStyle = normalStyle.Foreground(tcell.ColorRed)
+		case tools.CompatibilityTesting:
+			compatStyle = normalStyle.Foreground(tcell.ColorYellow)
+		default:
+			compatStyle = normalStyle.Foreground(tcell.ColorGray)
+		}
+
+		v.renderLine(screen, area.X+2, y, compatText, compatStyle)
+		y++
+
+		if lastTested, exists := stats.LastTested[v.currentModel]; exists && !lastTested.IsZero() {
+			testedTime := lastTested.Format("2006-01-02 15:04:05")
+			v.renderLine(screen, area.X+2, y, fmt.Sprintf("Last Tested: %s", testedTime), normalStyle)
+			y++
+		}
+	}
 }
 
 // renderLine renders a line of text at the specified position
@@ -489,7 +502,7 @@ func (v *ToolsView) renderNoRegistry(screen tcell.Screen, area Rect) {
 func (v *ToolsView) renderNoTools(screen tcell.Screen, area Rect) {
 	message := "No Tools Registered"
 	subMessage := "Tools will appear here once they are registered with the system"
-	
+
 	messageStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlack).Bold(true)
 	subMessageStyle := tcell.StyleDefault.Foreground(tcell.ColorGray).Background(tcell.ColorBlack)
 
@@ -562,6 +575,22 @@ func (v *ToolsView) HandleKeyEvent(ev *tcell.EventKey, sending bool) bool {
 		} else if !v.showDetails {
 			// Reset all stats
 			v.toolRegistry.ResetAllToolStats()
+		}
+		return true
+	case 'j', 'J':
+		if !v.showDetails && len(toolNames) > 0 {
+			if v.selectedRow < len(toolNames)-1 {
+				v.selectedRow++
+				v.ensureVisible()
+			}
+		}
+		return true
+	case 'k', 'K':
+		if !v.showDetails && len(toolNames) > 0 {
+			if v.selectedRow > 0 {
+				v.selectedRow--
+				v.ensureVisible()
+			}
 		}
 		return true
 	}

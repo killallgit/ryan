@@ -79,7 +79,7 @@ func (v *ContextTreeStandaloneView) renderNoContextMessage(screen tcell.Screen, 
 	// Show centered message
 	message := "No Context Tree Available"
 	subMessage := "Start a conversation to see context branching"
-	
+
 	messageStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite).Background(tcell.ColorBlack).Bold(true)
 	subMessageStyle := tcell.StyleDefault.Foreground(tcell.ColorGray).Background(tcell.ColorBlack)
 
