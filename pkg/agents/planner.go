@@ -36,6 +36,16 @@ func (p *Planner) SetOrchestrator(o *Orchestrator) {
 func (p *Planner) CreateExecutionPlan(ctx context.Context, request string, execContext *ExecutionContext) (*ExecutionPlan, error) {
 	p.log.Info("Creating execution plan", "request_preview", truncateString(request, 100))
 
+	// Validate request
+	if strings.TrimSpace(request) == "" {
+		return nil, fmt.Errorf("empty request")
+	}
+
+	// Validate orchestrator is set
+	if p.orchestrator == nil {
+		return nil, fmt.Errorf("orchestrator not set")
+	}
+
 	// Analyze intent
 	intent, err := p.intentAnalyzer.Analyze(request)
 	if err != nil {
@@ -126,7 +136,9 @@ func (ia *IntentAnalyzer) findSecondaryIntents(prompt string) []string {
 	if strings.Contains(prompt, "optimize") || strings.Contains(prompt, "performance") {
 		secondary = append(secondary, "optimize")
 	}
-
+	if strings.Contains(prompt, "fix") || strings.Contains(prompt, "repair") || strings.Contains(prompt, "and correct") {
+		secondary = append(secondary, "fix")
+	}
 	return secondary
 }
 
@@ -451,6 +463,56 @@ func defaultPlanTemplates() map[string]*PlanTemplate {
 			Tasks: []TaskTemplate{
 				{
 					Agent:          "search",
+					PromptTemplate: "{raw_prompt}",
+					Priority:       1,
+					Dependencies:   []string{},
+				},
+			},
+		},
+		string(IntentAnalysis): {
+			Intent: IntentAnalysis,
+			Tasks: []TaskTemplate{
+				{
+					Agent:          "code_analysis",
+					PromptTemplate: "{raw_prompt}",
+					Priority:       1,
+					Dependencies:   []string{},
+				},
+			},
+		},
+		string(IntentTest): {
+			Intent: IntentTest,
+			Tasks: []TaskTemplate{
+				{
+					Agent:          "dispatcher",
+					PromptTemplate: "{raw_prompt}",
+					Priority:       1,
+					Dependencies:   []string{},
+				},
+			},
+		},
+		string(IntentRefactor): {
+			Intent: IntentRefactor,
+			Tasks: []TaskTemplate{
+				{
+					Agent:          "code_analysis",
+					PromptTemplate: "Analyze code for refactoring: {raw_prompt}",
+					Priority:       1,
+					Dependencies:   []string{},
+				},
+				{
+					Agent:          "file_operations",
+					PromptTemplate: "Apply refactoring changes",
+					Priority:       2,
+					Dependencies:   []string{},
+				},
+			},
+		},
+		string(IntentGeneric): {
+			Intent: IntentGeneric,
+			Tasks: []TaskTemplate{
+				{
+					Agent:          "dispatcher",
 					PromptTemplate: "{raw_prompt}",
 					Priority:       1,
 					Dependencies:   []string{},
