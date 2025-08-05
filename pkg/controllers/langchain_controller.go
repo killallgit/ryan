@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/killallgit/ryan/pkg/agents"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/langchain"
 	"github.com/killallgit/ryan/pkg/logger"
@@ -16,12 +17,13 @@ import (
 
 // LangChainController wraps the LangChain client to work with the existing controller interface
 type LangChainController struct {
-	client       *langchain.Client
-	model        string
-	toolRegistry *tools.Registry
-	conversation chat.Conversation
-	log          *logger.Logger
-	historyFile  string
+	client          *langchain.Client
+	model           string
+	toolRegistry    *tools.Registry
+	conversation    chat.Conversation
+	log             *logger.Logger
+	historyFile     string
+	orchestrator    *agents.LangchainOrchestrator
 }
 
 // NewLangChainController creates a new controller using the LangChain client
@@ -94,8 +96,25 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 	userMsg := chat.NewUserMessage(content)
 	lc.conversation = chat.AddMessageWithDeduplication(lc.conversation, userMsg)
 
-	// Use the enhanced client to send the message
-	response, err := lc.client.SendMessage(ctx, content)
+	// Use orchestrator if available, otherwise use the client directly
+	var response string
+	var err error
+	
+	if lc.orchestrator != nil {
+		// Use the orchestrator to select and execute with the best agent
+		options := map[string]interface{}{
+			"model": lc.model,
+		}
+		result, orchErr := lc.orchestrator.Execute(ctx, content, options)
+		if orchErr != nil {
+			err = orchErr
+		} else {
+			response = result.Details
+		}
+	} else {
+		// Use the enhanced client to send the message
+		response, err = lc.client.SendMessage(ctx, content)
+	}
 	if err != nil {
 		errorMsg := fmt.Sprintf("LangChain agent failed: %v", err)
 		lc.log.Error("Enhanced LangChain client failed", "error", err)
@@ -456,4 +475,10 @@ func (lc *LangChainController) CleanThinkingBlocks() {
 	for _, msg := range cleanedMessages {
 		lc.conversation = chat.AddMessage(lc.conversation, msg)
 	}
+}
+
+// SetAgentOrchestrator sets the agent orchestrator for dynamic agent selection
+func (lc *LangChainController) SetAgentOrchestrator(orchestrator *agents.LangchainOrchestrator) {
+	lc.orchestrator = orchestrator
+	lc.log.Debug("Agent orchestrator set")
 }

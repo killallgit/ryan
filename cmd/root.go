@@ -103,6 +103,8 @@ func (lca *LangChainControllerAdapter) SetToolRegistry(registry *tools.Registry)
 var cfgFile string
 var directPrompt string
 var noTUI bool
+var agentType string
+var fallbackAgents string
 
 var rootCmd = &cobra.Command{
 	Use:   "ryan",
@@ -219,6 +221,53 @@ var rootCmd = &cobra.Command{
 			log.Debug("Initialized tool registry with built-in tools")
 		}
 
+		// Create agent orchestrator if agent type is specified or configured
+		var agentOrchestrator *agents.LangchainOrchestrator
+		
+		// Determine preferred agent (CLI flag takes precedence over config)
+		finalAgentType := agentType
+		if finalAgentType == "" && cfg.Agents.Preferred != "" {
+			finalAgentType = cfg.Agents.Preferred
+		}
+		
+		// Determine fallback chain (CLI flag takes precedence over config)
+		var finalFallbackChain []string
+		if fallbackAgents != "" {
+			finalFallbackChain = strings.Split(fallbackAgents, ",")
+		} else if len(cfg.Agents.FallbackChain) > 0 {
+			finalFallbackChain = cfg.Agents.FallbackChain
+		}
+		
+		if finalAgentType != "" || len(finalFallbackChain) > 0 || cfg.Agents.AutoSelect {
+			agentOrchestrator = agents.NewLangchainOrchestrator(toolRegistry)
+			
+			// Set preferred agent if specified
+			if finalAgentType != "" {
+				if err := agentOrchestrator.SetPreferredAgent(finalAgentType); err != nil {
+					log.Warn("Invalid agent type specified", "agent", finalAgentType, "error", err)
+					fmt.Printf("Warning: Invalid agent type '%s': %v\n", finalAgentType, err)
+				} else {
+					log.Info("Set preferred agent", "type", finalAgentType)
+					if cfg.Agents.ShowSelection {
+						fmt.Printf("Using preferred agent: %s\n", finalAgentType)
+					}
+				}
+			}
+			
+			// Set fallback chain if specified
+			if len(finalFallbackChain) > 0 {
+				if err := agentOrchestrator.SetFallbackChain(finalFallbackChain); err != nil {
+					log.Warn("Invalid fallback chain", "chain", finalFallbackChain, "error", err)
+					fmt.Printf("Warning: Invalid fallback chain: %v\n", err)
+				} else {
+					log.Info("Set fallback chain", "agents", finalFallbackChain)
+					if cfg.Agents.ShowSelection {
+						fmt.Printf("Fallback chain: %v\n", finalFallbackChain)
+					}
+				}
+			}
+		}
+
 		// Create LangChain controller with agent framework
 		var langchainController *controllers.LangChainController
 
@@ -246,6 +295,11 @@ var rootCmd = &cobra.Command{
 			} else {
 				log.Debug("Created LangChain controller without system prompt or tools")
 			}
+		}
+		
+		// Set the orchestrator in the controller if available
+		if agentOrchestrator != nil {
+			langchainController.SetAgentOrchestrator(agentOrchestrator)
 		}
 
 		// Clear chat history if not continuing from previous session
@@ -357,4 +411,6 @@ func init() {
 	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")
 	rootCmd.PersistentFlags().StringVarP(&directPrompt, "prompt", "p", "", "execute a prompt directly without entering TUI")
 	rootCmd.PersistentFlags().BoolVar(&noTUI, "no-tui", false, "run without TUI (requires --prompt)")
+	rootCmd.PersistentFlags().StringVar(&agentType, "agent", "", "preferred agent type (conversational, ollama-functions, openai-functions)")
+	rootCmd.PersistentFlags().StringVar(&fallbackAgents, "fallback-agents", "", "comma-separated list of fallback agents")
 }
