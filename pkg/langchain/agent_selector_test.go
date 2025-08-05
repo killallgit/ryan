@@ -14,7 +14,7 @@ func TestNewAgentSelector(t *testing.T) {
 	modelName := "qwen2.5-coder:7b"
 
 	selector := NewAgentSelector(registry, modelName)
-	
+
 	assert.NotNil(t, selector)
 	assert.Equal(t, registry, selector.toolRegistry)
 	assert.Equal(t, modelName, selector.modelInfo.Name)
@@ -44,7 +44,7 @@ func TestAgentSelector_SelectAgent(t *testing.T) {
 		},
 		{
 			name:               "excellent model without tool need",
-			modelName:          "qwen2.5-coder:7b", 
+			modelName:          "qwen2.5-coder:7b",
 			toolCompatibility:  models.ToolCompatibilityExcellent,
 			input:              "explain how algorithms work",
 			expectedAgentType:  AgentTypeDirect,
@@ -112,7 +112,7 @@ func TestAgentSelector_analyzeToolNeed(t *testing.T) {
 			expectTools: true,
 		},
 		{
-			name:        "create file request", 
+			name:        "create file request",
 			input:       "create file called test.txt",
 			expectTools: true,
 		},
@@ -213,7 +213,7 @@ func TestAgentSelector_analyzeToolNeed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			needsTools := selector.analyzeToolNeed(tt.input)
-			assert.Equal(t, tt.expectTools, needsTools, 
+			assert.Equal(t, tt.expectTools, needsTools,
 				"Expected needsTools=%t for input: %s", tt.expectTools, tt.input)
 		})
 	}
@@ -358,7 +358,7 @@ func TestAgentSelector_EdgeCases(t *testing.T) {
 	t.Run("empty input", func(t *testing.T) {
 		registry := tools.NewRegistry()
 		selector := NewAgentSelector(registry, "test-model")
-		
+
 		agentType, needsTools := selector.SelectAgent("")
 		assert.Equal(t, AgentTypeDirect, agentType)
 		assert.False(t, needsTools)
@@ -367,11 +367,11 @@ func TestAgentSelector_EdgeCases(t *testing.T) {
 	t.Run("very long input", func(t *testing.T) {
 		registry := tools.NewRegistry()
 		selector := NewAgentSelector(registry, "test-model")
-		
+
 		longInput := "This is a very long input that contains the keyword 'list files' " +
 			"which should trigger tool detection even in a long string. " +
 			"The agent selector should be able to handle this gracefully."
-		
+
 		_, needsTools := selector.SelectAgent(longInput)
 		assert.True(t, needsTools) // Should detect "list files"
 	})
@@ -379,11 +379,11 @@ func TestAgentSelector_EdgeCases(t *testing.T) {
 	t.Run("case sensitivity", func(t *testing.T) {
 		registry := tools.NewRegistry()
 		selector := NewAgentSelector(registry, "test-model")
-		
+
 		// Test mixed case
 		needsTools := selector.analyzeToolNeed("LIST FILES in directory")
 		assert.True(t, needsTools)
-		
+
 		needsTools = selector.analyzeToolNeed("RUN COMMAND to check status")
 		assert.True(t, needsTools)
 	})
@@ -391,7 +391,7 @@ func TestAgentSelector_EdgeCases(t *testing.T) {
 	t.Run("multiple tool indicators", func(t *testing.T) {
 		registry := tools.NewRegistry()
 		selector := NewAgentSelector(registry, "test-model")
-		
+
 		input := "list files and then run command to check disk usage"
 		needsTools := selector.analyzeToolNeed(input)
 		assert.True(t, needsTools)

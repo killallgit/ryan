@@ -83,7 +83,7 @@ func TestBridgeConfig_ToolsIntegration(t *testing.T) {
 	assert.True(t, config.Tools.Bash.Enabled)
 	assert.Equal(t, 30*time.Second, config.Tools.Bash.Timeout)
 	assert.Equal(t, []string{"/tmp", "/home"}, config.Tools.Bash.AllowedPaths)
-	
+
 	assert.True(t, config.Tools.Search.Enabled)
 	assert.Equal(t, 15*time.Second, config.Tools.Search.Timeout)
 	// MaxResults field doesn't exist in current implementation
@@ -153,21 +153,21 @@ func TestBridgeConfig_Validation(t *testing.T) {
 func TestBridgeConfig_Defaults(t *testing.T) {
 	// Test that default configuration values work across components
 	config := Config{}
-	
+
 	// Apply defaults (this would typically be done in Load())
 	config.Ollama.URL = "https://ollama.kitty-tetra.ts.net"
 	config.Ollama.Model = "qwen3:latest"
 	config.Ollama.Timeout = 90 * time.Second
 	config.Ollama.PollInterval = 10
-	
+
 	config.Tools.Enabled = true
 	config.Tools.Bash.Enabled = true
 	config.Tools.Bash.Timeout = 90 * time.Second
-	
+
 	config.Context.Directory = "./.ryan/contexts"
 	config.Context.MaxFileSize = "10MB"
 	config.Context.PersistLangChain = true
-	
+
 	config.ShowThinking = true
 	config.Streaming = true
 

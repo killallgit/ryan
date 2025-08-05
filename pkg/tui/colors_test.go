@@ -106,12 +106,12 @@ func TestDefaultTheme(t *testing.T) {
 
 func TestApplyTheme(t *testing.T) {
 	theme := DefaultTheme()
-	
+
 	// Store original values to restore later
 	originalPrimitiveBackground := tview.Styles.PrimitiveBackgroundColor
 	originalBorderColor := tview.Styles.BorderColor
 	originalTitleColor := tview.Styles.TitleColor
-	
+
 	defer func() {
 		// Restore original values
 		tview.Styles.PrimitiveBackgroundColor = originalPrimitiveBackground
@@ -134,7 +134,7 @@ func TestApplyTheme(t *testing.T) {
 func TestHexColors(t *testing.T) {
 	// Test that hex colors can be converted to tcell.Color correctly
 	// We test by converting and ensuring they're different from defaults
-	
+
 	colorStrings := []string{
 		ColorBase00, ColorBase01, ColorBase02, ColorBase03,
 		ColorBase04, ColorBase05, ColorBase06, ColorBase07,

@@ -268,7 +268,7 @@ func TestConfig_ToolConfiguration(t *testing.T) {
 	assert.True(t, cfg.Tools.Bash.Enabled)
 	assert.Equal(t, 90*time.Second, cfg.Tools.Bash.Timeout)
 	// AllowedPaths may or may not be initialized by default
-	
+
 	assert.True(t, cfg.Tools.Search.Enabled)
 	// Search timeout may vary based on implementation
 	assert.Greater(t, cfg.Tools.Search.Timeout, time.Duration(0))

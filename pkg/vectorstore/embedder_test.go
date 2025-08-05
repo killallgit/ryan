@@ -141,7 +141,7 @@ func TestEmbedderCreationFunctions(t *testing.T) {
 		// Test with mock-like config
 		baseURL := "http://localhost:11434"
 		model := "test-model"
-		
+
 		embedder, err := NewOllamaEmbedder(baseURL, model)
 		if err != nil {
 			// This might fail due to network, but we're testing the creation logic
@@ -152,14 +152,14 @@ func TestEmbedderCreationFunctions(t *testing.T) {
 			}
 		}
 	})
-	
+
 	t.Run("NewOllamaEmbedderWithConfig", func(t *testing.T) {
 		config := EmbedderConfig{
 			Provider: "ollama",
 			BaseURL:  "http://localhost:11434",
 			Model:    "test-model",
 		}
-		
+
 		embedder, err := NewOllamaEmbedderWithConfig(config)
 		if err != nil {
 			// This might fail due to network, but we're testing the creation logic
@@ -170,11 +170,11 @@ func TestEmbedderCreationFunctions(t *testing.T) {
 			}
 		}
 	})
-	
+
 	t.Run("NewOpenAIEmbedder", func(t *testing.T) {
 		apiKey := "test-api-key"
 		model := "text-embedding-ada-002"
-		
+
 		embedder, err := NewOpenAIEmbedder(apiKey, model)
 		if err != nil {
 			// This might fail due to API key validation, but we're testing the creation logic
@@ -185,14 +185,14 @@ func TestEmbedderCreationFunctions(t *testing.T) {
 			}
 		}
 	})
-	
+
 	t.Run("NewOpenAIEmbedderWithConfig", func(t *testing.T) {
 		config := EmbedderConfig{
 			Provider: "openai",
 			APIKey:   "test-api-key",
 			Model:    "text-embedding-ada-002",
 		}
-		
+
 		embedder, err := NewOpenAIEmbedderWithConfig(config)
 		if err != nil {
 			// This might fail due to API key validation, but we're testing the creation logic

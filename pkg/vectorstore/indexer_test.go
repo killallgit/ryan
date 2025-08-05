@@ -119,7 +119,7 @@ func TestDocumentIndexer_ChunkText(t *testing.T) {
 	}
 }
 
-func TestDocumentIndexer_IndexDirectory(t *testing.T) {
+func TestVectorStoreIndexer_IndexDirectory(t *testing.T) {
 	// Create manager
 	embedder := NewMockEmbedder(384)
 	store, err := NewChromemStore(embedder, "", false)

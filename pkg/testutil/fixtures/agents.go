@@ -42,20 +42,20 @@ func CreateTestTask(id, agentName string, deps ...string) agents.Task {
 func CreateTestExecutionPlan(taskNames ...string) *agents.ExecutionPlan {
 	tasks := make([]agents.Task, len(taskNames))
 	taskIDs := make([]string, len(taskNames))
-	
+
 	for i, name := range taskNames {
 		taskID := "task-" + name
 		taskIDs[i] = taskID
-		
+
 		// Create chain of dependencies
 		var deps []string
 		if i > 0 {
 			deps = append(deps, taskIDs[i-1])
 		}
-		
+
 		tasks[i] = CreateTestTask(taskID, name, deps...)
 	}
-	
+
 	cm := agents.NewContextManager()
 	return &agents.ExecutionPlan{
 		ID:      "test-plan",
@@ -129,4 +129,3 @@ func GetStandardAgentTestCases() []AgentTestCase {
 		},
 	}
 }
-

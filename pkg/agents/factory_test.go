@@ -65,9 +65,9 @@ func TestAgentFactory_CustomRegistration(t *testing.T) {
 	t.Run("Register custom agent", func(t *testing.T) {
 		err := factory.Register("custom", mockAgentFactory)
 		require.NoError(t, err)
-		
+
 		assert.True(t, factory.IsRegistered("custom"))
-		
+
 		types := factory.GetRegisteredTypes()
 		assert.Contains(t, types, "custom")
 	})
@@ -88,15 +88,15 @@ type MockLangchainAgent struct {
 	name string
 }
 
-func (m *MockLangchainAgent) Name() string { return m.name }
+func (m *MockLangchainAgent) Name() string        { return m.name }
 func (m *MockLangchainAgent) Description() string { return "mock agent" }
 func (m *MockLangchainAgent) Execute(ctx context.Context, request AgentRequest) (AgentResult, error) {
 	return AgentResult{Success: true, Summary: "mock execution"}, nil
 }
-func (m *MockLangchainAgent) GetChainType() ChainType { return ChainType("mock") }
-func (m *MockLangchainAgent) GetToolCompatibility() []string { return []string{} }
-func (m *MockLangchainAgent) GetModelRequirements() ModelRequirements { return ModelRequirements{} }
+func (m *MockLangchainAgent) GetChainType() ChainType                  { return ChainType("mock") }
+func (m *MockLangchainAgent) GetToolCompatibility() []string           { return []string{} }
+func (m *MockLangchainAgent) GetModelRequirements() ModelRequirements  { return ModelRequirements{} }
 func (m *MockLangchainAgent) SetToolRegistry(registry *tools.Registry) {}
-func (m *MockLangchainAgent) SetModel(model string) error { return nil }
-func (m *MockLangchainAgent) SupportsStreaming() bool { return false }
+func (m *MockLangchainAgent) SetModel(model string) error              { return nil }
+func (m *MockLangchainAgent) SupportsStreaming() bool                  { return false }
 func (m *MockLangchainAgent) CanHandle(request string) (bool, float64) { return true, 0.8 }
