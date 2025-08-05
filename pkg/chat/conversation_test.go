@@ -26,6 +26,28 @@ var _ = Describe("Conversation", func() {
 		})
 	})
 
+	Describe("NewConversationFromTree", func() {
+		It("should create conversation from existing context tree", func() {
+			tree := chat.NewContextTree()
+
+			// Add messages to tree using the root context
+			tree.AddMessage(chat.NewUserMessage("Hello"), tree.RootContextID)
+			tree.AddMessage(chat.NewAssistantMessage("Hi"), tree.RootContextID)
+
+			// Create conversation from tree
+			conv := chat.NewConversationFromTree(tree, "test-model")
+			Expect(conv).ToNot(BeNil())
+			Expect(conv.Tree).To(Equal(tree))
+			Expect(conv.Model).To(Equal("test-model"))
+
+			// Verify messages are accessible
+			messages := chat.GetMessages(conv)
+			Expect(messages).To(HaveLen(2))
+			Expect(messages[0].Content).To(Equal("Hello"))
+			Expect(messages[1].Content).To(Equal("Hi"))
+		})
+	})
+
 	Describe("NewConversationWithSystem", func() {
 		It("should create conversation with system message", func() {
 			systemPrompt := "You are a helpful assistant"

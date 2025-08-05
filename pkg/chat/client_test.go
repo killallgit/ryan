@@ -27,6 +27,32 @@ var _ = Describe("Client", func() {
 		})
 	})
 
+	Describe("ChatRequest with Tools", func() {
+		BeforeEach(func() {
+			var err error
+			client, err = chat.NewClient("http://localhost:11434", "test-model")
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should create chat request with tools", func() {
+			messages := []chat.Message{
+				{Role: "user", Content: "Test message"},
+			}
+
+			req := chat.ChatRequest{
+				Model:    "test-model",
+				Messages: messages,
+				Tools: []map[string]any{
+					{"name": "test_tool"},
+				},
+			}
+
+			Expect(req.Model).To(Equal("test-model"))
+			Expect(req.Messages).To(HaveLen(1))
+			Expect(req.Tools).To(HaveLen(1))
+		})
+	})
+
 	Describe("Error handling", func() {
 		BeforeEach(func() {
 			var err error
