@@ -17,31 +17,31 @@ type ComponentLifecycle interface {
 // Component represents a UI component with lifecycle management
 type Component interface {
 	ComponentLifecycle
-	
+
 	// UI methods
 	Render() tview.Primitive
 	GetName() string
 	IsVisible() bool
 	SetVisible(visible bool)
-	
+
 	// State management
 	NeedsUpdate() bool
 	MarkUpdated()
-	
+
 	// Event handling
 	CanHandleEvent(eventType EventType) bool
 }
 
 // BaseComponent provides a basic implementation of the Component interface
 type BaseComponent struct {
-	name           string
-	visible        bool
-	needsUpdate    bool
-	primitive      tview.Primitive
-	eventBus       *EventBus
-	stateManager   *StateManager
-	handledEvents  []EventType
-	mu             sync.RWMutex
+	name          string
+	visible       bool
+	needsUpdate   bool
+	primitive     tview.Primitive
+	eventBus      *EventBus
+	stateManager  *StateManager
+	handledEvents []EventType
+	mu            sync.RWMutex
 }
 
 // NewBaseComponent creates a new base component
@@ -63,14 +63,14 @@ func NewBaseComponent(name string, primitive tview.Primitive, eventBus *EventBus
 func (bc *BaseComponent) OnMount() error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
-	
+
 	// Subscribe to events this component can handle
 	for _, eventType := range bc.handledEvents {
 		bc.eventBus.Subscribe(eventType, func(event Event) {
 			_ = bc.OnEvent(event) // Ignore error in event handler
 		})
 	}
-	
+
 	return nil
 }
 
@@ -78,14 +78,14 @@ func (bc *BaseComponent) OnMount() error {
 func (bc *BaseComponent) OnUnmount() error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
-	
+
 	// Unsubscribe from events
 	for _, eventType := range bc.handledEvents {
 		bc.eventBus.Unsubscribe(eventType, func(event Event) {
 			_ = bc.OnEvent(event) // Ignore error in event handler
 		})
 	}
-	
+
 	return nil
 }
 
@@ -93,7 +93,7 @@ func (bc *BaseComponent) OnUnmount() error {
 func (bc *BaseComponent) OnUpdate(state *AppState) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
-	
+
 	// Default implementation marks as needing update
 	bc.needsUpdate = true
 	return nil
@@ -132,7 +132,7 @@ func (bc *BaseComponent) IsVisible() bool {
 func (bc *BaseComponent) SetVisible(visible bool) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
-	
+
 	if bc.visible != visible {
 		bc.visible = visible
 		bc.needsUpdate = true
@@ -161,7 +161,7 @@ func (bc *BaseComponent) MarkUpdated() {
 func (bc *BaseComponent) CanHandleEvent(eventType EventType) bool {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
-	
+
 	for _, et := range bc.handledEvents {
 		if et == eventType {
 			return true
@@ -182,14 +182,14 @@ func (bc *BaseComponent) SetHandledEvents(eventTypes []EventType) {
 func (bc *BaseComponent) AddHandledEvent(eventType EventType) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
-	
+
 	// Check if already exists
 	for _, et := range bc.handledEvents {
 		if et == eventType {
 			return
 		}
 	}
-	
+
 	bc.handledEvents = append(bc.handledEvents, eventType)
 }
 
@@ -214,7 +214,7 @@ func NewComponentManager(eventBus *EventBus, stateManager *StateManager) *Compon
 func (cm *ComponentManager) Register(component Component) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
-	
+
 	name := component.GetName()
 	if _, exists := cm.components[name]; exists {
 		return &ComponentError{
@@ -222,9 +222,9 @@ func (cm *ComponentManager) Register(component Component) error {
 			Message:   "component already registered",
 		}
 	}
-	
+
 	cm.components[name] = component
-	
+
 	// Mount the component
 	if err := component.OnMount(); err != nil {
 		delete(cm.components, name)
@@ -234,7 +234,7 @@ func (cm *ComponentManager) Register(component Component) error {
 			Cause:     err,
 		}
 	}
-	
+
 	return nil
 }
 
@@ -242,7 +242,7 @@ func (cm *ComponentManager) Register(component Component) error {
 func (cm *ComponentManager) Unregister(name string) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
-	
+
 	component, exists := cm.components[name]
 	if !exists {
 		return &ComponentError{
@@ -250,7 +250,7 @@ func (cm *ComponentManager) Unregister(name string) error {
 			Message:   "component not found",
 		}
 	}
-	
+
 	// Unmount the component
 	if err := component.OnUnmount(); err != nil {
 		return &ComponentError{
@@ -259,7 +259,7 @@ func (cm *ComponentManager) Unregister(name string) error {
 			Cause:     err,
 		}
 	}
-	
+
 	delete(cm.components, name)
 	return nil
 }
@@ -268,7 +268,7 @@ func (cm *ComponentManager) Unregister(name string) error {
 func (cm *ComponentManager) Get(name string) (Component, bool) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
-	
+
 	component, exists := cm.components[name]
 	return component, exists
 }
@@ -277,12 +277,12 @@ func (cm *ComponentManager) Get(name string) (Component, bool) {
 func (cm *ComponentManager) GetAll() map[string]Component {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
-	
+
 	result := make(map[string]Component, len(cm.components))
 	for name, component := range cm.components {
 		result[name] = component
 	}
-	
+
 	return result
 }
 
@@ -294,7 +294,7 @@ func (cm *ComponentManager) UpdateAll(state *AppState) {
 		components = append(components, component)
 	}
 	cm.mu.RUnlock()
-	
+
 	// Update components in parallel
 	var wg sync.WaitGroup
 	for _, component := range components {
@@ -307,7 +307,7 @@ func (cm *ComponentManager) UpdateAll(state *AppState) {
 			}
 		}(component)
 	}
-	
+
 	wg.Wait()
 }
 
@@ -315,14 +315,14 @@ func (cm *ComponentManager) UpdateAll(state *AppState) {
 func (cm *ComponentManager) GetVisibleComponents() []Component {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
-	
+
 	result := make([]Component, 0)
 	for _, component := range cm.components {
 		if component.IsVisible() {
 			result = append(result, component)
 		}
 	}
-	
+
 	return result
 }
 
@@ -330,14 +330,14 @@ func (cm *ComponentManager) GetVisibleComponents() []Component {
 func (cm *ComponentManager) GetComponentsNeedingUpdate() []Component {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
-	
+
 	result := make([]Component, 0)
 	for _, component := range cm.components {
 		if component.NeedsUpdate() {
 			result = append(result, component)
 		}
 	}
-	
+
 	return result
 }
 

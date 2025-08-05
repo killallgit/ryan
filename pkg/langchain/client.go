@@ -77,10 +77,13 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 		model:        model,
 	}
 
-	// Initialize agent selector
+	// Initialize agent selector and output processor
 	if toolRegistry != nil {
 		client.agentSelector = NewAgentSelector(toolRegistry, model)
 	}
+
+	// Always initialize output processor for display formatting
+	client.outputProcessor = NewOutputProcessor(true, true)
 
 	// Initialize tools and agent (always enabled now)
 	if toolRegistry != nil {
@@ -256,8 +259,7 @@ func (c *Client) initializeAgent() error {
 		return nil
 
 	case AgentTypeConversational:
-		// Use conversational agent with output processor
-		c.outputProcessor = NewOutputProcessor(true, true) // Strip thinking blocks and convert to ReAct
+		// Use conversational agent (output processor already initialized)
 		c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
 			agents.WithMemory(c.memory))
 		c.log.Info("Using conversational agent with output processing")
@@ -875,26 +877,18 @@ func (c *Client) streamResponse(response string, outputChan chan<- string) error
 	return nil
 }
 
-// cleanResponseForStreaming removes unwanted content from responses before streaming
+// cleanResponseForStreaming processes responses for streaming display, preserving thinking blocks
 func (c *Client) cleanResponseForStreaming(response string) string {
-	// Remove thinking blocks
-	if strings.Contains(response, "<think>") {
-		response = regexp.MustCompile(`(?s)<think>.*?</think>`).ReplaceAllString(response, "")
+	// Use output processor's display processing if available to preserve thinking blocks
+	if c.outputProcessor != nil {
+		return c.outputProcessor.ProcessForDisplay(response)
 	}
 
-	// Clean up extra whitespace
+	// Fallback: just clean up whitespace but preserve thinking blocks
 	response = strings.TrimSpace(response)
+	response = regexp.MustCompile(`\n{3,}`).ReplaceAllString(response, "\n\n")
 
-	// Remove empty lines
-	lines := strings.Split(response, "\n")
-	var cleanLines []string
-	for _, line := range lines {
-		if strings.TrimSpace(line) != "" {
-			cleanLines = append(cleanLines, line)
-		}
-	}
-
-	return strings.Join(cleanLines, "\n")
+	return response
 }
 
 // GetMemory returns the current conversation memory

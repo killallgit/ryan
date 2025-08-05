@@ -7,14 +7,14 @@ import (
 
 // Message represents a message between agents
 type Message struct {
-	ID           string
-	Type         MessageType
-	Source       string
-	Target       string
-	Payload      interface{}
-	Context      *ExecutionContext
-	Priority     Priority
-	Timestamp    time.Time
+	ID        string
+	Type      MessageType
+	Source    string
+	Target    string
+	Payload   interface{}
+	Context   *ExecutionContext
+	Priority  Priority
+	Timestamp time.Time
 }
 
 // MessageType defines the type of message

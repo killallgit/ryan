@@ -9,19 +9,19 @@ import (
 
 // ContextManager manages shared state and context between agents
 type ContextManager struct {
-	sharedMemory    *SharedMemory
-	contextTree     *ContextTree
-	propagator      *ContextPropagator
-	log             *logger.Logger
+	sharedMemory *SharedMemory
+	contextTree  *ContextTree
+	propagator   *ContextPropagator
+	log          *logger.Logger
 }
 
 // NewContextManager creates a new context manager
 func NewContextManager() *ContextManager {
 	return &ContextManager{
-		sharedMemory:    NewSharedMemory(),
-		contextTree:     NewContextTree(),
-		propagator:      NewContextPropagator(),
-		log:             logger.WithComponent("context_manager"),
+		sharedMemory: NewSharedMemory(),
+		contextTree:  NewContextTree(),
+		propagator:   NewContextPropagator(),
+		log:          logger.WithComponent("context_manager"),
 	}
 }
 
@@ -75,7 +75,7 @@ func (sm *SharedMemory) Get(key string) (interface{}, bool) {
 func (sm *SharedMemory) GetAll() map[string]interface{} {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-	
+
 	copy := make(map[string]interface{})
 	for k, v := range sm.data {
 		copy[k] = v
@@ -97,7 +97,7 @@ func NewContextTree() *ContextTree {
 		Children: make([]*ContextNode, 0),
 		Data:     make(map[string]interface{}),
 	}
-	
+
 	return &ContextTree{
 		root:  root,
 		nodes: map[string]*ContextNode{"root": root},
@@ -131,7 +131,7 @@ func (ct *ContextTree) AddNode(id, parentID string, data map[string]interface{})
 func (ct *ContextTree) GetNode(id string) (*ContextNode, bool) {
 	ct.mu.RLock()
 	defer ct.mu.RUnlock()
-	
+
 	node, exists := ct.nodes[id]
 	return node, exists
 }

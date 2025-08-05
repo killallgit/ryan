@@ -38,18 +38,18 @@ func (c *CodeReviewAgent) Description() string {
 // CanHandle determines if this agent can handle the request
 func (c *CodeReviewAgent) CanHandle(request string) (bool, float64) {
 	lowerRequest := strings.ToLower(request)
-	
+
 	keywords := []string{
 		"code review", "review", "critique", "feedback",
 		"improve", "suggestions", "best practices",
 	}
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(lowerRequest, keyword) {
 			return true, 0.9
 		}
 	}
-	
+
 	return false, 0.0
 }
 
@@ -152,7 +152,7 @@ func (c *CodeReviewAgent) performReview(fileContents map[string]string, analysis
 	// Review each file
 	for filePath, content := range fileContents {
 		review.FilesReviewed = append(review.FilesReviewed, filePath)
-		
+
 		// Get analysis for this file if available
 		var analysis *FileAnalysis
 		if analysisResults != nil {
@@ -296,7 +296,7 @@ func (c *CodeReviewAgent) isFunctionComplex(fn Function, content string) bool {
 	lines := strings.Split(content, "\n")
 	functionLines := 0
 	inFunction := false
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, fmt.Sprintf("func %s", fn.Name)) {
 			inFunction = true
@@ -308,14 +308,14 @@ func (c *CodeReviewAgent) isFunctionComplex(fn Function, content string) bool {
 			}
 		}
 	}
-	
+
 	return functionLines > 50
 }
 
 func (c *CodeReviewAgent) calculateScore(review *CodeReview) float64 {
 	// Simple scoring algorithm
 	score := 100.0
-	
+
 	// Deduct points for issues
 	for _, issue := range review.Issues {
 		switch issue.Severity {
@@ -327,10 +327,10 @@ func (c *CodeReviewAgent) calculateScore(review *CodeReview) float64 {
 			score -= 2
 		}
 	}
-	
+
 	// Add points for positive aspects
 	score += float64(len(review.PositiveAspects)) * 2
-	
+
 	// Ensure score is within bounds
 	if score < 0 {
 		score = 0
@@ -338,7 +338,7 @@ func (c *CodeReviewAgent) calculateScore(review *CodeReview) float64 {
 	if score > 100 {
 		score = 100
 	}
-	
+
 	return score
 }
 
@@ -435,7 +435,7 @@ func NewIssueDetector() *IssueDetector {
 
 func (i *IssueDetector) CheckStyle(filePath, content string) []Issue {
 	issues := []Issue{}
-	
+
 	// Simple style checks
 	lines := strings.Split(content, "\n")
 	for idx, line := range lines {
@@ -449,7 +449,7 @@ func (i *IssueDetector) CheckStyle(filePath, content string) []Issue {
 				Message:  "Line exceeds 120 characters",
 			})
 		}
-		
+
 		// Check for TODO comments
 		if strings.Contains(line, "TODO") {
 			issues = append(issues, Issue{
@@ -461,13 +461,13 @@ func (i *IssueDetector) CheckStyle(filePath, content string) []Issue {
 			})
 		}
 	}
-	
+
 	return issues
 }
 
 func (i *IssueDetector) CheckCommonIssues(filePath, content string) []Issue {
 	issues := []Issue{}
-	
+
 	// Check for common Go issues
 	if strings.HasSuffix(filePath, ".go") {
 		// Check for error handling
@@ -480,7 +480,7 @@ func (i *IssueDetector) CheckCommonIssues(filePath, content string) []Issue {
 				Message:  "Potential unhandled error",
 			})
 		}
-		
+
 		// Check for resource leaks
 		if strings.Contains(content, "defer") && strings.Contains(content, ".Close()") {
 			// Good - has defer close
@@ -494,6 +494,6 @@ func (i *IssueDetector) CheckCommonIssues(filePath, content string) []Issue {
 			})
 		}
 	}
-	
+
 	return issues
 }

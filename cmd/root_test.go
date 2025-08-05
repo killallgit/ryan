@@ -13,24 +13,24 @@ import (
 
 func TestOrchestratorAPI(t *testing.T) {
 	// This test verifies the orchestrator API is used correctly
-	
+
 	// Create orchestrator with new API
 	orchestrator := agents.NewOrchestrator()
 	assert.NotNil(t, orchestrator)
-	
+
 	// Create tool registry
 	toolRegistry := tools.NewRegistry()
 	err := toolRegistry.RegisterBuiltinTools()
 	require.NoError(t, err)
-	
+
 	// Register built-in agents with tool registry
 	err = orchestrator.RegisterBuiltinAgents(toolRegistry)
 	assert.NoError(t, err)
-	
+
 	// Verify agents are registered
 	agentList := orchestrator.ListAgents()
 	assert.Greater(t, len(agentList), 0)
-	
+
 	// Should have at least the dispatcher agent
 	found := false
 	for _, agent := range agentList {
@@ -47,19 +47,19 @@ func TestLangChainControllerAdapter(t *testing.T) {
 	// Load config for testing
 	_, err := config.Load("")
 	require.NoError(t, err)
-	
+
 	// Create a minimal LangChain controller for testing
 	controller, err := controllers.NewLangChainController("http://localhost:11434", "test-model", nil)
 	require.NoError(t, err)
-	
+
 	adapter := &LangChainControllerAdapter{
 		LangChainController: controller,
 	}
-	
+
 	// These should compile and run without errors
 	err = adapter.ValidateModel("test-model")
 	assert.NoError(t, err)
-	
+
 	adapter.SetOllamaClient(nil)
 	adapter.CleanThinkingBlocks()
 }

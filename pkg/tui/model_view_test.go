@@ -10,33 +10,33 @@ import (
 
 func TestToolCompatibilityDisplay(t *testing.T) {
 	tests := []struct {
-		modelName    string
-		expectedTool string
+		modelName           string
+		expectedTool        string
 		shouldHaveCheckmark bool
 	}{
 		{
-			modelName:    "llama3.1:8b",
-			expectedTool: "Excellent ✓",
+			modelName:           "llama3.1:8b",
+			expectedTool:        "Excellent ✓",
 			shouldHaveCheckmark: true,
 		},
 		{
-			modelName:    "qwen2.5:7b", 
-			expectedTool: "Excellent ✓",
+			modelName:           "qwen2.5:7b",
+			expectedTool:        "Excellent ✓",
 			shouldHaveCheckmark: true,
 		},
 		{
-			modelName:    "mistral:7b",
-			expectedTool: "Good ✓",
+			modelName:           "mistral:7b",
+			expectedTool:        "Good ✓",
 			shouldHaveCheckmark: true,
 		},
 		{
-			modelName:    "gemma:7b",
-			expectedTool: "None",
+			modelName:           "gemma:7b",
+			expectedTool:        "None",
 			shouldHaveCheckmark: false,
 		},
 		{
-			modelName:    "unknown-model:latest",
-			expectedTool: "Unknown",
+			modelName:           "unknown-model:latest",
+			expectedTool:        "Unknown",
 			shouldHaveCheckmark: false,
 		},
 	}
@@ -50,7 +50,7 @@ func TestToolCompatibilityDisplay(t *testing.T) {
 			}
 
 			if toolsSupport != test.expectedTool {
-				t.Errorf("Expected %q for model %q, got %q", 
+				t.Errorf("Expected %q for model %q, got %q",
 					test.expectedTool, test.modelName, toolsSupport)
 			}
 
@@ -70,7 +70,7 @@ func TestProgressBarFormatting(t *testing.T) {
 	}{
 		{
 			progress:     0.0,
-			expectedChar: "░", 
+			expectedChar: "░",
 		},
 		{
 			progress:     50.0,
@@ -88,19 +88,19 @@ func TestProgressBarFormatting(t *testing.T) {
 			barWidth := 40
 			filledWidth := int(test.progress / 100.0 * float64(barWidth))
 			emptyWidth := barWidth - filledWidth
-			
+
 			bar := strings.Repeat("█", filledWidth) + strings.Repeat("░", emptyWidth)
-			
+
 			if test.progress == 0.0 && !strings.Contains(bar, test.expectedChar) {
 				t.Errorf("Expected progress bar to contain %q for 0%% progress", test.expectedChar)
 			}
-			
+
 			if test.progress > 0.0 && test.progress < 100.0 {
 				if !strings.Contains(bar, "█") || !strings.Contains(bar, "░") {
 					t.Errorf("Expected progress bar to contain both filled and empty characters for %.1f%% progress", test.progress)
 				}
 			}
-			
+
 			if test.progress == 100.0 && strings.Contains(bar, "░") {
 				t.Errorf("Expected progress bar to not contain empty characters for 100%% progress")
 			}
@@ -123,7 +123,7 @@ func TestModelValidation(t *testing.T) {
 		t.Run(test.modelName, func(t *testing.T) {
 			trimmed := strings.TrimSpace(test.modelName)
 			isValid := trimmed != ""
-			
+
 			if isValid != test.valid {
 				t.Errorf("Expected validation of %q to be %v, got %v", test.modelName, test.valid, isValid)
 			}

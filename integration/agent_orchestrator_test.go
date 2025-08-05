@@ -22,7 +22,7 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 	// (to avoid /var restrictions in file tools)
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
-	
+
 	tempDir := filepath.Join(cwd, "test_agent_temp_"+time.Now().Format("20060102150405"))
 	err = os.MkdirAll(tempDir, 0755)
 	require.NoError(t, err)
@@ -60,10 +60,10 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 		mainPath := filepath.Join(tempDir, "main.go")
 		result, err := orchestrator.Execute(ctx, "read file "+mainPath, nil)
 		require.NoError(t, err)
-		
+
 		// Log the result for debugging
 		t.Logf("Read file result: Success=%v, Summary=%s", result.Success, result.Summary)
-		
+
 		if result.Success {
 			assert.Contains(t, result.Details, "package main")
 			assert.Contains(t, result.Details, "TODO: Add validation")
@@ -82,7 +82,7 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 		// The new code review agent will provide actual analysis
 		assert.NotEmpty(t, result.Details)
 		assert.Equal(t, "code_review", result.Metadata.AgentName)
-		
+
 		// Check that files were processed
 		assert.Greater(t, len(result.Metadata.FilesProcessed), 0)
 	})
@@ -92,22 +92,22 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 		ctx := context.Background()
 		readmePath := filepath.Join(tempDir, "README.md")
 		content := "# Test Project\n\nThis is a test project for the agent system."
-		
-		result, err := orchestrator.Execute(ctx, 
+
+		result, err := orchestrator.Execute(ctx,
 			"create file "+readmePath+" with content: "+content, nil)
 		require.NoError(t, err)
-		
+
 		// Log the result for debugging
-		t.Logf("Create file result: Success=%v, Summary=%s, Details=%s", 
+		t.Logf("Create file result: Success=%v, Summary=%s, Details=%s",
 			result.Success, result.Summary, result.Details)
-		
+
 		// If the operation failed, skip verification
 		if !result.Success {
 			t.Skipf("File creation failed (likely due to path restrictions): %s", result.Details)
 		}
-		
+
 		assert.Equal(t, "file_operations", result.Metadata.AgentName)
-		
+
 		// Verify file was created
 		data, err := os.ReadFile(readmePath)
 		require.NoError(t, err)
@@ -131,7 +131,7 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 			agentList := orchestrator.ListAgents()
 			var bestAgent agents.Agent
 			var bestConfidence float64
-			
+
 			for _, agent := range agentList {
 				canHandle, confidence := agent.CanHandle(tc.prompt)
 				if canHandle && confidence > bestConfidence {
@@ -139,14 +139,13 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 					bestConfidence = confidence
 				}
 			}
-			
+
 			assert.NotNil(t, bestAgent, "No agent found for prompt: %s", tc.prompt)
-			assert.Equal(t, tc.expectedAgent, bestAgent.Name(), 
+			assert.Equal(t, tc.expectedAgent, bestAgent.Name(),
 				"Wrong agent selected for prompt: %s", tc.prompt)
 		}
 	})
 }
-
 
 // createTestCodebase creates a small test codebase
 func createTestCodebase(dir string) error {
@@ -225,44 +224,44 @@ func TestAgentConfidenceScoring(t *testing.T) {
 	fileOpsAgent := agents.NewFileOperationsAgent(toolRegistry)
 
 	testCases := []struct {
-		prompt              string
-		expectedBestAgent   string
-		minConfidence      float64
+		prompt            string
+		expectedBestAgent string
+		minConfidence     float64
 	}{
 		{
 			prompt:            "please review my code and provide feedback",
 			expectedBestAgent: "code_review",
-			minConfidence:    0.8,
+			minConfidence:     0.8,
 		},
 		{
 			prompt:            "search for all TODO comments in the project",
 			expectedBestAgent: "search",
-			minConfidence:    0.8,
+			minConfidence:     0.8,
 		},
 		{
 			prompt:            "create a new configuration file config.yaml",
 			expectedBestAgent: "file_operations",
-			minConfidence:    0.8,
+			minConfidence:     0.8,
 		},
 		{
 			prompt:            "find all instances of the function getUserData",
 			expectedBestAgent: "search",
-			minConfidence:    0.8,
+			minConfidence:     0.8,
 		},
 		{
 			prompt:            "analyze the code quality and suggest improvements",
 			expectedBestAgent: "code_review",
-			minConfidence:    0.7,
+			minConfidence:     0.7,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.prompt, func(t *testing.T) {
 			agentList := []agents.Agent{codeReviewAgent, searchAgent, fileOpsAgent}
-			
+
 			var bestAgent agents.Agent
 			var bestConfidence float64
-			
+
 			for _, agent := range agentList {
 				canHandle, confidence := agent.CanHandle(tc.prompt)
 				if canHandle && confidence > bestConfidence {
@@ -270,7 +269,7 @@ func TestAgentConfidenceScoring(t *testing.T) {
 					bestConfidence = confidence
 				}
 			}
-			
+
 			require.NotNil(t, bestAgent, "No agent could handle prompt: %s", tc.prompt)
 			assert.Equal(t, tc.expectedBestAgent, bestAgent.Name(),
 				"Wrong agent selected for prompt: %s", tc.prompt)
@@ -286,7 +285,6 @@ func TestAgentExecutionTimeout(t *testing.T) {
 		t.Skip("Skipping integration test. Set INTEGRATION_TEST=true to run.")
 	}
 
-
 	toolRegistry := tools.NewRegistry()
 	err := toolRegistry.RegisterBuiltinTools()
 	require.NoError(t, err)
@@ -301,7 +299,7 @@ func TestAgentExecutionTimeout(t *testing.T) {
 
 	// This should timeout since the mock controller doesn't respond quickly
 	result, err := orchestrator.Execute(ctx, "search for complex pattern in large codebase", nil)
-	
+
 	// The operation should complete even with timeout
 	// (agents should handle timeouts gracefully)
 	if err != nil {

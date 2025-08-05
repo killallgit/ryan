@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	
+
 	"github.com/killallgit/ryan/pkg/langchain"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/models"
@@ -23,12 +23,12 @@ func NewOpenAIFunctionsAgent(config AgentConfig) (LangchainAgent, error) {
 	if !isOpenAICompatibleModel(config.Model) {
 		return nil, fmt.Errorf("model %s is not compatible with OpenAI functions", config.Model)
 	}
-	
+
 	client, err := langchain.NewClient(config.BaseURL, config.Model, config.ToolRegistry)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create langchain client: %w", err)
 	}
-	
+
 	agent := &OpenAIFunctionsAgent{
 		BaseLangchainAgent: BaseLangchainAgent{
 			name:         "openai-functions",
@@ -45,7 +45,7 @@ func NewOpenAIFunctionsAgent(config AgentConfig) (LangchainAgent, error) {
 		client: client,
 		log:    logger.WithComponent("openai_functions_agent"),
 	}
-	
+
 	return agent, nil
 }
 
@@ -55,10 +55,10 @@ func (o *OpenAIFunctionsAgent) CanHandle(request string) (bool, float64) {
 	if !isOpenAICompatibleModel(o.model) {
 		return false, 0.0
 	}
-	
+
 	// High confidence for structured tasks
 	lowerRequest := strings.ToLower(request)
-	
+
 	// OpenAI functions excel at structured operations
 	if strings.Contains(lowerRequest, "api") ||
 		strings.Contains(lowerRequest, "function") ||
@@ -66,12 +66,12 @@ func (o *OpenAIFunctionsAgent) CanHandle(request string) (bool, float64) {
 		strings.Contains(lowerRequest, "json") {
 		return true, 0.95
 	}
-	
+
 	// Good for general tool usage
 	if o.toolRegistry != nil && o.toolRegistry.HasTools() {
 		return true, 0.8
 	}
-	
+
 	return true, 0.5
 }
 
@@ -81,7 +81,7 @@ func (o *OpenAIFunctionsAgent) Execute(ctx context.Context, request AgentRequest
 		"prompt", request.Prompt,
 		"model", o.model,
 		"tools_available", o.toolRegistry != nil)
-	
+
 	response, err := o.client.SendMessage(ctx, request.Prompt)
 	if err != nil {
 		return AgentResult{
@@ -90,7 +90,7 @@ func (o *OpenAIFunctionsAgent) Execute(ctx context.Context, request AgentRequest
 			Details: err.Error(),
 		}, err
 	}
-	
+
 	return AgentResult{
 		Success: true,
 		Summary: "OpenAI functions agent completed successfully",
@@ -106,7 +106,7 @@ func (o *OpenAIFunctionsAgent) GetToolCompatibility() []string {
 	if o.toolRegistry == nil {
 		return []string{}
 	}
-	
+
 	tools := o.toolRegistry.GetTools()
 	toolNames := make([]string, 0, len(tools))
 	for _, tool := range tools {
@@ -120,13 +120,13 @@ func isOpenAICompatibleModel(model string) bool {
 	openAIModels := []string{
 		"gpt-4", "gpt-3.5", "claude", "gemini",
 	}
-	
+
 	modelLower := strings.ToLower(model)
 	for _, compatible := range openAIModels {
 		if strings.Contains(modelLower, compatible) {
 			return true
 		}
 	}
-	
+
 	return false
 }

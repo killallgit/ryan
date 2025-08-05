@@ -16,33 +16,33 @@ type ConfigurationBridge struct {
 }
 
 var (
-	bridge     *ConfigurationBridge
-	bridgeMu   sync.RWMutex
+	bridge   *ConfigurationBridge
+	bridgeMu sync.RWMutex
 )
 
 // InitializeBridge initializes the configuration bridge with both systems
 func InitializeBridge(legacyConfig *Config) error {
 	bridgeMu.Lock()
 	defer bridgeMu.Unlock()
-	
+
 	contextManager := NewContextManager()
 	hierarchy := NewConfigHierarchy(contextManager)
-	
+
 	// Load context configurations
 	if _, err := contextManager.LoadGlobalConfig(); err != nil {
 		return fmt.Errorf("failed to load global context config: %w", err)
 	}
-	
+
 	if _, err := contextManager.GetProjectConfig(""); err != nil {
 		return fmt.Errorf("failed to load project context config: %w", err)
 	}
-	
+
 	bridge = &ConfigurationBridge{
 		contextManager: contextManager,
 		hierarchy:      hierarchy,
 		legacy:         legacyConfig,
 	}
-	
+
 	return nil
 }
 
@@ -72,7 +72,7 @@ func (b *ConfigurationBridge) GetGlobalConfig() (*GlobalConfig, error) {
 	b.mu.RLock()
 	contextManager := b.contextManager
 	b.mu.RUnlock()
-	
+
 	return contextManager.LoadGlobalConfig()
 }
 
@@ -81,7 +81,7 @@ func (b *ConfigurationBridge) GetProjectConfig() (*ProjectConfig, error) {
 	b.mu.RLock()
 	contextManager := b.contextManager
 	b.mu.RUnlock()
-	
+
 	return contextManager.GetProjectConfig("")
 }
 
@@ -90,12 +90,12 @@ func (b *ConfigurationBridge) SaveProjectConfig(config *ProjectConfig) error {
 	b.mu.RLock()
 	contextManager := b.contextManager
 	b.mu.RUnlock()
-	
+
 	projectRoot, err := contextManager.GetProjectRoot()
 	if err != nil {
 		return err
 	}
-	
+
 	return contextManager.SaveProjectConfig(projectRoot, config)
 }
 
@@ -105,7 +105,7 @@ func (b *ConfigurationBridge) AddToHistory(role, content string, metadata map[st
 	if err != nil {
 		return fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	message := ConversationMessage{
 		ID:        generateMessageID(),
 		Role:      role,
@@ -113,9 +113,9 @@ func (b *ConfigurationBridge) AddToHistory(role, content string, metadata map[st
 		Timestamp: time.Now(),
 		Metadata:  metadata,
 	}
-	
+
 	projectConfig.History = append(projectConfig.History, message)
-	
+
 	return b.SaveProjectConfig(projectConfig)
 }
 
@@ -125,7 +125,7 @@ func (b *ConfigurationBridge) GetHistory() ([]ConversationMessage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	return projectConfig.History, nil
 }
 
@@ -135,9 +135,9 @@ func (b *ConfigurationBridge) ClearHistory() error {
 	if err != nil {
 		return fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	projectConfig.History = []ConversationMessage{}
-	
+
 	return b.SaveProjectConfig(projectConfig)
 }
 
@@ -147,19 +147,19 @@ func (b *ConfigurationBridge) IsToolAllowed(toolName string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	// If no allowed tools are specified, allow all tools (default behavior)
 	if len(projectConfig.AllowedTools) == 0 {
 		return true, nil
 	}
-	
+
 	// Check if tool is in allowed list
 	for _, allowedTool := range projectConfig.AllowedTools {
 		if allowedTool == toolName {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -169,17 +169,17 @@ func (b *ConfigurationBridge) AllowTool(toolName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	// Check if tool is already allowed
 	for _, allowedTool := range projectConfig.AllowedTools {
 		if allowedTool == toolName {
 			return nil // Already allowed
 		}
 	}
-	
+
 	// Add to allowed tools
 	projectConfig.AllowedTools = append(projectConfig.AllowedTools, toolName)
-	
+
 	return b.SaveProjectConfig(projectConfig)
 }
 
@@ -189,7 +189,7 @@ func (b *ConfigurationBridge) GetTrustStatus() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	return projectConfig.HasTrustDialogAccepted, nil
 }
 
@@ -199,9 +199,9 @@ func (b *ConfigurationBridge) SetTrustStatus(accepted bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	projectConfig.HasTrustDialogAccepted = accepted
-	
+
 	return b.SaveProjectConfig(projectConfig)
 }
 
@@ -211,7 +211,7 @@ func (b *ConfigurationBridge) GetIgnorePatterns() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	return projectConfig.IgnorePatterns, nil
 }
 
@@ -221,17 +221,17 @@ func (b *ConfigurationBridge) AddIgnorePattern(pattern string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	// Check if pattern already exists
 	for _, existingPattern := range projectConfig.IgnorePatterns {
 		if existingPattern == pattern {
 			return nil // Already exists
 		}
 	}
-	
+
 	// Add pattern
 	projectConfig.IgnorePatterns = append(projectConfig.IgnorePatterns, pattern)
-	
+
 	return b.SaveProjectConfig(projectConfig)
 }
 
@@ -241,7 +241,7 @@ func (b *ConfigurationBridge) GetMCPServers() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	return projectConfig.MCPServers, nil
 }
 
@@ -251,13 +251,13 @@ func (b *ConfigurationBridge) SetMCPServer(serverName string, config interface{}
 	if err != nil {
 		return fmt.Errorf("failed to get project config: %w", err)
 	}
-	
+
 	if projectConfig.MCPServers == nil {
 		projectConfig.MCPServers = make(map[string]interface{})
 	}
-	
+
 	projectConfig.MCPServers[serverName] = config
-	
+
 	return b.SaveProjectConfig(projectConfig)
 }
 
@@ -274,14 +274,14 @@ func (b *ConfigurationBridge) GetEffectiveConfiguration() (*Config, error) {
 	hierarchy := b.hierarchy
 	legacy := b.legacy
 	b.mu.RUnlock()
-	
+
 	// Use the hierarchy system to resolve effective configuration
 	effectiveConfig, err := hierarchy.ResolveEffectiveConfig()
 	if err != nil {
 		// Fallback to legacy config if hierarchy resolution fails
 		return legacy, nil
 	}
-	
+
 	return effectiveConfig, nil
 }
 
@@ -290,7 +290,7 @@ func (b *ConfigurationBridge) GetConfigValue(keyPath string) (interface{}, error
 	b.mu.RLock()
 	hierarchy := b.hierarchy
 	b.mu.RUnlock()
-	
+
 	return hierarchy.GetConfigValue(keyPath)
 }
 
@@ -299,6 +299,6 @@ func (b *ConfigurationBridge) SetConfigValue(keyPath string, value interface{}, 
 	b.mu.RLock()
 	hierarchy := b.hierarchy
 	b.mu.RUnlock()
-	
+
 	return hierarchy.SetConfigValue(keyPath, value, scope)
 }

@@ -52,6 +52,20 @@ func (op *OutputProcessor) ProcessForAgent(output string) string {
 	return output
 }
 
+// ProcessForDisplay processes LLM output for display purposes, preserving thinking blocks
+func (op *OutputProcessor) ProcessForDisplay(output string) string {
+	// Don't remove thinking blocks for display - they will be formatted by the UI
+	// Just clean up extra whitespace and return
+	cleanOutput := strings.TrimSpace(output)
+	cleanOutput = regexp.MustCompile(`\n{3,}`).ReplaceAllString(cleanOutput, "\n\n")
+
+	op.log.Debug("Processed output for display",
+		"original_length", len(output),
+		"processed_length", len(cleanOutput))
+
+	return cleanOutput
+}
+
 // removeThinkingBlocks removes <think>...</think> and <thinking>...</thinking> blocks
 func (op *OutputProcessor) removeThinkingBlocks(output string) string {
 	// Remove <think> blocks

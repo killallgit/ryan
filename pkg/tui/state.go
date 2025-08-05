@@ -46,7 +46,7 @@ func NewStateManager() *StateManager {
 func (sm *StateManager) GetState() *AppState {
 	sm.state.mu.RLock()
 	defer sm.state.mu.RUnlock()
-	
+
 	// Return a copy to prevent external modifications
 	return &AppState{
 		currentView:  sm.state.currentView,
@@ -71,7 +71,7 @@ func (sm *StateManager) UpdateState(newState *AppState) {
 		model:        sm.state.model,
 		messages:     append([]string(nil), sm.state.messages...),
 	}
-	
+
 	// Update state
 	sm.state.currentView = newState.currentView
 	sm.state.previousView = newState.previousView
@@ -80,9 +80,9 @@ func (sm *StateManager) UpdateState(newState *AppState) {
 	sm.state.streamID = newState.streamID
 	sm.state.model = newState.model
 	sm.state.messages = append([]string(nil), newState.messages...)
-	
+
 	sm.state.mu.Unlock()
-	
+
 	// Notify listeners
 	sm.notifyListeners(oldState, newState)
 }
@@ -91,15 +91,15 @@ func (sm *StateManager) UpdateState(newState *AppState) {
 func (sm *StateManager) SetCurrentView(view string) {
 	sm.state.mu.Lock()
 	oldState := sm.GetStateUnsafe()
-	
+
 	if sm.state.currentView != view {
 		sm.state.previousView = sm.state.currentView
 		sm.state.currentView = view
 	}
-	
+
 	newState := sm.GetStateUnsafe()
 	sm.state.mu.Unlock()
-	
+
 	sm.notifyListeners(oldState, newState)
 }
 
@@ -110,7 +110,7 @@ func (sm *StateManager) SetSending(sending bool) {
 	sm.state.sending = sending
 	newState := sm.GetStateUnsafe()
 	sm.state.mu.Unlock()
-	
+
 	sm.notifyListeners(oldState, newState)
 }
 
@@ -122,7 +122,7 @@ func (sm *StateManager) SetStreaming(streaming bool, streamID string) {
 	sm.state.streamID = streamID
 	newState := sm.GetStateUnsafe()
 	sm.state.mu.Unlock()
-	
+
 	sm.notifyListeners(oldState, newState)
 }
 
@@ -133,7 +133,7 @@ func (sm *StateManager) SetModel(model string) {
 	sm.state.model = model
 	newState := sm.GetStateUnsafe()
 	sm.state.mu.Unlock()
-	
+
 	sm.notifyListeners(oldState, newState)
 }
 
@@ -161,7 +161,7 @@ func (sm *StateManager) AddListener(listener StateListener) {
 func (sm *StateManager) RemoveListener(targetListener StateListener) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	
+
 	// Note: This is a simplified implementation
 	// In a real scenario, you might want to use a more sophisticated method
 	// to identify and remove specific listeners
@@ -182,7 +182,7 @@ func (sm *StateManager) notifyListeners(oldState, newState *AppState) {
 	listeners := make([]StateListener, len(sm.listeners))
 	copy(listeners, sm.listeners)
 	sm.mu.RUnlock()
-	
+
 	// Notify listeners in separate goroutines to avoid blocking
 	for _, listener := range listeners {
 		go func(l StateListener) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
-	
+
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/tools"
 )
@@ -17,7 +17,7 @@ type LangchainOrchestrator struct {
 	toolRegistry *tools.Registry
 	log          *logger.Logger
 	mu           sync.RWMutex
-	
+
 	// User preferences
 	preferredAgent string
 	fallbackChain  []string
@@ -26,10 +26,10 @@ type LangchainOrchestrator struct {
 // NewLangchainOrchestrator creates a new orchestrator
 func NewLangchainOrchestrator(toolRegistry *tools.Registry) *LangchainOrchestrator {
 	return &LangchainOrchestrator{
-		agents:       make(map[string]LangchainAgent),
-		factory:      GlobalFactory,
-		toolRegistry: toolRegistry,
-		log:          logger.WithComponent("langchain_orchestrator"),
+		agents:        make(map[string]LangchainAgent),
+		factory:       GlobalFactory,
+		toolRegistry:  toolRegistry,
+		log:           logger.WithComponent("langchain_orchestrator"),
 		fallbackChain: []string{"ollama-functions", "openai-functions", "conversational"},
 	}
 }
@@ -59,12 +59,12 @@ func (o *LangchainOrchestrator) SetFallbackChain(chain []string) error {
 func (o *LangchainOrchestrator) RegisterAgent(agent LangchainAgent) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	
+
 	name := agent.Name()
 	if _, exists := o.agents[name]; exists {
 		return fmt.Errorf("agent %s is already registered", name)
 	}
-	
+
 	o.agents[name] = agent
 	o.log.Debug("Registered agent", "name", name, "type", agent.GetChainType())
 	return nil
@@ -79,13 +79,13 @@ func (o *LangchainOrchestrator) Execute(ctx context.Context, request string, opt
 			Options: options,
 		})
 	}
-	
+
 	// Try to select the best agent
 	agent, err := o.selectBestAgent(request, options)
 	if err != nil {
 		return AgentResult{}, fmt.Errorf("failed to select agent: %w", err)
 	}
-	
+
 	return agent.Execute(ctx, AgentRequest{
 		Prompt:  request,
 		Options: options,
@@ -97,32 +97,32 @@ func (o *LangchainOrchestrator) ExecuteWithAgent(ctx context.Context, agentName 
 	o.mu.RLock()
 	agent, exists := o.agents[agentName]
 	o.mu.RUnlock()
-	
+
 	if !exists {
 		// Try to create the agent on-demand
 		config := AgentConfig{
 			ToolRegistry: o.toolRegistry,
 			Options:      request.Options,
 		}
-		
+
 		// Extract model from options if available
 		if model, ok := request.Options["model"].(string); ok {
 			config.Model = model
 		}
-		
+
 		newAgent, err := o.factory.Create(agentName, config)
 		if err != nil {
 			return AgentResult{}, fmt.Errorf("agent %s not found and could not be created: %w", agentName, err)
 		}
-		
+
 		// Register the newly created agent
 		if err := o.RegisterAgent(newAgent); err != nil {
 			o.log.Warn("Failed to register newly created agent", "error", err)
 		}
-		
+
 		agent = newAgent
 	}
-	
+
 	return agent.Execute(ctx, request)
 }
 
@@ -130,7 +130,7 @@ func (o *LangchainOrchestrator) ExecuteWithAgent(ctx context.Context, agentName 
 func (o *LangchainOrchestrator) ListAgents() []Agent {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	agents := make([]Agent, 0, len(o.agents))
 	for _, agent := range o.agents {
 		agents = append(agents, agent)
@@ -142,7 +142,7 @@ func (o *LangchainOrchestrator) ListAgents() []Agent {
 func (o *LangchainOrchestrator) ListLangchainAgents() []LangchainAgent {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	agents := make([]LangchainAgent, 0, len(o.agents))
 	for _, agent := range o.agents {
 		agents = append(agents, agent)
@@ -165,10 +165,10 @@ func (o *LangchainOrchestrator) selectBestAgent(request string, options map[stri
 			}
 		}
 	}
-	
+
 	// Rank all available agents
 	rankings := o.rankAgents(request)
-	
+
 	// Try agents in order of ranking
 	for _, ranking := range rankings {
 		if ranking.confidence > 0.5 {
@@ -181,7 +181,7 @@ func (o *LangchainOrchestrator) selectBestAgent(request string, options map[stri
 			}
 		}
 	}
-	
+
 	// Fallback to the first agent in the fallback chain
 	for _, agentType := range o.fallbackChain {
 		agent, err := o.getOrCreateAgent(agentType, options)
@@ -190,7 +190,7 @@ func (o *LangchainOrchestrator) selectBestAgent(request string, options map[stri
 			return agent, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("no suitable agent found for request")
 }
 
@@ -199,29 +199,29 @@ func (o *LangchainOrchestrator) getOrCreateAgent(agentName string, options map[s
 	o.mu.RLock()
 	agent, exists := o.agents[agentName]
 	o.mu.RUnlock()
-	
+
 	if exists {
 		return agent, nil
 	}
-	
+
 	// Create the agent
 	config := AgentConfig{
 		ToolRegistry: o.toolRegistry,
 		Options:      options,
 	}
-	
+
 	if model, ok := options["model"].(string); ok {
 		config.Model = model
 	}
-	
+
 	newAgent, err := o.factory.Create(agentName, config)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Register it for future use
 	_ = o.RegisterAgent(newAgent)
-	
+
 	return newAgent, nil
 }
 
@@ -235,9 +235,9 @@ type agentRanking struct {
 func (o *LangchainOrchestrator) rankAgents(request string) []agentRanking {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	
+
 	rankings := make([]agentRanking, 0, len(o.agents))
-	
+
 	// Check existing agents
 	for name, agent := range o.agents {
 		canHandle, confidence := agent.CanHandle(request)
@@ -248,7 +248,7 @@ func (o *LangchainOrchestrator) rankAgents(request string) []agentRanking {
 			})
 		}
 	}
-	
+
 	// Also check factory-registered types that aren't instantiated yet
 	for _, agentType := range o.factory.GetRegisteredTypes() {
 		if _, exists := o.agents[agentType]; !exists {
@@ -263,12 +263,12 @@ func (o *LangchainOrchestrator) rankAgents(request string) []agentRanking {
 			}
 		}
 	}
-	
+
 	// Sort by confidence (highest first)
 	sort.Slice(rankings, func(i, j int) bool {
 		return rankings[i].confidence > rankings[j].confidence
 	})
-	
+
 	return rankings
 }
 

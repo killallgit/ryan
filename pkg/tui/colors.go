@@ -30,15 +30,15 @@ var (
 	ColorBrown  = "#b57f6b" // Deprecated, special
 
 	// UI specific colors
-	ColorBorder     = ColorBase03
-	ColorSelection  = ColorBase02
-	ColorFocus      = ColorOrange
-	ColorSuccess    = ColorGreen
-	ColorWarning    = ColorYellow
-	ColorError      = ColorRed
-	ColorInfo       = ColorCyan
-	ColorMuted      = ColorBase03
-	ColorHighlight  = ColorYellow
+	ColorBorder    = ColorBase03
+	ColorSelection = ColorBase02
+	ColorFocus     = ColorOrange
+	ColorSuccess   = ColorGreen
+	ColorWarning   = ColorYellow
+	ColorError     = ColorRed
+	ColorInfo      = ColorCyan
+	ColorMuted     = ColorBase03
+	ColorHighlight = ColorYellow
 )
 
 // Theme represents the color theme configuration
@@ -57,6 +57,7 @@ type Theme struct {
 	UserMessage      string
 	AssistantMessage string
 	SystemMessage    string
+	ThinkingText     string
 	StreamingCursor  string
 }
 
@@ -77,6 +78,7 @@ func DefaultTheme() *Theme {
 		UserMessage:      ColorGreen,
 		AssistantMessage: ColorBlue,
 		SystemMessage:    ColorPurple,
+		ThinkingText:     ColorMuted,
 		StreamingCursor:  ColorOrange,
 	}
 }

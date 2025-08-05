@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	
+
 	"github.com/killallgit/ryan/pkg/langchain"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/models"
@@ -23,12 +23,12 @@ func NewOllamaFunctionsAgent(config AgentConfig) (LangchainAgent, error) {
 	if !isOllamaCompatibleModel(config.Model) {
 		return nil, fmt.Errorf("model %s is not compatible with Ollama functions", config.Model)
 	}
-	
+
 	client, err := langchain.NewClient(config.BaseURL, config.Model, config.ToolRegistry)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create langchain client: %w", err)
 	}
-	
+
 	agent := &OllamaFunctionsAgent{
 		BaseLangchainAgent: BaseLangchainAgent{
 			name:         "ollama-functions",
@@ -45,7 +45,7 @@ func NewOllamaFunctionsAgent(config AgentConfig) (LangchainAgent, error) {
 		client: client,
 		log:    logger.WithComponent("ollama_functions_agent"),
 	}
-	
+
 	return agent, nil
 }
 
@@ -55,22 +55,22 @@ func (o *OllamaFunctionsAgent) CanHandle(request string) (bool, float64) {
 	if !isOllamaCompatibleModel(o.model) {
 		return false, 0.0
 	}
-	
+
 	// High confidence for tool-heavy tasks
 	lowerRequest := strings.ToLower(request)
-	
+
 	toolKeywords := []string{
 		"run", "execute", "create", "delete", "list", "show",
 		"grep", "search", "find", "fetch", "download",
 	}
-	
+
 	keywordCount := 0
 	for _, keyword := range toolKeywords {
 		if strings.Contains(lowerRequest, keyword) {
 			keywordCount++
 		}
 	}
-	
+
 	if keywordCount > 0 {
 		confidence := 0.7 + float64(keywordCount)*0.1
 		if confidence > 1.0 {
@@ -78,12 +78,12 @@ func (o *OllamaFunctionsAgent) CanHandle(request string) (bool, float64) {
 		}
 		return true, confidence
 	}
-	
+
 	// Medium confidence if tools are available
 	if o.toolRegistry != nil && o.toolRegistry.HasTools() {
 		return true, 0.6
 	}
-	
+
 	return false, 0.0
 }
 
@@ -93,13 +93,13 @@ func (o *OllamaFunctionsAgent) Execute(ctx context.Context, request AgentRequest
 		"prompt", request.Prompt,
 		"model", o.model,
 		"tools_available", o.toolRegistry != nil)
-	
+
 	// Configure client for Ollama function mode
 	if o.client != nil {
 		// This would set the agent type in the client
 		// The client would handle the specific Ollama function calling protocol
 	}
-	
+
 	response, err := o.client.SendMessage(ctx, request.Prompt)
 	if err != nil {
 		return AgentResult{
@@ -108,7 +108,7 @@ func (o *OllamaFunctionsAgent) Execute(ctx context.Context, request AgentRequest
 			Details: err.Error(),
 		}, err
 	}
-	
+
 	return AgentResult{
 		Success: true,
 		Summary: "Ollama functions agent completed successfully",
@@ -124,7 +124,7 @@ func (o *OllamaFunctionsAgent) GetToolCompatibility() []string {
 	if o.toolRegistry == nil {
 		return []string{}
 	}
-	
+
 	tools := o.toolRegistry.GetTools()
 	toolNames := make([]string, 0, len(tools))
 	for _, tool := range tools {
@@ -139,13 +139,13 @@ func isOllamaCompatibleModel(model string) bool {
 		"llama", "qwen", "mistral", "deepseek", "command-r",
 		"granite", "gemma2", "phi3",
 	}
-	
+
 	modelLower := strings.ToLower(model)
 	for _, compatible := range ollamaModels {
 		if strings.Contains(modelLower, compatible) {
 			return true
 		}
 	}
-	
+
 	return false
 }

@@ -9,39 +9,39 @@ type EventType string
 
 const (
 	// View events
-	EventViewSwitched         EventType = "view.switched"
-	EventViewSwitchRequested  EventType = "view.switch_requested"
-	
+	EventViewSwitched        EventType = "view.switched"
+	EventViewSwitchRequested EventType = "view.switch_requested"
+
 	// Message events
-	EventMessageSent          EventType = "message.sent"
-	EventMessageReceived      EventType = "message.received"
-	EventMessageError         EventType = "message.error"
-	
+	EventMessageSent     EventType = "message.sent"
+	EventMessageReceived EventType = "message.received"
+	EventMessageError    EventType = "message.error"
+
 	// Streaming events
-	EventStreamStarted        EventType = "stream.started"
-	EventStreamChunkReceived  EventType = "stream.chunk_received"
-	EventStreamCompleted      EventType = "stream.completed"
-	EventStreamError          EventType = "stream.error"
-	
+	EventStreamStarted       EventType = "stream.started"
+	EventStreamChunkReceived EventType = "stream.chunk_received"
+	EventStreamCompleted     EventType = "stream.completed"
+	EventStreamError         EventType = "stream.error"
+
 	// Model events
 	EventModelChanged         EventType = "model.changed"
 	EventModelValidationError EventType = "model.validation_error"
-	
+
 	// UI events
-	EventUIUpdateRequested    EventType = "ui.update_requested"
-	EventUIRefreshRequested   EventType = "ui.refresh_requested"
-	
+	EventUIUpdateRequested  EventType = "ui.update_requested"
+	EventUIRefreshRequested EventType = "ui.refresh_requested"
+
 	// Application events
-	EventAppExit              EventType = "app.exit"
-	EventAppError             EventType = "app.error"
+	EventAppExit  EventType = "app.exit"
+	EventAppError EventType = "app.error"
 )
 
 // Event represents an event in the system
 type Event struct {
 	Type      EventType
 	Payload   interface{}
-	Source    string    // Component that generated the event
-	Timestamp int64     // Unix timestamp
+	Source    string // Component that generated the event
+	Timestamp int64  // Unix timestamp
 }
 
 // EventHandler is a function that handles events
@@ -64,11 +64,11 @@ func NewEventBus() *EventBus {
 func (eb *EventBus) Subscribe(eventType EventType, handler EventHandler) {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
-	
+
 	if eb.subscribers[eventType] == nil {
 		eb.subscribers[eventType] = make([]EventHandler, 0)
 	}
-	
+
 	eb.subscribers[eventType] = append(eb.subscribers[eventType], handler)
 }
 
@@ -78,12 +78,12 @@ func (eb *EventBus) Subscribe(eventType EventType, handler EventHandler) {
 func (eb *EventBus) Unsubscribe(eventType EventType, handler EventHandler) {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
-	
+
 	handlers := eb.subscribers[eventType]
 	if handlers == nil {
 		return
 	}
-	
+
 	// This is a placeholder - Go doesn't allow function comparison
 	// In practice, you'd use handler IDs or other identification
 	_ = handler
@@ -99,7 +99,7 @@ func (eb *EventBus) Publish(event Event) {
 		copy(handlers, eb.subscribers[event.Type])
 	}
 	eb.mu.RUnlock()
-	
+
 	// Execute handlers in separate goroutines to avoid blocking
 	for _, handler := range handlers {
 		go func(h EventHandler) {
@@ -124,7 +124,7 @@ func (eb *EventBus) PublishSync(event Event) {
 		copy(handlers, eb.subscribers[event.Type])
 	}
 	eb.mu.RUnlock()
-	
+
 	// Execute handlers synchronously
 	for _, handler := range handlers {
 		func(h EventHandler) {
@@ -143,11 +143,11 @@ func (eb *EventBus) PublishSync(event Event) {
 func (eb *EventBus) GetSubscriberCount(eventType EventType) int {
 	eb.mu.RLock()
 	defer eb.mu.RUnlock()
-	
+
 	if eb.subscribers[eventType] == nil {
 		return 0
 	}
-	
+
 	return len(eb.subscribers[eventType])
 }
 
@@ -155,7 +155,7 @@ func (eb *EventBus) GetSubscriberCount(eventType EventType) int {
 func (eb *EventBus) Clear() {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
-	
+
 	eb.subscribers = make(map[EventType][]EventHandler)
 }
 
@@ -252,7 +252,7 @@ func NewModelEvent(source, modelName, oldModel string, err error) Event {
 	if err != nil {
 		eventType = EventModelValidationError
 	}
-	
+
 	return Event{
 		Type:   eventType,
 		Source: source,

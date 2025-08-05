@@ -90,7 +90,7 @@ func (d *DispatcherAgent) Execute(ctx context.Context, request AgentRequest) (Ag
 		Summary: summary,
 		Details: details,
 		Artifacts: map[string]interface{}{
-			"plan":            plan,
+			"plan":              plan,
 			"execution_context": execContext,
 		},
 		Metadata: AgentMetadata{
@@ -137,16 +137,16 @@ func (d *DispatcherAgent) buildPlanDetails(plan *ExecutionPlan) string {
 	// Detail each stage
 	for i, stage := range plan.Stages {
 		details = append(details, fmt.Sprintf("Stage %d (%s):", i+1, stage.ID))
-		
+
 		for _, taskID := range stage.Tasks {
 			// Find task details
 			for _, task := range plan.Tasks {
 				if task.ID == taskID {
-					details = append(details, fmt.Sprintf("  - %s: %s", 
-						task.Agent, 
+					details = append(details, fmt.Sprintf("  - %s: %s",
+						task.Agent,
 						truncateString(task.Request.Prompt, 60)))
 					if len(task.Dependencies) > 0 {
-						details = append(details, fmt.Sprintf("    Dependencies: %s", 
+						details = append(details, fmt.Sprintf("    Dependencies: %s",
 							strings.Join(task.Dependencies, ", ")))
 					}
 					break
@@ -158,4 +158,3 @@ func (d *DispatcherAgent) buildPlanDetails(plan *ExecutionPlan) string {
 
 	return strings.Join(details, "\n")
 }
-
