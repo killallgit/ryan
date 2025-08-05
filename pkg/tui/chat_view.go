@@ -66,6 +66,9 @@ type ChatView struct {
 	// Stream parser for formatted content
 	streamParser     *StreamParser // Parser for handling think blocks and formatting
 	lastParsedLength int           // Track how much content we've already parsed
+	
+	// Streaming renderer for incremental updates
+	streamingRenderer *StreamingRenderer
 }
 
 func NewChatView(controller ControllerInterface, modelsController *controllers.ModelsController, screen tcell.Screen) *ChatView {
@@ -107,6 +110,9 @@ func NewChatView(controller ControllerInterface, modelsController *controllers.M
 
 		// Initialize stream parser
 		streamParser: NewStreamParser(),
+		
+		// Initialize streaming renderer
+		streamingRenderer: NewStreamingRenderer(),
 	}
 
 	view.updateMessages()
@@ -130,7 +136,29 @@ func (cv *ChatView) Render(screen tcell.Screen, area Rect) {
 		Frame:     cv.alert.SpinnerFrame,
 		Text:      cv.alert.SpinnerText,
 	}
-	RenderMessagesWithStreamingState(screen, cv.messages, messageArea, spinner, cv.isStreamingThinking)
+	
+	// Check if this is a streaming update that can use incremental rendering
+	isStreamingUpdate := cv.isStreaming && cv.streamingRenderer != nil
+	
+	if isStreamingUpdate {
+		// Use incremental rendering for streaming content
+		RenderMessagesWithIncrementalStreaming(
+			screen, 
+			cv.messages, 
+			messageArea, 
+			spinner, 
+			cv.isStreamingThinking,
+			cv.streamingRenderer,
+			true, // This is a streaming update
+		)
+	} else {
+		// Full render for non-streaming updates
+		RenderMessagesWithStreamingState(screen, cv.messages, messageArea, spinner, cv.isStreamingThinking)
+		// Reset streaming renderer when not streaming
+		if cv.streamingRenderer != nil && !cv.isStreaming {
+			cv.streamingRenderer.Reset()
+		}
+	}
 
 	// Update status row with current token count and render it
 	// Get the most current token count from both status and controller
@@ -971,6 +999,11 @@ func (cv *ChatView) HandleStreamStart(streamID, model string) {
 	// Reset stream parser for new stream
 	cv.streamParser.Reset()
 	cv.lastParsedLength = 0
+	
+	// Reset streaming renderer for new stream
+	if cv.streamingRenderer != nil {
+		cv.streamingRenderer.Reset()
+	}
 
 	// Update status to show streaming
 	cv.status = cv.status.WithStatus("Streaming response...")
