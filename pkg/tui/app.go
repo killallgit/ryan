@@ -274,7 +274,7 @@ func (a *App) showViewSwitcher() {
 		return event
 	})
 	
-	// Create a bordered container for the list
+	// Create a container for the list with padding
 	listContainer := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 1, 0, false).  // Top padding
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -283,13 +283,10 @@ func (a *App) showViewSwitcher() {
 			AddItem(nil, 2, 0, false), 0, 1, true).  // Right padding
 		AddItem(nil, 1, 0, false)  // Bottom padding
 	
-	listContainer.SetBorder(true).SetTitle(" Switch View (Ctrl-P) ").
-		SetBackgroundColor(ColorBase01).
-		SetBorderColor(ColorBase03).
-		SetTitleColor(ColorYellow)
+	listContainer.SetBackgroundColor(ColorBase01)
 	
-	// Create modal with height to show all 5 items (5 items + padding + border = 9)
-	modal := createModal(listContainer, 30, 9)
+	// Create modal with height to show all 5 items (5 items + padding = 7)
+	modal := createModal(listContainer, 30, 7)
 	
 	// Add as overlay
 	a.pages.AddPage("view-switcher", modal, true, true)
@@ -297,13 +294,15 @@ func (a *App) showViewSwitcher() {
 
 // createModal creates a centered modal primitive
 func createModal(p tview.Primitive, width, height int) tview.Primitive {
-	return tview.NewFlex().
+	modal := tview.NewFlex().
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
 			AddItem(p, height, 1, true).
 			AddItem(nil, 0, 1, false), width, 1, true).
 		AddItem(nil, 0, 1, false)
+	modal.SetBackgroundColor(tcell.ColorDefault)  // Transparent to show the base background
+	return modal
 }
 
 // SendMessage sends a message through the controller
