@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/gdamore/tcell/v2"
+import (
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+)
 
 // Base16 color palette with orange, brown, yellow, and pink tones
 // Based on Autumn theme with warm earth tones
@@ -90,4 +93,12 @@ func ApplyTheme(theme *Theme) {
 	tcell.ColorNames["purple"] = ColorPurple
 	tcell.ColorNames["cyan"] = ColorCyan
 	tcell.ColorNames["orange"] = ColorOrange
+	
+	// Set tview default styles
+	tview.Styles.PrimitiveBackgroundColor = theme.Background
+	tview.Styles.ContrastBackgroundColor = theme.Background
+	tview.Styles.MoreContrastBackgroundColor = theme.Background
+	tview.Styles.BorderColor = theme.Border
+	tview.Styles.TitleColor = theme.Foreground
+	tview.Styles.GraphicsColor = theme.Border
 }
