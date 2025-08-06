@@ -30,12 +30,21 @@ tasks:
       - ./bin/ryan
   test:
     cmds:
-      - go test -coverprofile=coverage.out ./pkg/... ./integration/... ./cmd/...
+      - mkdir -p coverage
+      - go test -coverprofile=coverage/coverage.out ./pkg/... ./integration/... ./cmd/...
 
   "test:unit":
     desc: Run only unit tests (excludes integration tests)
     cmds:
       - go test ./pkg/... ./cmd/...
+
+  "test:coverage":
+    desc: Generate coverage report and HTML visualization
+    cmds:
+      - mkdir -p coverage
+      - go test -coverprofile=coverage/coverage.out ./pkg/... ./integration/... ./cmd/...
+      - go tool cover -html=coverage/coverage.out -o coverage/coverage.html
+      - echo "Coverage report generated at coverage/coverage.html"
 
   "test:integration":
     desc: Run integration tests against real Ollama API

@@ -10,15 +10,17 @@ type VectorStoreView struct {
 	*tview.Flex
 
 	// Components
-	info   *tview.TextView
-	table  *tview.Table
-	status *tview.TextView
+	info          *tview.TextView
+	table         *tview.Table
+	status        *tview.TextView
+	renderManager *RenderManager
 }
 
 // NewVectorStoreView creates a new vector store view
-func NewVectorStoreView() *VectorStoreView {
+func NewVectorStoreView(renderManager *RenderManager) *VectorStoreView {
 	vv := &VectorStoreView{
-		Flex: tview.NewFlex().SetDirection(tview.FlexRow),
+		Flex:          tview.NewFlex().SetDirection(tview.FlexRow),
+		renderManager: renderManager,
 	}
 
 	// Create info panel

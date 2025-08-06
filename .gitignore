@@ -37,3 +37,6 @@ ryan
 dist/
 !.github/workflows/coverage.yaml
 !CLAUDE.md
+
+# Coverage reports
+coverage/

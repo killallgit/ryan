@@ -558,3 +558,128 @@ func (rm *RenderManager) processStreamingThinkingBlocks(content string, result *
 func (rm *RenderManager) SetWidth(width int) {
 	rm.width = width
 }
+
+// RenderList renders a list with consistent formatting
+func (rm *RenderManager) RenderList(items []string, selectedIndex int) string {
+	var result strings.Builder
+	for i, item := range items {
+		if i == selectedIndex {
+			result.WriteString(fmt.Sprintf("[%s:%s]▸ %s[-:-]", ColorCyan, ColorBase01, item))
+		} else {
+			result.WriteString(fmt.Sprintf("  %s", item))
+		}
+		if i < len(items)-1 {
+			result.WriteString("\n")
+		}
+	}
+	return result.String()
+}
+
+// RenderTable renders table data with consistent formatting
+func (rm *RenderManager) RenderTable(headers []string, rows [][]string) string {
+	var result strings.Builder
+
+	// Render headers
+	for i, header := range headers {
+		result.WriteString(fmt.Sprintf("[%s::b]%s[-:-:-]", ColorYellow, header))
+		if i < len(headers)-1 {
+			result.WriteString(" | ")
+		}
+	}
+	result.WriteString("\n")
+	result.WriteString(strings.Repeat("─", rm.width))
+	result.WriteString("\n")
+
+	// Render rows
+	for _, row := range rows {
+		for i, cell := range row {
+			result.WriteString(cell)
+			if i < len(row)-1 {
+				result.WriteString(" | ")
+			}
+		}
+		result.WriteString("\n")
+	}
+
+	return result.String()
+}
+
+// RenderStatus renders a status message with appropriate styling
+func (rm *RenderManager) RenderStatus(status string, statusType string) string {
+	var color string
+	switch statusType {
+	case "success":
+		color = ColorGreen
+	case "error":
+		color = ColorRed
+	case "warning":
+		color = ColorYellow
+	case "info":
+		color = ColorCyan
+	default:
+		color = ColorBase05
+	}
+	return fmt.Sprintf("[%s]%s[-]", color, status)
+}
+
+// RenderProgress renders a progress bar
+func (rm *RenderManager) RenderProgress(current, total int, label string) string {
+	if total == 0 {
+		return fmt.Sprintf("[%s]%s: --%%[-]", ColorCyan, label)
+	}
+
+	percentage := float64(current) / float64(total) * 100
+	barWidth := 20
+	filled := int(float64(barWidth) * (percentage / 100))
+
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+
+	return fmt.Sprintf("[%s]%s: [%s] %.1f%%[-]", ColorCyan, label, bar, percentage)
+}
+
+// RenderTree renders tree-structured data
+func (rm *RenderManager) RenderTree(node string, level int, isLast bool, hasChildren bool) string {
+	indent := strings.Repeat("  ", level)
+
+	var prefix string
+	if level > 0 {
+		if isLast {
+			prefix = "└─"
+		} else {
+			prefix = "├─"
+		}
+	}
+
+	var icon string
+	if hasChildren {
+		icon = "▸"
+	} else {
+		icon = "•"
+	}
+
+	return fmt.Sprintf("%s[%s]%s %s %s[-]", indent, ColorBase04, prefix, icon, node)
+}
+
+// RenderHeader renders a section header
+func (rm *RenderManager) RenderHeader(text string, level int) string {
+	colors := []string{ColorOrange, ColorYellow, ColorBlue}
+	if level < 1 || level > len(colors) {
+		level = 1
+	}
+	return fmt.Sprintf("[%s::b]%s[-:-:-]", colors[level-1], text)
+}
+
+// RenderKeyValue renders key-value pairs
+func (rm *RenderManager) RenderKeyValue(key, value string) string {
+	return fmt.Sprintf("[%s]%s:[-] %s", ColorCyan, key, value)
+}
+
+// RenderHighlight highlights specific text within content
+func (rm *RenderManager) RenderHighlight(content, highlight string) string {
+	if highlight == "" {
+		return content
+	}
+	highlighted := strings.ReplaceAll(content, highlight,
+		fmt.Sprintf("[%s:%s]%s[-:-]", ColorYellow, ColorBase02, highlight))
+	return highlighted
+}

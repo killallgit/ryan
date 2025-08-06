@@ -24,6 +24,7 @@ type ModelView struct {
 	modelsController *controllers.ModelsController
 	chatController   ControllerInterface
 	app              *tview.Application
+	renderManager    *RenderManager
 
 	// Modal state
 	pullingModel string
@@ -36,12 +37,13 @@ type ModelView struct {
 }
 
 // NewModelView creates a new model view
-func NewModelView(modelsController *controllers.ModelsController, chatController ControllerInterface, app *tview.Application) *ModelView {
+func NewModelView(modelsController *controllers.ModelsController, chatController ControllerInterface, app *tview.Application, renderManager *RenderManager) *ModelView {
 	mv := &ModelView{
 		Flex:             tview.NewFlex().SetDirection(tview.FlexRow),
 		modelsController: modelsController,
 		chatController:   chatController,
 		app:              app,
+		renderManager:    renderManager,
 	}
 
 	// Create table for models
