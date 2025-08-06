@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/rivo/tview"
 )
 
@@ -39,6 +41,8 @@ type ChatView struct {
 	currentState  string // Current UI state: idle, sending, thinking, streaming, executing, preparing_tools
 	currentAgent  string // Current agent name
 	currentAction string // Current action being performed
+	spinnerActive bool   // Track if spinner goroutine is running
+	spinnerMutex  sync.Mutex // Protect spinner state
 
 	// Callbacks
 	onSendMessage func(content string)
@@ -308,6 +312,11 @@ func (cv *ChatView) SetSendMessageHandler(handler func(content string)) {
 
 // UpdateMessages updates the message display with current conversation
 func (cv *ChatView) UpdateMessages() {
+	log := logger.WithComponent("chat_view")
+	log.Debug("UpdateMessages called",
+		"streaming", cv.streaming,
+		"stream_buffer_length", len(cv.streamBuffer))
+
 	cv.messages.Clear()
 
 	history := cv.controller.GetHistory()
@@ -399,40 +408,78 @@ func (cv *ChatView) UpdateMessages() {
 
 // StartStreaming indicates streaming has started
 func (cv *ChatView) StartStreaming(streamID string) {
+	log := logger.WithComponent("chat_view")
+	log.Info("StartStreaming called",
+		"streamID", streamID,
+		"was_streaming", cv.streaming,
+		"was_sending", cv.sending)
+
 	cv.streaming = true
 	cv.streamID = streamID
 	cv.streamBuffer = ""
+	log.Debug("Set streaming state",
+		"streaming", cv.streaming,
+		"streamID", cv.streamID)
+
 	cv.updateStatus()
 	cv.startSpinner()
+	log.Debug("Started spinner and updated status")
 }
 
 // UpdateStreamingContent updates the streaming message content
 func (cv *ChatView) UpdateStreamingContent(streamID string, content string) {
+	log := logger.WithComponent("chat_view")
+	log.Debug("UpdateStreamingContent called",
+		"streamID", streamID,
+		"current_streamID", cv.streamID,
+		"content_length", len(content),
+		"is_tool_mode", content == "<<<TOOL_MODE>>>")
+
 	if cv.streamID == streamID {
 		// Check for tool mode marker
 		if content == "<<<TOOL_MODE>>>" {
 			cv.currentState = "preparing_tools"
 			cv.updateSpinnerView()
+			log.Debug("Tool mode marker detected, updating state")
 			return // Don't add marker to buffer
 		}
 
 		cv.streamBuffer = content
+		log.Debug("Updated stream buffer", "buffer_length", len(cv.streamBuffer))
 		cv.UpdateMessages()
+	} else {
+		log.Warn("StreamID mismatch", "expected", cv.streamID, "got", streamID)
 	}
 }
 
 // CompleteStreaming marks streaming as complete
 func (cv *ChatView) CompleteStreaming(streamID string, finalMessage chat.Message) {
+	log := logger.WithComponent("chat_view")
+	log.Info("CompleteStreaming called",
+		"streamID", streamID,
+		"current_streamID", cv.streamID,
+		"final_message_role", finalMessage.Role,
+		"final_message_length", len(finalMessage.Content))
+
 	if cv.streamID == streamID {
 		cv.streaming = false
 		cv.streamID = ""
 		cv.streamBuffer = ""
+		log.Debug("Cleared streaming state")
 		cv.updateStatus()
+	} else {
+		log.Warn("StreamID mismatch in complete", "expected", cv.streamID, "got", streamID)
 	}
 }
 
 // SetSending updates the sending state
 func (cv *ChatView) SetSending(sending bool) {
+	log := logger.WithComponent("chat_view")
+	log.Info("SetSending called",
+		"new_sending", sending,
+		"was_sending", cv.sending,
+		"is_streaming", cv.streaming)
+
 	cv.sending = sending
 	cv.input.SetDisabled(sending)
 	cv.updateStatus()
@@ -440,15 +487,16 @@ func (cv *ChatView) SetSending(sending bool) {
 	// Start or stop spinner animation
 	if sending {
 		cv.currentState = "sending"
+		log.Debug("Starting spinner from SetSending")
 		cv.startSpinner()
 	} else {
 		cv.currentState = "idle"
+		log.Debug("SetSending(false) - spinner will stop naturally")
 	}
 	cv.updateSpinnerView()
 	cv.updateStatus()
 }
 
-// updateStatus updates the status bar
 // updateModelView updates the SELECTED_MODEL in footer
 func (cv *ChatView) updateModelView() {
 	if cv.modelView == nil {
@@ -586,15 +634,63 @@ func (cv *ChatView) ClearActivityTree() {
 
 // startSpinner starts the spinner animation
 func (cv *ChatView) startSpinner() {
+	cv.spinnerMutex.Lock()
+	defer cv.spinnerMutex.Unlock()
+
+	// Don't start if already running
+	if cv.spinnerActive {
+		return
+	}
+
+	log := logger.WithComponent("chat_view_spinner")
+	log.Info("startSpinner called",
+		"sending", cv.sending,
+		"streaming", cv.streaming)
+
+	cv.spinnerActive = true
+
 	go func() {
-		for cv.sending || cv.streaming || cv.currentState != "idle" {
+		iterations := 0
+		for {
+			cv.spinnerMutex.Lock()
+			shouldContinue := cv.sending || cv.streaming || cv.currentState != "idle"
+			cv.spinnerMutex.Unlock()
+
+			if !shouldContinue {
+				break
+			}
+
+			iterations++
 			time.Sleep(100 * time.Millisecond)
+
+			cv.spinnerMutex.Lock()
 			cv.spinnerFrame = (cv.spinnerFrame + 1) % len(cv.spinnerFrames)
+			cv.spinnerMutex.Unlock()
+
 			cv.app.QueueUpdateDraw(func() {
 				cv.updateSpinnerView()
 				cv.updateStatus()
 			})
+
+			// Log every 10 iterations (1 second)
+			if iterations%10 == 0 {
+				log.Debug("Spinner still running",
+					"iterations", iterations,
+					"sending", cv.sending,
+					"streaming", cv.streaming,
+					"current_state", cv.currentState,
+					"frame", cv.spinnerFrame)
+			}
 		}
+
+		cv.spinnerMutex.Lock()
+		cv.spinnerActive = false
+		cv.spinnerMutex.Unlock()
+
+		log.Info("Spinner stopped",
+			"total_iterations", iterations,
+			"final_sending", cv.sending,
+			"final_streaming", cv.streaming)
 	}()
 }
 

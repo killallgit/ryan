@@ -14,6 +14,7 @@ import (
 type Planner struct {
 	orchestrator        interfaces.Orchestrator
 	intentAnalyzer      *IntentAnalyzer
+	llmIntentAnalyzer   *LLMIntentAnalyzer // Optional LLM-based analyzer
 	graphBuilder        *ExecutionGraphBuilder
 	optimizer           *PlanOptimizer
 	hierarchicalPlanner *HierarchicalPlanner
@@ -36,6 +37,12 @@ func (p *Planner) SetOrchestrator(o interfaces.Orchestrator) {
 	p.orchestrator = o
 }
 
+// SetLLMIntentAnalyzer sets the LLM-based intent analyzer
+func (p *Planner) SetLLMIntentAnalyzer(analyzer *LLMIntentAnalyzer) {
+	p.llmIntentAnalyzer = analyzer
+	p.log.Info("LLM intent analyzer configured")
+}
+
 // CreateExecutionPlan analyzes the request and creates an optimized execution plan
 func (p *Planner) CreateExecutionPlan(ctx context.Context, request string, execContext *ExecutionContext) (*ExecutionPlan, error) {
 	p.log.Info("Creating execution plan", "request_preview", truncateString(request, 100))
@@ -50,10 +57,26 @@ func (p *Planner) CreateExecutionPlan(ctx context.Context, request string, execC
 		return nil, fmt.Errorf("orchestrator not set")
 	}
 
-	// Analyze intent
-	intent, err := p.intentAnalyzer.Analyze(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to analyze intent: %w", err)
+	// Analyze intent - prefer LLM if available
+	var intent *Intent
+	var err error
+
+	if p.llmIntentAnalyzer != nil {
+		// Use LLM-based intent analysis
+		intent, err = p.llmIntentAnalyzer.AnalyzeIntent(ctx, request)
+		if err != nil {
+			p.log.Warn("LLM intent analysis failed, falling back to patterns", "error", err)
+			intent, err = p.intentAnalyzer.Analyze(request)
+			if err != nil {
+				return nil, fmt.Errorf("failed to analyze intent: %w", err)
+			}
+		}
+	} else {
+		// Use pattern-based intent analysis
+		intent, err = p.intentAnalyzer.Analyze(request)
+		if err != nil {
+			return nil, fmt.Errorf("failed to analyze intent: %w", err)
+		}
 	}
 
 	p.log.Debug("Analyzed intent", "primary", intent.Primary, "secondary", intent.Secondary)
@@ -354,6 +377,8 @@ type Intent struct {
 	RawPrompt  string
 	Entities   map[string]string
 	Confidence float64
+	NeedsTools bool   // Whether this intent requires tool execution
+	Reasoning  string // LLM's reasoning about the intent
 }
 
 type IntentPattern struct {
@@ -413,6 +438,10 @@ func defaultIntentPatterns() []IntentPattern {
 		{Pattern: "analyze", IntentType: IntentAnalysis, Extract: []string{"target", "path"}},
 		{Pattern: "create file", IntentType: IntentFileOperation, Extract: []string{"path"}},
 		{Pattern: "read file", IntentType: IntentFileOperation, Extract: []string{"path"}},
+		{Pattern: "list file", IntentType: IntentFileOperation, Extract: []string{"path"}},
+		{Pattern: "how many file", IntentType: IntentFileOperation, Extract: []string{"path"}},
+		{Pattern: "count file", IntentType: IntentFileOperation, Extract: []string{"path"}},
+		{Pattern: "files in", IntentType: IntentFileOperation, Extract: []string{"path"}},
 		{Pattern: "search for", IntentType: IntentSearch, Extract: []string{"target"}},
 		{Pattern: "find", IntentType: IntentSearch, Extract: []string{"target"}},
 		{Pattern: "refactor", IntentType: IntentRefactor, Extract: []string{"target", "path"}},
@@ -522,7 +551,7 @@ func defaultPlanTemplates() map[string]*PlanTemplate {
 			Intent: IntentGeneric,
 			Tasks: []TaskTemplate{
 				{
-					Agent:          "dispatcher",
+					Agent:          "general",
 					PromptTemplate: "{raw_prompt}",
 					Priority:       1,
 					Dependencies:   []string{},

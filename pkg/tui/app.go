@@ -23,6 +23,7 @@ type ControllerInterface interface {
 	GetModel() string
 	SetModel(model string)
 	AddUserMessage(content string)
+	AddAssistantMessage(content string)
 	AddErrorMessage(errorMsg string)
 	Reset()
 	StartStreaming(ctx context.Context, content string) (<-chan controllers.StreamingUpdate, error)
@@ -358,18 +359,17 @@ func (a *App) SendMessage(content string) {
 
 	// Send message in goroutine to avoid UI thread deadlock
 	go func() {
-		defer func() {
-			a.app.QueueUpdateDraw(func() {
-				a.sending = false
-				a.chatView.SetSending(false)
-			})
-		}()
+		log := logger.WithComponent("send_message")
+		log.Info("Starting send message goroutine", "content_length", len(content))
+		// Note: Don't set sending=false here, it will be done when streaming completes
 
 		// Add user message to controller
 		a.controller.AddUserMessage(content)
+		log.Debug("Added user message to controller")
 
 		// Update UI to show sending state
 		a.app.QueueUpdateDraw(func() {
+			log.Debug("Setting sending state to true in UI thread")
 			a.chatView.SetSending(true)
 			a.chatView.UpdateMessages()
 		})
@@ -382,23 +382,30 @@ func (a *App) SendMessage(content string) {
 		go func() {
 			select {
 			case <-a.cancelSend:
+				log.Info("Send cancelled by user")
 				cancel()
 			case <-ctx.Done():
 			}
 		}()
 
 		// Start streaming
+		log.Info("Calling StartStreaming on controller")
 		updates, err := a.controller.StartStreaming(ctx, content)
 		if err != nil {
+			log.Error("StartStreaming failed", "error", err)
 			a.app.QueueUpdateDraw(func() {
+				a.sending = false            // Clear sending state on error
+				a.chatView.SetSending(false) // Stop the spinner
 				a.controller.AddErrorMessage(fmt.Sprintf("Error: %v", err))
 				a.chatView.UpdateMessages()
 			})
 			return
 		}
+		log.Info("StartStreaming returned successfully, processing updates")
 
 		// Process updates
 		a.processStreamingUpdates(updates)
+		log.Info("processStreamingUpdates completed")
 	}()
 }
 
@@ -406,14 +413,24 @@ func (a *App) SendMessage(content string) {
 func (a *App) processStreamingUpdates(updates <-chan controllers.StreamingUpdate) {
 	log := logger.WithComponent("tview_app")
 	streamingContent := ""
+	updateCount := 0
+
+	log.Info("Starting to process streaming updates")
 
 	for update := range updates {
+		updateCount++
+		log.Debug("Received streaming update",
+			"type", update.Type,
+			"update_number", updateCount,
+			"content_length", len(update.Content))
+
 		switch update.Type {
 		case controllers.StreamStarted:
-			log.Debug("Stream started", "id", update.StreamID)
+			log.Info("Stream started", "id", update.StreamID)
 			a.app.QueueUpdateDraw(func() {
 				a.streaming = true
 				a.chatView.StartStreaming(update.StreamID)
+				log.Debug("Called StartStreaming on chat view")
 			})
 
 		case controllers.ChunkReceived:
@@ -434,18 +451,41 @@ func (a *App) processStreamingUpdates(updates <-chan controllers.StreamingUpdate
 			}
 
 		case controllers.MessageComplete:
-			log.Debug("Message complete", "id", update.StreamID)
-			finalMsg := update.Message
+			log.Info("Message complete received",
+				"id", update.StreamID,
+				"accumulated_content_length", len(streamingContent),
+				"accumulated_content_preview", truncateString(streamingContent, 100))
+			// Use the accumulated streaming content as the final message
+			finalContent := streamingContent
 			a.app.QueueUpdateDraw(func() {
+				log.Debug("Processing MessageComplete in UI thread",
+					"was_streaming", a.streaming,
+					"was_sending", a.sending,
+					"final_content_length", len(finalContent))
+
 				a.streaming = false
-				a.chatView.CompleteStreaming(update.StreamID, finalMsg)
+				a.sending = false            // Clear sending state when complete
+				a.chatView.SetSending(false) // Stop the spinner
+
+				// Add the accumulated content as the final assistant message
+				if finalContent != "" {
+					log.Info("Adding assistant message", "content_length", len(finalContent))
+					a.controller.AddAssistantMessage(finalContent)
+				} else {
+					log.Warn("No content to add as assistant message")
+				}
+
+				a.chatView.CompleteStreaming(update.StreamID, chat.Message{})
 				a.chatView.UpdateMessages()
+				log.Debug("MessageComplete processing done")
 			})
 
 		case controllers.StreamError:
 			log.Error("Stream error", "error", update.Error)
 			a.app.QueueUpdateDraw(func() {
 				a.streaming = false
+				a.sending = false            // Clear sending state on error
+				a.chatView.SetSending(false) // Stop the spinner
 				a.controller.AddErrorMessage(fmt.Sprintf("Stream error: %v", update.Error))
 				a.chatView.UpdateMessages()
 			})
@@ -478,6 +518,14 @@ func (a *App) UpdateMessages() {
 // GetCurrentView returns the name of the current view
 func (a *App) GetCurrentView() string {
 	return a.currentView
+}
+
+// truncateString truncates a string to the specified length
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 // checkOllamaHealth performs an initial health check for Ollama

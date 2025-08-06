@@ -12,9 +12,11 @@ import (
 
 // OrchestratorConfig contains configuration for orchestrator initialization
 type OrchestratorConfig struct {
-	ToolRegistry *tools.Registry
-	Config       *config.Config
-	Model        string
+	ToolRegistry    *tools.Registry
+	Config          *config.Config
+	Model           string
+	OllamaURL       string // For LLM-based intent analysis
+	EnableLLMIntent bool   // Whether to use LLM for intent analysis
 }
 
 // InitializeOrchestrator creates and configures a new orchestrator with all built-in agents
@@ -24,6 +26,17 @@ func InitializeOrchestrator(cfg *OrchestratorConfig) (*Orchestrator, error) {
 
 	// Create orchestrator
 	orchestrator := NewOrchestrator()
+
+	// Configure LLM-based intent analysis if enabled
+	if cfg.EnableLLMIntent && cfg.OllamaURL != "" && cfg.Model != "" {
+		llmAnalyzer, err := NewLLMIntentAnalyzer(cfg.OllamaURL, cfg.Model)
+		if err != nil {
+			log.Warn("Failed to create LLM intent analyzer, using pattern matching", "error", err)
+		} else {
+			orchestrator.planner.SetLLMIntentAnalyzer(llmAnalyzer)
+			log.Info("Configured LLM-based intent analysis", "model", cfg.Model)
+		}
+	}
 
 	// Register built-in agents with tool registry
 	if cfg.ToolRegistry != nil {

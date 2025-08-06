@@ -129,6 +129,14 @@ func (f *FileOperationsAgent) determineOperation(prompt string) string {
 		strings.Contains(lowerPrompt, "content") {
 		return "read"
 	}
+
+	// Check for count/how many patterns
+	if strings.Contains(lowerPrompt, "how many") ||
+		strings.Contains(lowerPrompt, "count") ||
+		strings.Contains(lowerPrompt, "number of") {
+		return "list" // Use list operation for counting
+	}
+
 	if strings.Contains(lowerPrompt, "list") {
 		return "list"
 	}
@@ -394,16 +402,36 @@ func (f *FileOperationsAgent) extractPath(prompt string) string {
 		}
 	}
 
+	// Check for common current directory references
+	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(lowerPrompt, "this dir") ||
+		strings.Contains(lowerPrompt, "current dir") ||
+		strings.Contains(lowerPrompt, "this folder") ||
+		strings.Contains(lowerPrompt, "current folder") ||
+		strings.Contains(lowerPrompt, "here") {
+		return "."
+	}
+
 	// Look for paths after common keywords
 	keywords := []string{" in ", " from ", " at ", " of "}
 	for _, keyword := range keywords {
 		if idx := strings.Index(prompt, keyword); idx != -1 {
 			pathPart := prompt[idx+len(keyword):]
+			// Skip common non-path words
+			if strings.HasPrefix(strings.ToLower(pathPart), "this ") ||
+				strings.HasPrefix(strings.ToLower(pathPart), "the ") ||
+				strings.HasPrefix(strings.ToLower(pathPart), "current ") {
+				continue
+			}
 			// Take the first word/path
 			if spaceIdx := strings.IndexAny(pathPart, " ,;"); spaceIdx != -1 {
 				pathPart = pathPart[:spaceIdx]
 			}
-			return strings.TrimSpace(pathPart)
+			path := strings.TrimSpace(pathPart)
+			// Only return if it looks like a path
+			if path != "" && (strings.Contains(path, "/") || strings.Contains(path, ".")) {
+				return path
+			}
 		}
 	}
 
