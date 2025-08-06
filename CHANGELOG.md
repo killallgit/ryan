@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Configuration**: Consolidated all environment variable access through Viper
+  - Replaced direct `os.Getenv()` calls with `viper.GetString()` across config hierarchy
+  - Added comprehensive `viper.BindEnv()` bindings for all environment variables
+  - Updated OpenAI API key handling in vectorstore to use Viper
+  - Fixed MCP servers and config directory override to use Viper consistently
+  - Ensured single source of truth for configuration management
 - **Testing**: Updated integration tests to use LangChain controllers and Viper configuration
   - Migrated all integration tests from direct Ollama clients to LangChain controllers
   - Standardized configuration management using Viper with proper environment variable handling
