@@ -565,6 +565,13 @@ func (cv *ChatView) HasFocus() bool {
 	return cv.input.HasFocus()
 }
 
+// FocusInput explicitly sets focus to the input field
+func (cv *ChatView) FocusInput() {
+	if cv.input != nil && cv.app != nil {
+		cv.app.SetFocus(cv.input)
+	}
+}
+
 // InputHandler returns the handler for this primitive with global shortcuts
 func (cv *ChatView) InputHandler() func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
 	return func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {

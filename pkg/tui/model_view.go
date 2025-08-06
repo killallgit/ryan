@@ -26,6 +26,7 @@ type ModelView struct {
 	chatController   ControllerInterface
 	app              *tview.Application
 	renderManager    *RenderManager
+	parentApp        *App // Reference to parent App for view switching
 
 	// Modal state
 	pullingModel string
@@ -441,16 +442,31 @@ func (mv *ModelView) startModelDownload(modelName string) {
 			if err != nil {
 				log.Error("Model download failed", "model", modelName, "error", err)
 				mv.showError(fmt.Sprintf("Failed to download %s: %v", modelName, err))
+				// Close progress modal and return to main view
+				mv.pullingModel = ""
+				mv.pullProgress = 0.0
+				mv.app.SetRoot(mv, true)
 			} else {
 				log.Debug("Model download completed", "model", modelName)
-				mv.showSuccess(fmt.Sprintf("Successfully downloaded %s", modelName))
-				mv.refreshModels()
-			}
 
-			// Close progress modal and return to main view
-			mv.pullingModel = ""
-			mv.pullProgress = 0.0
-			mv.app.SetRoot(mv, true)
+				// Select the newly downloaded model
+				mv.selectModel(modelName)
+
+				// Refresh the models list
+				mv.refreshModels()
+
+				// Close any modal and switch to chat view with focus
+				mv.pullingModel = ""
+				mv.pullProgress = 0.0
+
+				// Return to chat view and focus the input
+				if mv.parentApp != nil {
+					mv.parentApp.switchToChatViewWithFocus()
+				} else {
+					// Fallback to just closing the modal
+					mv.app.SetRoot(mv, true)
+				}
+			}
 		})
 	}()
 }
@@ -526,6 +542,11 @@ func (mv *ModelView) updateProgressModal(status string, progress float64) {
 		// Indeterminate progress
 		mv.progressBar.SetText("[#f5b761]" + status + "...[-]")
 	}
+}
+
+// SetParentApp sets the parent App reference for view switching
+func (mv *ModelView) SetParentApp(app *App) {
+	mv.parentApp = app
 }
 
 // createModal creates a centered modal primitive
