@@ -15,12 +15,16 @@ import (
 type ChatView struct {
 	*tview.Flex
 
-	// Components
-	messages     *tview.TextView
-	input        *tview.InputField
-	status       *tview.TextView
-	activityView *tview.TextView // New component for activity tree
-	spinnerView  *tview.TextView // Spinner/status view above input
+	// Components following TUI.md pattern
+	messages        *tview.TextView   // MESSAGE_NODES
+	statusContainer *tview.Flex       // STATUS_CONTAINER
+	spinnerView     *tview.TextView   // SPINNER component
+	agentView       *tview.TextView   // AGENT_NAME component
+	actionView      *tview.TextView   // ACTION component
+	messageView     *tview.TextView   // MESSAGE component
+	input           *tview.InputField // CHAT_INPUT
+	footer          *tview.Flex       // FOOTER_CONTAINER
+	modelView       *tview.TextView   // SELECTED_MODEL
 
 	// State
 	controller    ControllerInterface
@@ -29,11 +33,12 @@ type ChatView struct {
 	streaming     bool
 	streamID      string
 	streamBuffer  string
-	activityTree  string // Current activity tree text
 	spinnerFrame  int
 	spinnerFrames []string
-	renderManager *RenderManager // Add render manager
-	currentState  string         // Current UI state: idle, sending, thinking, streaming, executing, preparing_tools
+	renderManager *RenderManager
+	currentState  string // Current UI state: idle, sending, thinking, streaming, executing, preparing_tools
+	currentAgent  string // Current agent name
+	currentAction string // Current action being performed
 
 	// Callbacks
 	onSendMessage func(content string)
@@ -62,10 +67,10 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		cv.renderManager = renderManager
 	}
 
-	// Set background color for the entire view
+	// Set background color for the entire view (APP_CONTAINER)
 	cv.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
-	// Create message display
+	// Create MESSAGE_NODES - scrollable flex column
 	cv.messages = tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
@@ -74,7 +79,7 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 	cv.messages.SetBorder(false)
 	cv.messages.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
-	// Create input field with prompt inside
+	// Create CHAT_INPUT
 	cv.input = tview.NewInputField().
 		SetLabel("> ").
 		SetFieldBackgroundColor(tcell.GetColor(ColorBase00)).
@@ -98,16 +103,8 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		return event // Pass through other events
 	})
 
-	// Create activity indicator view
-	cv.activityView = tview.NewTextView().
-		SetDynamicColors(true).
-		SetRegions(false).
-		SetWordWrap(false).
-		SetScrollable(false)
-	cv.activityView.SetBackgroundColor(tcell.GetColor(ColorBase00))
-	cv.activityView.SetTextColor(tcell.GetColor(ColorBase04))
-
-	// Create spinner/status view above input
+	// Create STATUS_CONTAINER components
+	// SPINNER
 	cv.spinnerView = tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(false).
@@ -116,48 +113,93 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 	cv.spinnerView.SetBackgroundColor(tcell.GetColor(ColorBase00))
 	cv.spinnerView.SetTextColor(tcell.GetColor(ColorBase04))
 
-	// Create status bar
-	cv.status = tview.NewTextView().
+	// AGENT_NAME
+	cv.agentView = tview.NewTextView().
 		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft)
-	cv.status.SetBackgroundColor(tcell.GetColor(ColorBase00))
-	cv.updateStatus()
+		SetRegions(false).
+		SetWordWrap(false).
+		SetScrollable(false)
+	cv.agentView.SetBackgroundColor(tcell.GetColor(ColorBase00))
+	cv.agentView.SetTextColor(tcell.GetColor(ColorCyan))
 
-	// Create padded message area with inner padding
+	// ACTION
+	cv.actionView = tview.NewTextView().
+		SetDynamicColors(true).
+		SetRegions(false).
+		SetWordWrap(false).
+		SetScrollable(false)
+	cv.actionView.SetBackgroundColor(tcell.GetColor(ColorBase00))
+	cv.actionView.SetTextColor(tcell.GetColor(ColorBase04))
+
+	// MESSAGE
+	cv.messageView = tview.NewTextView().
+		SetDynamicColors(true).
+		SetRegions(false).
+		SetWordWrap(false).
+		SetScrollable(false)
+	cv.messageView.SetBackgroundColor(tcell.GetColor(ColorBase00))
+	cv.messageView.SetTextColor(tcell.GetColor(ColorBase05))
+
+	// SELECTED_MODEL for footer
+	cv.modelView = tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignRight)
+	cv.modelView.SetBackgroundColor(tcell.GetColor(ColorBase00))
+	cv.modelView.SetTextColor(tcell.GetColor(ColorBase04))
+	cv.updateModelView()
+
+	// Create MESSAGE_CONTAINER with padding
 	messageContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(nil, 2, 0, false).         // Left padding
-		AddItem(cv.messages, 0, 1, false). // Messages content
+		AddItem(cv.messages, 0, 1, false). // MESSAGE_NODES
 		AddItem(nil, 2, 0, false)          // Right padding
 	messageContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
-	// Create padded activity area
-	activityContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(nil, 2, 0, false).             // Left padding
-		AddItem(cv.activityView, 0, 1, false). // Activity content
-		AddItem(nil, 2, 0, false)              // Right padding
-	activityContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
+	// Create STATUS_CONTAINER - flex full width row with left-justified content
+	cv.statusContainer = tview.NewFlex().SetDirection(tview.FlexRow)
+	statusRow := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(cv.spinnerView, 2, 0, false). // SPINNER (2 chars wide)
+		AddItem(cv.messageView, 0, 1, false). // MESSAGE (takes remaining space, left-justified)
+		AddItem(nil, 0, 1, false)             // Spacer to push content left
+	cv.statusContainer.AddItem(statusRow, 1, 0, false)
+	cv.statusContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
-	// Create padded spinner area
-	spinnerContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(nil, 2, 0, false).            // Left padding
-		AddItem(cv.spinnerView, 0, 1, false). // Spinner content
-		AddItem(nil, 2, 0, false)             // Right padding
-	spinnerContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
+	// Create padded STATUS_CONTAINER
+	statusContainerPadded := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 2, 0, false).                // Left padding
+		AddItem(cv.statusContainer, 0, 1, false). // Status content
+		AddItem(nil, 2, 0, false)                 // Right padding
+	statusContainerPadded.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
-	// Create padded input area
+	// Create CHAT_INPUT_CONTAINER with thin border
+	// Create a flex container for the input
+	inputFlex := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(cv.input, 1, 0, true)
+	inputFlex.SetBorder(true).
+		SetBorderColor(tcell.GetColor(ColorBase01)). // Very dim border color
+		SetBorderPadding(0, 0, 0, 0).                // No padding inside border
+		SetBackgroundColor(tcell.GetColor(ColorBase00))
+
+	// Create input container with padding
 	inputContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(nil, 2, 0, false).     // Left padding
-		AddItem(cv.input, 0, 1, true). // Input content
-		AddItem(nil, 2, 0, false)      // Right padding
+		AddItem(nil, 2, 0, false).      // Left padding
+		AddItem(inputFlex, 0, 1, true). // Bordered input flex
+		AddItem(nil, 2, 0, false)       // Right padding
 	inputContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
-	// Layout: top padding, messages, activity indicator, spinner, input, status
+	// Create FOOTER_CONTAINER - flex-row full width
+	cv.footer = tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 2, 0, false).          // Left padding
+		AddItem(cv.modelView, 0, 1, false). // SELECTED_MODEL (justified-right)
+		AddItem(nil, 2, 0, false)           // Right padding
+	cv.footer.SetBackgroundColor(tcell.GetColor(ColorBase00))
+
+	// Layout according to TUI.md pattern
 	cv.AddItem(nil, 1, 0, false). // Top padding
-					AddItem(messageContainer, 0, 1, false).  // Messages take most space
-					AddItem(activityContainer, 0, 0, false). // Activity indicator (dynamic height)
-					AddItem(spinnerContainer, 1, 0, false).  // Spinner/status above input
-					AddItem(inputContainer, 2, 0, true).     // Input area with more height
-					AddItem(cv.status, 1, 0, false)          // Status bar
+					AddItem(messageContainer, 0, 1, false).      // MESSAGE_CONTAINER
+					AddItem(statusContainerPadded, 1, 0, false). // STATUS_CONTAINER
+					AddItem(inputContainer, 3, 0, true).         // CHAT_INPUT_CONTAINER (3 rows for border)
+					AddItem(cv.footer, 1, 0, false)              // FOOTER_CONTAINER
 
 	// Initial message update
 	cv.UpdateMessages()
@@ -407,24 +449,61 @@ func (cv *ChatView) SetSending(sending bool) {
 }
 
 // updateStatus updates the status bar
-func (cv *ChatView) updateStatus() {
-	// Model info (right-aligned)
+// updateModelView updates the SELECTED_MODEL in footer
+func (cv *ChatView) updateModelView() {
+	if cv.modelView == nil {
+		return
+	}
 	model := cv.controller.GetModel()
-	statusText := ""
+	cv.modelView.SetText(fmt.Sprintf("[#f5b761]%s[-]", model))
+}
 
-	// Add status indicators
-	if cv.sending {
+// updateStatusComponents updates all STATUS_CONTAINER components
+func (cv *ChatView) updateStatusComponents() {
+	// Update spinner
+	if cv.sending || cv.streaming || cv.currentState != "idle" {
 		spinner := cv.spinnerFrames[cv.spinnerFrame]
-		statusText = fmt.Sprintf("[#93b56b]%s Sending...[-] ", spinner)
-	} else if cv.streaming {
-		spinner := cv.spinnerFrames[cv.spinnerFrame]
-		statusText = fmt.Sprintf("[#6b93b5]%s Streaming...[-] ", spinner)
+		cv.spinnerView.SetText(fmt.Sprintf("[#93b56b]%s[-]", spinner))
+	} else {
+		cv.spinnerView.SetText("")
 	}
 
-	statusText += fmt.Sprintf("[#f5b761]%s[-]", model)
+	// Build combined status message (left-justified next to spinner)
+	var statusParts []string
 
-	cv.status.SetTextAlign(tview.AlignRight)
-	cv.status.SetText(statusText)
+	// Add primary status
+	if cv.sending {
+		statusParts = append(statusParts, "[#f5b761]Sending...[-]")
+	} else if cv.streaming {
+		statusParts = append(statusParts, "[#6b93b5]Streaming...[-]")
+	} else if cv.currentState == "thinking" {
+		statusParts = append(statusParts, "[#976bb5]Thinking...[-]")
+	} else if cv.currentState == "executing" {
+		if cv.currentAction != "" {
+			statusParts = append(statusParts, fmt.Sprintf("[#d95f5f]Executing %s...[-]", cv.currentAction))
+		} else {
+			statusParts = append(statusParts, "[#d95f5f]Executing tools...[-]")
+		}
+	} else if cv.currentState == "preparing_tools" {
+		statusParts = append(statusParts, "[#f5b761]Preparing tools...[-]")
+	}
+
+	// Add agent info if present
+	if cv.currentAgent != "" && cv.currentState != "idle" {
+		statusParts = append(statusParts, fmt.Sprintf("[#6b93b5](%s)[-]", cv.currentAgent))
+	}
+
+	// Combine all parts with a space
+	cv.messageView.SetText(strings.Join(statusParts, " "))
+
+	// Note: agentView and actionView are no longer displayed separately
+	cv.agentView.SetText("")
+	cv.actionView.SetText("")
+}
+
+func (cv *ChatView) updateStatus() {
+	cv.updateStatusComponents()
+	cv.updateModelView()
 }
 
 // Focus implements tview.Primitive
@@ -468,32 +547,36 @@ func (cv *ChatView) InputHandler() func(event *tcell.EventKey, setFocus func(p t
 	}
 }
 
-// UpdateActivityTree updates the activity tree display
+// UpdateActivityTree updates the activity display (now part of status)
 func (cv *ChatView) UpdateActivityTree(treeText string) {
-	cv.activityTree = treeText
-
-	// Update the activity view
-	cv.activityView.Clear()
+	// Parse the tree text to extract agent and action info
 	if treeText != "" {
-		// Apply color formatting to the tree text
-		formattedTree := cv.formatActivityTree(treeText)
-		cv.activityView.SetText(formattedTree)
-		// Dynamically resize the activity container based on content
-		lines := strings.Count(treeText, "\n") + 1
-		if lines > 5 {
-			lines = 5 // Cap at 5 lines max
-		}
-		// The activity container is the 3rd item (index 2) in the main flex
-		// 0: top padding, 1: messages, 2: activity, 3: gap, 4: input, 5: status
-		if cv.GetItemCount() > 2 {
-			cv.ResizeItem(cv.GetItem(2), lines, 0)
+		lines := strings.Split(treeText, "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "Assistant") || strings.Contains(line, "Agent") {
+				// Extract agent name
+				if strings.Contains(line, "●") { // Active agent
+					parts := strings.Split(line, " ")
+					for _, part := range parts {
+						if part != "" && part != "●" && !strings.Contains(part, "─") {
+							cv.currentAgent = strings.TrimSpace(part)
+							break
+						}
+					}
+				}
+			} else if strings.Contains(line, "├──") || strings.Contains(line, "└──") {
+				// Extract action
+				actionStart := strings.LastIndex(line, "──") + 2
+				if actionStart < len(line) {
+					cv.currentAction = strings.TrimSpace(line[actionStart:])
+				}
+			}
 		}
 	} else {
-		// Hide when no activity by setting height to 0
-		if cv.GetItemCount() > 2 {
-			cv.ResizeItem(cv.GetItem(2), 0, 0)
-		}
+		cv.currentAgent = ""
+		cv.currentAction = ""
 	}
+	cv.updateStatusComponents()
 }
 
 // ClearActivityTree clears the activity tree display
@@ -513,38 +596,6 @@ func (cv *ChatView) startSpinner() {
 			})
 		}
 	}()
-}
-
-// formatActivityTree applies color formatting to the activity tree text
-func (cv *ChatView) formatActivityTree(tree string) string {
-	if tree == "" {
-		return ""
-	}
-
-	// Apply basic coloring
-	lines := strings.Split(tree, "\n")
-	for i, line := range lines {
-		// Color the agent names
-		if strings.Contains(line, "Assistant") {
-			lines[i] = strings.Replace(line, "Assistant", "[#6b93b5]Assistant[-]", 1)
-		}
-		if strings.Contains(line, "ChatController") {
-			lines[i] = strings.Replace(line, "ChatController", "[#93b56b]ChatController[-]", 1)
-		}
-
-		// Color the status indicators
-		lines[i] = strings.Replace(lines[i], "●", "[#93b56b]●[-]", -1) // Active - green
-		lines[i] = strings.Replace(lines[i], "○", "[#f5b761]○[-]", -1) // Pending - yellow
-		lines[i] = strings.Replace(lines[i], "✗", "[#d95f5f]✗[-]", -1) // Error - red
-		lines[i] = strings.Replace(lines[i], "✓", "[#93b56b]✓[-]", -1) // Complete - green
-
-		// Color the tree structure
-		lines[i] = strings.Replace(lines[i], "├──", "[#5c5044]├──[-]", -1)
-		lines[i] = strings.Replace(lines[i], "└──", "[#5c5044]└──[-]", -1)
-		lines[i] = strings.Replace(lines[i], "│", "[#5c5044]│[-]", -1)
-	}
-
-	return strings.Join(lines, "\n")
 }
 
 // OnResize handles terminal resize events
@@ -611,35 +662,8 @@ func (cv *ChatView) SetExecuting(executing bool, toolName string) {
 	cv.updateSpinnerView()
 }
 
-// updateSpinnerView updates the spinner/status view above the input
+// updateSpinnerView updates the spinner component in STATUS_CONTAINER
 func (cv *ChatView) updateSpinnerView() {
-	if cv.currentState == "idle" {
-		cv.spinnerView.SetText("")
-		return
-	}
-
-	spinner := cv.spinnerFrames[cv.spinnerFrame]
-	var statusText string
-
-	switch cv.currentState {
-	case "sending":
-		statusText = fmt.Sprintf("[#93b56b]%s[-] [#f5b761]Sending message...[-]", spinner)
-	case "thinking":
-		statusText = fmt.Sprintf("[#976bb5]%s[-] [#976bb5]Thinking...[-]", spinner)
-	case "streaming":
-		statusText = fmt.Sprintf("[#6b93b5]%s[-] [#6b93b5]Streaming response...[-]", spinner)
-	case "preparing_tools":
-		statusText = fmt.Sprintf("[#f5b761]%s[-] [#f5b761]Using tool agent (non-streaming mode)...[-]", spinner)
-	case "executing":
-		toolName := cv.streamID
-		if toolName != "" {
-			statusText = fmt.Sprintf("[#d95f5f]%s[-] [#d95f5f]Executing %s...[-]", spinner, toolName)
-		} else {
-			statusText = fmt.Sprintf("[#d95f5f]%s[-] [#d95f5f]Executing tool...[-]", spinner)
-		}
-	default:
-		statusText = ""
-	}
-
-	cv.spinnerView.SetText(statusText)
+	// This is now handled by updateStatusComponents
+	cv.updateStatusComponents()
 }
