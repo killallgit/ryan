@@ -23,25 +23,25 @@ func TestFileOperationsAgent_Basic(t *testing.T) {
 	})
 
 	t.Run("CanHandle", func(t *testing.T) {
+		// With LLM-based routing, all agents trust the orchestrator's decision
+		// and always return true/1.0 from CanHandle
 		tests := []struct {
-			request  string
-			expected bool
+			request string
 		}{
-			{"read file test.go", true},
-			{"write to file", true},
-			{"create new file", true},
-			{"list files in directory", true},
-			{"analyze code structure", false},
-			{"what is the weather", false},
+			{"read file test.go"},
+			{"write to file"},
+			{"create new file"},
+			{"list files in directory"},
+			{"analyze code structure"},
+			{"what is the weather"},
 		}
 
 		for _, tt := range tests {
 			t.Run(tt.request, func(t *testing.T) {
 				canHandle, confidence := agent.CanHandle(tt.request)
-				assert.Equal(t, tt.expected, canHandle)
-				if tt.expected {
-					assert.Greater(t, confidence, 0.0)
-				}
+				// All agents now trust the orchestrator's LLM routing decision
+				assert.True(t, canHandle, "Agent should always return true with LLM-based routing")
+				assert.Equal(t, 1.0, confidence, "Agent should always return confidence 1.0 with LLM-based routing")
 			})
 		}
 	})

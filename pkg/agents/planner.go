@@ -113,50 +113,20 @@ func NewIntentAnalyzer() *IntentAnalyzer {
 }
 
 // Analyze extracts intent from a user prompt
+// With LLM-based routing, we don't use keyword matching.
+// The orchestrator's LLM determines intent.
 func (ia *IntentAnalyzer) Analyze(prompt string) (*Intent, error) {
-	lowerPrompt := strings.ToLower(prompt)
-
+	// Return a generic intent with high confidence
+	// The actual intent will be determined by the orchestrator's LLM
 	intent := &Intent{
-		RawPrompt: prompt,
-		Entities:  make(map[string]string),
+		RawPrompt:  prompt,
+		Entities:   make(map[string]string),
+		Primary:    IntentGeneric,
+		Confidence: 1.0,
+		Secondary:  []string{}, // No secondary intents from keyword matching
 	}
-
-	// Match against patterns
-	for _, pattern := range ia.patterns {
-		if pattern.Matches(lowerPrompt) {
-			intent.Primary = pattern.IntentType
-			intent.Confidence = pattern.GetConfidence(lowerPrompt)
-
-			// Extract entities
-			entities := pattern.ExtractEntities(prompt)
-			for k, v := range entities {
-				intent.Entities[k] = v
-			}
-
-			break
-		}
-	}
-
-	// If no primary intent found, use generic
-	if intent.Primary == "" {
-		intent.Primary = IntentGeneric
-		intent.Confidence = 0.5
-	}
-
-	// Look for secondary intents
-	intent.Secondary = ia.findSecondaryIntents(lowerPrompt)
 
 	return intent, nil
-}
-
-// findSecondaryIntents identifies additional intents in the prompt
-// NOTE: With LLM-based intent detection, this should use the LLM analyzer,
-// not keyword matching. For now, returning empty as secondary intents
-// should be determined by the LLM.
-func (ia *IntentAnalyzer) findSecondaryIntents(prompt string) []string {
-	// TODO: Use LLM to identify secondary intents
-	// For now, return empty array - no keyword matching
-	return []string{}
 }
 
 // ExecutionGraphBuilder builds execution graphs from intents
@@ -418,21 +388,9 @@ func (ip *IntentPattern) ExtractEntities(prompt string) map[string]string {
 // Default patterns and templates
 
 func defaultIntentPatterns() []IntentPattern {
-	return []IntentPattern{
-		{Pattern: "code review", IntentType: IntentCodeReview, Extract: []string{"target", "path"}},
-		{Pattern: "review", IntentType: IntentCodeReview, Extract: []string{"target", "path"}},
-		{Pattern: "analyze", IntentType: IntentAnalysis, Extract: []string{"target", "path"}},
-		{Pattern: "create file", IntentType: IntentFileOperation, Extract: []string{"path"}},
-		{Pattern: "read file", IntentType: IntentFileOperation, Extract: []string{"path"}},
-		{Pattern: "list file", IntentType: IntentFileOperation, Extract: []string{"path"}},
-		{Pattern: "how many file", IntentType: IntentFileOperation, Extract: []string{"path"}},
-		{Pattern: "count file", IntentType: IntentFileOperation, Extract: []string{"path"}},
-		{Pattern: "files in", IntentType: IntentFileOperation, Extract: []string{"path"}},
-		{Pattern: "search for", IntentType: IntentSearch, Extract: []string{"target"}},
-		{Pattern: "find", IntentType: IntentSearch, Extract: []string{"target"}},
-		{Pattern: "refactor", IntentType: IntentRefactor, Extract: []string{"target", "path"}},
-		{Pattern: "test", IntentType: IntentTest, Extract: []string{"target", "path"}},
-	}
+	// With LLM-based routing, we don't use keyword patterns.
+	// Return an empty list - intent is determined by the orchestrator's LLM.
+	return []IntentPattern{}
 }
 
 type TaskTemplate struct {
