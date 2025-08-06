@@ -2,11 +2,8 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"reflect"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/spf13/viper"
 )
@@ -52,84 +49,113 @@ func (ch *ConfigHierarchy) ResolveEffectiveConfig() (*Config, error) {
 	return effectiveConfig, nil
 }
 
-// getSystemDefaults returns the system default configuration
+// getSystemDefaults returns the system default configuration from Viper
 func (ch *ConfigHierarchy) getSystemDefaults() *Config {
+	// Create a new viper instance with only defaults
+	defaultsViper := viper.New()
+
+	// Set all defaults - reuse the existing setDefaults function
+	// but call it on the new viper instance
+	for key, value := range getAllDefaults() {
+		defaultsViper.SetDefault(key, value)
+	}
+
+	// Create config and unmarshal from defaults
+	config := &Config{}
+	if err := defaultsViper.Unmarshal(config); err != nil {
+		// If unmarshal fails, build config manually from defaults
+		return buildConfigFromViper(defaultsViper)
+	}
+
+	return config
+}
+
+// buildConfigFromViper builds a config from a viper instance
+func buildConfigFromViper(v *viper.Viper) *Config {
 	return &Config{
 		Logging: LoggingConfig{
-			LogFile:  "./.ryan/system.log",
-			Preserve: false,
-			Level:    "info",
+			LogFile:  v.GetString("logging.log_file"),
+			Preserve: v.GetBool("logging.preserve"),
+			Level:    v.GetString("logging.level"),
 		},
 		Context: ContextConfig{
-			Directory:        "./.ryan/contexts",
-			MaxFileSize:      "10MB",
-			PersistLangChain: true,
+			Directory:        v.GetString("context.directory"),
+			MaxFileSize:      v.GetString("context.max_file_size"),
+			PersistLangChain: v.GetBool("context.persist_langchain"),
 		},
-		ShowThinking: true,
-		Streaming:    true,
+		ShowThinking: v.GetBool("show_thinking"),
+		Streaming:    v.GetBool("streaming"),
+		Provider:     v.GetString("provider"),
 		Ollama: OllamaConfig{
-			URL:          "https://ollama.kitty-tetra.ts.net",
-			Model:        "qwen3:latest",
-			SystemPrompt: "",
-			PollInterval: 10,
-			Timeout:      90 * time.Second,
+			URL:          v.GetString("ollama.url"),
+			Model:        v.GetString("ollama.model"),
+			SystemPrompt: v.GetString("ollama.system_prompt"),
+			PollInterval: v.GetInt("ollama.poll_interval"),
+			Timeout:      v.GetDuration("ollama.timeout"),
+		},
+		OpenAI: OpenAIConfig{
+			APIKey:       v.GetString("openai.api_key"),
+			Model:        v.GetString("openai.model"),
+			SystemPrompt: v.GetString("openai.system_prompt"),
+			Timeout:      v.GetDuration("openai.timeout"),
+			BaseURL:      v.GetString("openai.base_url"),
 		},
 		Tools: ToolsConfig{
-			Enabled:        true,
-			TruncateOutput: true,
-			Models:         []string{},
+			Enabled:        v.GetBool("tools.enabled"),
+			TruncateOutput: v.GetBool("tools.truncate_output"),
+			Models:         v.GetStringSlice("tools.models"),
 			Bash: BashToolConfig{
-				Enabled:         true,
-				Timeout:         90 * time.Second,
-				AllowedPaths:    []string{},
-				SkipPermissions: false,
+				Enabled:         v.GetBool("tools.bash.enabled"),
+				Timeout:         v.GetDuration("tools.bash.timeout"),
+				AllowedPaths:    v.GetStringSlice("tools.bash.allowed_paths"),
+				SkipPermissions: v.GetBool("tools.bash.skip_permissions"),
 			},
 			FileRead: FileReadConfig{
-				Enabled:           true,
-				MaxFileSize:       "10MB",
-				AllowedExtensions: []string{},
+				Enabled:           v.GetBool("tools.file_read.enabled"),
+				MaxFileSize:       v.GetString("tools.file_read.max_file_size"),
+				AllowedExtensions: v.GetStringSlice("tools.file_read.allowed_extensions"),
 			},
 			Search: SearchConfig{
-				Enabled: true,
-				Timeout: 10 * time.Second,
+				Enabled: v.GetBool("tools.search.enabled"),
+				Timeout: v.GetDuration("tools.search.timeout"),
 			},
 		},
 		LangChain: LangChainConfig{
 			Tools: LangChainToolsConfig{
-				MaxIterations:       5,
-				AutonomousReasoning: true,
-				UseReActPattern:     true,
-				VerboseLogging:      false,
+				MaxIterations:       v.GetInt("langchain.tools.max_iterations"),
+				AutonomousReasoning: v.GetBool("langchain.tools.autonomous_reasoning"),
+				UseReActPattern:     v.GetBool("langchain.tools.use_react_pattern"),
+				VerboseLogging:      v.GetBool("langchain.tools.verbose_logging"),
 			},
 			Memory: LangChainMemoryConfig{
-				Type:             "buffer",
-				WindowSize:       10,
-				MaxTokens:        4000,
-				SummaryThreshold: 1000,
+				Type:             v.GetString("langchain.memory.type"),
+				WindowSize:       v.GetInt("langchain.memory.window_size"),
+				MaxTokens:        v.GetInt("langchain.memory.max_tokens"),
+				SummaryThreshold: v.GetInt("langchain.memory.summary_threshold"),
 			},
 			Prompts: LangChainPromptConfig{
-				ContextInjection: true,
+				ContextInjection: v.GetBool("langchain.prompts.context_injection"),
 			},
 		},
 		VectorStore: VectorStoreConfig{
-			Enabled:           true,
-			Provider:          "chromem",
-			PersistenceDir:    "./.ryan/vectorstore",
-			EnablePersistence: true,
+			Enabled:           v.GetBool("vectorstore.enabled"),
+			Provider:          v.GetString("vectorstore.provider"),
+			PersistenceDir:    v.GetString("vectorstore.persistence_dir"),
+			EnablePersistence: v.GetBool("vectorstore.enable_persistence"),
 			Embedder: VectorStoreEmbedderConfig{
-				Provider: "ollama",
-				Model:    "nomic-embed-text",
-				BaseURL:  "https://ollama.kitty-tetra.ts.net",
-				APIKey:   "",
+				Provider: v.GetString("vectorstore.embedder.provider"),
+				Model:    v.GetString("vectorstore.embedder.model"),
+				BaseURL:  v.GetString("vectorstore.embedder.base_url"),
+				APIKey:   v.GetString("vectorstore.embedder.api_key"),
 			},
 			Collections: []VectorStoreCollectionConfig{},
 			Indexer: VectorStoreIndexerConfig{
-				ChunkSize:    1000,
-				ChunkOverlap: 200,
-				AutoIndex:    false,
+				ChunkSize:    v.GetInt("vectorstore.indexer.chunk_size"),
+				ChunkOverlap: v.GetInt("vectorstore.indexer.chunk_overlap"),
+				AutoIndex:    v.GetBool("vectorstore.indexer.auto_index"),
 			},
 		},
-		SelfConfigPath: "./.ryan/self.yaml",
+		SelfConfigPath: v.GetString("self_config_path"),
 	}
 }
 
@@ -143,9 +169,15 @@ func (ch *ConfigHierarchy) applyGlobalConfigOverrides(config *Config, globalConf
 	// Apply theme and editor mode settings if they affect configuration
 	// Note: Some global settings like theme might be handled by the UI layer
 
-	// Apply environment variable overrides from global config
+	// Set environment variables from global config into Viper
+	// These will be picked up by Viper's AutomaticEnv
 	for key, value := range globalConfig.Env {
-		os.Setenv(key, value)
+		// Convert key to Viper format and set it
+		viperKey := strings.ToLower(strings.ReplaceAll(key, "_", "."))
+		if strings.HasPrefix(key, "RYAN_") {
+			viperKey = strings.TrimPrefix(viperKey, "ryan.")
+		}
+		viper.Set(viperKey, value)
 	}
 }
 
@@ -168,108 +200,14 @@ func (ch *ConfigHierarchy) applyProjectConfigOverrides(config *Config, projectCo
 
 // applyEnvironmentOverrides applies environment variable overrides (highest priority)
 func (ch *ConfigHierarchy) applyEnvironmentOverrides(config *Config) {
-	// Define environment variable mappings
-	envMappings := map[string]func(string){
-		// Logging configuration
-		"RYAN_LOG_FILE":     func(v string) { config.Logging.LogFile = v },
-		"RYAN_LOG_LEVEL":    func(v string) { config.Logging.Level = v },
-		"RYAN_LOG_PRESERVE": func(v string) { config.Logging.Preserve = parseBool(v) },
-
-		// Ollama configuration
-		"RYAN_OLLAMA_URL":           func(v string) { config.Ollama.URL = v },
-		"RYAN_OLLAMA_MODEL":         func(v string) { config.Ollama.Model = v },
-		"RYAN_OLLAMA_SYSTEM_PROMPT": func(v string) { config.Ollama.SystemPrompt = v },
-		"RYAN_OLLAMA_TIMEOUT": func(v string) {
-			if d, err := time.ParseDuration(v); err == nil {
-				config.Ollama.Timeout = d
-			}
-		},
-
-		// General configuration
-		"RYAN_SHOW_THINKING": func(v string) { config.ShowThinking = parseBool(v) },
-		"RYAN_STREAMING":     func(v string) { config.Streaming = parseBool(v) },
-
-		// Tools configuration
-		"RYAN_TOOLS_ENABLED": func(v string) { config.Tools.Enabled = parseBool(v) },
-		"RYAN_BASH_ENABLED":  func(v string) { config.Tools.Bash.Enabled = parseBool(v) },
-		"RYAN_BASH_TIMEOUT": func(v string) {
-			if d, err := time.ParseDuration(v); err == nil {
-				config.Tools.Bash.Timeout = d
-			}
-		},
-
-		// Vector store configuration
-		"RYAN_VECTORSTORE_ENABLED":         func(v string) { config.VectorStore.Enabled = parseBool(v) },
-		"RYAN_VECTORSTORE_PROVIDER":        func(v string) { config.VectorStore.Provider = v },
-		"RYAN_VECTORSTORE_PERSISTENCE_DIR": func(v string) { config.VectorStore.PersistenceDir = v },
-		"RYAN_EMBEDDER_PROVIDER":           func(v string) { config.VectorStore.Embedder.Provider = v },
-		"RYAN_EMBEDDER_MODEL":              func(v string) { config.VectorStore.Embedder.Model = v },
-		"RYAN_EMBEDDER_BASE_URL":           func(v string) { config.VectorStore.Embedder.BaseURL = v },
-		"RYAN_EMBEDDER_API_KEY":            func(v string) { config.VectorStore.Embedder.APIKey = v },
-
-		// Configuration directory override
-		"RYAN_CONFIG_DIR": func(v string) {
-			// This affects where configurations are stored, handled by GetGlobalConfigPath
-		},
-	}
-
-	// Apply environment variable overrides using Viper
-	for envVar, setter := range envMappings {
-		if value := viper.GetString(envVar); value != "" {
-			setter(value)
-		}
-	}
-
-	// Special handling for complex environment variables
-	ch.applyComplexEnvironmentOverrides(config)
+	// Viper's AutomaticEnv automatically picks up all environment variables
+	// when they match the config keys (with RYAN_ prefix and dots replaced by underscores)
+	// So RYAN_LOGGING_LEVEL automatically maps to logging.level
+	// We just need to rebuild the config from the current Viper state
+	*config = *buildConfigFromViper(viper.GetViper())
 }
 
-// applyComplexEnvironmentOverrides handles more complex environment variable patterns
-func (ch *ConfigHierarchy) applyComplexEnvironmentOverrides(config *Config) {
-	// Handle RYAN_TOOLS_MODELS (comma-separated list)
-	if modelsEnv := viper.GetString("RYAN_TOOLS_MODELS"); modelsEnv != "" {
-		config.Tools.Models = strings.Split(modelsEnv, ",")
-		// Trim whitespace
-		for i, model := range config.Tools.Models {
-			config.Tools.Models[i] = strings.TrimSpace(model)
-		}
-	}
-
-	// Handle RYAN_BASH_ALLOWED_PATHS (comma-separated list)
-	if pathsEnv := viper.GetString("RYAN_BASH_ALLOWED_PATHS"); pathsEnv != "" {
-		config.Tools.Bash.AllowedPaths = strings.Split(pathsEnv, ",")
-		for i, path := range config.Tools.Bash.AllowedPaths {
-			config.Tools.Bash.AllowedPaths[i] = strings.TrimSpace(path)
-		}
-	}
-
-	// Handle RYAN_FILE_READ_ALLOWED_EXTENSIONS (comma-separated list)
-	if extEnv := viper.GetString("RYAN_FILE_READ_ALLOWED_EXTENSIONS"); extEnv != "" {
-		config.Tools.FileRead.AllowedExtensions = strings.Split(extEnv, ",")
-		for i, ext := range config.Tools.FileRead.AllowedExtensions {
-			config.Tools.FileRead.AllowedExtensions[i] = strings.TrimSpace(ext)
-		}
-	}
-
-	// Handle numeric environment variables
-	if pollIntervalEnv := viper.GetString("RYAN_OLLAMA_POLL_INTERVAL"); pollIntervalEnv != "" {
-		if interval, err := strconv.Atoi(pollIntervalEnv); err == nil {
-			config.Ollama.PollInterval = interval
-		}
-	}
-
-	if maxIterEnv := viper.GetString("RYAN_LANGCHAIN_MAX_ITERATIONS"); maxIterEnv != "" {
-		if maxIter, err := strconv.Atoi(maxIterEnv); err == nil {
-			config.LangChain.Tools.MaxIterations = maxIter
-		}
-	}
-}
-
-// parseBool parses a string to boolean with common true/false values
-func parseBool(s string) bool {
-	s = strings.ToLower(strings.TrimSpace(s))
-	return s == "true" || s == "1" || s == "yes" || s == "on" || s == "enabled"
-}
+// No longer needed - Viper handles boolean parsing
 
 // GetConfigValue retrieves a configuration value using the hierarchy
 func (ch *ConfigHierarchy) GetConfigValue(keyPath string) (interface{}, error) {

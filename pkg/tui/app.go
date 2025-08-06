@@ -144,6 +144,7 @@ func (a *App) initializeViews() error {
 	ollamaClient := ollama.NewClientWithTimeout(ollamaURL, 5*time.Second)
 	modelsController := controllers.NewModelsController(ollamaClient)
 	a.modelView = NewModelView(modelsController, a.controller, a.app, a.renderManager)
+	a.modelView.SetParentApp(a) // Set parent app reference for view switching
 	a.pages.AddPage("models", a.modelView, true, false)
 	log.Debug("Created model view")
 
@@ -246,6 +247,17 @@ func (a *App) switchToView(viewName string) {
 	// Update current model in tools view if switching to it
 	if viewName == "tools" && a.toolsView != nil {
 		a.toolsView.SetCurrentModel(a.controller.GetModel())
+	}
+}
+
+// switchToChatViewWithFocus switches to the chat view and focuses the input field
+func (a *App) switchToChatViewWithFocus() {
+	// Switch to chat view
+	a.switchToView("chat")
+
+	// Set focus to the chat input field
+	if a.chatView != nil {
+		a.chatView.FocusInput()
 	}
 }
 

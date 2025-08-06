@@ -222,10 +222,12 @@ func Load(cfgFile string) (*Config, error) {
 	}
 
 	// Enable environment variable support
+	viper.SetEnvPrefix("RYAN")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
-	// Bind specific environment variables to Viper keys for explicit mapping
-	bindEnvironmentVariables()
+	// Bind specific environment variables that don't follow the pattern
+	viper.BindEnv("vectorstore.embedder.api_key", "OPENAI_API_KEY")
 
 	// Read config file if it exists
 	if err := viper.ReadInConfig(); err == nil {
@@ -282,114 +284,89 @@ func loadSelfConfig(selfConfigPath string) error {
 
 // setDefaults sets all default configuration values
 func setDefaults() {
-	// Provider defaults
-	viper.SetDefault("provider", "ollama") // Default to ollama provider
-
-	// Ollama defaults
-	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
-	viper.SetDefault("ollama.model", "qwen3:latest")
-	viper.SetDefault("ollama.system_prompt", "")
-	viper.SetDefault("ollama.timeout", "90s")
-	viper.SetDefault("ollama.poll_interval", 10)
-
-	// OpenAI defaults (for future implementation)
-	viper.SetDefault("openai.api_key", "")
-	viper.SetDefault("openai.model", "gpt-4-turbo-preview")
-	viper.SetDefault("openai.system_prompt", "")
-	viper.SetDefault("openai.timeout", "60s")
-	viper.SetDefault("openai.base_url", "")
-
-	// General defaults
-	viper.SetDefault("show_thinking", true)
-	viper.SetDefault("streaming", true)
-
-	// Logging defaults
-	viper.SetDefault("logging.log_file", "./.ryan/system.log")
-	viper.SetDefault("logging.preserve", false)
-	viper.SetDefault("logging.level", "info")
-
-	// Context defaults
-	viper.SetDefault("context.directory", "./.ryan/contexts")
-	viper.SetDefault("context.max_file_size", "10MB")
-	viper.SetDefault("context.persist_langchain", true)
-
-	// Tools defaults
-	viper.SetDefault("tools.enabled", true)
-	viper.SetDefault("tools.truncate_output", true)
-	viper.SetDefault("tools.bash.enabled", true)
-	viper.SetDefault("tools.bash.timeout", "90s")
-	viper.SetDefault("tools.file_read.enabled", true)
-	viper.SetDefault("tools.search.enabled", true)
-	viper.SetDefault("tools.search.timeout", "10s")
-
-	// LangChain defaults
-	viper.SetDefault("langchain.tools.max_iterations", 5)
-	viper.SetDefault("langchain.tools.autonomous_reasoning", true)
-	viper.SetDefault("langchain.tools.use_react_pattern", true)
-	viper.SetDefault("langchain.tools.verbose_logging", false)
-	viper.SetDefault("langchain.memory.type", "buffer")
-	viper.SetDefault("langchain.memory.window_size", 10)
-	viper.SetDefault("langchain.memory.max_tokens", 4000)
-	viper.SetDefault("langchain.memory.summary_threshold", 1000)
-	viper.SetDefault("langchain.prompts.context_injection", true)
-
-	// Vector store defaults
-	viper.SetDefault("vectorstore.enabled", true)
-	viper.SetDefault("vectorstore.provider", "chromem")
-	viper.SetDefault("vectorstore.persistence_dir", "./.ryan/vectorstore")
-	viper.SetDefault("vectorstore.enable_persistence", true)
-	viper.SetDefault("vectorstore.embedder.provider", "ollama")
-	viper.SetDefault("vectorstore.embedder.model", "nomic-embed-text")
-	viper.SetDefault("vectorstore.embedder.base_url", "https://ollama.kitty-tetra.ts.net")
-	viper.SetDefault("vectorstore.embedder.api_key", "")
-	viper.SetDefault("vectorstore.indexer.chunk_size", 1000)
-	viper.SetDefault("vectorstore.indexer.chunk_overlap", 200)
-	viper.SetDefault("vectorstore.indexer.auto_index", false)
-
-	// Self config path default
-	viper.SetDefault("self_config_path", "./.ryan/self.yaml")
+	// Use the centralized getAllDefaults function
+	for key, value := range getAllDefaults() {
+		viper.SetDefault(key, value)
+	}
 }
 
-// bindEnvironmentVariables binds specific environment variables to Viper keys
-func bindEnvironmentVariables() {
-	// OpenAI API key for vector store embeddings
-	viper.BindEnv("OPENAI_API_KEY")
-	viper.BindEnv("vectorstore.embedder.api_key", "OPENAI_API_KEY")
+// getAllDefaults returns a map of all default configuration values
+// This is the single source of truth for all defaults
+func getAllDefaults() map[string]interface{} {
+	return map[string]interface{}{
+		// Provider defaults
+		"provider": "ollama",
 
-	// MCP server configuration
-	viper.BindEnv("RYAN_MCP_SERVERS")
-	viper.BindEnv("mcp.servers", "RYAN_MCP_SERVERS")
+		// Ollama defaults
+		"ollama.url":           "https://ollama.kitty-tetra.ts.net",
+		"ollama.model":         "qwen3:latest",
+		"ollama.system_prompt": "",
+		"ollama.timeout":       "90s",
+		"ollama.poll_interval": 10,
 
-	// Configuration directory override
-	viper.BindEnv("RYAN_CONFIG_DIR")
-	viper.BindEnv("config.directory", "RYAN_CONFIG_DIR")
+		// OpenAI defaults
+		"openai.api_key":       "",
+		"openai.model":         "gpt-4-turbo-preview",
+		"openai.system_prompt": "",
+		"openai.timeout":       "60s",
+		"openai.base_url":      "",
 
-	// All RYAN_ prefixed environment variables used in hierarchy
-	viper.BindEnv("RYAN_LOG_FILE")
-	viper.BindEnv("RYAN_LOG_LEVEL")
-	viper.BindEnv("RYAN_LOG_PRESERVE")
-	viper.BindEnv("RYAN_OLLAMA_URL")
-	viper.BindEnv("RYAN_OLLAMA_MODEL")
-	viper.BindEnv("RYAN_OLLAMA_SYSTEM_PROMPT")
-	viper.BindEnv("RYAN_OLLAMA_TIMEOUT")
-	viper.BindEnv("RYAN_OLLAMA_POLL_INTERVAL")
-	viper.BindEnv("RYAN_SHOW_THINKING")
-	viper.BindEnv("RYAN_STREAMING")
-	viper.BindEnv("RYAN_TOOLS_ENABLED")
-	viper.BindEnv("RYAN_TOOLS_MODELS")
-	viper.BindEnv("RYAN_BASH_ENABLED")
-	viper.BindEnv("RYAN_BASH_TIMEOUT")
-	viper.BindEnv("RYAN_BASH_ALLOWED_PATHS")
-	viper.BindEnv("RYAN_FILE_READ_ALLOWED_EXTENSIONS")
-	viper.BindEnv("RYAN_VECTORSTORE_ENABLED")
-	viper.BindEnv("RYAN_VECTORSTORE_PROVIDER")
-	viper.BindEnv("RYAN_VECTORSTORE_PERSISTENCE_DIR")
-	viper.BindEnv("RYAN_EMBEDDER_PROVIDER")
-	viper.BindEnv("RYAN_EMBEDDER_MODEL")
-	viper.BindEnv("RYAN_EMBEDDER_BASE_URL")
-	viper.BindEnv("RYAN_EMBEDDER_API_KEY")
-	viper.BindEnv("RYAN_LANGCHAIN_MAX_ITERATIONS")
+		// General defaults
+		"show_thinking": true,
+		"streaming":     true,
+
+		// Logging defaults
+		"logging.log_file": "./.ryan/system.log",
+		"logging.preserve": false,
+		"logging.level":    "info",
+
+		// Context defaults
+		"context.directory":         "./.ryan/contexts",
+		"context.max_file_size":     "10MB",
+		"context.persist_langchain": true,
+
+		// Tools defaults
+		"tools.enabled":                 true,
+		"tools.truncate_output":         true,
+		"tools.bash.enabled":            true,
+		"tools.bash.timeout":            "90s",
+		"tools.bash.skip_permissions":   false,
+		"tools.file_read.enabled":       true,
+		"tools.file_read.max_file_size": "10MB",
+		"tools.search.enabled":          true,
+		"tools.search.timeout":          "10s",
+
+		// LangChain defaults
+		"langchain.tools.max_iterations":       5,
+		"langchain.tools.autonomous_reasoning": true,
+		"langchain.tools.use_react_pattern":    true,
+		"langchain.tools.verbose_logging":      false,
+		"langchain.memory.type":                "buffer",
+		"langchain.memory.window_size":         10,
+		"langchain.memory.max_tokens":          4000,
+		"langchain.memory.summary_threshold":   1000,
+		"langchain.prompts.context_injection":  true,
+
+		// Vector store defaults
+		"vectorstore.enabled":               true,
+		"vectorstore.provider":              "chromem",
+		"vectorstore.persistence_dir":       "./.ryan/vectorstore",
+		"vectorstore.enable_persistence":    true,
+		"vectorstore.embedder.provider":     "ollama",
+		"vectorstore.embedder.model":        "nomic-embed-text",
+		"vectorstore.embedder.base_url":     "https://ollama.kitty-tetra.ts.net",
+		"vectorstore.embedder.api_key":      "",
+		"vectorstore.indexer.chunk_size":    1000,
+		"vectorstore.indexer.chunk_overlap": 200,
+		"vectorstore.indexer.auto_index":    false,
+
+		// Self config path default
+		"self_config_path": "./.ryan/self.yaml",
+	}
 }
+
+// No longer needed - AutomaticEnv handles all RYAN_ prefixed variables
+// Only explicit bindings for non-standard mappings are needed
 
 // processDurations converts string durations to time.Duration
 func processDurations(cfg *Config) error {
