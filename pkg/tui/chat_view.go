@@ -20,6 +20,7 @@ type ChatView struct {
 	input        *tview.InputField
 	status       *tview.TextView
 	activityView *tview.TextView // New component for activity tree
+	spinnerView  *tview.TextView // Spinner/status view above input
 
 	// State
 	controller    ControllerInterface
@@ -32,6 +33,7 @@ type ChatView struct {
 	spinnerFrame  int
 	spinnerFrames []string
 	renderManager *RenderManager // Add render manager
+	currentState  string         // Current UI state: idle, sending, thinking, streaming, executing, preparing_tools
 
 	// Callbacks
 	onSendMessage func(content string)
@@ -47,6 +49,7 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		streaming:     false,
 		spinnerFrames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 		spinnerFrame:  0,
+		currentState:  "idle",
 	}
 
 	// Initialize render manager
@@ -104,6 +107,15 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 	cv.activityView.SetBackgroundColor(tcell.GetColor(ColorBase00))
 	cv.activityView.SetTextColor(tcell.GetColor(ColorBase04))
 
+	// Create spinner/status view above input
+	cv.spinnerView = tview.NewTextView().
+		SetDynamicColors(true).
+		SetRegions(false).
+		SetWordWrap(false).
+		SetScrollable(false)
+	cv.spinnerView.SetBackgroundColor(tcell.GetColor(ColorBase00))
+	cv.spinnerView.SetTextColor(tcell.GetColor(ColorBase04))
+
 	// Create status bar
 	cv.status = tview.NewTextView().
 		SetDynamicColors(true).
@@ -125,6 +137,13 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		AddItem(nil, 2, 0, false)              // Right padding
 	activityContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
+	// Create padded spinner area
+	spinnerContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(nil, 2, 0, false).            // Left padding
+		AddItem(cv.spinnerView, 0, 1, false). // Spinner content
+		AddItem(nil, 2, 0, false)             // Right padding
+	spinnerContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
+
 	// Create padded input area
 	inputContainer := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(nil, 2, 0, false).     // Left padding
@@ -132,11 +151,11 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		AddItem(nil, 2, 0, false)      // Right padding
 	inputContainer.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
-	// Layout: top padding, messages, activity indicator, input, status
+	// Layout: top padding, messages, activity indicator, spinner, input, status
 	cv.AddItem(nil, 1, 0, false). // Top padding
 					AddItem(messageContainer, 0, 1, false).  // Messages take most space
 					AddItem(activityContainer, 0, 0, false). // Activity indicator (dynamic height)
-					AddItem(nil, 1, 0, false).               // Gap between activity and input
+					AddItem(spinnerContainer, 1, 0, false).  // Spinner/status above input
 					AddItem(inputContainer, 2, 0, true).     // Input area with more height
 					AddItem(cv.status, 1, 0, false)          // Status bar
 
@@ -350,8 +369,9 @@ func (cv *ChatView) UpdateStreamingContent(streamID string, content string) {
 	if cv.streamID == streamID {
 		// Check for tool mode marker
 		if content == "<<<TOOL_MODE>>>" {
-			// Tool mode detected, but don't add marker to buffer
-			return
+			cv.currentState = "preparing_tools"
+			cv.updateSpinnerView()
+			return // Don't add marker to buffer
 		}
 
 		cv.streamBuffer = content
@@ -377,8 +397,13 @@ func (cv *ChatView) SetSending(sending bool) {
 
 	// Start or stop spinner animation
 	if sending {
+		cv.currentState = "sending"
 		cv.startSpinner()
+	} else {
+		cv.currentState = "idle"
 	}
+	cv.updateSpinnerView()
+	cv.updateStatus()
 }
 
 // updateStatus updates the status bar
@@ -479,10 +504,11 @@ func (cv *ChatView) ClearActivityTree() {
 // startSpinner starts the spinner animation
 func (cv *ChatView) startSpinner() {
 	go func() {
-		for cv.sending || cv.streaming {
+		for cv.sending || cv.streaming || cv.currentState != "idle" {
 			time.Sleep(100 * time.Millisecond)
 			cv.spinnerFrame = (cv.spinnerFrame + 1) % len(cv.spinnerFrames)
 			cv.app.QueueUpdateDraw(func() {
+				cv.updateSpinnerView()
 				cv.updateStatus()
 			})
 		}
@@ -543,4 +569,77 @@ func (cv *ChatView) getRoleColor(role string) string {
 	default:
 		return "#f5b761"
 	}
+}
+
+// SetStreaming updates the streaming state
+func (cv *ChatView) SetStreaming(streaming bool, streamID string) {
+	cv.streaming = streaming
+	cv.streamID = streamID
+	if streaming {
+		cv.currentState = "streaming"
+		cv.startSpinner()
+		cv.streamBuffer = ""
+	} else if cv.currentState == "streaming" {
+		cv.currentState = "idle"
+	}
+	cv.updateSpinnerView()
+	cv.updateStatus()
+}
+
+// SetThinking sets the thinking state
+func (cv *ChatView) SetThinking(thinking bool) {
+	if thinking {
+		cv.currentState = "thinking"
+		cv.startSpinner()
+	} else if cv.currentState == "thinking" {
+		cv.currentState = "idle"
+	}
+	cv.updateSpinnerView()
+}
+
+// SetExecuting sets the executing state (for tool execution)
+func (cv *ChatView) SetExecuting(executing bool, toolName string) {
+	if executing {
+		cv.currentState = "executing"
+		cv.startSpinner()
+		// Store tool name in streamID temporarily for display
+		cv.streamID = toolName
+	} else if cv.currentState == "executing" {
+		cv.currentState = "idle"
+		cv.streamID = ""
+	}
+	cv.updateSpinnerView()
+}
+
+// updateSpinnerView updates the spinner/status view above the input
+func (cv *ChatView) updateSpinnerView() {
+	if cv.currentState == "idle" {
+		cv.spinnerView.SetText("")
+		return
+	}
+
+	spinner := cv.spinnerFrames[cv.spinnerFrame]
+	var statusText string
+
+	switch cv.currentState {
+	case "sending":
+		statusText = fmt.Sprintf("[#93b56b]%s[-] [#f5b761]Sending message...[-]", spinner)
+	case "thinking":
+		statusText = fmt.Sprintf("[#976bb5]%s[-] [#976bb5]Thinking...[-]", spinner)
+	case "streaming":
+		statusText = fmt.Sprintf("[#6b93b5]%s[-] [#6b93b5]Streaming response...[-]", spinner)
+	case "preparing_tools":
+		statusText = fmt.Sprintf("[#f5b761]%s[-] [#f5b761]Using tool agent (non-streaming mode)...[-]", spinner)
+	case "executing":
+		toolName := cv.streamID
+		if toolName != "" {
+			statusText = fmt.Sprintf("[#d95f5f]%s[-] [#d95f5f]Executing %s...[-]", spinner, toolName)
+		} else {
+			statusText = fmt.Sprintf("[#d95f5f]%s[-] [#d95f5f]Executing tool...[-]", spinner)
+		}
+	default:
+		statusText = ""
+	}
+
+	cv.spinnerView.SetText(statusText)
 }
