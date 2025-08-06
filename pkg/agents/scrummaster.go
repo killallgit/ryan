@@ -311,7 +311,7 @@ func (sm *ScrumMaster) createSprintPlans(sprint *Sprint, context *ProjectContext
 		// Create a simple execution plan for each story
 		plan := &ExecutionPlan{
 			ID:                generateID(),
-			Context:           context.ExecutionContext,
+			RequestID:         context.RequestID,
 			Tasks:             sm.createTasksForStory(story),
 			Stages:            []Stage{},
 			EstimatedDuration: fmt.Sprintf("%dh", story.Points*2), // Rough estimate
@@ -323,7 +323,8 @@ func (sm *ScrumMaster) createSprintPlans(sprint *Sprint, context *ProjectContext
 			plan.Stages = []Stage{
 				{
 					ID:    fmt.Sprintf("stage-%s", story.ID),
-					Tasks: extractTaskIDs(plan.Tasks),
+					Name:  fmt.Sprintf("Story %s", story.Title),
+					Tasks: plan.Tasks,
 				},
 			}
 		}
@@ -340,8 +341,10 @@ func (sm *ScrumMaster) createTasksForStory(story *UserStory) []Task {
 
 	// Create a task based on the story
 	task := Task{
-		ID:    generateID(),
-		Agent: "dispatcher", // Use dispatcher for flexibility
+		ID:          generateID(),
+		Name:        story.Title,
+		Description: story.Description,
+		Agent:       "dispatcher", // Use dispatcher for flexibility
 		Request: AgentRequest{
 			Prompt: story.Description,
 			Context: map[string]interface{}{
@@ -352,7 +355,6 @@ func (sm *ScrumMaster) createTasksForStory(story *UserStory) []Task {
 		},
 		Priority:     int(story.Priority),
 		Dependencies: []string{},
-		Timeout:      30 * time.Minute,
 	}
 
 	tasks = append(tasks, task)
@@ -446,7 +448,13 @@ func (sm *ScrumMaster) executeSprint(ctx context.Context, sprint *Sprint, projec
 
 		// Collect results
 		for _, taskResult := range taskResults {
-			if !taskResult.Result.Success {
+			// Check if result is an AgentResult type
+			if agentResult, ok := taskResult.Result.(AgentResult); ok {
+				if !agentResult.Success {
+					result.Success = false
+				}
+			} else {
+				// If not AgentResult, assume failure
 				result.Success = false
 			}
 			result.CompletedStories = append(result.CompletedStories, taskResult.Task.ID)

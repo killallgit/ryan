@@ -368,7 +368,7 @@ func TestTaskDecomposer_StoryDecomposition(t *testing.T) {
 			assert.Equal(t, tt.expectedAgent, task.Agent)
 			assert.NotEmpty(t, task.Request.Prompt)
 			assert.Equal(t, int(tt.story.Priority), task.Priority)
-			assert.Greater(t, task.Timeout, time.Duration(0))
+			assert.NotEmpty(t, task.Description)
 		}
 	}
 }

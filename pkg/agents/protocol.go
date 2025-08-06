@@ -2,7 +2,6 @@ package agents
 
 import (
 	"sync"
-	"time"
 
 	"github.com/killallgit/ryan/pkg/agents/interfaces"
 )
@@ -30,17 +29,6 @@ const (
 	PriorityLow    Priority = 0
 	PriorityMedium Priority = 5
 	PriorityHigh   Priority = 10
-)
-
-// OperationType represents different types of operations for progress tracking
-type OperationType string
-
-const (
-	OperationTypeTool      OperationType = "tool"
-	OperationTypeAgent     OperationType = "agent_spawn"
-	OperationTypeAnalysis  OperationType = "analysis"
-	OperationTypePlanning  OperationType = "planning"
-	OperationTypeExecution OperationType = "execution"
 )
 
 // Additional protocol types specific to implementation
@@ -101,104 +89,4 @@ const (
 	FeedbackTypeValidationError = "validation_error"
 	FeedbackTypeRetry           = "retry"
 	FeedbackTypeRefine          = "refine"
-)
-
-// Hierarchical planning types
-
-// Project represents a hierarchical project
-type Project struct {
-	ID          string
-	Name        string
-	Description string
-	Context     *ProjectContext
-	Status      ProjectStatus
-	Epics       []*Epic
-	Sprints     []*Sprint
-	CreatedAt   time.Time
-}
-
-// ProjectContext provides context for project planning
-type ProjectContext struct {
-	ProjectPath   string
-	Technologies  []string
-	Constraints   map[string]interface{}
-	TeamCapacity  int
-	SprintLength  int
-	Requirements  []string
-}
-
-// ProjectStatus represents project status
-type ProjectStatus string
-
-const (
-	ProjectStatusPlanning    ProjectStatus = "planning"
-	ProjectStatusInProgress  ProjectStatus = "in_progress"
-	ProjectStatusCompleted   ProjectStatus = "completed"
-	ProjectStatusOnHold      ProjectStatus = "on_hold"
-	ProjectStatusCancelled   ProjectStatus = "cancelled"
-)
-
-// Epic represents a major feature or component
-type Epic struct {
-	ID          string
-	Title       string
-	Description string
-	Priority    Priority
-	Status      EpicStatus
-	Stories     []*UserStory
-}
-
-// EpicStatus represents epic status
-type EpicStatus string
-
-const (
-	EpicStatusTodo        EpicStatus = "todo"
-	EpicStatusInProgress  EpicStatus = "in_progress"
-	EpicStatusDone        EpicStatus = "done"
-	EpicStatusBlocked     EpicStatus = "blocked"
-)
-
-// UserStory represents a user story
-type UserStory struct {
-	ID          string
-	Title       string
-	Description string
-	Points      int
-	Priority    Priority
-	Status      StoryStatus
-	Tasks       []Task
-}
-
-// StoryStatus represents story status
-type StoryStatus string
-
-const (
-	StoryStatusTodo        StoryStatus = "todo"
-	StoryStatusInProgress  StoryStatus = "in_progress"
-	StoryStatusDone        StoryStatus = "done"
-	StoryStatusBlocked     StoryStatus = "blocked"
-)
-
-// Sprint represents a development sprint
-type Sprint struct {
-	ID        string
-	Number    int
-	Name      string
-	Goal      string
-	StartDate time.Time
-	EndDate   time.Time
-	Status    SprintStatus
-	Stories   []*UserStory
-	Plans     []*ExecutionPlan
-	Capacity  int
-}
-
-// SprintStatus represents sprint status
-type SprintStatus string
-
-const (
-	SprintStatusPlanning    SprintStatus = "planning"
-	SprintStatusActive      SprintStatus = "active"
-	SprintStatusCompleted   SprintStatus = "completed"
-	SprintStatusCancelled   SprintStatus = "cancelled"
 )

@@ -107,9 +107,8 @@ func (o *Orchestrator) Execute(ctx context.Context, request string, options map[
 		o.log.Info("Detected project-level request, routing to ScrumMaster")
 		if scrumMaster, err := o.GetAgent("scrummaster"); err == nil {
 			agentRequest := AgentRequest{
-				Prompt:           request,
-				Options:          options,
-				WorkingDirectory: "",
+				Prompt:  request,
+				Options: options,
 			}
 			return scrumMaster.Execute(ctx, agentRequest)
 		}

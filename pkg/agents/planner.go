@@ -927,49 +927,49 @@ func (td *TaskDecomposer) DecomposeStory(story *UserStory) []Task {
 
 func (td *TaskDecomposer) createDesignTask(story *UserStory) Task {
 	return Task{
-		ID:    generateID(),
-		Agent: "code_analysis",
+		ID:          generateID(),
+		Agent:       "code_analysis",
+		Description: fmt.Sprintf("Design and analyze architecture for: %s", story.Description),
 		Request: AgentRequest{
 			Prompt: fmt.Sprintf("Design and analyze architecture for: %s", story.Description),
 		},
 		Priority: int(story.Priority),
-		Timeout:  30 * time.Minute,
 	}
 }
 
 func (td *TaskDecomposer) createImplementationTask(story *UserStory) Task {
 	return Task{
-		ID:    generateID(),
-		Agent: "dispatcher",
+		ID:          generateID(),
+		Agent:       "dispatcher",
+		Description: story.Description,
 		Request: AgentRequest{
 			Prompt: story.Description,
 		},
 		Priority: int(story.Priority),
-		Timeout:  60 * time.Minute,
 	}
 }
 
 func (td *TaskDecomposer) createTestTask(story *UserStory) Task {
 	return Task{
-		ID:    generateID(),
-		Agent: "dispatcher",
+		ID:          generateID(),
+		Agent:       "dispatcher",
+		Description: fmt.Sprintf("Create comprehensive tests for: %s", story.Description),
 		Request: AgentRequest{
 			Prompt: fmt.Sprintf("Create comprehensive tests for: %s", story.Description),
 		},
 		Priority: int(story.Priority),
-		Timeout:  30 * time.Minute,
 	}
 }
 
 func (td *TaskDecomposer) createDefaultTask(story *UserStory) Task {
 	return Task{
-		ID:    generateID(),
-		Agent: "dispatcher",
+		ID:          generateID(),
+		Agent:       "dispatcher",
+		Description: story.Description,
 		Request: AgentRequest{
 			Prompt: story.Description,
 		},
 		Priority: int(story.Priority),
-		Timeout:  45 * time.Minute,
 	}
 }
 
