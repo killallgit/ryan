@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Model is now configured per provider (`ollama.model`, `openai.model`)
   - Added `provider` field to select active LLM provider
   - CLI flags changed to provider-specific: `--ollama.model`, `--openai.model`
+- Refactored LangChain agent selection logic for improved tool integration
+- Simplified agent type determination to always use conversational agent when tools are available
+- Removed unused OllamaToolCaller in favor of unified LangChain approach
+- Enhanced agent selection display in UI with confidence scores
+- Improved output processing to filter special markers from responses
+- Updated orchestrator integration in controller for better agent routing
 
 ### Added
 - Support for multiple LLM providers in configuration structure
@@ -29,3 +35,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Improved pre-commit hook compliance with proper file formatting
+- Fixed duplicate tool mode markers appearing in UI responses
+- Improved agent decision visibility in chat interface
