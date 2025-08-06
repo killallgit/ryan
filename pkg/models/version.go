@@ -21,9 +21,10 @@ func CheckOllamaVersion(ollamaURL string) (string, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/version", ollamaURL), nil)
+	versionURL := fmt.Sprintf("%s/api/version", ollamaURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", versionURL, nil)
 	if err != nil {
-		return "", false, fmt.Errorf("failed to create request: %w", err)
+		return "", false, fmt.Errorf("failed to create request for %s: %w", versionURL, err)
 	}
 
 	client := &http.Client{
@@ -31,13 +32,18 @@ func CheckOllamaVersion(ollamaURL string) (string, bool, error) {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", false, fmt.Errorf("failed to check Ollama version: %w", err)
+		return "", false, fmt.Errorf("failed to check Ollama version at %s: %w", versionURL, err)
 	}
 	defer resp.Body.Close()
 
+	// Check HTTP status
+	if resp.StatusCode != http.StatusOK {
+		return "", false, fmt.Errorf("Ollama server returned status %d for %s", resp.StatusCode, versionURL)
+	}
+
 	var version OllamaVersion
 	if err := json.NewDecoder(resp.Body).Decode(&version); err != nil {
-		return "", false, fmt.Errorf("failed to decode version response: %w", err)
+		return "", false, fmt.Errorf("failed to decode version response from %s (status %d): %w", versionURL, resp.StatusCode, err)
 	}
 
 	// Tool calling was introduced in Ollama 0.4.x, became more stable in 1.0+
