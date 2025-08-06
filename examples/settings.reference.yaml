@@ -18,13 +18,24 @@ context:
 show_thinking: true
 streaming: true
 
-# Ollama LLM
+# Provider selection (ollama, openai)
+provider: ollama  # Default provider to use
+
+# Ollama LLM configuration
 ollama:
   url: http://localhost:11434
   model: qwen2.5-coder:7b  # Recommended for code analysis
   system_prompt: "examples/SYSTEM_PROMPT.md"
   timeout: 90s
   poll_interval: 10
+
+# OpenAI configuration (for future implementation)
+openai:
+  api_key: ""  # Set via environment variable OPENAI_API_KEY
+  model: gpt-4-turbo-preview
+  system_prompt: "examples/SYSTEM_PROMPT.md"
+  timeout: 60s
+  base_url: ""  # Optional: for Azure or custom endpoints
 
 # Tools
 tools:

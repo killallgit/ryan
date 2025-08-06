@@ -54,7 +54,9 @@ type Config struct {
 	Context        ContextConfig     `mapstructure:"context"`
 	ShowThinking   bool              `mapstructure:"show_thinking"`
 	Streaming      bool              `mapstructure:"streaming"`
+	Provider       string            `mapstructure:"provider"` // Selected provider: ollama, openai, etc.
 	Ollama         OllamaConfig      `mapstructure:"ollama"`
+	OpenAI         OpenAIConfig      `mapstructure:"openai"` // For future implementation
 	Tools          ToolsConfig       `mapstructure:"tools"`
 	LangChain      LangChainConfig   `mapstructure:"langchain"`
 	VectorStore    VectorStoreConfig `mapstructure:"vectorstore"`
@@ -84,6 +86,16 @@ type OllamaConfig struct {
 	PollInterval int           `mapstructure:"poll_interval"`
 	Timeout      time.Duration `mapstructure:"timeout"`
 	TimeoutStr   string        `mapstructure:"timeout"` // For parsing string duration
+}
+
+// OpenAIConfig holds OpenAI-specific configuration (for future implementation)
+type OpenAIConfig struct {
+	APIKey       string        `mapstructure:"api_key"`
+	Model        string        `mapstructure:"model"`
+	SystemPrompt string        `mapstructure:"system_prompt"`
+	Timeout      time.Duration `mapstructure:"timeout"`
+	TimeoutStr   string        `mapstructure:"timeout"`  // For parsing string duration
+	BaseURL      string        `mapstructure:"base_url"` // For Azure or custom endpoints
 }
 
 // ToolsConfig holds tool-related configuration
@@ -267,12 +279,22 @@ func loadSelfConfig(selfConfigPath string) error {
 
 // setDefaults sets all default configuration values
 func setDefaults() {
+	// Provider defaults
+	viper.SetDefault("provider", "ollama") // Default to ollama provider
+
 	// Ollama defaults
 	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
 	viper.SetDefault("ollama.model", "qwen3:latest")
 	viper.SetDefault("ollama.system_prompt", "")
 	viper.SetDefault("ollama.timeout", "90s")
 	viper.SetDefault("ollama.poll_interval", 10)
+
+	// OpenAI defaults (for future implementation)
+	viper.SetDefault("openai.api_key", "")
+	viper.SetDefault("openai.model", "gpt-4-turbo-preview")
+	viper.SetDefault("openai.system_prompt", "")
+	viper.SetDefault("openai.timeout", "60s")
+	viper.SetDefault("openai.base_url", "")
 
 	// General defaults
 	viper.SetDefault("show_thinking", true)
@@ -411,11 +433,19 @@ func InitializeDefaults() error {
 	v.SetDefault("show_thinking", true)
 	v.SetDefault("streaming", true)
 
+	v.SetDefault("provider", "ollama")
+
 	v.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
 	v.SetDefault("ollama.model", "qwen3:latest")
 	v.SetDefault("ollama.system_prompt", "")
 	v.SetDefault("ollama.timeout", "90s")
 	v.SetDefault("ollama.poll_interval", 10)
+
+	v.SetDefault("openai.api_key", "")
+	v.SetDefault("openai.model", "gpt-4-turbo-preview")
+	v.SetDefault("openai.system_prompt", "")
+	v.SetDefault("openai.timeout", "60s")
+	v.SetDefault("openai.base_url", "")
 
 	v.SetDefault("tools.enabled", true)
 	v.SetDefault("tools.truncate_output", true)
@@ -500,4 +530,54 @@ func isTestEnvironment() bool {
 	}
 
 	return false
+}
+
+// GetActiveProviderModel returns the model name for the currently active provider
+func (c *Config) GetActiveProviderModel() string {
+	switch c.Provider {
+	case "openai":
+		return c.OpenAI.Model
+	case "ollama", "":
+		// Default to ollama if provider not specified
+		return c.Ollama.Model
+	default:
+		return c.Ollama.Model
+	}
+}
+
+// GetActiveProviderURL returns the URL for the currently active provider
+func (c *Config) GetActiveProviderURL() string {
+	switch c.Provider {
+	case "openai":
+		if c.OpenAI.BaseURL != "" {
+			return c.OpenAI.BaseURL
+		}
+		return "https://api.openai.com/v1"
+	case "ollama", "":
+		// Default to ollama if provider not specified
+		return c.Ollama.URL
+	default:
+		return c.Ollama.URL
+	}
+}
+
+// GetActiveProviderSystemPrompt returns the system prompt for the currently active provider
+func (c *Config) GetActiveProviderSystemPrompt() string {
+	switch c.Provider {
+	case "openai":
+		return c.OpenAI.SystemPrompt
+	case "ollama", "":
+		// Default to ollama if provider not specified
+		return c.Ollama.SystemPrompt
+	default:
+		return c.Ollama.SystemPrompt
+	}
+}
+
+// GetActiveProvider returns the currently active provider name
+func (c *Config) GetActiveProvider() string {
+	if c.Provider == "" {
+		return "ollama" // Default provider
+	}
+	return c.Provider
 }

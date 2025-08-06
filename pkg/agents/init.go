@@ -86,12 +86,15 @@ func ExecuteDirectPrompt(ctx context.Context, prompt string, orchestrator *Orche
 	return &result, nil
 }
 
-// InitializeToolRegistry creates and configures the tool registry based on Ollama compatibility
-func InitializeToolRegistry(ollamaURL string, model string) (*tools.Registry, error) {
+// InitializeToolRegistry creates and configures the tool registry based on provider compatibility
+// Currently only Ollama provider supports tool calling
+func InitializeToolRegistry(providerURL string, model string) (*tools.Registry, error) {
 	log := logger.WithComponent("tools_init")
 
+	// For now, only Ollama supports tool calling
+	// TODO: Add OpenAI function calling support when implemented
 	// Check Ollama server version and model compatibility
-	version, versionSupported, err := models.CheckOllamaVersion(ollamaURL)
+	version, versionSupported, err := models.CheckOllamaVersion(providerURL)
 	if err != nil {
 		log.Warn("Could not check Ollama server version", "error", err)
 		return nil, fmt.Errorf("could not verify Ollama server compatibility: %w", err)
