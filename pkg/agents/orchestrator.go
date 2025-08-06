@@ -72,13 +72,7 @@ func (o *Orchestrator) RegisterBuiltinAgents(toolRegistry *tools.Registry) error
 		return fmt.Errorf("failed to register search agent: %w", err)
 	}
 
-	// Register ScrumMaster agent for complex project management
-	scrumMaster := NewScrumMaster(o)
-	if err := o.RegisterAgent(scrumMaster); err != nil {
-		return fmt.Errorf("failed to register scrummaster agent: %w", err)
-	}
-
-	o.log.Info("Registered built-in agents", "count", 6) // dispatcher + 5 agents
+	o.log.Info("Registered built-in agents", "count", 5) // dispatcher + 4 agents
 	return nil
 }
 
@@ -101,18 +95,6 @@ func (o *Orchestrator) RegisterAgent(agent Agent) error {
 func (o *Orchestrator) Execute(ctx context.Context, request string, options map[string]interface{}) (AgentResult, error) {
 	startTime := time.Now()
 	o.log.Info("Executing request", "request_preview", truncateString(request, 100))
-
-	// Check if this is a project-level request that should be handled by ScrumMaster
-	if o.planner.IsProjectLevelRequest(request) {
-		o.log.Info("Detected project-level request, routing to ScrumMaster")
-		if scrumMaster, err := o.GetAgent("scrummaster"); err == nil {
-			agentRequest := AgentRequest{
-				Prompt:  request,
-				Options: options,
-			}
-			return scrumMaster.Execute(ctx, agentRequest)
-		}
-	}
 
 	// Create execution context
 	execContext := &ExecutionContext{
