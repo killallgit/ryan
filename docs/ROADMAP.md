@@ -1,12 +1,12 @@
 # Ryan Development Roadmap - Claude Code Parity
 
-*Last Updated: August 2025*
+*Last Updated: January 2025*
 
 ## 📊 Executive Summary
 
 Ryan is an open-source alternative to Claude Code that aims to provide feature parity while maintaining local-first, privacy-focused AI development. This roadmap outlines our progress toward full Claude Code compatibility.
 
-**Current Status**: ~75% feature parity achieved, with core functionality complete and advanced features in development.
+**Current Status**: ~78% feature parity achieved, with core functionality complete and advanced features in development.
 
 ---
 
@@ -78,6 +78,14 @@ Ryan is an open-source alternative to Claude Code that aims to provide feature p
 ### Phase 3: CLI Parity (🚧 IN PROGRESS)
 **Goal**: Full Claude Code CLI compatibility
 **Timeline**: Q3-Q4 2025
+
+#### Recent Achievements (January 2025)
+- [x] **Configuration Management** - Consolidated all environment variables through Viper
+- [x] **Naming Convention Refactor** - Removed redundant patterns and vague descriptors
+- [x] **Test Coverage Improvements** - TUI coverage increased from 0.8% to 21.7%
+- [x] **Integration Test Modernization** - All tests now use LangChain controllers
+- [x] **Provider-Specific Configuration** - Multi-provider support with Ollama and OpenAI
+- [x] **Agent Selection Logic** - Improved tool integration and UI display
 
 #### 3.1 Command Compatibility
 - [ ] **Output Formats** - Add JSON, XML, structured output
@@ -204,10 +212,14 @@ echo "create feature" | ryan -p --continue | tee results.json
 - **Performance**: 95% of Claude Code speed
 
 ### Quality Metrics
-- **Test Coverage**: 58.7% (Target: 80%)
-- **Documentation Coverage**: 90%
+- **Test Coverage**: Overall improving (Target: 80%)
+  - High coverage (≥80%): models (91.8%), testutil (89.7%), ollama (85.6%)
+  - Good coverage (60-79%): vectorstore (68.8%), logger (63.6%), tools (60.1%)
+  - Improved: agents (51.8%), chat (53.4%), langchain (48.2%)
+  - Needs work: tui (21.7%), config (24.6%), controllers (25.3%), cmd (9.3%)
+- **Documentation Coverage**: 95%
 - **User Satisfaction**: Not measured (Target: >4.5/5)
-- **Community Adoption**: Early stage
+- **Community Adoption**: Growing steadily
 
 ### Timeline Milestones
 
