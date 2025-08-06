@@ -32,12 +32,10 @@ type Client struct {
 	log              *logger.Logger
 	progressCallback ToolProgressCallback
 
-	// New fields for enhanced agent support
-	agentSelector    *AgentSelector
-	outputProcessor  *OutputProcessor
-	ollamaToolCaller *OllamaToolCaller
-	agentType        AgentType
-	model            string
+	// Enhanced agent support
+	outputProcessor *OutputProcessor
+	agentType       AgentType
+	model           string
 }
 
 // NewClient creates a new LangChain-powered client
@@ -79,7 +77,6 @@ func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, er
 
 	// Initialize agent selector and output processor
 	if toolRegistry != nil {
-		client.agentSelector = NewAgentSelector(toolRegistry, model)
 	}
 
 	// Always initialize output processor for display formatting
@@ -251,21 +248,16 @@ func (c *Client) initializeAgent() error {
 
 	// Create appropriate agent based on type
 	switch c.agentType {
-	case AgentTypeOllamaFunctions:
-		// Initialize Ollama tool caller
-		c.ollamaToolCaller = NewOllamaToolCaller(c.llm, c.toolRegistry)
-		c.log.Info("Using native Ollama function calling")
-		// Don't create traditional agent/executor for native calling
-		return nil
-
 	case AgentTypeConversational:
-		// Use conversational agent (output processor already initialized)
+		// Use LangChain's conversational agent with all tools
+		// The agent will decide whether to use tools based on the query
 		c.agent = agents.NewConversationalAgent(c.llm, c.langchainTools,
 			agents.WithMemory(c.memory))
-		c.log.Info("Using conversational agent with output processing")
+		c.log.Info("Using LangChain conversational agent with tools",
+			"tools_count", len(c.langchainTools))
 
 	default:
-		// Direct mode - no agent needed
+		// Direct mode - no agent needed (no tools or unsupported model)
 		c.log.Info("Using direct LLM mode (no agent)")
 		return nil
 	}
@@ -294,28 +286,21 @@ func (c *Client) initializeAgent() error {
 
 // determineAgentType selects the appropriate agent type based on model capabilities
 func (c *Client) determineAgentType() AgentType {
-	if c.agentSelector == nil {
-		// Default to conversational if no selector
-		return AgentTypeConversational
-	}
-
-	// For now, use a simplified determination
-	// We'll use the selector more intelligently when processing actual queries
 	modelInfo := models.GetModelInfo(c.model)
 
-	// If model has excellent tool support and is Ollama-compatible, use native
-	if modelInfo.ToolCompatibility == models.ToolCompatibilityExcellent {
-		if c.isOllamaModel() {
-			return AgentTypeOllamaFunctions
+	// If we have tools and the model supports them, always use an agent
+	// The agent will decide whether to actually use the tools
+	if c.toolRegistry != nil && c.toolRegistry.HasTools() {
+		if modelInfo.ToolCompatibility != models.ToolCompatibilityNone {
+			// Always prefer the conversational agent for now
+			// It's the most reliable LangChain agent implementation
+			c.log.Debug("Tools available and model supports them, using conversational agent")
+			return AgentTypeConversational
 		}
 	}
 
-	// Default to conversational for other tool-capable models
-	if modelInfo.ToolCompatibility != models.ToolCompatibilityNone {
-		return AgentTypeConversational
-	}
-
-	// No tool support - use direct mode
+	// No tools or model doesn't support them - use direct mode
+	c.log.Debug("No tools or model doesn't support them, using direct mode")
 	return AgentTypeDirect
 }
 
@@ -331,41 +316,24 @@ func (c *Client) SendMessage(ctx context.Context, userInput string) (string, err
 	c.log.Debug("Processing message",
 		"input_length", len(userInput),
 		"agent_type", c.agentType,
-		"has_tools", c.toolRegistry != nil)
+		"has_tools", c.toolRegistry != nil,
+		"has_executor", c.executor != nil)
 
-	// Determine if this specific query needs tools
-	needsTools := false
-	if c.agentSelector != nil {
-		agentType, needsToolsForQuery := c.agentSelector.SelectAgent(userInput)
-		needsTools = needsToolsForQuery
-		c.log.Debug("Query analysis",
-			"needs_tools", needsTools,
-			"suggested_agent", agentType,
-			"configured_agent", c.agentType)
+	// If we have an agent and executor configured, always use them
+	// Let the LangChain agent decide whether to use tools
+	if c.executor != nil && c.agent != nil {
+		c.log.Debug("Using LangChain agent (agent will decide tool usage)")
+		return c.sendWithAgent(ctx, userInput)
 	}
 
-	// Route to appropriate handler based on agent type and query needs
-	switch c.agentType {
-	case AgentTypeOllamaFunctions:
-		if needsTools && c.ollamaToolCaller != nil {
-			return c.sendWithNativeTools(ctx, userInput)
-		}
-		// Fall through to direct mode if no tools needed
-
-	case AgentTypeConversational:
-		if needsTools && c.executor != nil {
-			return c.sendWithAgent(ctx, userInput)
-		}
-		// Fall through to direct mode if no tools needed
-	}
-
-	// Use direct LLM interaction (with tool context if available)
+	// Fallback to direct LLM interaction if no agent configured
+	c.log.Debug("No agent configured, using direct LLM")
 	return c.sendWithChain(ctx, userInput)
 }
 
-// sendWithNativeTools uses Ollama's native function calling
-func (c *Client) sendWithNativeTools(ctx context.Context, userInput string) (string, error) {
-	c.log.Debug("Using native Ollama tool calling")
+// sendWithAgent uses the LangChain agent for autonomous tool calling
+func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, error) {
+	c.log.Debug("Using enhanced agent framework for autonomous multi-step reasoning")
 
 	// Convert input to messages
 	messages := []llms.MessageContent{
@@ -384,31 +352,31 @@ func (c *Client) sendWithNativeTools(ctx context.Context, userInput string) (str
 		}
 	}
 
-	// Call with tools
-	response, err := c.ollamaToolCaller.CallWithTools(ctx, messages, c.progressCallback)
+	// Use the LangChain agent - it will decide whether to use tools
+	// This is the correct abstraction layer
+	result, err := c.executeWithReasoningLoop(ctx, userInput)
 	if err != nil {
-		c.log.Error("Native tool calling failed", "error", err)
-		return "", fmt.Errorf("native tool calling failed: %w", err)
+		c.log.Error("Agent execution failed", "error", err)
+		return "", fmt.Errorf("agent execution failed: %w", err)
 	}
 
-	// Log the raw native tool calling response
-	c.log.Info("RAW OLLAMA NATIVE TOOL RESPONSE",
-		"response_type", fmt.Sprintf("%T", response),
-		"response_content", response)
-
-	// Save to memory
-	if c.memory != nil {
-		c.memory.SaveContext(ctx,
-			map[string]any{"input": userInput},
-			map[string]any{"output": response},
-		)
+	// Extract the final output
+	if output, ok := result["output"].(string); ok {
+		// Save to memory
+		if c.memory != nil {
+			c.memory.SaveContext(ctx,
+				map[string]any{"input": userInput},
+				map[string]any{"output": output},
+			)
+		}
+		return output, nil
 	}
 
-	return response, nil
+	return "", fmt.Errorf("no output from agent")
 }
 
-// sendWithAgent uses the LangChain agent for autonomous tool calling
-func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, error) {
+// sendWithAgentOLD was the old version that had duplicate logic
+func (c *Client) sendWithAgentOLD(ctx context.Context, userInput string) (string, error) {
 	c.log.Debug("Using enhanced agent framework for autonomous multi-step reasoning")
 
 	// Enhanced agent execution with ReAct pattern
@@ -751,58 +719,22 @@ func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, e
 
 // StreamMessage provides streaming responses with tool-aware processing
 func (c *Client) StreamMessage(ctx context.Context, userInput string, outputChan chan<- string) error {
-	c.log.Debug("Starting tool-aware streaming message processing",
+	c.log.Debug("Starting streaming message processing",
 		"input_length", len(userInput),
 		"agent_type", c.agentType,
-		"has_tools", c.toolRegistry != nil)
+		"has_tools", c.toolRegistry != nil,
+		"has_executor", c.executor != nil)
 
-	// Determine if this specific query needs tools using the same logic as SendMessage
-	needsTools := false
-	if c.agentSelector != nil {
-		agentType, needsToolsForQuery := c.agentSelector.SelectAgent(userInput)
-		needsTools = needsToolsForQuery
-		c.log.Debug("Streaming query analysis",
-			"needs_tools", needsTools,
-			"suggested_agent", agentType,
-			"configured_agent", c.agentType)
+	// If we have an agent and executor configured, always use them
+	// Let the LangChain agent decide whether to use tools
+	if c.executor != nil && c.agent != nil {
+		c.log.Debug("Using LangChain agent for streaming (agent will decide tool usage)")
+		return c.streamWithAgent(ctx, userInput, outputChan)
 	}
 
-	// Route to appropriate streaming handler based on agent type and query needs
-	switch c.agentType {
-	case AgentTypeOllamaFunctions:
-		if needsTools && c.ollamaToolCaller != nil {
-			return c.streamWithNativeTools(ctx, userInput, outputChan)
-		}
-		// Fall through to direct streaming if no tools needed
-
-	case AgentTypeConversational:
-		if needsTools && c.executor != nil {
-			return c.streamWithAgent(ctx, userInput, outputChan)
-		}
-		// Fall through to direct streaming if no tools needed
-	}
-
-	// Use direct LLM streaming (with tool context if available)
+	// Fallback to direct LLM streaming if no agent configured
+	c.log.Debug("No agent configured, using direct LLM streaming")
 	return c.streamWithDirectLLM(ctx, userInput, outputChan)
-}
-
-// streamWithNativeTools streams using Ollama's native function calling
-func (c *Client) streamWithNativeTools(ctx context.Context, userInput string, outputChan chan<- string) error {
-	c.log.Debug("Using native Ollama tool calling for streaming")
-
-	// For streaming with tools, we need to:
-	// 1. Get the full response with tool execution first
-	// 2. Stream the final response
-
-	// This is a compromise - we can't truly stream tool execution, but we can
-	// stream the final response after tools are executed
-	response, err := c.sendWithNativeTools(ctx, userInput)
-	if err != nil {
-		return fmt.Errorf("native tool calling failed: %w", err)
-	}
-
-	// Stream the response in chunks to simulate real streaming
-	return c.streamResponse(response, outputChan)
 }
 
 // streamWithAgent streams using LangChain agent with output processing

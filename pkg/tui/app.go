@@ -407,11 +407,21 @@ func (a *App) processStreamingUpdates(updates <-chan controllers.StreamingUpdate
 			})
 
 		case controllers.ChunkReceived:
-			streamingContent += update.Content
-			content := streamingContent // Capture for closure
-			a.app.QueueUpdateDraw(func() {
-				a.chatView.UpdateStreamingContent(update.StreamID, content)
-			})
+			// Don't accumulate special markers in the streaming content
+			if update.Content != "<<<TOOL_MODE>>>" {
+				streamingContent += update.Content
+			}
+			// But still pass the marker to the chat view for state updates
+			if update.Content == "<<<TOOL_MODE>>>" {
+				a.app.QueueUpdateDraw(func() {
+					a.chatView.UpdateStreamingContent(update.StreamID, update.Content)
+				})
+			} else {
+				content := streamingContent // Capture for closure
+				a.app.QueueUpdateDraw(func() {
+					a.chatView.UpdateStreamingContent(update.StreamID, content)
+				})
+			}
 
 		case controllers.MessageComplete:
 			log.Debug("Message complete", "id", update.StreamID)

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/tmc/langchaingo/llms"
@@ -60,17 +61,23 @@ func TestClient_ClearMemory(t *testing.T) {
 }
 
 func TestClient_determineAgentType(t *testing.T) {
-	client := &Client{}
+	registry := tools.NewRegistry()
+	registry.Register(tools.NewBashTool())
 
-	// Test without agent selector - should return conversational
+	client := &Client{
+		toolRegistry: registry,
+		model:        "qwen3:latest",
+		log:          logger.WithComponent("test"),
+	}
+
+	// Test with tools - should return conversational
 	agentType := client.determineAgentType()
 	assert.Equal(t, AgentTypeConversational, agentType)
 
-	// Test with agent selector but no model - should also return conversational
-	client.agentSelector = NewAgentSelector(tools.NewRegistry(), "unknown-model")
-	client.model = "unknown-model"
+	// Test without tools - should return direct
+	client.toolRegistry = nil
 	agentType = client.determineAgentType()
-	assert.Equal(t, AgentTypeConversational, agentType)
+	assert.Equal(t, AgentTypeDirect, agentType)
 }
 
 func TestClient_isOllamaModel(t *testing.T) {

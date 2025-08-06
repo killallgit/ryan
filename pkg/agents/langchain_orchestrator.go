@@ -225,10 +225,29 @@ func (o *LangchainOrchestrator) getOrCreateAgent(agentName string, options map[s
 	return newAgent, nil
 }
 
-// agentRanking represents an agent's suitability ranking
+// AgentRanking represents an agent's suitability ranking
+type AgentRanking struct {
+	AgentName  string
+	Confidence float64
+}
+
+// agentRanking represents an agent's suitability ranking (internal)
 type agentRanking struct {
 	agentName  string
 	confidence float64
+}
+
+// RankAgents ranks all available agents for handling the request (exported)
+func (o *LangchainOrchestrator) RankAgents(request string) []AgentRanking {
+	internal := o.rankAgents(request)
+	result := make([]AgentRanking, len(internal))
+	for i, r := range internal {
+		result[i] = AgentRanking{
+			AgentName:  r.agentName,
+			Confidence: r.confidence,
+		}
+	}
+	return result
 }
 
 // rankAgents ranks agents by their suitability for the request
@@ -274,6 +293,7 @@ func (o *LangchainOrchestrator) rankAgents(request string) []agentRanking {
 
 // estimateConfidence estimates confidence for an uninstantiated agent type
 func (o *LangchainOrchestrator) estimateConfidence(agentType, request string) float64 {
+	_ = request // Mark as intentionally unused for now
 	// Simple heuristic based on agent type
 	switch agentType {
 	case "ollama-functions":

@@ -348,6 +348,13 @@ func (cv *ChatView) StartStreaming(streamID string) {
 // UpdateStreamingContent updates the streaming message content
 func (cv *ChatView) UpdateStreamingContent(streamID string, content string) {
 	if cv.streamID == streamID {
+		// Check for tool mode marker
+		if content == "<<<TOOL_MODE>>>" {
+			cv.currentState = "preparing_tools"
+			cv.updateSpinnerView()
+			return // Don't add marker to buffer
+		}
+
 		cv.streamBuffer = content
 		cv.UpdateMessages()
 	}
