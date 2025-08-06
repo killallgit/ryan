@@ -34,5 +34,6 @@ bin/*
 .devbox/*
 .ryan
 ryan
+dist/
 !.github/workflows/coverage.yaml
 !CLAUDE.md
