@@ -439,7 +439,6 @@ func (cv *ChatView) UpdateStreamingContent(streamID string, content string) {
 		// Check for tool mode marker
 		if content == "<<<TOOL_MODE>>>" {
 			cv.currentState = "preparing_tools"
-			log.Debug("Tool mode marker detected, skipping")
 			cv.updateSpinnerView()
 			log.Debug("Tool mode marker detected, updating state")
 			return // Don't add marker to buffer
