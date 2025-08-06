@@ -46,14 +46,54 @@ var rootCmd = &cobra.Command{
 		}()
 
 		// Get command flags
-		model, _ := cmd.Flags().GetString("model")
-		if model == "" {
-			model = cfg.Ollama.Model
+		// Check for provider override
+		provider, _ := cmd.Flags().GetString("provider")
+		if provider != "" {
+			cfg.Provider = provider
 		}
 
-		systemPromptPath, _ := cmd.Flags().GetString("ollama.system_prompt")
-		if systemPromptPath == "" {
-			systemPromptPath = cfg.Ollama.SystemPrompt
+		// Get model based on provider
+		model := ""
+		ollamaModel, _ := cmd.Flags().GetString("ollama.model")
+		openaiModel, _ := cmd.Flags().GetString("openai.model")
+
+		switch cfg.GetActiveProvider() {
+		case "openai":
+			if openaiModel != "" {
+				model = openaiModel
+			} else {
+				model = cfg.GetActiveProviderModel()
+			}
+		case "ollama":
+			fallthrough
+		default:
+			if ollamaModel != "" {
+				model = ollamaModel
+			} else {
+				model = cfg.GetActiveProviderModel()
+			}
+		}
+
+		// Get system prompt based on provider
+		systemPromptPath := ""
+		ollamaSystemPrompt, _ := cmd.Flags().GetString("ollama.system_prompt")
+		openaiSystemPrompt, _ := cmd.Flags().GetString("openai.system_prompt")
+
+		switch cfg.GetActiveProvider() {
+		case "openai":
+			if openaiSystemPrompt != "" {
+				systemPromptPath = openaiSystemPrompt
+			} else {
+				systemPromptPath = cfg.GetActiveProviderSystemPrompt()
+			}
+		case "ollama":
+			fallthrough
+		default:
+			if ollamaSystemPrompt != "" {
+				systemPromptPath = ollamaSystemPrompt
+			} else {
+				systemPromptPath = cfg.GetActiveProviderSystemPrompt()
+			}
 		}
 
 		continueHistory, _ := cmd.Flags().GetBool("continue")
@@ -87,8 +127,11 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is .ryan/settings.yaml)")
-	rootCmd.PersistentFlags().String("model", "", "model to use (overrides config)")
-	rootCmd.PersistentFlags().String("ollama.system_prompt", "", "system prompt to use (overrides config)")
+	rootCmd.PersistentFlags().String("provider", "", "LLM provider to use (ollama, openai)")
+	rootCmd.PersistentFlags().String("ollama.model", "", "Ollama model to use (overrides config)")
+	rootCmd.PersistentFlags().String("ollama.system_prompt", "", "Ollama system prompt to use (overrides config)")
+	rootCmd.PersistentFlags().String("openai.model", "", "OpenAI model to use (overrides config)")
+	rootCmd.PersistentFlags().String("openai.system_prompt", "", "OpenAI system prompt to use (overrides config)")
 	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")
 	rootCmd.PersistentFlags().StringVarP(&directPrompt, "prompt", "p", "", "execute a prompt directly without entering TUI")
 	rootCmd.PersistentFlags().BoolVar(&noTUI, "no-tui", false, "run without TUI (requires --prompt)")

@@ -31,10 +31,12 @@ func RunApplication(appCfg *AppConfig) error {
 	log := logger.WithComponent("app")
 	log.Info("Application starting")
 
-	// Initialize tools if Ollama supports them
+	// Initialize tools if provider supports them
 	var toolRegistry *tools.Registry
 	if appCfg.Config != nil {
-		registry, err := agents.InitializeToolRegistry(appCfg.Config.Ollama.URL, appCfg.Model)
+		// Get provider URL based on active provider
+		providerURL := appCfg.Config.GetActiveProviderURL()
+		registry, err := agents.InitializeToolRegistry(providerURL, appCfg.Model)
 		if err != nil {
 			// Log warning but continue without tools
 			log.Warn("Tool functionality disabled", "reason", err)

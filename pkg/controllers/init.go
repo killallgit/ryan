@@ -27,16 +27,16 @@ type InitConfig struct {
 func InitializeLangChainController(cfg *InitConfig) (*LangChainController, error) {
 	log := logger.WithComponent("controller_init")
 
-	// Determine the model to use
+	// Determine the model to use based on active provider
 	model := cfg.Model
 	if model == "" && cfg.Config != nil {
-		model = cfg.Config.Ollama.Model
+		model = cfg.Config.GetActiveProviderModel()
 	}
 
-	// Determine system prompt path
+	// Determine system prompt path based on active provider
 	systemPromptPath := cfg.SystemPromptPath
 	if systemPromptPath == "" && cfg.Config != nil {
-		systemPromptPath = cfg.Config.Ollama.SystemPrompt
+		systemPromptPath = cfg.Config.GetActiveProviderSystemPrompt()
 	}
 
 	// Load system prompt if specified
@@ -45,10 +45,10 @@ func InitializeLangChainController(cfg *InitConfig) (*LangChainController, error
 		systemPrompt = loadSystemPrompt(systemPromptPath)
 	}
 
-	// Get Ollama URL from config
-	ollamaURL := ""
+	// Get provider URL from config
+	providerURL := ""
 	if cfg.Config != nil {
-		ollamaURL = cfg.Config.Ollama.URL
+		providerURL = cfg.Config.GetActiveProviderURL()
 	}
 
 	// Create LangChain controller
@@ -56,18 +56,20 @@ func InitializeLangChainController(cfg *InitConfig) (*LangChainController, error
 	var err error
 
 	if systemPrompt != "" {
-		controller, err = NewLangChainControllerWithSystem(ollamaURL, model, systemPrompt, cfg.ToolRegistry)
+		controller, err = NewLangChainControllerWithSystem(providerURL, model, systemPrompt, cfg.ToolRegistry)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create LangChain controller with system prompt: %w", err)
 		}
 		log.Debug("Created LangChain controller with system prompt",
+			"provider", cfg.Config.GetActiveProvider(),
 			"has_tools", cfg.ToolRegistry != nil)
 	} else {
-		controller, err = NewLangChainController(ollamaURL, model, cfg.ToolRegistry)
+		controller, err = NewLangChainController(providerURL, model, cfg.ToolRegistry)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create LangChain controller: %w", err)
 		}
 		log.Debug("Created LangChain controller without system prompt",
+			"provider", cfg.Config.GetActiveProvider(),
 			"has_tools", cfg.ToolRegistry != nil)
 	}
 
