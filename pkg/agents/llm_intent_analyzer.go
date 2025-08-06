@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/tmc/langchaingo/llms"
@@ -37,6 +38,10 @@ func NewLLMIntentAnalyzer(baseURL, model string) (*LLMIntentAnalyzer, error) {
 
 // AnalyzeIntent uses the LLM to determine the user's intent
 func (lia *LLMIntentAnalyzer) AnalyzeIntent(ctx context.Context, userPrompt string) (*Intent, error) {
+	// Use a short timeout for intent analysis to avoid blocking
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
 	// Create a prompt for the LLM to analyze intent
 	intentPrompt := fmt.Sprintf(`Analyze the following user request and determine the primary intent.
 
