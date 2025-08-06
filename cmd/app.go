@@ -88,9 +88,11 @@ func runDirectPrompt(appCfg *AppConfig, toolRegistry *tools.Registry) error {
 
 	// Initialize orchestrator
 	orchestratorCfg := &agents.OrchestratorConfig{
-		ToolRegistry: toolRegistry,
-		Config:       appCfg.Config,
-		Model:        appCfg.Model,
+		ToolRegistry:    toolRegistry,
+		Config:          appCfg.Config,
+		Model:           appCfg.Model,
+		OllamaURL:       appCfg.Config.Ollama.URL,
+		EnableLLMIntent: appCfg.Config.Ollama.URL != "", // Enable LLM intent if Ollama is configured
 	}
 
 	orchestrator, err := agents.InitializeOrchestrator(orchestratorCfg)
@@ -130,16 +132,17 @@ func runTUI(appCfg *AppConfig, toolRegistry *tools.Registry) error {
 		ContinueHistory:  appCfg.ContinueHistory,
 		AgentType:        appCfg.AgentType,
 		FallbackAgents:   fallbackAgents,
+		UseNative:        true, // Enable native orchestrator
 	}
 
-	controller, err := controllers.InitializeLangChainController(controllerCfg)
+	controller, err := controllers.InitializeNativeController(controllerCfg)
 	if err != nil {
 		return fmt.Errorf("failed to initialize controller: %w", err)
 	}
 
-	// Create TUI application with adapter
+	// Create TUI application with native controller adapter
 	log.Info("Creating TUI application")
-	app, err := tui.NewApp(&LangChainControllerAdapter{controller})
+	app, err := tui.NewApp(&NativeControllerAdapter{controller})
 	if err != nil {
 		return fmt.Errorf("failed to create TUI application: %w", err)
 	}

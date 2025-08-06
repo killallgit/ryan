@@ -21,6 +21,7 @@ type InitConfig struct {
 	ContinueHistory  bool
 	AgentType        string
 	FallbackAgents   []string
+	UseNative        bool // Flag to use native orchestrator instead of LangChain
 }
 
 // InitializeLangChainController creates and configures a new LangChain controller
@@ -169,4 +170,55 @@ func setupAgentOrchestrator(cfg *InitConfig) (*agents.LangchainOrchestrator, err
 	}
 
 	return orchestrator, nil
+}
+
+// InitializeNativeController creates and configures a new native orchestrator-based controller
+func InitializeNativeController(cfg *InitConfig) (*NativeController, error) {
+	log := logger.WithComponent("controller_init")
+	log.Info("Initializing native orchestrator controller")
+
+	// Determine the model to use based on active provider
+	model := cfg.Model
+	if model == "" && cfg.Config != nil {
+		model = cfg.Config.GetActiveProviderModel()
+	}
+
+	// Load system prompt if specified
+	var systemPrompt string
+	systemPromptPath := cfg.SystemPromptPath
+	if systemPromptPath == "" && cfg.Config != nil {
+		systemPromptPath = cfg.Config.GetActiveProviderSystemPrompt()
+	}
+	if systemPromptPath != "" {
+		systemPrompt = loadSystemPrompt(systemPromptPath)
+	}
+
+	log.Debug("Creating native controller", "model", model, "has_tools", cfg.ToolRegistry != nil)
+
+	// Create controller based on system prompt
+	var controller *NativeController
+	var err error
+
+	if systemPrompt != "" {
+		controller, err = NewNativeControllerWithSystem(model, systemPrompt, cfg.ToolRegistry)
+		log.Debug("Created native controller with system prompt", "prompt_length", len(systemPrompt))
+	} else {
+		controller, err = NewNativeController(model, cfg.ToolRegistry)
+		log.Debug("Created native controller without system prompt")
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create native controller: %w", err)
+	}
+
+	// Configure history continuation
+	if cfg.ContinueHistory {
+		log.Debug("Continuing from existing chat history")
+	} else {
+		log.Debug("Starting fresh chat session - clearing history")
+		controller.Reset()
+	}
+
+	log.Info("Native controller initialized successfully", "model", model, "has_tools", cfg.ToolRegistry != nil)
+	return controller, nil
 }

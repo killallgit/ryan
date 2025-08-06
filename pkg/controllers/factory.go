@@ -49,11 +49,12 @@ type Controller interface {
 	GetToolRegistry() *tools.Registry
 	SetToolRegistry(registry *tools.Registry)
 	GetTokenUsage() (promptTokens, responseTokens int)
-	SetOllamaClient(client OllamaClient)
+	SetOllamaClient(client any)
 	ValidateModel(model string) error
 	SetModelWithValidation(model string) error
 }
 
-// Ensure both controllers implement the interface
+// Ensure all controllers implement the interface
 var _ Controller = (*ChatController)(nil)
 var _ Controller = (*LangChainChatController)(nil)
+var _ Controller = (*NativeController)(nil)

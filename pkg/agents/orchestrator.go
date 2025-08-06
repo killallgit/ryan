@@ -48,6 +48,12 @@ func NewOrchestrator() *Orchestrator {
 
 // RegisterBuiltinAgents registers all built-in agents
 func (o *Orchestrator) RegisterBuiltinAgents(toolRegistry *tools.Registry) error {
+	// Register general conversational agent (should be first for fallback)
+	generalAgent := NewGeneralAgent(nil, "") // TODO: Pass Ollama client when available
+	if err := o.RegisterAgent(generalAgent); err != nil {
+		return fmt.Errorf("failed to register general agent: %w", err)
+	}
+
 	// Register file operations agent
 	fileOpsAgent := NewFileOperationsAgent(toolRegistry)
 	if err := o.RegisterAgent(fileOpsAgent); err != nil {
@@ -72,7 +78,7 @@ func (o *Orchestrator) RegisterBuiltinAgents(toolRegistry *tools.Registry) error
 		return fmt.Errorf("failed to register search agent: %w", err)
 	}
 
-	o.log.Info("Registered built-in agents", "count", 5) // dispatcher + 4 agents
+	o.log.Info("Registered built-in agents", "count", 6) // dispatcher + 5 agents
 	return nil
 }
 

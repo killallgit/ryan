@@ -446,8 +446,10 @@ func (cc *ChatController) CleanThinkingBlocks() {
 	}
 }
 
-func (cc *ChatController) SetOllamaClient(client OllamaClient) {
-	cc.ollamaClient = client
+func (cc *ChatController) SetOllamaClient(client any) {
+	if ollamaClient, ok := client.(OllamaClient); ok {
+		cc.ollamaClient = ollamaClient
+	}
 }
 
 func (cc *ChatController) ValidateModel(model string) error {

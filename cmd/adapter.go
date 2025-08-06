@@ -13,6 +13,11 @@ type LangChainControllerAdapter struct {
 	*controllers.LangChainController
 }
 
+// NativeControllerAdapter adapts NativeController to both Controller and TUI ControllerInterface
+type NativeControllerAdapter struct {
+	*controllers.NativeController
+}
+
 // Implement any missing methods needed by the interface
 func (lca *LangChainControllerAdapter) StartStreaming(ctx context.Context, content string) (<-chan controllers.StreamingUpdate, error) {
 	return lca.LangChainController.StartStreaming(ctx, content)
@@ -88,4 +93,71 @@ func (lca *LangChainControllerAdapter) SetToolRegistry(registry *tools.Registry)
 	// LangChainController doesn't have SetToolRegistry method
 	// The tool registry is set during construction via NewLangChainController
 	// This is a no-op for compatibility with the interface
+}
+
+// AddAssistantMessage adds an assistant message (for compatibility)
+func (lca *LangChainControllerAdapter) AddAssistantMessage(content string) {
+	// LangChainController handles this internally during streaming
+	// This is a no-op for compatibility with the interface
+}
+
+// Native Controller Adapter Methods
+// Implement the TUI interface methods for NativeControllerAdapter
+
+// StartStreaming implements streaming for native controller
+func (nca *NativeControllerAdapter) StartStreaming(ctx context.Context, content string) (<-chan controllers.StreamingUpdate, error) {
+	return nca.NativeController.StartStreaming(ctx, content)
+}
+
+// SetOllamaClient accepts any type to satisfy tui.ControllerInterface
+func (nca *NativeControllerAdapter) SetOllamaClient(client any) {
+	nca.NativeController.SetOllamaClient(client)
+}
+
+func (nca *NativeControllerAdapter) ValidateModel(model string) error {
+	return nca.NativeController.ValidateModel(model)
+}
+
+func (nca *NativeControllerAdapter) GetTokenUsage() (promptTokens, responseTokens int) {
+	return nca.NativeController.GetTokenUsage()
+}
+
+func (nca *NativeControllerAdapter) CleanThinkingBlocks() {
+	// Native controller doesn't need thinking block cleaning like LangChain
+	// This is a no-op for compatibility with the TUI interface
+}
+
+// GetLastAssistantMessage returns the last assistant message from the conversation
+func (nca *NativeControllerAdapter) GetLastAssistantMessage() (chat.Message, bool) {
+	return nca.NativeController.GetLastAssistantMessage()
+}
+
+// GetLastUserMessage returns the last user message from the conversation
+func (nca *NativeControllerAdapter) GetLastUserMessage() (chat.Message, bool) {
+	return nca.NativeController.GetLastUserMessage()
+}
+
+// GetMessageCount returns the number of messages in the conversation
+func (nca *NativeControllerAdapter) GetMessageCount() int {
+	return nca.NativeController.GetMessageCount()
+}
+
+// HasSystemMessage returns true if the conversation has a system message
+func (nca *NativeControllerAdapter) HasSystemMessage() bool {
+	return nca.NativeController.HasSystemMessage()
+}
+
+// SetModelWithValidation sets the model after validating it
+func (nca *NativeControllerAdapter) SetModelWithValidation(model string) error {
+	return nca.NativeController.SetModelWithValidation(model)
+}
+
+// SetToolRegistry sets the tool registry
+func (nca *NativeControllerAdapter) SetToolRegistry(registry *tools.Registry) {
+	nca.NativeController.SetToolRegistry(registry)
+}
+
+// AddAssistantMessage adds an assistant message
+func (nca *NativeControllerAdapter) AddAssistantMessage(content string) {
+	nca.NativeController.AddAssistantMessage(content)
 }

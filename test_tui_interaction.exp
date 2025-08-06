@@ -1,0 +1,24 @@
+#!/usr/bin/expect -f
+# Test script to interact with Ryan TUI
+
+set timeout 10
+
+# Start the application
+spawn ./bin/ryan
+
+# Wait for the TUI to start (looking for the > prompt)
+sleep 2
+
+# Send hello message
+send "hello"
+sleep 0.5
+send "\r"
+
+# Wait for response
+sleep 5
+
+# Send exit command (Ctrl-C)
+send "\003"
+
+# Wait for exit
+expect eof

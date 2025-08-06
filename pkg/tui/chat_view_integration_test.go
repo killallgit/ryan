@@ -39,6 +39,10 @@ func (mc *MockController) AddUserMessage(content string) {
 	mc.history = append(mc.history, chat.Message{Role: chat.RoleUser, Content: content})
 }
 
+func (mc *MockController) AddAssistantMessage(content string) {
+	mc.history = append(mc.history, chat.Message{Role: chat.RoleAssistant, Content: content})
+}
+
 func (mc *MockController) AddErrorMessage(errorMsg string) {
 	mc.history = append(mc.history, chat.Message{Role: chat.RoleError, Content: errorMsg})
 }

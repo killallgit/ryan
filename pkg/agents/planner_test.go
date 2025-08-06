@@ -213,6 +213,9 @@ func TestPlanner_ParallelExecution(t *testing.T) {
 	p := NewPlanner()
 	o := NewOrchestrator()
 
+	// Register the general agent that the planner expects for generic intents
+	o.RegisterAgent(newMockAgent("general", "General conversational agent"))
+
 	// Register independent agents
 	for i := 0; i < 3; i++ {
 		agent := newMockAgent(
