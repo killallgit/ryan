@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LLM-Based Intent Detection**: Implemented intelligent intent analysis using actual LLMs
   - Created `LLMIntentAnalyzer` to replace pattern matching with Ollama-powered intent detection
   - Orchestrator now uses LLM reasoning to determine user intent and route to appropriate agents
-  - Added `GeneralAgent` for handling conversational requests without tools
+  - Added `GeneralAgent` for handling conversational requests with LLM integration
   - Enhanced intent classification with confidence scores and tool requirements detection
-  - Maintains pattern-matching fallback when LLM is unavailable
+  - **BREAKING**: Removed ALL keyword matching from agents - `CanHandle` methods now trust orchestrator's LLM routing
+  - General agent now uses LangChain's `llms.Model` interface for actual LLM calls
+  - Planner's secondary intent detection no longer uses keyword matching
+  - Search agent pattern extraction simplified without keyword dependency
 - **TUI**: Component-based modal system with improved error handling
   - Created reusable BaseModal component for modal composition and lifecycle management
   - Added specialized DownloadModal for model downloads with real-time progress tracking
@@ -41,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Application fails early with descriptive errors when Ollama server is unreachable
   - Enhanced error messages with HTTP status codes and full request URLs for better debugging
 ### Changed
+- **Agent Routing Architecture**: Complete removal of keyword-based routing
+  - All agents now return `true/1.0` from `CanHandle()` - trusting orchestrator's LLM decision
+  - Factory's `CreateBestAgent` no longer checks `CanHandle` confidence scores
+  - Orchestrator passes LLM model to agents for conversational responses
+  - Updated all agent initialization to support LLM model injection
 - **TUI**: Refactored chat view to follow TUI.md component layout pattern
   - Restructured components to match specification: MESSAGE_NODES, STATUS_CONTAINER, CHAT_INPUT_CONTAINER, FOOTER_CONTAINER
   - Added thin border around input field with customizable color (ColorBase01)
