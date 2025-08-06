@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **LLM-Based Intent Detection**: Implemented intelligent intent analysis using actual LLMs
+  - Created `LLMIntentAnalyzer` to replace pattern matching with Ollama-powered intent detection
+  - Orchestrator now uses LLM reasoning to determine user intent and route to appropriate agents
+  - Added `GeneralAgent` for handling conversational requests without tools
+  - Enhanced intent classification with confidence scores and tool requirements detection
+  - Maintains pattern-matching fallback when LLM is unavailable
 - **TUI**: Component-based modal system with improved error handling
   - Created reusable BaseModal component for modal composition and lifecycle management
   - Added specialized DownloadModal for model downloads with real-time progress tracking
@@ -23,6 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `test:coverage` task to generate HTML coverage reports
   - Updated `.gitignore` to exclude coverage files from version control
 
+### Fixed
+- **Application Startup Performance**: Resolved 60+ second freeze when Ollama is unreachable
+  - Reduced Ollama version check timeout from 30s to 3s for faster failure detection
+  - Made model refresh asynchronous in TUI to prevent UI blocking
+  - Reduced TUI Ollama client timeout to 5s for responsive model loading
+  - Added 3s timeout for LLM intent analysis to prevent request blocking
+  - Application now fails fast with clear error messages instead of hanging
+- **Tool Registry Requirements**: Made tool registry mandatory for proper operation
+  - Removed fallback behavior when tools are unavailable (tools are core functionality)
+  - Application fails early with descriptive errors when Ollama server is unreachable
+  - Enhanced error messages with HTTP status codes and full request URLs for better debugging
 ### Changed
 - **TUI**: Refactored chat view to follow TUI.md component layout pattern
   - Restructured components to match specification: MESSAGE_NODES, STATUS_CONTAINER, CHAT_INPUT_CONTAINER, FOOTER_CONTAINER
