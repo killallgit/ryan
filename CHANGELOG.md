@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Testing**: Updated integration tests to use LangChain controllers and Viper configuration
+  - Migrated all integration tests from direct Ollama clients to LangChain controllers
+  - Standardized configuration management using Viper with proper environment variable handling
+  - Updated agent orchestrator tests to use `InitializeLangChainController`
+  - Modernized LangChain integration tests with comprehensive controller testing
+  - Fixed package naming inconsistencies across integration test files
+  - Ensured tests fail appropriately when components cannot be initialized
+  - Maintained full test coverage while reflecting current system architecture
 - **BREAKING**: Major naming convention refactoring across the codebase
   - Removed all "enhanced" references (35+ occurrences) with specific, meaningful descriptions
   - Cleaned up interface naming by removing redundant "Interface" suffix
