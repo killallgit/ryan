@@ -35,21 +35,12 @@ func (s *SearchAgent) Description() string {
 }
 
 // CanHandle determines if this agent can handle the request
+// NOTE: With LLM-based intent detection, this method should not do keyword matching.
+// The orchestrator's LLM will determine if this agent is appropriate.
 func (s *SearchAgent) CanHandle(request string) (bool, float64) {
-	lowerRequest := strings.ToLower(request)
-
-	keywords := []string{
-		"search", "find", "grep", "locate",
-		"where is", "look for", "search for",
-	}
-
-	for _, keyword := range keywords {
-		if strings.Contains(lowerRequest, keyword) {
-			return true, 0.8
-		}
-	}
-
-	return false, 0.0
+	// Always return true with high confidence when asked
+	// The orchestrator's LLM has already determined this is the right agent
+	return true, 1.0
 }
 
 // Execute performs the search operation
@@ -126,8 +117,10 @@ func (s *SearchAgent) Execute(ctx context.Context, request AgentRequest) (AgentR
 }
 
 // extractSearchPattern extracts the search pattern from the prompt
+// NOTE: With LLM-based intent detection, the orchestrator should provide
+// the search pattern as structured data. For now, we use a simple approach.
 func (s *SearchAgent) extractSearchPattern(prompt string) string {
-	// Look for quoted patterns
+	// Look for quoted patterns (still useful for explicit patterns)
 	if start := strings.Index(prompt, "\""); start != -1 {
 		if end := strings.Index(prompt[start+1:], "\""); end != -1 {
 			return prompt[start+1 : start+1+end]
@@ -140,28 +133,10 @@ func (s *SearchAgent) extractSearchPattern(prompt string) string {
 		}
 	}
 
-	// Look for pattern after keywords
-	keywords := []string{" for ", " search ", " find ", " grep "}
-	lowerPrompt := strings.ToLower(prompt)
-
-	for _, keyword := range keywords {
-		if idx := strings.Index(lowerPrompt, keyword); idx != -1 {
-			pattern := prompt[idx+len(keyword):]
-			// Take until next space or punctuation
-			if endIdx := strings.IndexAny(pattern, " ,;."); endIdx != -1 {
-				pattern = pattern[:endIdx]
-			}
-			return strings.TrimSpace(pattern)
-		}
-	}
-
-	// Last resort - take the last word
-	words := strings.Fields(prompt)
-	if len(words) > 0 {
-		return words[len(words)-1]
-	}
-
-	return ""
+	// The orchestrator's LLM has already determined this is a search request.
+	// Without quotes, use the entire prompt as the search context.
+	// TODO: Get structured search parameters from orchestrator
+	return strings.TrimSpace(prompt)
 }
 
 // determineScope determines the search scope from the request

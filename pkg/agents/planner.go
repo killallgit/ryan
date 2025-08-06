@@ -150,27 +150,13 @@ func (ia *IntentAnalyzer) Analyze(prompt string) (*Intent, error) {
 }
 
 // findSecondaryIntents identifies additional intents in the prompt
+// NOTE: With LLM-based intent detection, this should use the LLM analyzer,
+// not keyword matching. For now, returning empty as secondary intents
+// should be determined by the LLM.
 func (ia *IntentAnalyzer) findSecondaryIntents(prompt string) []string {
-	var secondary []string
-
-	// Check for common secondary patterns
-	if strings.Contains(prompt, "and test") || strings.Contains(prompt, "with tests") {
-		secondary = append(secondary, "test")
-	}
-	if strings.Contains(prompt, "document") || strings.Contains(prompt, "with docs") {
-		secondary = append(secondary, "document")
-	}
-	if strings.Contains(prompt, "optimize") || strings.Contains(prompt, "performance") {
-		secondary = append(secondary, "optimize")
-	}
-	if strings.Contains(prompt, "fix") || strings.Contains(prompt, "repair") || strings.Contains(prompt, "and correct") {
-		secondary = append(secondary, "fix")
-	}
-	if strings.Contains(prompt, "and analyze") || strings.Contains(prompt, "analyze") {
-		secondary = append(secondary, "analyze")
-	}
-
-	return secondary
+	// TODO: Use LLM to identify secondary intents
+	// For now, return empty array - no keyword matching
+	return []string{}
 }
 
 // ExecutionGraphBuilder builds execution graphs from intents

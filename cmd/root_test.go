@@ -24,7 +24,7 @@ func TestOrchestratorAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Register built-in agents with tool registry
-	err = orchestrator.RegisterBuiltinAgents(toolRegistry)
+	err = orchestrator.RegisterBuiltinAgents(toolRegistry, nil)
 	assert.NoError(t, err)
 
 	// Verify agents are registered
