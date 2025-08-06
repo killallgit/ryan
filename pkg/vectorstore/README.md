@@ -1,6 +1,6 @@
 # Vector Store Package
 
-The `vectorstore` package provides embedded vector storage capabilities for Ryan, enabling semantic search and enhanced memory management without external dependencies.
+The `vectorstore` package provides embedded vector storage capabilities for Ryan, enabling semantic search and intelligent memory management without external dependencies.
 
 ## Features
 

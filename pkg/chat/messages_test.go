@@ -126,7 +126,7 @@ var _ = Describe("Messages", func() {
 		})
 	})
 
-	// New tests for enhanced message architecture
+	// Tests for message architecture
 
 	Describe("MessageMetadata", func() {
 		It("should create optimistic messages", func() {

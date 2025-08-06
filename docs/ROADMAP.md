@@ -19,7 +19,7 @@ Ryan is an open-source alternative to Claude Code that aims to provide feature p
 | **Interactive Chat** | Terminal REPL | ✅ Rich TUI | `pkg/tui/chat_view.go` |
 | **Direct Prompting** | `claude -p "query"` | ✅ `ryan -p "query"` | `cmd/root.go` |
 | **Conversation Continuity** | `claude -c` | ✅ `ryan --continue` | `pkg/chat/conversation.go` |
-| **Model Selection** | `--model` flag | ✅ `--model` flag | `pkg/config/` |
+| **Model Selection** | `--model` flag | ✅ Provider-specific flags | `pkg/config/` |
 | **File Operations** | Read/Write/Edit | ✅ Full toolkit | `pkg/agents/file_operations.go` |
 | **Code Analysis** | AST/Symbol analysis | ✅ Advanced analysis | `pkg/agents/code_analysis.go` |
 | **Git Integration** | Git commands | ✅ Full git toolkit | `pkg/tools/git_tool.go` |
