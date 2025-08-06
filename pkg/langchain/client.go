@@ -335,7 +335,7 @@ func (c *Client) SendMessage(ctx context.Context, userInput string) (string, err
 
 // sendWithAgent uses the LangChain agent for autonomous tool calling
 func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, error) {
-	c.log.Debug("Using enhanced agent framework for autonomous multi-step reasoning")
+	c.log.Debug("Using LangChain agent framework for autonomous multi-step reasoning")
 
 	// Convert input to messages
 	messages := []llms.MessageContent{

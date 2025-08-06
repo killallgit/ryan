@@ -295,7 +295,7 @@ var _ = Describe("Conversation", func() {
 		})
 	})
 
-	// New tests for enhanced conversation management
+	// Tests for conversation management
 
 	Describe("Message deduplication", func() {
 		It("should remove optimistic messages when adding final ones", func() {

@@ -22,7 +22,7 @@ Comprehensive review and cleanup of Ryan repository documentation to achieve par
   - Roadmap summary
   - Professional badges and formatting
 
-#### CLAUDE.md - Enhanced Development Guide
+#### CLAUDE.md - Development Guide
 - **Updates**: Added Claude Code parity tracking
 - **New Sections**: Documentation structure, parity status
 - **Improvements**: Updated test coverage information
@@ -48,7 +48,7 @@ Comprehensive review and cleanup of Ryan repository documentation to achieve par
 - **System Prompt**: Points to professional prompt file
 - **Documentation**: Added usage instructions and comments
 
-#### examples/agents.example.yaml - Enhanced Agent Configuration
+#### examples/agents.example.yaml - Agent Configuration
 - **Agent Types**: Updated with current multi-agent architecture
 - **Model Recommendations**: Latest compatible models
 - **Builtin Agents**: Documented all specialized agents
@@ -145,7 +145,7 @@ examples/
 1. **MCP Integration Enhancement** - Expand Model Context Protocol support
 2. **CLI Command Parity** - Add JSON output, advanced flags
 3. **Performance Optimization** - Parallel processing implementation
-4. **User Experience Polish** - Enhanced error messages and help
+4. **User Experience Polish** - Improved error messages and help
 
 ### Medium Term (Q4 2025)
 1. **Advanced Scripting** - Unix pipe support, automation features
