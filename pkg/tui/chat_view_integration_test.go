@@ -215,10 +215,13 @@ func TestChatViewThemeConsistency(t *testing.T) {
 	if chatView.input == nil {
 		t.Error("Input component not initialized")
 	}
-	if chatView.status == nil {
-		t.Error("Status component not initialized")
+	if chatView.footer == nil {
+		t.Error("Footer component not initialized")
 	}
-	if chatView.activityView == nil {
-		t.Error("Activity view not initialized")
+	if chatView.statusContainer == nil {
+		t.Error("Status container not initialized")
+	}
+	if chatView.modelView == nil {
+		t.Error("Model view not initialized")
 	}
 }

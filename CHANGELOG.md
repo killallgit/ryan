@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **TUI**: Refactored chat view to follow TUI.md component layout pattern
+  - Restructured components to match specification: MESSAGE_NODES, STATUS_CONTAINER, CHAT_INPUT_CONTAINER, FOOTER_CONTAINER
+  - Added thin border around input field with customizable color (ColorBase01)
+  - Consolidated status display with left-justified text next to spinner
+  - Removed separate activity view and integrated into STATUS_CONTAINER
+  - Updated status components to show agent, action, and state information in a single line
+  - Improved visual hierarchy and component organization
+
+### Changed
 - **Configuration**: Consolidated all environment variable access through Viper
   - Replaced direct `os.Getenv()` calls with `viper.GetString()` across config hierarchy
   - Added comprehensive `viper.BindEnv()` bindings for all environment variables
