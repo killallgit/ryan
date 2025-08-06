@@ -74,7 +74,7 @@ var KnownModels = map[string]ModelInfo{
 		Name:                "llama3.3:70b",
 		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:               "Latest Llama with enhanced tool calling",
+		Notes:               "Latest Llama with improved tool calling",
 	},
 
 	// Qwen models - excellent for coding and math tasks
@@ -130,7 +130,7 @@ var KnownModels = map[string]ModelInfo{
 		Name:                "qwen3:8b",
 		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:               "Latest Qwen with enhanced tool calling capabilities",
+		Notes:               "Latest Qwen with excellent tool calling capabilities",
 	},
 
 	// Mistral models - reliable tool calling
@@ -172,7 +172,7 @@ var KnownModels = map[string]ModelInfo{
 		Name:                "command-r-plus",
 		ToolCompatibility:   ToolCompatibilityExcellent,
 		RecommendedForTools: true,
-		Notes:               "Enhanced version with excellent tool calling",
+		Notes:               "Advanced version with excellent tool calling",
 	},
 
 	// Granite models (IBM)

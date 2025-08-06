@@ -8,7 +8,7 @@ import (
 	"github.com/killallgit/ryan/pkg/tools"
 )
 
-// LangChainControllerAdapter adapts LangChainController to both ChatControllerInterface and TUI ControllerInterface
+// LangChainControllerAdapter adapts LangChainController to both Controller and TUI ControllerInterface
 type LangChainControllerAdapter struct {
 	*controllers.LangChainController
 }

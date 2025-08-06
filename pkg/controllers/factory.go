@@ -19,7 +19,7 @@ type ControllerConfig struct {
 }
 
 // NewChatControllerFromConfig creates a LangChain chat controller based on configuration
-func NewChatControllerFromConfig(cfg ControllerConfig) (ChatControllerInterface, error) {
+func NewChatControllerFromConfig(cfg ControllerConfig) (Controller, error) {
 	if cfg.LLM == nil {
 		return nil, fmt.Errorf("LLM model is required for LangChain controller")
 	}
@@ -30,8 +30,8 @@ func NewChatControllerFromConfig(cfg ControllerConfig) (ChatControllerInterface,
 	return NewLangChainChatController(cfg.Client, cfg.LLM, cfg.Model, cfg.ToolRegistry)
 }
 
-// ChatControllerInterface defines the common interface for all chat controllers
-type ChatControllerInterface interface {
+// Controller defines the common interface for all chat controllers
+type Controller interface {
 	SendUserMessage(content string) (chat.Message, error)
 	SendUserMessageWithContext(ctx context.Context, content string) (chat.Message, error)
 	StartStreaming(ctx context.Context, content string) (<-chan StreamingUpdate, error)
@@ -55,5 +55,5 @@ type ChatControllerInterface interface {
 }
 
 // Ensure both controllers implement the interface
-var _ ChatControllerInterface = (*ChatController)(nil)
-var _ ChatControllerInterface = (*LangChainChatController)(nil)
+var _ Controller = (*ChatController)(nil)
+var _ Controller = (*LangChainChatController)(nil)

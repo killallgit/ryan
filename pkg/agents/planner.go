@@ -12,7 +12,7 @@ import (
 
 // Planner analyzes user prompts and creates execution plans
 type Planner struct {
-	orchestrator        interfaces.OrchestratorInterface
+	orchestrator        interfaces.Orchestrator
 	intentAnalyzer      *IntentAnalyzer
 	graphBuilder        *ExecutionGraphBuilder
 	optimizer           *PlanOptimizer
@@ -32,7 +32,7 @@ func NewPlanner() *Planner {
 }
 
 // SetOrchestrator sets the orchestrator reference
-func (p *Planner) SetOrchestrator(o interfaces.OrchestratorInterface) {
+func (p *Planner) SetOrchestrator(o interfaces.Orchestrator) {
 	p.orchestrator = o
 }
 

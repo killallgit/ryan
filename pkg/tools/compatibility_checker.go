@@ -13,7 +13,7 @@ import (
 // CompatibilityChecker manages background testing of tool compatibility with models
 type CompatibilityChecker struct {
 	registry     *Registry
-	ollamaClient OllamaClientInterface
+	ollamaClient OllamaClient
 	currentModel string
 	mu           sync.RWMutex
 	stopChan     chan struct{}
@@ -22,13 +22,13 @@ type CompatibilityChecker struct {
 	logger       *logger.Logger
 }
 
-// OllamaClientInterface defines the interface needed to test model compatibility
-type OllamaClientInterface interface {
+// OllamaClient defines the interface needed to test model compatibility
+type OllamaClient interface {
 	ChatWithTools(ctx context.Context, model string, messages []map[string]interface{}, tools []map[string]interface{}) (map[string]interface{}, error)
 }
 
 // NewCompatibilityChecker creates a new tool compatibility checker
-func NewCompatibilityChecker(registry *Registry, ollamaClient OllamaClientInterface) *CompatibilityChecker {
+func NewCompatibilityChecker(registry *Registry, ollamaClient OllamaClient) *CompatibilityChecker {
 	return &CompatibilityChecker{
 		registry:     registry,
 		ollamaClient: ollamaClient,

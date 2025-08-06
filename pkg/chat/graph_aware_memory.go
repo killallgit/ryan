@@ -345,7 +345,7 @@ func NewGraphAwareLangChainMemoryFromGlobalConfig() (*GraphAwareLangChainMemory,
 	return nil, fmt.Errorf("global config integration not yet implemented - use NewGraphAwareLangChainMemory directly")
 }
 
-// Enhanced message creation functions for context-aware messages
+// Message creation functions for context-aware messages
 
 // NewUserMessageInContext creates a user message in a specific context
 func NewUserMessageInContext(content, contextID string) Message {

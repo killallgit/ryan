@@ -187,7 +187,7 @@ func NewToolProgressMessage(toolName, command string) Message {
 	}
 }
 
-// Enhanced constructors with metadata support
+// Constructors with metadata support
 
 // NewUserMessageWithSource creates a user message with source metadata
 func NewUserMessageWithSource(content, source string) Message {

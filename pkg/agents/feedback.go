@@ -11,7 +11,7 @@ import (
 
 // FeedbackLoop handles feedback processing and learning
 type FeedbackLoop struct {
-	orchestrator interfaces.OrchestratorInterface
+	orchestrator interfaces.Orchestrator
 	validator    *ResultValidator
 	corrector    *AutoCorrector
 	learner      *PatternLearner
@@ -29,7 +29,7 @@ func NewFeedbackLoop() *FeedbackLoop {
 }
 
 // SetOrchestrator sets the orchestrator reference
-func (fl *FeedbackLoop) SetOrchestrator(o interfaces.OrchestratorInterface) {
+func (fl *FeedbackLoop) SetOrchestrator(o interfaces.Orchestrator) {
 	fl.orchestrator = o
 }
 

@@ -115,22 +115,22 @@ func TestNewChatControllerFromConfig_NoLLM(t *testing.T) {
 	assert.Contains(t, err.Error(), "LLM model is required")
 }
 
-func TestChatControllerInterface_Compilation(t *testing.T) {
+func TestController_Compilation(t *testing.T) {
 	// This test ensures that both controller types implement the interface
 	// If they don't, this won't compile
 
-	var _ ChatControllerInterface = (*ChatController)(nil)
-	var _ ChatControllerInterface = (*LangChainChatController)(nil)
+	var _ Controller = (*ChatController)(nil)
+	var _ Controller = (*LangChainChatController)(nil)
 
 	// Test passes if compilation succeeds
 	assert.True(t, true)
 }
 
-func TestChatControllerInterface_Methods(t *testing.T) {
+func TestController_Methods(t *testing.T) {
 	// Test that the interface has all expected methods
 	// This is mainly a documentation test to ensure interface completeness
 
-	var controller ChatControllerInterface
+	var controller Controller
 
 	// These methods should exist (we can't call them with nil, but we can verify they exist)
 	assert.NotNil(t, controller == nil) // Just a basic check that the variable exists
