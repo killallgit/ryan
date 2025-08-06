@@ -109,11 +109,26 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 		if orchErr != nil {
 			err = orchErr
 		} else {
+			// Log the raw orchestrator result
+			lc.log.Info("RAW ORCHESTRATOR RESPONSE",
+				"result_type", fmt.Sprintf("%T", result),
+				"success", result.Success,
+				"summary", result.Summary,
+				"details", result.Details,
+				"artifacts", result.Artifacts,
+				"metadata", result.Metadata)
 			response = result.Details
 		}
 	} else {
 		// Use the enhanced client to send the message
 		response, err = lc.client.SendMessage(ctx, content)
+		if err == nil {
+			// Log the raw client response
+			lc.log.Info("RAW LANGCHAIN CLIENT RESPONSE",
+				"response_type", fmt.Sprintf("%T", response),
+				"response_length", len(response),
+				"response_content", response)
+		}
 	}
 	if err != nil {
 		errorMsg := fmt.Sprintf("LangChain agent failed: %v", err)

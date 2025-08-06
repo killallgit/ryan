@@ -391,6 +391,11 @@ func (c *Client) sendWithNativeTools(ctx context.Context, userInput string) (str
 		return "", fmt.Errorf("native tool calling failed: %w", err)
 	}
 
+	// Log the raw native tool calling response
+	c.log.Info("RAW OLLAMA NATIVE TOOL RESPONSE",
+		"response_type", fmt.Sprintf("%T", response),
+		"response_content", response)
+
 	// Save to memory
 	if c.memory != nil {
 		c.memory.SaveContext(ctx,
@@ -429,10 +434,12 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 	}
 
 	// Log all available keys for debugging
-	c.log.Debug("Agent execution result keys", "keys", getMapKeys(result))
+	c.log.Info("RAW AGENT EXECUTION RESULT KEYS", "keys", getMapKeys(result))
 
 	// Log the full result structure for debugging
-	c.log.Debug("Full agent result", "result", result)
+	c.log.Info("RAW FULL AGENT RESULT",
+		"result_type", fmt.Sprintf("%T", result),
+		"result", result)
 
 	// Check for intermediate steps
 	if intermediateSteps, ok := result["intermediate_steps"]; ok {
@@ -708,8 +715,25 @@ func (c *Client) sendWithChain(ctx context.Context, userInput string) (string, e
 		return "", fmt.Errorf("content generation failed: %w", err)
 	}
 
+	// Log the raw LLM response
+	c.log.Info("RAW LLM GENERATECONTENT RESPONSE",
+		"response_type", fmt.Sprintf("%T", response),
+		"choices_count", len(response.Choices),
+		"full_response", fmt.Sprintf("%+v", response))
+
 	if len(response.Choices) == 0 {
 		return "", fmt.Errorf("no response choices available")
+	}
+
+	// Log the specific choice details
+	for i, choice := range response.Choices {
+		c.log.Info("RAW LLM CHOICE DETAILS",
+			"choice_index", i,
+			"choice_type", fmt.Sprintf("%T", choice),
+			"content", choice.Content,
+			"stop_reason", choice.StopReason,
+			"generation_info", choice.GenerationInfo,
+			"func_call", choice.FuncCall)
 	}
 
 	result := response.Choices[0].Content
