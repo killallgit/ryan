@@ -59,6 +59,9 @@ func (op *OutputProcessor) ProcessForDisplay(output string) string {
 	cleanOutput := strings.TrimSpace(output)
 	cleanOutput = regexp.MustCompile(`\n{3,}`).ReplaceAllString(cleanOutput, "\n\n")
 
+	// Ensure proper markdown formatting is preserved
+	cleanOutput = op.preserveMarkdownFormatting(cleanOutput)
+
 	op.log.Debug("Processed output for display",
 		"original_length", len(output),
 		"processed_length", len(cleanOutput))
@@ -206,4 +209,39 @@ func (op *OutputProcessor) CleanToolResponse(response string) string {
 	response = strings.TrimSpace(response)
 
 	return response
+}
+
+// preserveMarkdownFormatting ensures markdown elements are properly formatted
+func (op *OutputProcessor) preserveMarkdownFormatting(content string) string {
+	// Ensure code blocks are properly separated
+	content = regexp.MustCompile("(```[^`]*```)").ReplaceAllString(content, "\n$1\n")
+
+	// Ensure headers have proper spacing
+	content = regexp.MustCompile(`(?m)^(#{1,6}\s+.+)$`).ReplaceAllString(content, "\n$1\n")
+
+	// Clean up excessive newlines again after adding formatting
+	content = regexp.MustCompile(`\n{3,}`).ReplaceAllString(content, "\n\n")
+
+	return strings.TrimSpace(content)
+}
+
+// DetectMarkdown checks if content contains markdown formatting
+func (op *OutputProcessor) DetectMarkdown(content string) bool {
+	markdownPatterns := []string{
+		"```",       // Code blocks
+		"# ", "## ", // Headers
+		"- ", "* ", // Lists
+		"**", "__", // Bold
+		"[[", "](", // Links
+		"> ", // Blockquotes
+		"|",  // Tables
+	}
+
+	for _, pattern := range markdownPatterns {
+		if strings.Contains(content, pattern) {
+			return true
+		}
+	}
+
+	return false
 }

@@ -31,6 +31,7 @@ type ChatView struct {
 	activityTree  string // Current activity tree text
 	spinnerFrame  int
 	spinnerFrames []string
+	renderManager *RenderManager // Add render manager
 
 	// Callbacks
 	onSendMessage func(content string)
@@ -46,6 +47,16 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		streaming:     false,
 		spinnerFrames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 		spinnerFrame:  0,
+	}
+
+	// Initialize render manager
+	theme := DefaultTheme()
+	renderManager, err := NewRenderManager(theme, 80) // Default width, will be updated
+	if err != nil {
+		// Don't panic - fall back to basic rendering
+		cv.renderManager = nil
+	} else {
+		cv.renderManager = renderManager
 	}
 
 	// Set background color for the entire view
@@ -68,16 +79,20 @@ func NewChatView(controller ControllerInterface, app *tview.Application) *ChatVi
 		SetLabelColor(tcell.GetColor(ColorOrange))
 	cv.input.SetBackgroundColor(tcell.GetColor(ColorBase00))
 
-	cv.input.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEnter {
+	// Use SetInputCapture for Enter key handling
+	cv.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEnter {
 			text := cv.input.GetText()
 			if text != "" && !cv.sending {
 				cv.input.SetText("")
 				if cv.onSendMessage != nil {
 					cv.onSendMessage(text)
 				}
+				return nil // Consume the event
 			}
 		}
+
+		return event // Pass through other events
 	})
 
 	// Create activity indicator view
@@ -247,28 +262,74 @@ func (cv *ChatView) UpdateMessages() {
 			output.WriteString("\n\n")
 		}
 
-		// Format message based on role with colors only (no labels)
-		switch msg.Role {
-		case chat.RoleUser, "human":
-			output.WriteString(fmt.Sprintf("[#93b56b]%s[-]", msg.Content))
-		case chat.RoleAssistant:
-			// Format thinking text in assistant messages and apply assistant color to rest
-			formattedContent := cv.formatThinkingText(msg.Content)
-			output.WriteString(fmt.Sprintf("[#6b93b5]%s[-]", formattedContent))
-		case chat.RoleError:
-			output.WriteString(fmt.Sprintf("[#d95f5f]%s[-]", msg.Content))
-		default:
-			output.WriteString(fmt.Sprintf("[#f5b761]%s[-]", msg.Content))
+		// Use render manager if available
+		if cv.renderManager != nil {
+			// Detect content type and render appropriately
+			contentType := cv.renderManager.DetectContentType(msg.Content)
+			// Convert chat.MessageRole to string for render manager
+			roleStr := "assistant"
+			switch msg.Role {
+			case chat.RoleUser:
+				roleStr = "user"
+			case chat.RoleAssistant:
+				roleStr = "assistant"
+			case chat.RoleSystem:
+				roleStr = "system"
+			case chat.RoleError:
+				roleStr = "error"
+			}
+
+			// Add error handling for render manager
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						// If render manager panics, fall back to basic rendering
+						output.WriteString(fmt.Sprintf("[%s]%s[-]", cv.getRoleColor(msg.Role), msg.Content))
+					}
+				}()
+				rendered := cv.renderManager.Render(msg.Content, contentType, roleStr)
+				output.WriteString(rendered)
+			}()
+		} else {
+			// Fallback to basic rendering
+			switch msg.Role {
+			case chat.RoleUser, "human":
+				output.WriteString(fmt.Sprintf("[#93b56b]%s[-]", msg.Content))
+			case chat.RoleAssistant:
+				// Format thinking text in assistant messages and apply assistant color to rest
+				formattedContent := cv.formatThinkingText(msg.Content)
+				output.WriteString(fmt.Sprintf("[#6b93b5]%s[-]", formattedContent))
+			case chat.RoleError:
+				output.WriteString(fmt.Sprintf("[#d95f5f]%s[-]", msg.Content))
+			default:
+				output.WriteString(fmt.Sprintf("[#f5b761]%s[-]", msg.Content))
+			}
 		}
 	}
 
 	// Add streaming content if active
 	if cv.streaming && cv.streamBuffer != "" {
 		output.WriteString("\n\n")
-		// Format thinking text in streaming content using streaming-aware formatter
-		formattedStreamContent := cv.formatStreamingThinkingText(cv.streamBuffer)
-		output.WriteString(fmt.Sprintf("[#6b93b5]%s[-]", formattedStreamContent))
-		output.WriteString("[#eb8755]█[-]") // Cursor
+		if cv.renderManager != nil {
+			// Use render manager for streaming content with error handling
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						// If render manager panics, fall back to basic streaming rendering
+						formattedStreamContent := cv.formatStreamingThinkingText(cv.streamBuffer)
+						output.WriteString(fmt.Sprintf("[#6b93b5]%s[-]", formattedStreamContent))
+						output.WriteString("[#eb8755]█[-]") // Cursor
+					}
+				}()
+				rendered := cv.renderManager.RenderStreamingContent(cv.streamBuffer, "assistant")
+				output.WriteString(rendered)
+			}()
+		} else {
+			// Fallback to basic streaming rendering
+			formattedStreamContent := cv.formatStreamingThinkingText(cv.streamBuffer)
+			output.WriteString(fmt.Sprintf("[#6b93b5]%s[-]", formattedStreamContent))
+			output.WriteString("[#eb8755]█[-]") // Cursor
+		}
 	}
 
 	cv.messages.SetText(output.String())
@@ -337,7 +398,8 @@ func (cv *ChatView) updateStatus() {
 
 // Focus implements tview.Primitive
 func (cv *ChatView) Focus(delegate func(p tview.Primitive)) {
-	delegate(cv.input)
+	// Let the Flex handle focus delegation to the focusable input
+	cv.Flex.Focus(delegate)
 }
 
 // HasFocus implements tview.Primitive
@@ -345,33 +407,34 @@ func (cv *ChatView) HasFocus() bool {
 	return cv.input.HasFocus()
 }
 
-// InputHandler returns the handler for this primitive
+// InputHandler returns the handler for this primitive with global shortcuts
 func (cv *ChatView) InputHandler() func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
-	return cv.WrapInputHandler(func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
-		// Handle special keys
+	return func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
+		// Handle global shortcuts first
 		switch event.Key() {
-		case tcell.KeyPgUp:
-			cv.messages.ScrollToBeginning()
+		case tcell.KeyCtrlC:
+			// Quit application
+			if cv.app != nil {
+				cv.app.Stop()
+			}
 			return
-		case tcell.KeyPgDn:
-			cv.messages.ScrollToEnd()
+		case tcell.KeyCtrlP:
+			// Could implement view switcher here if needed
 			return
-		case tcell.KeyUp:
-			// Could implement history navigation here
-			return
-		case tcell.KeyDown:
-			// Could implement history navigation here
+		case tcell.KeyEscape:
+			// Could implement view navigation here if needed
 			return
 		}
 
-		// Pass to input field if it has focus
-		if cv.input.HasFocus() {
-			cv.input.InputHandler()(event, setFocus)
+		// Handle Ctrl+1 through Ctrl+5 for view switching
+		if event.Key() >= tcell.KeyCtrlA && event.Key() <= tcell.KeyCtrlE {
+			// Could implement view switching here if needed
+			return
 		}
 
-		// For unhandled keys (like Escape), let the parent handler deal with them
-		// by not returning early - this allows WrapInputHandler to pass them up
-	})
+		// For all other events, delegate to the default Flex handler
+		cv.Flex.InputHandler()(event, setFocus)
+	}
 }
 
 // UpdateActivityTree updates the activity tree display
@@ -450,4 +513,28 @@ func (cv *ChatView) formatActivityTree(tree string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// OnResize handles terminal resize events
+func (cv *ChatView) OnResize(width, height int) {
+	if cv.renderManager != nil {
+		// Update render manager width for proper text wrapping
+		cv.renderManager.SetWidth(width - 4) // Account for padding
+	}
+}
+
+// getRoleColor returns the color for a given message role
+func (cv *ChatView) getRoleColor(role string) string {
+	switch role {
+	case chat.RoleUser:
+		return "#93b56b"
+	case chat.RoleAssistant:
+		return "#6b93b5"
+	case chat.RoleError:
+		return "#d95f5f"
+	case chat.RoleSystem:
+		return "#976bb5"
+	default:
+		return "#f5b761"
+	}
 }

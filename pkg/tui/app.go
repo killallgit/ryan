@@ -55,6 +55,9 @@ type App struct {
 
 	// Config
 	config *config.Config
+
+	// Input handling
+	originalInputCapture func(event *tcell.EventKey) *tcell.EventKey
 }
 
 // NewApp creates a new TUI application
@@ -94,6 +97,16 @@ func NewApp(controller ControllerInterface) (*App, error) {
 
 	// Set initial focus
 	tviewApp.SetRoot(app.pages, true).SetFocus(app.pages)
+
+	// Initialize with chat view and ensure proper focus
+	app.currentView = "chat"
+	app.previousView = "chat"
+	app.pages.SwitchToPage("chat")
+
+	// Explicitly set focus to chat view input
+	if app.chatView != nil {
+		tviewApp.SetFocus(app.chatView)
+	}
 
 	log.Debug("TUI application created successfully")
 	return app, nil
@@ -142,7 +155,16 @@ func (a *App) initializeViews() error {
 
 // setupGlobalKeyBindings configures application-wide keyboard shortcuts
 func (a *App) setupGlobalKeyBindings() {
-	a.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	a.originalInputCapture = func(event *tcell.EventKey) *tcell.EventKey {
+		log := logger.WithComponent("global_input")
+		log.Debug("Global input capture", "key", event.Key(), "rune", string(event.Rune()))
+
+		// Let Enter key pass through to input field when in chat view
+		if event.Key() == tcell.KeyEnter && a.currentView == "chat" {
+			log.Debug("Enter key - passing through to chat input field")
+			return event // Let the input field handle Enter
+		}
+
 		// Ctrl-P: Toggle command palette/view switcher
 		if event.Key() == tcell.KeyCtrlP {
 			a.showViewSwitcher()
@@ -187,11 +209,12 @@ func (a *App) setupGlobalKeyBindings() {
 		}
 
 		return event
-	})
+	}
 }
 
 // Run starts the tview application
 func (a *App) Run() error {
+	// Remove all global input capture - let components handle events naturally
 	return a.app.Run()
 }
 
@@ -321,20 +344,9 @@ func (a *App) SendMessage(content string) {
 		return
 	}
 
-	log := logger.WithComponent("tview_app")
-	log.Debug("Sending message", "content", content)
-
 	a.sending = true
 
-	// Update UI immediately to show sending state
-	a.chatView.SetSending(true)
-	// Add user message
-	a.controller.AddUserMessage(content)
-	a.chatView.UpdateMessages()
-	// Force immediate redraw
-	a.app.Draw()
-
-	// Send message in goroutine
+	// Send message in goroutine to avoid UI thread deadlock
 	go func() {
 		defer func() {
 			a.app.QueueUpdateDraw(func() {
@@ -342,6 +354,15 @@ func (a *App) SendMessage(content string) {
 				a.chatView.SetSending(false)
 			})
 		}()
+
+		// Add user message to controller
+		a.controller.AddUserMessage(content)
+
+		// Update UI to show sending state
+		a.app.QueueUpdateDraw(func() {
+			a.chatView.SetSending(true)
+			a.chatView.UpdateMessages()
+		})
 
 		// Create context with cancel
 		ctx, cancel := context.WithCancel(context.Background())
@@ -359,7 +380,6 @@ func (a *App) SendMessage(content string) {
 		// Start streaming
 		updates, err := a.controller.StartStreaming(ctx, content)
 		if err != nil {
-			log.Error("Failed to start streaming", "error", err)
 			a.app.QueueUpdateDraw(func() {
 				a.controller.AddErrorMessage(fmt.Sprintf("Error: %v", err))
 				a.chatView.UpdateMessages()
