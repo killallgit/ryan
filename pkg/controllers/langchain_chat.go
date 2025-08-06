@@ -119,7 +119,7 @@ func NewLangChainChatControllerWithSystem(client chat.ChatClient, llm llms.Model
 	return lcc, nil
 }
 
-// SendUserMessage sends a user message with enhanced LangChain memory
+// SendUserMessage sends a user message with LangChain memory integration
 func (lcc *LangChainChatController) SendUserMessage(content string) (chat.Message, error) {
 	if strings.TrimSpace(content) == "" {
 		return chat.Message{}, fmt.Errorf("message content cannot be empty")
@@ -128,7 +128,7 @@ func (lcc *LangChainChatController) SendUserMessage(content string) (chat.Messag
 	return lcc.SendUserMessageWithContext(context.Background(), content)
 }
 
-// SendUserMessageWithContext sends a user message with context using enhanced memory
+// SendUserMessageWithContext sends a user message with context using hybrid memory
 func (lcc *LangChainChatController) SendUserMessageWithContext(ctx context.Context, content string) (chat.Message, error) {
 	if strings.TrimSpace(content) == "" {
 		return chat.Message{}, fmt.Errorf("message content cannot be empty")
@@ -152,8 +152,8 @@ func (lcc *LangChainChatController) SendUserMessageWithContext(ctx context.Conte
 		lcc.conversation = lcc.memory.GetConversation()
 	}
 
-	// For now, use the base controller implementation with enhanced memory
-	// This provides tool support while leveraging LangChain memory
+	// For now, use the base controller implementation with LangChain memory
+	// This provides tool support while leveraging vector and conversation memory
 	log.Debug("Using base controller with LangChain memory enhancement")
 	return lcc.ChatController.SendUserMessageWithContext(ctx, content)
 }

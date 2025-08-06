@@ -32,16 +32,18 @@ type Client struct {
 	log              *logger.Logger
 	progressCallback ToolProgressCallback
 
-	// Enhanced agent support
-	outputProcessor *OutputProcessor
-	agentType       AgentType
-	model           string
+	// New fields for agent support
+	agentSelector    *AgentSelector
+	outputProcessor  *OutputProcessor
+	ollamaToolCaller *OllamaToolCaller
+	agentType        AgentType
+	model            string
 }
 
 // NewClient creates a new LangChain-powered client
 func NewClient(baseURL, model string, toolRegistry *tools.Registry) (*Client, error) {
 	cfg := config.Get()
-	log := logger.WithComponent("langchain_enhanced")
+	log := logger.WithComponent("langchain_client")
 
 	// Create Ollama LLM with additional debugging options
 	log.Debug("Creating Ollama LLM", "base_url", baseURL, "model", model)
@@ -375,87 +377,7 @@ func (c *Client) sendWithAgent(ctx context.Context, userInput string) (string, e
 	return "", fmt.Errorf("no output from agent")
 }
 
-// sendWithAgentOLD was the old version that had duplicate logic
-func (c *Client) sendWithAgentOLD(ctx context.Context, userInput string) (string, error) {
-	c.log.Debug("Using enhanced agent framework for autonomous multi-step reasoning")
-
-	// Enhanced agent execution with ReAct pattern
-	result, err := c.executeWithReasoningLoop(ctx, userInput)
-	if err != nil {
-		// Check if error is due to thinking blocks parsing issue
-		if strings.Contains(err.Error(), "unable to parse agent output") && strings.Contains(err.Error(), "<think>") {
-			c.log.Error("TOOL EXECUTION FAILED: Agent failed due to thinking blocks, falling back to direct LLM mode (tools will not execute)",
-				"error", err,
-				"user_input", userInput,
-				"fallback_mode", "direct_llm")
-			// Fall back to direct LLM interaction when agent parsing fails due to thinking blocks
-			// But first, ensure memory consistency by saving the user input
-			if c.memory != nil {
-				c.memory.SaveContext(ctx,
-					map[string]any{"input": userInput},
-					map[string]any{"output": ""},
-				)
-			}
-			return c.sendWithChain(ctx, userInput)
-		}
-		return "", fmt.Errorf("autonomous agent execution failed: %w", err)
-	}
-
-	// Log all available keys for debugging
-	c.log.Info("RAW AGENT EXECUTION RESULT KEYS", "keys", getMapKeys(result))
-
-	// Log the full result structure for debugging
-	c.log.Info("RAW FULL AGENT RESULT",
-		"result_type", fmt.Sprintf("%T", result),
-		"result", result)
-
-	// Check for intermediate steps
-	if intermediateSteps, ok := result["intermediate_steps"]; ok {
-		c.log.Debug("Found intermediate steps", "steps", intermediateSteps)
-	}
-
-	// Check for agent scratchpad
-	if scratchpad, ok := result["agent_scratchpad"]; ok {
-		c.log.Debug("Found agent scratchpad", "scratchpad", scratchpad)
-	}
-
-	// Check for thinking or reasoning fields
-	if thinking, ok := result["thinking"]; ok {
-		c.log.Debug("Found thinking field", "thinking", thinking)
-	}
-
-	// Check for any field that might contain raw LLM output
-	for key, value := range result {
-		if key != "output" && key != "input" {
-			c.log.Debug("Additional result field", "key", key, "value", value)
-		}
-	}
-
-	// Extract the final output
-	if output, ok := result["output"].(string); ok {
-
-		// Save to memory for consistency with chain mode
-		if c.memory != nil {
-			c.memory.SaveContext(ctx,
-				map[string]any{"input": userInput},
-				map[string]any{"output": output},
-			)
-		}
-		return output, nil
-	}
-
-	// Fallback output
-	finalOutput := fmt.Sprintf("%v", result)
-	if c.memory != nil {
-		c.memory.SaveContext(ctx,
-			map[string]any{"input": userInput},
-			map[string]any{"output": finalOutput},
-		)
-	}
-	return finalOutput, nil
-}
-
-// executeWithReasoningLoop implements enhanced ReAct pattern for autonomous multi-step reasoning
+// executeWithReasoningLoop implements ReAct pattern for autonomous multi-step reasoning
 func (c *Client) executeWithReasoningLoop(ctx context.Context, userInput string) (map[string]any, error) {
 	c.log.Debug("Starting autonomous reasoning loop",
 		"max_iterations", c.config.LangChain.Tools.MaxIterations,
@@ -515,7 +437,7 @@ func (c *Client) executeWithReasoningLoop(ctx context.Context, userInput string)
 		return nil, err
 	}
 
-	// Enhanced processing of intermediate steps for autonomous reasoning
+	// Processing of intermediate steps for autonomous reasoning
 	if intermediateSteps, ok := result["intermediate_steps"]; ok {
 		c.processIntermediateSteps(intermediateSteps)
 	}

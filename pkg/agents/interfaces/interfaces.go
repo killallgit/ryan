@@ -25,9 +25,9 @@ type Agent interface {
 	Execute(ctx context.Context, request AgentRequest) (AgentResult, error)
 }
 
-// OrchestratorInterface defines the interface for the orchestrator
+// Orchestrator defines the interface for the orchestrator
 // This allows components to depend on the interface rather than the concrete type
-type OrchestratorInterface interface {
+type Orchestrator interface {
 	// RegisterAgent registers a new agent with the orchestrator
 	RegisterAgent(agent Agent) error
 
@@ -47,8 +47,8 @@ type OrchestratorInterface interface {
 	ExecuteWithPlan(ctx context.Context, plan *ExecutionPlan, execContext *ExecutionContext) ([]TaskResult, error)
 }
 
-// PlannerInterface defines the interface for the planner
-type PlannerInterface interface {
+// Planner defines the interface for the planner
+type Planner interface {
 	// CreateExecutionPlan creates an execution plan for the given prompt
 	CreateExecutionPlan(ctx context.Context, prompt string, execContext *ExecutionContext) (*ExecutionPlan, error)
 
@@ -56,8 +56,8 @@ type PlannerInterface interface {
 	OptimizePlan(plan *ExecutionPlan) (*ExecutionPlan, error)
 }
 
-// ExecutorInterface defines the interface for the executor
-type ExecutorInterface interface {
+// Executor defines the interface for the executor
+type Executor interface {
 	// ExecutePlan executes a plan
 	ExecutePlan(ctx context.Context, plan *ExecutionPlan, execContext *ExecutionContext) (*TaskResult, error)
 
@@ -65,8 +65,8 @@ type ExecutorInterface interface {
 	ExecuteTask(ctx context.Context, task *Task, execContext *ExecutionContext) (*TaskResult, error)
 }
 
-// ContextManagerInterface defines the interface for context management
-type ContextManagerInterface interface {
+// ContextManager defines the interface for context management
+type ContextManager interface {
 	// CreateContext creates a new execution context
 	CreateContext(sessionID, requestID string) *ExecutionContext
 
@@ -77,8 +77,8 @@ type ContextManagerInterface interface {
 	UpdateContext(requestID string, update func(*ExecutionContext))
 }
 
-// FeedbackLoopInterface defines the interface for feedback handling
-type FeedbackLoopInterface interface {
+// FeedbackLoop defines the interface for feedback handling
+type FeedbackLoop interface {
 	// ProcessFeedback processes feedback for a task
 	ProcessFeedback(feedback *FeedbackRequest) error
 
@@ -86,8 +86,8 @@ type FeedbackLoopInterface interface {
 	GetFeedbackHistory(taskID string) []FeedbackRequest
 }
 
-// AgentFactoryInterface defines the interface for agent creation
-type AgentFactoryInterface interface {
+// AgentFactory defines the interface for agent creation
+type AgentFactory interface {
 	// CreateAgent creates an agent of the specified type
 	CreateAgent(agentType string, config map[string]interface{}) (Agent, error)
 

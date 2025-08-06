@@ -46,13 +46,13 @@ func (otc *OllamaToolCaller) CallWithTools(ctx context.Context, messages []llms.
 	toolContext := otc.createToolContext()
 
 	// Prepend tool context to messages
-	enhancedMessages := []llms.MessageContent{
+	messagesWithContext := []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeSystem, toolContext),
 	}
-	enhancedMessages = append(enhancedMessages, messages...)
+	messagesWithContext = append(messagesWithContext, messages...)
 
 	// Call LLM
-	response, err := otc.llm.GenerateContent(ctx, enhancedMessages)
+	response, err := otc.llm.GenerateContent(ctx, messagesWithContext)
 	if err != nil {
 		return "", fmt.Errorf("LLM call failed: %w", err)
 	}
@@ -86,7 +86,7 @@ func (otc *OllamaToolCaller) CallWithTools(ctx context.Context, messages []llms.
 		}
 
 		// Create a follow-up call with tool results
-		return otc.callWithToolResults(ctx, enhancedMessages, content, toolResults)
+		return otc.callWithToolResults(ctx, messagesWithContext, content, toolResults)
 	}
 
 	return content, nil

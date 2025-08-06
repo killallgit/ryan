@@ -186,7 +186,7 @@ func (mv *ModelView) refreshModels() {
 			toolsSupport += " ✓"
 		}
 
-		// Determine status (could be enhanced to check if model is loaded)
+		// Determine status (could be improved to check if model is loaded)
 		status := "Available"
 		if model.Name == currentModel {
 			status = "Current"

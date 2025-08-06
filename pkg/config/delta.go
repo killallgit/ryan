@@ -178,7 +178,7 @@ func (ds *DeltaStorage) setNestedValue(m map[string]interface{}, key string, val
 
 // splitKey splits a dot-notation key into parts
 func (ds *DeltaStorage) splitKey(key string) []string {
-	// Simple split for now - could be enhanced to handle escaped dots
+	// Simple split for now - could be improved to handle escaped dots
 	parts := []string{}
 	current := ""
 

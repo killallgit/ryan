@@ -185,7 +185,7 @@ func WithModel(conv Conversation, model string) Conversation {
 	}
 }
 
-// Context-aware enhanced functions
+// Context-aware functions
 
 // BranchFromMessage creates a new conversation branch from any message
 func BranchFromMessage(conv Conversation, messageID, title string) (Conversation, *Context, error) {
@@ -235,7 +235,7 @@ func GetMessageBranches(conv Conversation, messageID string) []*Message {
 	return conv.Tree.GetMessageBranches(messageID)
 }
 
-// Enhanced conversation management functions with context awareness
+// Conversation management functions with context awareness
 
 // AddMessageWithDeduplication adds a message while preventing duplicates based on source and content
 func AddMessageWithDeduplication(conv Conversation, msg Message) Conversation {

@@ -9,14 +9,16 @@ import (
 
 type (
 	// Core interfaces
-	Agent                   = interfaces.Agent
-	OrchestratorInterface   = interfaces.OrchestratorInterface
-	PlannerInterface        = interfaces.PlannerInterface
-	ExecutorInterface       = interfaces.ExecutorInterface
-	ContextManagerInterface = interfaces.ContextManagerInterface
-	FeedbackLoopInterface   = interfaces.FeedbackLoopInterface
-	AgentFactoryInterface   = interfaces.AgentFactoryInterface
-	AgentCreator            = interfaces.AgentCreator
+	Agent        = interfaces.Agent
+	AgentCreator = interfaces.AgentCreator
+
+	// Interface aliases (using cleaned names from interfaces package)
+	OrchestratorInterface   = interfaces.Orchestrator
+	PlannerInterface        = interfaces.Planner
+	ExecutorInterface       = interfaces.Executor
+	ContextManagerInterface = interfaces.ContextManager
+	FeedbackLoopInterface   = interfaces.FeedbackLoop
+	AgentFactoryInterface   = interfaces.AgentFactory
 
 	// Request/Response types
 	AgentRequest  = interfaces.AgentRequest
