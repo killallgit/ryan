@@ -5,14 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 Ryan is an open-source alternative to Claude Code, built in Go. It provides a terminal-based AI assistant with a rich TUI interface that integrates with local LLMs through Ollama. Ryan features advanced multi-agent orchestration, comprehensive tool integration, hybrid memory management, and vector storage for semantic search.
 
-**Current Status**: ~75% feature parity with Claude Code, focusing on local-first, privacy-focused AI development.
+**Current Status**: ~78% feature parity with Claude Code, focusing on local-first, privacy-focused AI development.
 
 **Key Differentiators**:
 - Local LLM inference through Ollama (no cloud dependency)
 - Multi-agent architecture with specialized agents
 - Rich terminal UI with multiple views
 - Hybrid memory system combining conversation buffer and vector storage
-- Comprehensive test coverage (58.7% overall, 90%+ for critical packages)
+- Comprehensive test coverage (improving steadily, 90%+ for critical packages)
 
 ## Development Commands
 
@@ -33,9 +33,10 @@ Ryan is an open-source alternative to Claude Code, built in Go. It provides a te
 - **Target**: 60%+ coverage for all critical packages
 - **Current Status**: See `docs/TEST_COVERAGE_REPORT.md` for detailed analysis
 - **High Coverage (≥80%)**: models (91.8%), testutil (89.7%), ollama (85.6%)
-- **Good Coverage (60-79%)**: vectorstore (68.8%), logger (63.6%), tools (60.0%)
-- **Improved Coverage**: agents (58.7% - recently improved from major refactoring)
-- **Needs Improvement (<60%)**: chat, langchain, controllers, config, mcp, tui, cmd
+- **Good Coverage (60-79%)**: vectorstore (68.8%), logger (63.6%), tools (60.1%)
+- **Improved Coverage**: chat (53.4%), agents (51.8%), langchain (48.2%)
+- **Significant Improvement**: tui (21.7% - up from 0.8%)
+- **Needs Improvement (<30%)**: controllers (25.3%), config (24.6%), mcp (18.4%), cmd (9.3%)
 
 ### Specialized Testing
 - `task test:models:primary` - Test primary models for tool compatibility

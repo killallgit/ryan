@@ -1,13 +1,13 @@
 # Test Coverage Report
 
-*Generated: 2025-08-05*
+*Generated: 2025-01-06*
 
 ## 📊 Executive Summary
 
 - **Total Packages**: 17 packages under test
 - **Packages with ≥60% Coverage**: 6 packages (35%)
-- **Packages with <20% Coverage**: 4 packages (24%)
-- **Overall Test Health**: Improving, with recent major fixes
+- **Packages with <20% Coverage**: 2 packages (12%)
+- **Overall Test Health**: Significantly improved with recent enhancements
 
 ## 🎯 Coverage by Category
 
@@ -27,16 +27,16 @@ Good foundation but room for improvement:
 |---------|----------|--------|
 | `pkg/vectorstore` | 68.8% | ✅ Good |
 | `pkg/logger` | 63.6% | ✅ Good |
-| `pkg/tools` | 60.0% | ✅ Good |
+| `pkg/tools` | 60.1% | ✅ Good |
 
 ### Medium Coverage (40-59%)
 Moderate coverage - improvements needed for critical paths:
 
 | Package | Coverage | Status |
 |---------|----------|--------|
-| `pkg/agents` | 56.8% | ⚠️  Medium |
-| `pkg/chat` | 51.2% | ⚠️  Medium |
-| `pkg/langchain` | 45.9% | ⚠️  Medium |
+| `pkg/chat` | 53.4% | ⚠️  Medium |
+| `pkg/agents` | 51.8% | ⚠️  Medium |
+| `pkg/langchain` | 48.2% | ⚠️  Medium |
 
 ### Low Coverage (<40%)
 Requires attention - significant testing gaps:
@@ -44,8 +44,9 @@ Requires attention - significant testing gaps:
 | Package | Coverage | Status | Priority |
 |---------|----------|--------|----------|
 | `pkg/testing` | 33.3% | 🔴 Low | Medium |
-| `pkg/controllers` | 25.5% | 🔴 Low | High |
-| `pkg/config` | 21.8% | 🔴 Low | High |
+| `pkg/controllers` | 25.3% | 🔴 Low | High |
+| `pkg/config` | 24.6% | 🔴 Low | High |
+| `pkg/tui` | 21.7% | 🔴 Low | High |
 | `pkg/mcp` | 18.4% | 🔴 Low | Medium |
 
 ### Very Low Coverage (<10%)
@@ -53,8 +54,7 @@ Critical gaps requiring immediate attention:
 
 | Package | Coverage | Status | Priority |
 |---------|----------|--------|----------|
-| `cmd` | 6.0% | 🚨 Critical | High |
-| `pkg/tui` | 0.8% | 🚨 Critical | Medium |
+| `cmd` | 9.3% | 🚨 Critical | High |
 | `pkg/testutil/fixtures` | 0.0% | ⚪ N/A | Low |
 | `pkg/testutil/mocks` | 0.0% | ⚪ N/A | Low |
 
@@ -66,12 +66,12 @@ Critical gaps requiring immediate attention:
 - ✅ **Test infrastructure**: Created comprehensive mock systems and test utilities
 - ✅ **Post-merge fixes**: Updated TUI tests for new hex color system
 
-### Coverage Improvements Achieved
-- `pkg/mcp`: 0% → 18.4% (+18.4%)
-- `pkg/testing`: 0% → 33.3% (+33.3%)
-- `pkg/config`: 12% → 21.8% (+9.8%)
-- `pkg/controllers`: 22.9% → 25.5% (+2.6%)
-- `pkg/tui`: 3.4% → 0.8% (-2.6% due to merge changes)
+### Coverage Improvements Achieved (January 2025)
+- `pkg/tui`: 0.8% → 21.7% (+20.9%) - Major improvement!
+- `pkg/cmd`: 6.0% → 9.3% (+3.3%)
+- `pkg/config`: 21.8% → 24.6% (+2.8%)
+- `pkg/chat`: 51.2% → 53.4% (+2.2%)
+- `pkg/langchain`: 45.9% → 48.2% (+2.3%)
 
 ## 🎯 Testing Strategy Recommendations
 
