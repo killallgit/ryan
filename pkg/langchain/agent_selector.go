@@ -87,10 +87,13 @@ func (as *AgentSelector) analyzeToolNeed(input string) bool {
 
 	// Tool-indicating keywords and patterns
 	toolKeywords := []string{
-		// File system operations
-		"how many files", "list files", "list the files", "count files", "show files",
+		// File system operations - more permissive patterns
+		"list", "files", "directory", "folder",
+		"how many files", "list files", "list the files", "list all the files",
+		"list all files", "count files", "show files", "show all files",
 		"create file", "write file", "read file", "delete file",
-		"what's in", "show me the contents", "open file",
+		"what's in", "show me the contents", "open file", "ls", "dir",
+		"in this dir", "current directory", "working directory",
 
 		// Command execution
 		"run command", "execute", "terminal", "bash", "shell",
@@ -108,7 +111,18 @@ func (as *AgentSelector) analyzeToolNeed(input string) bool {
 		"grep", "search code", "find in files", "locate",
 	}
 
-	// Check for tool keywords
+	// Check for tool keywords - special handling for "list" + "files"
+	if strings.Contains(lowerInput, "list") &&
+		(strings.Contains(lowerInput, "file") ||
+			strings.Contains(lowerInput, "dir") ||
+			strings.Contains(lowerInput, "folder")) {
+		as.log.Debug("Tool keyword detected",
+			"keyword", "list + files/dir/folder combination",
+			"input_snippet", truncateString(input, 50))
+		return true
+	}
+
+	// Check for other tool keywords
 	for _, keyword := range toolKeywords {
 		if strings.Contains(lowerInput, keyword) {
 			as.log.Debug("Tool keyword detected",

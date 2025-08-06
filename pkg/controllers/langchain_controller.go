@@ -187,7 +187,10 @@ func (lc *LangChainController) SendUserMessageWithStreamingContext(ctx context.C
 
 	// Forward chunks to output channel and accumulate content
 	for chunk := range streamChan {
-		fullResponse.WriteString(chunk)
+		// Don't include special markers in the final response
+		if chunk != "<<<TOOL_MODE>>>" {
+			fullResponse.WriteString(chunk)
+		}
 		select {
 		case outputChan <- chat.MessageChunk{Content: chunk, Done: false}:
 		case <-ctx.Done():
@@ -357,6 +360,31 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 		finalUserMsg := chat.NewUserMessage(content)
 		lc.conversation = chat.AddMessageWithDeduplication(lc.conversation, finalUserMsg)
 
+		// Use orchestrator if available to determine agent
+		var agentDecision string
+		if lc.orchestrator != nil {
+			// Use the orchestrator to analyze which agent should handle this
+			rankings := lc.orchestrator.RankAgents(content)
+			if len(rankings) > 0 {
+				agentDecision = fmt.Sprintf("[System: Selected %s agent (confidence: %.2f)]",
+					rankings[0].AgentName, rankings[0].Confidence)
+				lc.log.Debug("Orchestrator agent selection",
+					"agent", rankings[0].AgentName,
+					"confidence", rankings[0].Confidence)
+
+				// Add agent decision as a system message to conversation
+				systemMsg := chat.NewSystemMessage(agentDecision)
+				lc.conversation = chat.AddMessage(lc.conversation, systemMsg)
+
+				// Send the decision to the UI
+				updates <- StreamingUpdate{
+					Type:     ChunkReceived,
+					StreamID: "langchain-stream",
+					Content:  agentDecision + "\n\n",
+				}
+			}
+		}
+
 		// Use real LangChain streaming instead of simulated chunks
 		streamChan := make(chan string, 100)
 		var fullResponse strings.Builder
@@ -375,7 +403,10 @@ func (lc *LangChainController) StartStreaming(ctx context.Context, content strin
 
 		// Forward real stream chunks to TUI
 		for chunk := range streamChan {
-			fullResponse.WriteString(chunk)
+			// Don't include special markers in the final response
+			if chunk != "<<<TOOL_MODE>>>" {
+				fullResponse.WriteString(chunk)
+			}
 			select {
 			case updates <- StreamingUpdate{
 				Type:     ChunkReceived,
@@ -495,5 +526,10 @@ func (lc *LangChainController) CleanThinkingBlocks() {
 // SetAgentOrchestrator sets the agent orchestrator for dynamic agent selection
 func (lc *LangChainController) SetAgentOrchestrator(orchestrator *agents.LangchainOrchestrator) {
 	lc.orchestrator = orchestrator
-	lc.log.Debug("Agent orchestrator set")
+
+	// Note: We're no longer passing the orchestrator to the client
+	// The LangChain agent itself will decide whether to use tools
+	// This is the proper abstraction - LangChain handles the routing
+
+	lc.log.Debug("Agent orchestrator set (for controller use only)")
 }
