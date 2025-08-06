@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **TUI**: Component-based modal system with improved error handling
+  - Created reusable BaseModal component for modal composition and lifecycle management
+  - Added specialized DownloadModal for model downloads with real-time progress tracking
+  - Added ErrorModal with proper text wrapping, center alignment, and flexible sizing
+  - Implemented proper keyboard navigation (Enter, Escape, Tab cycling) for all modals
+  - Added Ollama health check functionality with configurable timeouts
 - **TUI**: Unified RenderManager for consistent text rendering across all views
   - Added RenderManager to App struct for centralized text formatting
   - Implemented helper methods for common UI patterns (lists, tables, status, progress bars, trees)
@@ -25,6 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed separate activity view and integrated into STATUS_CONTAINER
   - Updated status components to show agent, action, and state information in a single line
   - Improved visual hierarchy and component organization
+
+### Fixed
+- **TUI**: Modal system no longer shows overlapping modals during error states
+  - Fixed modal replacement logic to properly remove previous modals before showing new ones
+  - Eliminated debug output bleeding through to the terminal UI during modal operations
+  - Improved error modal text formatting with proper center alignment and text wrapping
+- **TUI**: Modal keyboard interactions now work consistently across all modal types
+  - Fixed focus management to ensure proper initial focus on input fields
+  - Added proper Tab navigation between modal components
+  - Fixed Enter/Escape key handling in modal contexts
 
 ### Changed
 - **Configuration**: Consolidated all environment variable access through Viper
