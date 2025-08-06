@@ -144,8 +144,8 @@ func runTUI(appCfg *AppConfig, toolRegistry *tools.Registry) error {
 		return fmt.Errorf("failed to create TUI application: %w", err)
 	}
 
-	log.Info("Starting TUI application")
-	if err := app.Run(); err != nil {
+	log.Info("Starting TUI application with health check")
+	if err := app.StartWithHealthCheck(); err != nil {
 		return fmt.Errorf("TUI application error: %w", err)
 	}
 

@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/chat"
@@ -476,4 +478,363 @@ func (a *App) UpdateMessages() {
 // GetCurrentView returns the name of the current view
 func (a *App) GetCurrentView() string {
 	return a.currentView
+}
+
+// checkOllamaHealth performs an initial health check for Ollama
+func (a *App) checkOllamaHealth() {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Starting Ollama health check")
+
+	// Get Ollama URL from config
+	ollamaURL := a.config.Ollama.URL
+	if ollamaURL == "" {
+		ollamaURL = "https://ollama.kitty-tetra.ts.net" // fallback
+	}
+
+	// Create Ollama client for health check
+	client := ollama.NewClientWithTimeout(ollamaURL, 5*time.Second)
+
+	// Check Ollama health with a short timeout
+	health, err := client.CheckHealthWithTimeout(3 * time.Second)
+	if err != nil || !health.Available {
+		log.Error("Ollama health check failed", "error", err)
+		// Show URL input modal for connection issues
+		a.showOllamaURLModal()
+		return
+	}
+
+	// Check if we have any models
+	if len(health.Models) == 0 {
+		log.Info("No Ollama models available")
+		a.showModelDownloadModal()
+		return
+	}
+
+	// Check if the configured model is available
+	configuredModel := a.config.Ollama.Model
+	if configuredModel != "" {
+		hasModel, err := client.CheckModelWithTimeout(configuredModel, 2*time.Second)
+		if err != nil {
+			log.Error("Failed to check configured model", "model", configuredModel, "error", err)
+		} else if !hasModel {
+			log.Info("Configured model not available", "model", configuredModel)
+			a.showOllamaModal("no_model")
+			return
+		}
+	}
+
+	log.Debug("Ollama health check passed", "model_count", len(health.Models))
+}
+
+// showOllamaModal displays a modal for Ollama setup issues
+func (a *App) showOllamaModal(issue string) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Showing Ollama modal", "issue", issue)
+
+	var modal *Modal
+	modal = OllamaSetupModal(a.app, issue, func(result ModalResult) {
+		log.Debug("Modal result", "result", result)
+
+		// Close the modal first
+		modal.Close(a.pages)
+
+		switch result {
+		case ModalResultConfirm:
+			// User wants to proceed with setup
+			if issue == "no_model" {
+				a.handleModelDownload()
+			}
+		case ModalResultCancel:
+			// User cancelled - continue without setup
+			log.Debug("User cancelled Ollama setup")
+		}
+	})
+
+	// Show the modal on the UI thread
+	a.app.QueueUpdateDraw(func() {
+		modal.Show(a.pages)
+	})
+}
+
+// showOllamaURLModal shows a modal for entering Ollama URL when service is unavailable
+func (a *App) showOllamaURLModal() {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Showing Ollama URL input modal")
+
+	// Get current URL from config
+	currentURL := a.config.Ollama.URL
+	if currentURL == "" {
+		currentURL = "https://ollama.kitty-tetra.ts.net" // fallback
+	}
+
+	var modal *Modal
+	modal = OllamaURLInputModal(a.app, currentURL, func(result ModalResult, url string) {
+		log.Debug("URL modal result", "result", result, "url", url)
+
+		// Close the modal first
+		modal.Close(a.pages)
+
+		switch result {
+		case ModalResultConfirm:
+			if url != "" {
+				// Update session configuration with new URL
+				a.handleURLUpdate(url)
+			}
+		case ModalResultCancel:
+			// User cancelled - exit the application
+			log.Debug("User cancelled URL input, exiting application")
+			a.app.Stop()
+		}
+	})
+
+	// Show the modal on the UI thread
+	a.app.QueueUpdateDraw(func() {
+		modal.Show(a.pages)
+	})
+}
+
+// showModelDownloadModal shows a modal for downloading Ollama models
+func (a *App) showModelDownloadModal() {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Showing model download modal")
+
+	// Get default model from config
+	defaultModel := a.config.Ollama.Model
+	if defaultModel == "" {
+		defaultModel = "qwen3:latest" // fallback to config default
+	}
+
+	var downloadModal *DownloadModal
+	downloadModal = NewDownloadModal(a.app, defaultModel, func(result ModalResult, modelName string) {
+		log.Debug("Model download modal result", "result", result, "model_from_input", modelName)
+
+		switch result {
+		case ModalResultConfirm:
+			if modelName != "" {
+				// Start the download process
+				a.startModelDownloadWithNewModal(downloadModal, modelName)
+			} else {
+				// Close modal if no model specified
+				downloadModal.Close(a.pages)
+			}
+		case ModalResultCancel:
+			// User cancelled - exit the application
+			log.Debug("User cancelled model download, exiting application")
+			downloadModal.Close(a.pages)
+			a.app.Stop()
+		}
+	})
+
+	// Show the modal on the UI thread
+	a.app.QueueUpdateDraw(func() {
+		downloadModal.Show(a.pages, 60, 18) // Standard download modal size
+	})
+}
+
+// startModelDownloadWithNewModal starts download with the new modal system
+func (a *App) startModelDownloadWithNewModal(downloadModal *DownloadModal, modelName string) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Starting model download with new modal", "model_to_download", modelName)
+
+	// Convert to progress mode
+	downloadModal.ShowProgress()
+	downloadModal.SetProgress("Initializing...", 0, 1)
+
+	// Get Ollama URL from config
+	ollamaURL := a.config.Ollama.URL
+	if ollamaURL == "" {
+		ollamaURL = "https://ollama.kitty-tetra.ts.net" // fallback
+	}
+
+	// Create Ollama client for download
+	client := ollama.NewClientWithTimeout(ollamaURL, 30*time.Minute) // Long timeout for downloads
+
+	// Start download in a goroutine to not block the UI
+	go func() {
+		ctx := context.Background()
+
+		err := client.PullWithProgress(ctx, modelName, func(status string, completed, total int64) {
+			// Update progress on the UI thread
+			a.app.QueueUpdateDraw(func() {
+				downloadModal.SetProgress(status, completed, total)
+			})
+		})
+
+		// Handle download completion on the UI thread
+		a.app.QueueUpdateDraw(func() {
+			if err != nil {
+				log.Error("Model download failed", "model", modelName, "error", err)
+
+				// Close download modal and show error modal
+				downloadModal.Close(a.pages)
+
+				// Create and show error modal
+				errorMessage := fmt.Sprintf("Failed to download model: %s\n\n%s", modelName, err.Error())
+				errorModal := NewErrorModal(a.app, "Download Error", errorMessage, func() {
+					a.app.Stop()
+				})
+				errorModal.Show(a.pages, 80, 20) // Larger modal for error display
+
+			} else {
+				log.Info("Model download completed", "model", modelName)
+				downloadModal.SetProgress("Complete", 100, 100)
+
+				// Auto-close after a brief pause
+				go func() {
+					time.Sleep(2 * time.Second)
+					a.app.QueueUpdateDraw(func() {
+						downloadModal.Close(a.pages)
+					})
+				}()
+			}
+		})
+	}()
+}
+
+// startModelDownload starts the actual model download with progress tracking
+func (a *App) startModelDownload(modal *Modal, modelName string) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Starting model download", "model_to_download", modelName)
+
+	// Update the modal to show progress
+	modal.SetMessage(fmt.Sprintf("Downloading model: %s\n\nThis may take several minutes...", modelName))
+	modal.ShowProgress()
+	modal.SetProgressLabel("Initializing...")
+	modal.HideButtons()
+
+	// Get Ollama URL from config
+	ollamaURL := a.config.Ollama.URL
+	if ollamaURL == "" {
+		ollamaURL = "https://ollama.kitty-tetra.ts.net" // fallback
+	}
+
+	// Create Ollama client for download
+	client := ollama.NewClientWithTimeout(ollamaURL, 30*time.Minute) // Long timeout for downloads
+
+	// Start download in a goroutine to not block the UI
+	go func() {
+		ctx := context.Background()
+
+		err := client.PullWithProgress(ctx, modelName, func(status string, completed, total int64) {
+			// Update progress on the UI thread
+			a.app.QueueUpdateDraw(func() {
+				modal.SetProgressLabel(status)
+				modal.SetProgress(completed, total)
+
+				// Update message with progress info
+				if total > 0 {
+					percentage := int(completed * 100 / total)
+					modal.SetMessage(fmt.Sprintf("Downloading model: %s\n\n%s (%d%%)", modelName, status, percentage))
+				} else {
+					modal.SetMessage(fmt.Sprintf("Downloading model: %s\n\n%s", modelName, status))
+				}
+			})
+		})
+
+		// Handle download completion on the UI thread
+		a.app.QueueUpdateDraw(func() {
+			if err != nil {
+				log.Error("Model download failed", "model", modelName, "error", err)
+
+				// Extract and categorize the error for better user feedback
+				errorMsg := err.Error()
+				var userMessage string
+
+				if strings.Contains(errorMsg, "connection refused") || strings.Contains(errorMsg, "network") {
+					// Ollama is not available - close this modal and show URL input modal
+					modal.Close(a.pages)
+					a.showOllamaURLModal()
+					return
+				} else {
+					// Show only the error message, let it take up full modal space
+					userMessage = fmt.Sprintf("Download Failed: %s\n\n%s\n\nPress any key to exit", modelName, errorMsg)
+				}
+
+				// Convert modal to error-only display
+				modal.SetMessage(userMessage)
+				modal.HideProgress()
+				modal.HideButtons()
+				modal.SetTitle("Error")
+
+				// Make the message area flexible to accommodate the full error
+				modal.ResizeForError()
+
+				// Re-show the modal with larger size to accommodate error text
+				// This will automatically remove the old modal first
+				modal.ShowWithSize(a.pages, 80, 20) // Larger modal for error display
+
+				// Set up any-key-to-quit behavior
+				modal.Flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+					a.app.Stop()
+					return nil
+				})
+			} else {
+				log.Info("Model download completed", "model", modelName)
+				modal.SetMessage(fmt.Sprintf("Successfully downloaded: %s\n\nModel is ready to use!", modelName))
+				modal.SetProgressLabel("Complete")
+				modal.SetProgress(100, 100)
+
+				// Auto-close after a brief pause
+				go func() {
+					time.Sleep(2 * time.Second)
+					a.app.QueueUpdateDraw(func() {
+						modal.Close(a.pages)
+					})
+				}()
+			}
+		})
+	}()
+}
+
+// handleModelDownload handles the model download process
+func (a *App) handleModelDownload() {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Starting model download")
+
+	// For now, just show a message that download would happen
+	// TODO: Implement actual download in next iteration
+
+	// Show download modal
+	var downloadModal *Modal
+	downloadModal = OllamaSetupModal(a.app, "download_model", func(result ModalResult) {
+		log.Debug("Download modal result", "result", result)
+
+		// Close the modal
+		downloadModal.Close(a.pages)
+
+		// For now, just close the modal
+		// TODO: Implement actual download progress and completion
+	})
+
+	downloadModal.Show(a.pages)
+}
+
+// handleURLUpdate updates the session configuration with a new Ollama URL
+func (a *App) handleURLUpdate(url string) {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Updating Ollama URL for session", "url", url)
+
+	// Update the config for this session
+	a.config.Ollama.URL = url
+
+	// Re-run health check with the new URL
+	go func() {
+		a.checkOllamaHealth()
+	}()
+}
+
+// StartWithHealthCheck starts the app with an initial Ollama health check
+func (a *App) StartWithHealthCheck() error {
+	log := logger.WithComponent("tui_app")
+	log.Debug("Starting TUI app with health check")
+
+	// Perform health check in a goroutine to not block the UI
+	go func() {
+		// Small delay to let the UI initialize
+		time.Sleep(100 * time.Millisecond)
+		a.checkOllamaHealth()
+	}()
+
+	// Start the normal TUI app
+	return a.app.Run()
 }
