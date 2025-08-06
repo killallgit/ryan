@@ -38,10 +38,10 @@ type ChatView struct {
 	spinnerFrame  int
 	spinnerFrames []string
 	renderManager *RenderManager
-	currentState  string // Current UI state: idle, sending, thinking, streaming, executing, preparing_tools
-	currentAgent  string // Current agent name
-	currentAction string // Current action being performed
-	spinnerActive bool   // Track if spinner goroutine is running
+	currentState  string     // Current UI state: idle, sending, thinking, streaming, executing, preparing_tools
+	currentAgent  string     // Current agent name
+	currentAction string     // Current action being performed
+	spinnerActive bool       // Track if spinner goroutine is running
 	spinnerMutex  sync.Mutex // Protect spinner state
 
 	// Callbacks
@@ -439,6 +439,7 @@ func (cv *ChatView) UpdateStreamingContent(streamID string, content string) {
 		// Check for tool mode marker
 		if content == "<<<TOOL_MODE>>>" {
 			cv.currentState = "preparing_tools"
+			log.Debug("Tool mode marker detected, skipping")
 			cv.updateSpinnerView()
 			log.Debug("Tool mode marker detected, updating state")
 			return // Don't add marker to buffer
@@ -690,7 +691,8 @@ func (cv *ChatView) startSpinner() {
 		log.Info("Spinner stopped",
 			"total_iterations", iterations,
 			"final_sending", cv.sending,
-			"final_streaming", cv.streaming)
+			"final_streaming", cv.streaming,
+			"final_state", cv.currentState)
 	}()
 }
 
