@@ -287,8 +287,8 @@ var _ = Describe("Streaming Integration Tests", func() {
 			Expect(streamCompleted).To(BeTrue(), "Stream should complete")
 			Expect(contentReceived).ToNot(BeEmpty(), "Should receive content")
 
-			GinkgoWriter.Printf("Raw streaming test completed:\n")
-			GinkgoWriter.Printf("  - Chunks: %d\n", chunksReceived)
+			GinkgoWriter.Printf("LangChain streaming test completed:\n")
+			GinkgoWriter.Printf("  - Updates: %d\n", chunksReceived)
 			GinkgoWriter.Printf("  - Content: %s\n", contentReceived)
 		})
 	})

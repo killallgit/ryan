@@ -1,12 +1,13 @@
-package integration_test
+package integration
 
 import (
-	"os"
 	"testing"
 	"time"
 
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/controllers"
+	"github.com/killallgit/ryan/pkg/tools"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
@@ -19,36 +20,52 @@ func TestIntegration(t *testing.T) {
 
 var _ = Describe("Chat Integration Tests", func() {
 	var (
-		client     *chat.Client
-		controller *controllers.ChatController
+		controller *controllers.LangChainController
 		ollamaURL  string
 		testModel  string
 	)
 
 	BeforeEach(func() {
+		// Use Viper for configuration
+		viper.SetEnvPrefix("")
+		viper.AutomaticEnv()
+
 		// Skip integration tests unless explicitly enabled
-		if os.Getenv("INTEGRATION_TEST") != "true" {
+		if viper.GetString("INTEGRATION_TEST") != "true" {
 			Skip("Integration tests skipped. Set INTEGRATION_TEST=true to run.")
 		}
 
-		// Get Ollama URL from environment or use default
-		ollamaURL = os.Getenv("OLLAMA_URL")
-		if ollamaURL == "" {
-			ollamaURL = "https://ollama.kitty-tetra.ts.net"
-		}
+		// Set default test configuration and get values
+		viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
+		viper.SetDefault("ollama.model", "qwen2.5-coder:1.5b-base")
 
-		// Get test model from environment or use default
-		testModel = os.Getenv("OLLAMA_TEST_MODEL")
-		if testModel == "" {
-			testModel = "qwen3:latest"
-		}
+		ollamaURL = viper.GetString("ollama.url")
+		testModel = viper.GetString("ollama.model")
 
-		var err error
-		client, err = chat.NewClient(ollamaURL, testModel)
+		// Create tool registry
+		toolRegistry := tools.NewRegistry()
+		err := toolRegistry.RegisterBuiltinTools()
 		if err != nil {
-			Skip("Failed to create client: " + err.Error())
+			Skip("Failed to register builtin tools: " + err.Error())
 		}
-		controller = controllers.NewChatController(client, testModel, nil)
+
+		// Create LangChain controller
+		controllerCfg := &controllers.InitConfig{
+			Config: &config.Config{
+				Provider: "ollama",
+				Ollama: config.OllamaConfig{
+					URL:   ollamaURL,
+					Model: testModel,
+				},
+			},
+			Model:        testModel,
+			ToolRegistry: toolRegistry,
+		}
+
+		controller, err = controllers.InitializeLangChainController(controllerCfg)
+		if err != nil {
+			Skip("Failed to create LangChain controller: " + err.Error())
+		}
 	})
 
 	Describe("Real Ollama API Communication", func() {
@@ -80,7 +97,13 @@ var _ = Describe("Chat Integration Tests", func() {
 		It("should handle system prompts correctly", func() {
 			// Create controller with system prompt
 			systemPrompt := "You are a helpful assistant that always responds with exactly 'OK' to any input."
-			controllerWithSystem := controllers.NewChatControllerWithSystem(client, testModel, systemPrompt, nil)
+			toolRegistry := tools.NewRegistry()
+			err := toolRegistry.RegisterBuiltinTools()
+			Expect(err).ToNot(HaveOccurred())
+
+			controllerWithSystem, err := controllers.NewLangChainControllerWithSystem(
+				ollamaURL, testModel, systemPrompt, toolRegistry)
+			Expect(err).ToNot(HaveOccurred())
 
 			response, err := controllerWithSystem.SendUserMessage("Tell me a long story")
 			Expect(err).ToNot(HaveOccurred())
@@ -115,12 +138,8 @@ var _ = Describe("Chat Integration Tests", func() {
 
 	Describe("API Availability and Error Handling", func() {
 		It("should handle network timeouts gracefully", func() {
-			// Create client with very short timeout
-			shortTimeoutClient := &chat.Client{}
-			*shortTimeoutClient = *client
-			// This is a bit hacky but works for testing timeout behavior
-
-			controller := controllers.NewChatController(shortTimeoutClient, testModel, nil)
+			// For LangChain controller, we'll test timeout at the controller level
+			// rather than creating a separate client
 
 			// Send a complex prompt that might take longer
 			_, err := controller.SendUserMessage("Generate a very long essay about quantum physics with examples")
@@ -136,14 +155,34 @@ var _ = Describe("Chat Integration Tests", func() {
 
 		It("should verify model exists on server", func() {
 			// Try with a clearly non-existent model
-			badController := controllers.NewChatController(client, "absolutely-non-existent-model-12345:latest", nil)
+			toolRegistry := tools.NewRegistry()
+			err := toolRegistry.RegisterBuiltinTools()
+			Expect(err).ToNot(HaveOccurred())
 
-			_, err := badController.SendUserMessage("Hello")
+			badControllerCfg := &controllers.InitConfig{
+				Config: &config.Config{
+					Provider: "ollama",
+					Ollama: config.OllamaConfig{
+						URL:   ollamaURL,
+						Model: "absolutely-non-existent-model-12345:latest",
+					},
+				},
+				Model:        "absolutely-non-existent-model-12345:latest",
+				ToolRegistry: toolRegistry,
+			}
+
+			badController, controllerErr := controllers.InitializeLangChainController(badControllerCfg)
+			if controllerErr != nil {
+				// Controller creation failed - that's acceptable
+				return
+			}
+
+			_, sendErr := badController.SendUserMessage("Hello")
 
 			// Should get an error about model not found
 			// Note: This may pass if the server auto-pulls models, which is acceptable
-			if err != nil {
-				Expect(err.Error()).To(ContainSubstring("model"))
+			if sendErr != nil {
+				Expect(sendErr.Error()).To(ContainSubstring("model"))
 			}
 		})
 	})
@@ -176,16 +215,39 @@ var _ = Describe("Chat Integration Tests", func() {
 
 var _ = Describe("Configuration Integration", func() {
 	It("should respect viper configuration", func() {
-		// Set up viper config
-		viper.Set("ollama.url", "https://ollama.kitty-tetra.ts.net")
-		viper.Set("ollama.model", "qwen3:latest")
+		// Use Viper for configuration
+		viper.SetEnvPrefix("")
+		viper.AutomaticEnv()
 
-		// Create client using viper config
-		client, err := chat.NewClient(viper.GetString("ollama.url"), viper.GetString("ollama.model"))
-		if err != nil {
-			Skip("Failed to create client with viper config: " + err.Error())
+		if viper.GetString("INTEGRATION_TEST") != "true" {
+			Skip("Integration tests skipped. Set INTEGRATION_TEST=true to run.")
 		}
-		controller := controllers.NewChatController(client, viper.GetString("ollama.model"), nil)
+
+		// Set up viper config with defaults
+		viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
+		viper.SetDefault("ollama.model", "qwen2.5-coder:1.5b-base")
+
+		toolRegistry := tools.NewRegistry()
+		err := toolRegistry.RegisterBuiltinTools()
+		Expect(err).ToNot(HaveOccurred())
+
+		// Create LangChain controller using viper config
+		controllerCfg := &controllers.InitConfig{
+			Config: &config.Config{
+				Provider: "ollama",
+				Ollama: config.OllamaConfig{
+					URL:   viper.GetString("ollama.url"),
+					Model: viper.GetString("ollama.model"),
+				},
+			},
+			Model:        viper.GetString("ollama.model"),
+			ToolRegistry: toolRegistry,
+		}
+
+		controller, err := controllers.InitializeLangChainController(controllerCfg)
+		if err != nil {
+			Skip("Failed to create LangChain controller with viper config: " + err.Error())
+		}
 
 		// Should work with viper configuration
 		response, err := controller.SendUserMessage("Say 'config works'")

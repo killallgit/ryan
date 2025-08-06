@@ -8,15 +8,26 @@ import (
 	"time"
 
 	"github.com/killallgit/ryan/pkg/agents"
+	"github.com/killallgit/ryan/pkg/config"
+	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/tools"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAgentOrchestratorIntegration(t *testing.T) {
-	if os.Getenv("INTEGRATION_TEST") != "true" {
+	// Use Viper for configuration
+	viper.SetEnvPrefix("")
+	viper.AutomaticEnv()
+
+	if viper.GetString("INTEGRATION_TEST") != "true" {
 		t.Skip("Skipping integration test. Set INTEGRATION_TEST=true to run.")
 	}
+
+	// Set default test configuration
+	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
+	viper.SetDefault("ollama.model", "qwen2.5-coder:1.5b-base")
 
 	// Create a temporary directory in the current working directory
 	// (to avoid /var restrictions in file tools)
@@ -37,12 +48,34 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 	err = toolRegistry.RegisterBuiltinTools()
 	require.NoError(t, err)
 
-	// No need for mock controller or vector store in new architecture
+	// Create LangChain controller for agent orchestration
+	ollamaURL := viper.GetString("ollama.url")
+	testModel := viper.GetString("ollama.model")
 
-	// Create orchestrator
+	// Initialize LangChain controller - MUST succeed for integration test
+	controllerCfg := &controllers.InitConfig{
+		Config: &config.Config{
+			Provider: "ollama",
+			Ollama: config.OllamaConfig{
+				URL:   ollamaURL,
+				Model: testModel,
+			},
+		},
+		Model:        testModel,
+		ToolRegistry: toolRegistry,
+	}
+
+	controller, err := controllers.InitializeLangChainController(controllerCfg)
+	require.NoError(t, err, "Failed to create LangChain controller - cannot run integration tests")
+	require.NotNil(t, controller, "Controller should not be nil")
+
+	// Create orchestrator with proper integration
 	orchestrator := agents.NewOrchestrator()
 	err = orchestrator.RegisterBuiltinAgents(toolRegistry)
 	require.NoError(t, err)
+
+	// LangChain controller is set up and ready to use
+	t.Logf("LangChain controller created successfully")
 
 	// Test 1: Search for TODO comments
 	t.Run("SearchForTODOs", func(t *testing.T) {
@@ -209,9 +242,17 @@ func TestMain(t *testing.T) {
 
 // TestAgentConfidenceScoring tests the confidence scoring system
 func TestAgentConfidenceScoring(t *testing.T) {
-	if os.Getenv("INTEGRATION_TEST") != "true" {
+	// Use Viper for configuration
+	viper.SetEnvPrefix("")
+	viper.AutomaticEnv()
+
+	if viper.GetString("INTEGRATION_TEST") != "true" {
 		t.Skip("Skipping integration test. Set INTEGRATION_TEST=true to run.")
 	}
+
+	// Set default test configuration
+	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
+	viper.SetDefault("ollama.model", "qwen2.5-coder:1.5b-base")
 
 	// Create tool registry for agents
 	toolRegistry := tools.NewRegistry()
@@ -281,13 +322,42 @@ func TestAgentConfidenceScoring(t *testing.T) {
 
 // TestAgentExecutionTimeout tests that agents respect context cancellation
 func TestAgentExecutionTimeout(t *testing.T) {
-	if os.Getenv("INTEGRATION_TEST") != "true" {
+	// Use Viper for configuration
+	viper.SetEnvPrefix("")
+	viper.AutomaticEnv()
+
+	if viper.GetString("INTEGRATION_TEST") != "true" {
 		t.Skip("Skipping integration test. Set INTEGRATION_TEST=true to run.")
 	}
+
+	// Set default test configuration
+	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
+	viper.SetDefault("ollama.model", "qwen2.5-coder:1.5b-base")
 
 	toolRegistry := tools.NewRegistry()
 	err := toolRegistry.RegisterBuiltinTools()
 	require.NoError(t, err)
+
+	// Create config for LangChain integration
+	ollamaURL := viper.GetString("ollama.url")
+	testModel := viper.GetString("ollama.model")
+
+	controllerCfg := &controllers.InitConfig{
+		Config: &config.Config{
+			Provider: "ollama",
+			Ollama: config.OllamaConfig{
+				URL:   ollamaURL,
+				Model: testModel,
+			},
+		},
+		Model:        testModel,
+		ToolRegistry: toolRegistry,
+	}
+
+	// Controller must be created successfully for timeout test
+	controller, err := controllers.InitializeLangChainController(controllerCfg)
+	require.NoError(t, err, "Failed to create LangChain controller for timeout test")
+	require.NotNil(t, controller)
 
 	orchestrator := agents.NewOrchestrator()
 	err = orchestrator.RegisterBuiltinAgents(toolRegistry)
@@ -297,7 +367,7 @@ func TestAgentExecutionTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	// This should timeout since the mock controller doesn't respond quickly
+	// This should timeout since the operation is complex
 	result, err := orchestrator.Execute(ctx, "search for complex pattern in large codebase", nil)
 
 	// The operation should complete even with timeout
