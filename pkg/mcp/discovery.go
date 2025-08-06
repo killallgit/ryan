@@ -12,6 +12,7 @@ import (
 
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/spf13/viper"
 )
 
 // ServerDiscoveryManager implements MCP server discovery and registration
@@ -151,8 +152,8 @@ func (sdm *ServerDiscoveryManager) loadServersFromFile(filePath string) ([]Serve
 func (sdm *ServerDiscoveryManager) discoverFromEnvironment() []ServerConfig {
 	var servers []ServerConfig
 
-	// Check for RYAN_MCP_SERVERS environment variable
-	serversEnv := os.Getenv("RYAN_MCP_SERVERS")
+	// Check for RYAN_MCP_SERVERS environment variable (via Viper)
+	serversEnv := viper.GetString("RYAN_MCP_SERVERS")
 	if serversEnv != "" {
 		var envServers []ServerConfig
 		if err := json.Unmarshal([]byte(serversEnv), &envServers); err == nil {

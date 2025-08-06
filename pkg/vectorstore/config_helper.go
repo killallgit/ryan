@@ -2,9 +2,9 @@ package vectorstore
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/killallgit/ryan/pkg/config"
+	"github.com/spf13/viper"
 )
 
 // InitializeVectorStore initializes the vector store from global configuration
@@ -26,9 +26,9 @@ func InitializeVectorStore() (*Manager, error) {
 		APIKey:   cfg.VectorStore.Embedder.APIKey,
 	}
 
-	// Handle API key from environment for security
+	// Handle API key from environment for security (via Viper)
 	if embedderConfig.Provider == "openai" && embedderConfig.APIKey == "" {
-		embedderConfig.APIKey = os.Getenv("OPENAI_API_KEY")
+		embedderConfig.APIKey = viper.GetString("OPENAI_API_KEY")
 	}
 
 	// Check if embedder can be created - NewManager will handle fallback
