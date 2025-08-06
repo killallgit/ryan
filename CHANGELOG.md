@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **TUI**: Unified RenderManager for consistent text rendering across all views
+  - Added RenderManager to App struct for centralized text formatting
+  - Implemented helper methods for common UI patterns (lists, tables, status, progress bars, trees)
+  - Updated all TUI views (ModelView, ToolsView, VectorStoreView, ContextTreeView) to use RenderManager
+- **Testing**: Dedicated coverage directory for test reports
+  - Created `coverage/` directory for all coverage output files
+  - Added `test:coverage` task to generate HTML coverage reports
+  - Updated `.gitignore` to exclude coverage files from version control
+
 ### Changed
 - **TUI**: Refactored chat view to follow TUI.md component layout pattern
   - Restructured components to match specification: MESSAGE_NODES, STATUS_CONTAINER, CHAT_INPUT_CONTAINER, FOOTER_CONTAINER

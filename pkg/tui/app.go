@@ -33,9 +33,10 @@ type ControllerInterface interface {
 
 // App represents the TUI application
 type App struct {
-	app        *tview.Application
-	pages      *tview.Pages
-	controller ControllerInterface
+	app           *tview.Application
+	pages         *tview.Pages
+	controller    ControllerInterface
+	renderManager *RenderManager
 
 	// Views
 	chatView        *ChatView
@@ -72,16 +73,23 @@ func NewApp(controller ControllerInterface) (*App, error) {
 	theme := DefaultTheme()
 	ApplyTheme(theme)
 
+	// Initialize render manager
+	renderManager, err := NewRenderManager(theme, 80) // Default width, will be updated
+	if err != nil {
+		return nil, fmt.Errorf("failed to create render manager: %w", err)
+	}
+
 	app := &App{
-		app:          tviewApp,
-		pages:        tview.NewPages(),
-		controller:   controller,
-		sending:      false,
-		streaming:    false,
-		currentView:  "chat",
-		previousView: "chat",
-		cancelSend:   make(chan bool, 1),
-		config:       cfg,
+		app:           tviewApp,
+		pages:         tview.NewPages(),
+		controller:    controller,
+		renderManager: renderManager,
+		sending:       false,
+		streaming:     false,
+		currentView:   "chat",
+		previousView:  "chat",
+		cancelSend:    make(chan bool, 1),
+		config:        cfg,
 	}
 
 	// Set background color for pages container
@@ -116,7 +124,7 @@ func NewApp(controller ControllerInterface) (*App, error) {
 func (a *App) initializeViews() error {
 	log := logger.WithComponent("tview_app")
 
-	// Create chat view
+	// Create chat view (already has its own render manager)
 	a.chatView = NewChatView(a.controller, a.app)
 	a.chatView.SetSendMessageHandler(func(content string) {
 		a.SendMessage(content)
@@ -131,22 +139,22 @@ func (a *App) initializeViews() error {
 	}
 	ollamaClient := ollama.NewClient(ollamaURL)
 	modelsController := controllers.NewModelsController(ollamaClient)
-	a.modelView = NewModelView(modelsController, a.controller, a.app)
+	a.modelView = NewModelView(modelsController, a.controller, a.app, a.renderManager)
 	a.pages.AddPage("models", a.modelView, true, false)
 	log.Debug("Created model view")
 
 	// Create tools view
-	a.toolsView = NewToolsView(a.controller.GetToolRegistry())
+	a.toolsView = NewToolsView(a.controller.GetToolRegistry(), a.renderManager)
 	a.pages.AddPage("tools", a.toolsView, true, false)
 	log.Debug("Created tools view")
 
 	// Create vector store view
-	a.vectorStoreView = NewVectorStoreView()
+	a.vectorStoreView = NewVectorStoreView(a.renderManager)
 	a.pages.AddPage("vectorstore", a.vectorStoreView, true, false)
 	log.Debug("Created vector store view")
 
 	// Create context tree view
-	a.contextTreeView = NewContextTreeView()
+	a.contextTreeView = NewContextTreeView(a.renderManager)
 	a.pages.AddPage("context-tree", a.contextTreeView, true, false)
 	log.Debug("Created context tree view")
 

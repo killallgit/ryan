@@ -18,13 +18,15 @@ type ContextTreeView struct {
 	status *tview.TextView
 
 	// State
-	contextTree *chat.ContextTree
+	contextTree   *chat.ContextTree
+	renderManager *RenderManager
 }
 
 // NewContextTreeView creates a new context tree view
-func NewContextTreeView() *ContextTreeView {
+func NewContextTreeView(renderManager *RenderManager) *ContextTreeView {
 	ctv := &ContextTreeView{
-		Flex: tview.NewFlex().SetDirection(tview.FlexRow),
+		Flex:          tview.NewFlex().SetDirection(tview.FlexRow),
+		renderManager: renderManager,
 	}
 
 	// Create tree view

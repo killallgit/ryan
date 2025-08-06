@@ -17,15 +17,17 @@ type ToolsView struct {
 	status *tview.TextView
 
 	// State
-	registry     *tools.Registry
-	currentModel string
+	registry      *tools.Registry
+	currentModel  string
+	renderManager *RenderManager
 }
 
 // NewToolsView creates a new tools view
-func NewToolsView(registry *tools.Registry) *ToolsView {
+func NewToolsView(registry *tools.Registry, renderManager *RenderManager) *ToolsView {
 	tv := &ToolsView{
-		Flex:     tview.NewFlex().SetDirection(tview.FlexRow),
-		registry: registry,
+		Flex:          tview.NewFlex().SetDirection(tview.FlexRow),
+		registry:      registry,
+		renderManager: renderManager,
 	}
 
 	// Create table for tools
