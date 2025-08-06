@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 // ConfigHierarchy implements Claude CLI's configuration hierarchy:
@@ -211,9 +213,9 @@ func (ch *ConfigHierarchy) applyEnvironmentOverrides(config *Config) {
 		},
 	}
 
-	// Apply environment variable overrides
+	// Apply environment variable overrides using Viper
 	for envVar, setter := range envMappings {
-		if value := os.Getenv(envVar); value != "" {
+		if value := viper.GetString(envVar); value != "" {
 			setter(value)
 		}
 	}
@@ -225,7 +227,7 @@ func (ch *ConfigHierarchy) applyEnvironmentOverrides(config *Config) {
 // applyComplexEnvironmentOverrides handles more complex environment variable patterns
 func (ch *ConfigHierarchy) applyComplexEnvironmentOverrides(config *Config) {
 	// Handle RYAN_TOOLS_MODELS (comma-separated list)
-	if modelsEnv := os.Getenv("RYAN_TOOLS_MODELS"); modelsEnv != "" {
+	if modelsEnv := viper.GetString("RYAN_TOOLS_MODELS"); modelsEnv != "" {
 		config.Tools.Models = strings.Split(modelsEnv, ",")
 		// Trim whitespace
 		for i, model := range config.Tools.Models {
@@ -234,7 +236,7 @@ func (ch *ConfigHierarchy) applyComplexEnvironmentOverrides(config *Config) {
 	}
 
 	// Handle RYAN_BASH_ALLOWED_PATHS (comma-separated list)
-	if pathsEnv := os.Getenv("RYAN_BASH_ALLOWED_PATHS"); pathsEnv != "" {
+	if pathsEnv := viper.GetString("RYAN_BASH_ALLOWED_PATHS"); pathsEnv != "" {
 		config.Tools.Bash.AllowedPaths = strings.Split(pathsEnv, ",")
 		for i, path := range config.Tools.Bash.AllowedPaths {
 			config.Tools.Bash.AllowedPaths[i] = strings.TrimSpace(path)
@@ -242,7 +244,7 @@ func (ch *ConfigHierarchy) applyComplexEnvironmentOverrides(config *Config) {
 	}
 
 	// Handle RYAN_FILE_READ_ALLOWED_EXTENSIONS (comma-separated list)
-	if extEnv := os.Getenv("RYAN_FILE_READ_ALLOWED_EXTENSIONS"); extEnv != "" {
+	if extEnv := viper.GetString("RYAN_FILE_READ_ALLOWED_EXTENSIONS"); extEnv != "" {
 		config.Tools.FileRead.AllowedExtensions = strings.Split(extEnv, ",")
 		for i, ext := range config.Tools.FileRead.AllowedExtensions {
 			config.Tools.FileRead.AllowedExtensions[i] = strings.TrimSpace(ext)
@@ -250,13 +252,13 @@ func (ch *ConfigHierarchy) applyComplexEnvironmentOverrides(config *Config) {
 	}
 
 	// Handle numeric environment variables
-	if pollIntervalEnv := os.Getenv("RYAN_OLLAMA_POLL_INTERVAL"); pollIntervalEnv != "" {
+	if pollIntervalEnv := viper.GetString("RYAN_OLLAMA_POLL_INTERVAL"); pollIntervalEnv != "" {
 		if interval, err := strconv.Atoi(pollIntervalEnv); err == nil {
 			config.Ollama.PollInterval = interval
 		}
 	}
 
-	if maxIterEnv := os.Getenv("RYAN_LANGCHAIN_MAX_ITERATIONS"); maxIterEnv != "" {
+	if maxIterEnv := viper.GetString("RYAN_LANGCHAIN_MAX_ITERATIONS"); maxIterEnv != "" {
 		if maxIter, err := strconv.Atoi(maxIterEnv); err == nil {
 			config.LangChain.Tools.MaxIterations = maxIter
 		}

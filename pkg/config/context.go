@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 // ContextManager implements Claude CLI's two-tier configuration system
@@ -222,8 +224,8 @@ func (cm *ContextManager) GetProjectRoot() (string, error) {
 
 // GetGlobalConfigPath returns the path to the global configuration file
 func (cm *ContextManager) GetGlobalConfigPath() (string, error) {
-	// Check for environment variable override
-	if configDir := os.Getenv("RYAN_CONFIG_DIR"); configDir != "" {
+	// Check for environment variable override (via Viper)
+	if configDir := viper.GetString("RYAN_CONFIG_DIR"); configDir != "" {
 		return filepath.Join(configDir, "config.json"), nil
 	}
 

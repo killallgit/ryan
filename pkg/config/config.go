@@ -224,6 +224,9 @@ func Load(cfgFile string) (*Config, error) {
 	// Enable environment variable support
 	viper.AutomaticEnv()
 
+	// Bind specific environment variables to Viper keys for explicit mapping
+	bindEnvironmentVariables()
+
 	// Read config file if it exists
 	if err := viper.ReadInConfig(); err == nil {
 		// Log config file usage instead of printing to stderr
@@ -345,6 +348,47 @@ func setDefaults() {
 
 	// Self config path default
 	viper.SetDefault("self_config_path", "./.ryan/self.yaml")
+}
+
+// bindEnvironmentVariables binds specific environment variables to Viper keys
+func bindEnvironmentVariables() {
+	// OpenAI API key for vector store embeddings
+	viper.BindEnv("OPENAI_API_KEY")
+	viper.BindEnv("vectorstore.embedder.api_key", "OPENAI_API_KEY")
+
+	// MCP server configuration
+	viper.BindEnv("RYAN_MCP_SERVERS")
+	viper.BindEnv("mcp.servers", "RYAN_MCP_SERVERS")
+
+	// Configuration directory override
+	viper.BindEnv("RYAN_CONFIG_DIR")
+	viper.BindEnv("config.directory", "RYAN_CONFIG_DIR")
+
+	// All RYAN_ prefixed environment variables used in hierarchy
+	viper.BindEnv("RYAN_LOG_FILE")
+	viper.BindEnv("RYAN_LOG_LEVEL")
+	viper.BindEnv("RYAN_LOG_PRESERVE")
+	viper.BindEnv("RYAN_OLLAMA_URL")
+	viper.BindEnv("RYAN_OLLAMA_MODEL")
+	viper.BindEnv("RYAN_OLLAMA_SYSTEM_PROMPT")
+	viper.BindEnv("RYAN_OLLAMA_TIMEOUT")
+	viper.BindEnv("RYAN_OLLAMA_POLL_INTERVAL")
+	viper.BindEnv("RYAN_SHOW_THINKING")
+	viper.BindEnv("RYAN_STREAMING")
+	viper.BindEnv("RYAN_TOOLS_ENABLED")
+	viper.BindEnv("RYAN_TOOLS_MODELS")
+	viper.BindEnv("RYAN_BASH_ENABLED")
+	viper.BindEnv("RYAN_BASH_TIMEOUT")
+	viper.BindEnv("RYAN_BASH_ALLOWED_PATHS")
+	viper.BindEnv("RYAN_FILE_READ_ALLOWED_EXTENSIONS")
+	viper.BindEnv("RYAN_VECTORSTORE_ENABLED")
+	viper.BindEnv("RYAN_VECTORSTORE_PROVIDER")
+	viper.BindEnv("RYAN_VECTORSTORE_PERSISTENCE_DIR")
+	viper.BindEnv("RYAN_EMBEDDER_PROVIDER")
+	viper.BindEnv("RYAN_EMBEDDER_MODEL")
+	viper.BindEnv("RYAN_EMBEDDER_BASE_URL")
+	viper.BindEnv("RYAN_EMBEDDER_API_KEY")
+	viper.BindEnv("RYAN_LANGCHAIN_MAX_ITERATIONS")
 }
 
 // processDurations converts string durations to time.Duration
