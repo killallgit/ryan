@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/killallgit/ryan/pkg/controllers"
@@ -90,8 +91,14 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 	// Setup key bindings
 	mv.setupKeyBindings()
 
-	// Initial load
-	mv.refreshModels()
+	// Load models asynchronously to avoid blocking the UI
+	go func() {
+		// Small delay to let the UI render first
+		time.Sleep(100 * time.Millisecond)
+		mv.app.QueueUpdateDraw(func() {
+			mv.refreshModels()
+		})
+	}()
 
 	return mv
 }

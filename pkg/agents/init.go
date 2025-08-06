@@ -38,13 +38,16 @@ func InitializeOrchestrator(cfg *OrchestratorConfig) (*Orchestrator, error) {
 		}
 	}
 
-	// Register built-in agents with tool registry
-	if cfg.ToolRegistry != nil {
-		if err := orchestrator.RegisterBuiltinAgents(cfg.ToolRegistry); err != nil {
-			return nil, fmt.Errorf("failed to register built-in agents: %w", err)
-		}
-		log.Info("Registered built-in agents with orchestrator")
+	// Tool registry is required - fail if not provided
+	if cfg.ToolRegistry == nil {
+		return nil, fmt.Errorf("tool registry is required for orchestrator initialization")
 	}
+
+	// Register built-in agents with tool registry
+	if err := orchestrator.RegisterBuiltinAgents(cfg.ToolRegistry); err != nil {
+		return nil, fmt.Errorf("failed to register built-in agents: %w", err)
+	}
+	log.Info("Registered built-in agents with orchestrator")
 
 	return orchestrator, nil
 }

@@ -38,32 +38,24 @@ func RunApplication(appCfg *AppConfig) error {
 		providerURL := appCfg.Config.GetActiveProviderURL()
 		registry, err := agents.InitializeToolRegistry(providerURL, appCfg.Model)
 		if err != nil {
-			// Log warning but continue without tools
-			log.Warn("Tool functionality disabled", "reason", err)
-			fmt.Printf("Warning: %v\n", err)
-			fmt.Printf("Tool functionality will be disabled.\n")
+			// Tools are required - fail if not available
+			return fmt.Errorf("failed to initialize tools: %w", err)
+		}
+		toolRegistry = registry
 
-			// Suggest upgrading if it's a version issue
-			if strings.Contains(err.Error(), "v0.4.0") {
-				fmt.Printf("Consider upgrading your Ollama server.\n")
+		// Check model compatibility
+		if !models.IsToolCompatible(appCfg.Model) {
+			modelInfo := models.GetModelInfo(appCfg.Model)
+			fmt.Printf("Warning: Model '%s' has %s tool calling support\n",
+				appCfg.Model, modelInfo.ToolCompatibility.String())
+			if modelInfo.Notes != "" {
+				fmt.Printf("Note: %s\n", modelInfo.Notes)
 			}
-		} else {
-			toolRegistry = registry
 
-			// Check model compatibility
-			if !models.IsToolCompatible(appCfg.Model) {
-				modelInfo := models.GetModelInfo(appCfg.Model)
-				fmt.Printf("Warning: Model '%s' has %s tool calling support\n",
-					appCfg.Model, modelInfo.ToolCompatibility.String())
-				if modelInfo.Notes != "" {
-					fmt.Printf("Note: %s\n", modelInfo.Notes)
-				}
-
-				// Suggest alternatives
-				recommended := models.GetRecommendedModels()
-				if len(recommended) > 0 {
-					fmt.Printf("Recommended tool-compatible models: %v\n", recommended[:3])
-				}
+			// Suggest alternatives
+			recommended := models.GetRecommendedModels()
+			if len(recommended) > 0 {
+				fmt.Printf("Recommended tool-compatible models: %v\n", recommended[:3])
 			}
 		}
 	}

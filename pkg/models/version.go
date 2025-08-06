@@ -1,11 +1,13 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 // OllamaVersion represents version information from Ollama server
@@ -15,7 +17,19 @@ type OllamaVersion struct {
 
 // CheckOllamaVersion checks if the Ollama server supports tool calling
 func CheckOllamaVersion(ollamaURL string) (string, bool, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/api/version", ollamaURL))
+	// Use a shorter timeout for version checks to avoid blocking startup
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/version", ollamaURL), nil)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to check Ollama version: %w", err)
 	}

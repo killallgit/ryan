@@ -140,7 +140,8 @@ func (a *App) initializeViews() error {
 	if ollamaURL == "" {
 		ollamaURL = "https://ollama.kitty-tetra.ts.net" // fallback
 	}
-	ollamaClient := ollama.NewClient(ollamaURL)
+	// Use shorter timeout for UI operations to avoid blocking
+	ollamaClient := ollama.NewClientWithTimeout(ollamaURL, 5*time.Second)
 	modelsController := controllers.NewModelsController(ollamaClient)
 	a.modelView = NewModelView(modelsController, a.controller, a.app, a.renderManager)
 	a.pages.AddPage("models", a.modelView, true, false)
