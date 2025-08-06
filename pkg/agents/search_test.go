@@ -30,65 +30,47 @@ func TestSearchAgent_Description(t *testing.T) {
 }
 
 func TestSearchAgent_CanHandle(t *testing.T) {
+	// With LLM-based routing, all agents trust the orchestrator's decision
+	// and always return true/1.0 from CanHandle
 	tests := []struct {
-		name          string
-		request       string
-		shouldHandle  bool
-		minConfidence float64
+		name    string
+		request string
 	}{
 		{
-			name:          "Direct search command",
-			request:       "search for the function handleRequest",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Direct search command",
+			request: "search for the function handleRequest",
 		},
 		{
-			name:          "Find command",
-			request:       "find all references to Database class",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Find command",
+			request: "find all references to Database class",
 		},
 		{
-			name:          "Grep command",
-			request:       "grep for TODO comments in the codebase",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Grep command",
+			request: "grep for TODO comments in the codebase",
 		},
 		{
-			name:          "Locate command",
-			request:       "locate the implementation of the auth middleware",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Locate command",
+			request: "locate the implementation of the auth middleware",
 		},
 		{
-			name:          "Where is query",
-			request:       "where is the config file loaded?",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Where is query",
+			request: "where is the config file loaded?",
 		},
 		{
-			name:          "Look for query",
-			request:       "look for error handling patterns",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Look for query",
+			request: "look for error handling patterns",
 		},
 		{
-			name:          "Case insensitive",
-			request:       "SEARCH FOR connection pooling",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Case insensitive",
+			request: "SEARCH FOR connection pooling",
 		},
 		{
-			name:          "Non-search request",
-			request:       "create a new file called test.go",
-			shouldHandle:  false,
-			minConfidence: 0.0,
+			name:    "Non-search request",
+			request: "create a new file called test.go",
 		},
 		{
-			name:          "Code review request",
-			request:       "review this pull request",
-			shouldHandle:  false,
-			minConfidence: 0.0,
+			name:    "Code review request",
+			request: "review this pull request",
 		},
 	}
 
@@ -97,12 +79,9 @@ func TestSearchAgent_CanHandle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			canHandle, confidence := agent.CanHandle(tt.request)
-			assert.Equal(t, tt.shouldHandle, canHandle)
-			if tt.shouldHandle {
-				assert.GreaterOrEqual(t, confidence, tt.minConfidence)
-			} else {
-				assert.Equal(t, 0.0, confidence)
-			}
+			// All agents now trust the orchestrator's LLM routing decision
+			assert.True(t, canHandle, "Agent should always return true with LLM-based routing")
+			assert.Equal(t, 1.0, confidence, "Agent should always return confidence 1.0 with LLM-based routing")
 		})
 	}
 }
@@ -242,9 +221,10 @@ func TestSearchAgent_ExtractSearchPattern(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test via CanHandle since extractSearchPattern is private
-			// We're testing that the agent properly processes different request formats
-			canHandle, _ := agent.CanHandle(tt.request)
-			assert.True(t, canHandle, "Agent should handle search request")
+			// With LLM-based routing, all requests are handled
+			canHandle, confidence := agent.CanHandle(tt.request)
+			assert.True(t, canHandle, "Agent should always return true with LLM-based routing")
+			assert.Equal(t, 1.0, confidence, "Agent should always return confidence 1.0 with LLM-based routing")
 		})
 	}
 }

@@ -148,6 +148,8 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 	})
 
 	// Test 5: Agent routing accuracy
+	// With LLM-based routing, all agents return true/1.0
+	// The orchestrator's LLM decides which agent to use
 	t.Run("AgentRouting", func(t *testing.T) {
 		testCases := []struct {
 			prompt        string
@@ -162,20 +164,14 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 
 		for _, tc := range testCases {
 			agentList := orchestrator.ListAgents()
-			var bestAgent agents.Agent
-			var bestConfidence float64
-
+			// All agents will return true/1.0 with LLM-based routing
 			for _, agent := range agentList {
 				canHandle, confidence := agent.CanHandle(tc.prompt)
-				if canHandle && confidence > bestConfidence {
-					bestAgent = agent
-					bestConfidence = confidence
-				}
+				assert.True(t, canHandle, "All agents should return true with LLM-based routing")
+				assert.Equal(t, 1.0, confidence, "All agents should return confidence 1.0")
 			}
-
-			assert.NotNil(t, bestAgent, "No agent found for prompt: %s", tc.prompt)
-			assert.Equal(t, tc.expectedAgent, bestAgent.Name(),
-				"Wrong agent selected for prompt: %s", tc.prompt)
+			// The actual routing decision is made by the orchestrator's LLM
+			// We can't test the exact routing without the LLM integration
 		}
 	})
 }
@@ -241,6 +237,7 @@ func TestMain(t *testing.T) {
 }
 
 // TestAgentConfidenceScoring tests the confidence scoring system
+// With LLM-based routing, all agents return true/1.0 - routing is done by orchestrator's LLM
 func TestAgentConfidenceScoring(t *testing.T) {
 	// Use Viper for configuration
 	viper.SetEnvPrefix("")
@@ -265,57 +262,26 @@ func TestAgentConfidenceScoring(t *testing.T) {
 	fileOpsAgent := agents.NewFileOperationsAgent(toolRegistry)
 
 	testCases := []struct {
-		prompt            string
-		expectedBestAgent string
-		minConfidence     float64
+		prompt string
 	}{
-		{
-			prompt:            "please review my code and provide feedback",
-			expectedBestAgent: "code_review",
-			minConfidence:     0.8,
-		},
-		{
-			prompt:            "search for all TODO comments in the project",
-			expectedBestAgent: "search",
-			minConfidence:     0.8,
-		},
-		{
-			prompt:            "create a new configuration file config.yaml",
-			expectedBestAgent: "file_operations",
-			minConfidence:     0.8,
-		},
-		{
-			prompt:            "find all instances of the function getUserData",
-			expectedBestAgent: "search",
-			minConfidence:     0.8,
-		},
-		{
-			prompt:            "analyze the code quality and suggest improvements",
-			expectedBestAgent: "code_review",
-			minConfidence:     0.7,
-		},
+		{"please review my code and provide feedback"},
+		{"search for all TODO comments in the project"},
+		{"create a new configuration file config.yaml"},
+		{"find all instances of the function getUserData"},
+		{"analyze the code quality and suggest improvements"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.prompt, func(t *testing.T) {
 			agentList := []agents.Agent{codeReviewAgent, searchAgent, fileOpsAgent}
 
-			var bestAgent agents.Agent
-			var bestConfidence float64
-
+			// With LLM-based routing, all agents return true/1.0
 			for _, agent := range agentList {
 				canHandle, confidence := agent.CanHandle(tc.prompt)
-				if canHandle && confidence > bestConfidence {
-					bestAgent = agent
-					bestConfidence = confidence
-				}
+				assert.True(t, canHandle, "All agents should return true with LLM-based routing")
+				assert.Equal(t, 1.0, confidence, "All agents should return confidence 1.0")
 			}
-
-			require.NotNil(t, bestAgent, "No agent could handle prompt: %s", tc.prompt)
-			assert.Equal(t, tc.expectedBestAgent, bestAgent.Name(),
-				"Wrong agent selected for prompt: %s", tc.prompt)
-			assert.GreaterOrEqual(t, bestConfidence, tc.minConfidence,
-				"Confidence too low for prompt: %s", tc.prompt)
+			// The actual routing decision is made by the orchestrator's LLM
 		})
 	}
 }

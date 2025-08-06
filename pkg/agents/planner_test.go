@@ -50,6 +50,7 @@ func TestPlanner_CreateExecutionPlan(t *testing.T) {
 			o.RegisterAgent(newMockAgent("file_operations", "File operations"))
 			o.RegisterAgent(newMockAgent("code_analysis", "Code analyzer"))
 			o.RegisterAgent(newMockAgent("search", "Search agent"))
+			o.RegisterAgent(newMockAgent("general", "General conversational agent"))
 
 			p.SetOrchestrator(o)
 
@@ -91,26 +92,26 @@ func TestPlanner_IntentAnalysis(t *testing.T) {
 		{
 			name:            "File operation intent",
 			request:         "read the config file",
-			expectedPrimary: "file_operation",
+			expectedPrimary: string(IntentGeneric), // All intents now return IntentGeneric
 			hasSecondary:    false,
 		},
 		{
 			name:            "Code analysis intent",
 			request:         "analyze the function complexity",
-			expectedPrimary: "code_analysis",
+			expectedPrimary: string(IntentGeneric), // All intents now return IntentGeneric
 			hasSecondary:    false,
 		},
 		{
 			name:            "Search intent",
 			request:         "find all TODO comments",
-			expectedPrimary: "search",
+			expectedPrimary: string(IntentGeneric), // All intents now return IntentGeneric
 			hasSecondary:    false,
 		},
 		{
 			name:            "Complex intent",
 			request:         "search for bugs and fix them",
-			expectedPrimary: "search",
-			hasSecondary:    true,
+			expectedPrimary: string(IntentGeneric), // All intents now return IntentGeneric
+			hasSecondary:    false,                 // No keyword matching for secondary intents
 		},
 	}
 

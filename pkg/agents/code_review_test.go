@@ -27,65 +27,47 @@ func TestCodeReviewAgent_Description(t *testing.T) {
 }
 
 func TestCodeReviewAgent_CanHandle(t *testing.T) {
+	// With LLM-based routing, all agents trust the orchestrator's decision
+	// and always return true/1.0 from CanHandle
 	tests := []struct {
-		name          string
-		request       string
-		shouldHandle  bool
-		minConfidence float64
+		name    string
+		request string
 	}{
 		{
-			name:          "Code review request",
-			request:       "code review this pull request",
-			shouldHandle:  true,
-			minConfidence: 0.9,
+			name:    "Code review request",
+			request: "code review this pull request",
 		},
 		{
-			name:          "Review request",
-			request:       "review this implementation",
-			shouldHandle:  true,
-			minConfidence: 0.9,
+			name:    "Review request",
+			request: "review this implementation",
 		},
 		{
-			name:          "Critique request",
-			request:       "critique this code",
-			shouldHandle:  true,
-			minConfidence: 0.9,
+			name:    "Critique request",
+			request: "critique this code",
 		},
 		{
-			name:          "Feedback request",
-			request:       "give feedback on this implementation",
-			shouldHandle:  true,
-			minConfidence: 0.9,
+			name:    "Feedback request",
+			request: "give feedback on this implementation",
 		},
 		{
-			name:          "Improve code request",
-			request:       "how can I improve this function",
-			shouldHandle:  true,
-			minConfidence: 0.9,
+			name:    "Improve code request",
+			request: "how can I improve this function",
 		},
 		{
-			name:          "Suggestions request",
-			request:       "any suggestions for this code?",
-			shouldHandle:  true,
-			minConfidence: 0.9,
+			name:    "Suggestions request",
+			request: "any suggestions for this code?",
 		},
 		{
-			name:          "Best practices request",
-			request:       "does this follow best practices?",
-			shouldHandle:  true,
-			minConfidence: 0.9,
+			name:    "Best practices request",
+			request: "does this follow best practices?",
 		},
 		{
-			name:          "Non-review request",
-			request:       "create a new file",
-			shouldHandle:  false,
-			minConfidence: 0.0,
+			name:    "Non-review request",
+			request: "create a new file",
 		},
 		{
-			name:          "Search request",
-			request:       "search for TODO comments",
-			shouldHandle:  false,
-			minConfidence: 0.0,
+			name:    "Search request",
+			request: "search for TODO comments",
 		},
 	}
 
@@ -94,12 +76,9 @@ func TestCodeReviewAgent_CanHandle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			canHandle, confidence := agent.CanHandle(tt.request)
-			assert.Equal(t, tt.shouldHandle, canHandle)
-			if tt.shouldHandle {
-				assert.GreaterOrEqual(t, confidence, tt.minConfidence)
-			} else {
-				assert.Equal(t, 0.0, confidence)
-			}
+			// All agents now trust the orchestrator's LLM routing decision
+			assert.True(t, canHandle, "Agent should always return true with LLM-based routing")
+			assert.Equal(t, 1.0, confidence, "Agent should always return confidence 1.0 with LLM-based routing")
 		})
 	}
 }

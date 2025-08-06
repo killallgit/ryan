@@ -28,71 +28,51 @@ func TestCodeAnalysisAgent_Description(t *testing.T) {
 }
 
 func TestCodeAnalysisAgent_CanHandle(t *testing.T) {
+	// With LLM-based routing, all agents trust the orchestrator's decision
+	// and always return true/1.0 from CanHandle
 	tests := []struct {
-		name          string
-		request       string
-		shouldHandle  bool
-		minConfidence float64
+		name    string
+		request string
 	}{
 		{
-			name:          "Analyze code request",
-			request:       "analyze the authentication module",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Analyze code request",
+			request: "analyze the authentication module",
 		},
 		{
-			name:          "AST request",
-			request:       "show me the AST of this function",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "AST request",
+			request: "show me the AST of this function",
 		},
 		{
-			name:          "Structure request",
-			request:       "show me the structure of the handlers package",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Structure request",
+			request: "show me the structure of the handlers package",
 		},
 		{
-			name:          "Symbols request",
-			request:       "list all symbols in this file",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Symbols request",
+			request: "list all symbols in this file",
 		},
 		{
-			name:          "Functions request",
-			request:       "show all functions in this module",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Functions request",
+			request: "show all functions in this module",
 		},
 		{
-			name:          "Types request",
-			request:       "what types are defined here?",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Types request",
+			request: "what types are defined here?",
 		},
 		{
-			name:          "Interfaces request",
-			request:       "show all interfaces in the codebase",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Interfaces request",
+			request: "show all interfaces in the codebase",
 		},
 		{
-			name:          "Patterns request",
-			request:       "identify patterns in this code",
-			shouldHandle:  true,
-			minConfidence: 0.8,
+			name:    "Patterns request",
+			request: "identify patterns in this code",
 		},
 		{
-			name:          "Non-analysis request",
-			request:       "create a new file",
-			shouldHandle:  false,
-			minConfidence: 0.0,
+			name:    "Non-analysis request",
+			request: "create a new file",
 		},
 		{
-			name:          "Search request",
-			request:       "search for TODO comments",
-			shouldHandle:  false,
-			minConfidence: 0.0,
+			name:    "Search request",
+			request: "search for TODO comments",
 		},
 	}
 
@@ -101,12 +81,9 @@ func TestCodeAnalysisAgent_CanHandle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			canHandle, confidence := agent.CanHandle(tt.request)
-			assert.Equal(t, tt.shouldHandle, canHandle)
-			if tt.shouldHandle {
-				assert.GreaterOrEqual(t, confidence, tt.minConfidence)
-			} else {
-				assert.Equal(t, 0.0, confidence)
-			}
+			// All agents now trust the orchestrator's LLM routing decision
+			assert.True(t, canHandle, "Agent should always return true with LLM-based routing")
+			assert.Equal(t, 1.0, confidence, "Agent should always return confidence 1.0 with LLM-based routing")
 		})
 	}
 }
@@ -233,6 +210,7 @@ func TestCodeAnalysisAgent_TypeToString(t *testing.T) {
 	canHandle, _ := agent.CanHandle(request.Prompt)
 	assert.True(t, canHandle, "Agent should handle analysis request")
 
+	// All agents now trust the orchestrator's LLM routing decision
 	// Test execution context
 	_, _ = agent.Execute(ctx, request)
 }
