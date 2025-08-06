@@ -148,6 +148,29 @@ Always use functional paradigms over OOP style
 Always update the documentation when a task is complete
 Tasks will not be accepted as complete unless the entire test suite passes with `task test`
 
+## Naming Conventions
+The codebase follows clean naming conventions to reduce redundancy and improve readability:
+
+### Interfaces
+- Interfaces should not have redundant "Interface" suffix
+- Good: `Controller`, `Agent`, `Orchestrator`
+- Avoid: `ControllerInterface`, `AgentInterface`
+
+### Package-Scoped Types
+- Avoid repeating the package name in type names when context is clear
+- Type aliases are provided for cleaner naming while maintaining backward compatibility
+- Examples:
+  - `controllers` package: `Controller` interface, `Basic`, `LangChain` aliases
+  - `tools` package: `Bash`, `Git`, `Tree` instead of `BashTool`, `GitTool`, `TreeTool`
+  - `vectorstore` package: `Store` interface, `Indexer`, `Processor` aliases
+
+### Descriptive Names
+- Use specific descriptors instead of vague terms like "enhanced", "improved", "better"
+- Be explicit about functionality in names and comments
+- Example: "LangChain client with ReAct pattern" instead of "enhanced client"
+
+See `docs/NAMING_CONVENTION_REFACTOR.md` for detailed naming guidelines and migration strategy.
+
 ## Documentation and Communication
 - **README.md** - Project overview, installation, and quick start guide
 - **docs/ROADMAP.md** - Detailed feature parity roadmap with Claude Code

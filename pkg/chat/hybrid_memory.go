@@ -422,7 +422,7 @@ func (hm *HybridMemory) SaveContext(ctx context.Context, inputs map[string]any, 
 	return nil
 }
 
-// indexToolOutput indexes tool outputs in a separate tools collection for enhanced retrieval
+// indexToolOutput indexes tool outputs in a separate tools collection for improved retrieval
 func (hm *HybridMemory) indexToolOutput(ctx context.Context, toolMsg Message) error {
 	if !hm.config.EnableToolIndexing || toolMsg.Role != RoleTool {
 		return nil
@@ -437,7 +437,7 @@ func (hm *HybridMemory) indexToolOutput(ctx context.Context, toolMsg Message) er
 	// Create a detailed document for the tool output
 	docID := fmt.Sprintf("tool_%s_%d", toolMsg.ToolName, time.Now().UnixNano())
 
-	// Enhanced content format for tool outputs
+	// Content format for tool outputs
 	content := fmt.Sprintf("Tool: %s\nOutput: %s", toolMsg.ToolName, toolMsg.Content)
 
 	// Rich metadata for tool outputs

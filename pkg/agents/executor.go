@@ -12,7 +12,7 @@ import (
 
 // Executor handles parallel and sequential agent execution
 type Executor struct {
-	orchestrator    interfaces.OrchestratorInterface
+	orchestrator    interfaces.Orchestrator
 	workerPool      *WorkerPool
 	taskQueue       *TaskQueue
 	dependencyGraph *DependencyGraph
@@ -32,7 +32,7 @@ func NewExecutor() *Executor {
 }
 
 // SetOrchestrator sets the orchestrator reference
-func (e *Executor) SetOrchestrator(o interfaces.OrchestratorInterface) {
+func (e *Executor) SetOrchestrator(o interfaces.Orchestrator) {
 	e.orchestrator = o
 }
 

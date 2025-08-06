@@ -120,7 +120,7 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 			response = result.Details
 		}
 	} else {
-		// Use the enhanced client to send the message
+		// Use the LangChain client to send the message
 		response, err = lc.client.SendMessage(ctx, content)
 		if err == nil {
 			// Log the raw client response
@@ -132,7 +132,7 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 	}
 	if err != nil {
 		errorMsg := fmt.Sprintf("LangChain agent failed: %v", err)
-		lc.log.Error("Enhanced LangChain client failed", "error", err)
+		lc.log.Error("LangChain client failed", "error", err)
 
 		// Add error message to conversation
 		errMsg := chat.NewErrorMessage(errorMsg)
@@ -150,7 +150,7 @@ func (lc *LangChainController) SendUserMessageWithContext(ctx context.Context, c
 		lc.log.Error("Failed to save chat history", "error", err)
 	}
 
-	lc.log.Debug("Enhanced LangChain agent response received",
+	lc.log.Debug("LangChain agent response received",
 		"response_length", len(response))
 
 	return assistantMsg, nil
@@ -315,7 +315,7 @@ func (lc *LangChainController) SetModel(model string) {
 // GetTokenUsage returns token usage (compatibility with ChatController interface)
 func (lc *LangChainController) GetTokenUsage() (promptTokens, responseTokens int) {
 	// LangChain doesn't provide the same token tracking as the basic client
-	// Return 0,0 for now - this could be enhanced with LangChain usage tracking
+	// Return 0,0 for now - this could be improved with LangChain usage tracking
 	return 0, 0
 }
 
@@ -333,7 +333,7 @@ func (lc *LangChainController) SetOllamaClient(client any) {
 // ValidateModel validates that the model is available (compatibility with ChatController interface)
 func (lc *LangChainController) ValidateModel(model string) error {
 	// For now, assume the model is valid since LangChain handles this internally
-	// This could be enhanced to actually validate against available models
+	// This could be improved to actually validate against available models
 	lc.log.Debug("ValidateModel called", "model", model)
 	return nil
 }

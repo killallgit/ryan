@@ -13,7 +13,7 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
-// TreeTool implements enhanced directory operations with advanced filtering and analysis
+// TreeTool implements directory operations with advanced filtering and analysis
 type TreeTool struct {
 	log            *logger.Logger
 	maxDepth       int
@@ -76,7 +76,7 @@ func (tt *TreeTool) Name() string {
 
 // Description returns the tool description
 func (tt *TreeTool) Description() string {
-	return "Enhanced directory tree analysis tool providing comprehensive file system exploration, statistics, filtering by type/size/date, and detailed directory structure analysis for code review and project understanding."
+	return "Directory tree analysis tool providing comprehensive file system exploration, statistics, filtering by type/size/date, and detailed directory structure analysis for code review and project understanding."
 }
 
 // JSONSchema returns the JSON schema for the tool parameters
@@ -469,7 +469,7 @@ func (tt *TreeTool) passesFileFilters(entry *TreeEntry, options TreeOptions) boo
 // matchesExcludePattern checks if a path matches any exclude pattern
 func (tt *TreeTool) matchesExcludePattern(name, fullPath string, patterns []string) bool {
 	for _, pattern := range patterns {
-		// Simple pattern matching - could be enhanced with glob patterns
+		// Simple pattern matching - could be improved with glob patterns
 		if strings.Contains(name, pattern) || strings.Contains(fullPath, pattern) {
 			return true
 		}
