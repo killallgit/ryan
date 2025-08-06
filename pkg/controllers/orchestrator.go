@@ -33,7 +33,8 @@ func NewOrchestratorController(conversation chat.Conversation, toolRegistry *too
 	orchestrator := agents.NewOrchestrator()
 
 	// Register built-in agents
-	if err := orchestrator.RegisterBuiltinAgents(toolRegistry); err != nil {
+	// TODO: Pass actual LLM when available
+	if err := orchestrator.RegisterBuiltinAgents(toolRegistry, nil); err != nil {
 		return nil, fmt.Errorf("failed to register agents: %w", err)
 	}
 

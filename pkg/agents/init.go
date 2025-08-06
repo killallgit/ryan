@@ -8,6 +8,8 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/models"
 	"github.com/killallgit/ryan/pkg/tools"
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/ollama"
 )
 
 // OrchestratorConfig contains configuration for orchestrator initialization
@@ -27,14 +29,28 @@ func InitializeOrchestrator(cfg *OrchestratorConfig) (*Orchestrator, error) {
 	// Create orchestrator
 	orchestrator := NewOrchestrator()
 
-	// Configure LLM-based intent analysis if enabled
+	// Create LLM for agents if configuration is available
+	var llm llms.Model
 	if cfg.EnableLLMIntent && cfg.OllamaURL != "" && cfg.Model != "" {
+		// Create LLM for intent analyzer
 		llmAnalyzer, err := NewLLMIntentAnalyzer(cfg.OllamaURL, cfg.Model)
 		if err != nil {
 			log.Warn("Failed to create LLM intent analyzer, using pattern matching", "error", err)
 		} else {
 			orchestrator.planner.SetLLMIntentAnalyzer(llmAnalyzer)
 			log.Info("Configured LLM-based intent analysis", "model", cfg.Model)
+		}
+
+		// Create LLM for general agent
+		ollm, err := ollama.New(
+			ollama.WithServerURL(cfg.OllamaURL),
+			ollama.WithModel(cfg.Model),
+		)
+		if err != nil {
+			log.Warn("Failed to create LLM for general agent", "error", err)
+		} else {
+			llm = ollm
+			log.Info("Created LLM for general agent", "model", cfg.Model)
 		}
 	}
 
@@ -43,8 +59,8 @@ func InitializeOrchestrator(cfg *OrchestratorConfig) (*Orchestrator, error) {
 		return nil, fmt.Errorf("tool registry is required for orchestrator initialization")
 	}
 
-	// Register built-in agents with tool registry
-	if err := orchestrator.RegisterBuiltinAgents(cfg.ToolRegistry); err != nil {
+	// Register built-in agents with tool registry and LLM
+	if err := orchestrator.RegisterBuiltinAgents(cfg.ToolRegistry, llm); err != nil {
 		return nil, fmt.Errorf("failed to register built-in agents: %w", err)
 	}
 	log.Info("Registered built-in agents with orchestrator")

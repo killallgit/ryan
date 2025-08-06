@@ -488,7 +488,7 @@ func TestOrchestrator_RegisterBuiltinAgents(t *testing.T) {
 	mockRegistry := NewMockToolRegistry()
 
 	// Register built-in agents
-	err := o.RegisterBuiltinAgents(mockRegistry)
+	err := o.RegisterBuiltinAgents(mockRegistry, nil)
 	assert.NoError(t, err)
 
 	// Verify expected agents are registered

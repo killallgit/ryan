@@ -100,6 +100,8 @@ func (f *AgentFactory) IsRegistered(agentType string) bool {
 }
 
 // CreateBestAgent creates the best agent for the given configuration and request
+// NOTE: With LLM-based intent detection, the orchestrator determines which agent to use.
+// This method should trust that decision rather than checking CanHandle.
 func (f *AgentFactory) CreateBestAgent(config AgentConfig, request string) (LangchainAgent, error) {
 	// Try to create agents in order of preference
 	preferences := []string{"ollama-functions", "openai-functions", "conversational"}
@@ -113,14 +115,11 @@ func (f *AgentFactory) CreateBestAgent(config AgentConfig, request string) (Lang
 			continue
 		}
 
-		// Check if agent can handle the request
-		canHandle, confidence := agent.CanHandle(request)
-		if canHandle && confidence > 0.5 {
-			f.log.Debug("Selected agent",
-				"type", agentType,
-				"confidence", confidence)
-			return agent, nil
-		}
+		// Trust the orchestrator's LLM-based routing decision
+		// Return the first agent that can be created successfully
+		f.log.Debug("Selected agent",
+			"type", agentType)
+		return agent, nil
 	}
 
 	// Fallback to conversational agent

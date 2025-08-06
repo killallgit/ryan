@@ -9,6 +9,7 @@ import (
 	"github.com/killallgit/ryan/pkg/agents/interfaces"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/tools"
+	"github.com/tmc/langchaingo/llms"
 )
 
 // Orchestrator coordinates agent execution with advanced planning and feedback loops
@@ -47,9 +48,9 @@ func NewOrchestrator() *Orchestrator {
 }
 
 // RegisterBuiltinAgents registers all built-in agents
-func (o *Orchestrator) RegisterBuiltinAgents(toolRegistry *tools.Registry) error {
+func (o *Orchestrator) RegisterBuiltinAgents(toolRegistry *tools.Registry, llm llms.Model) error {
 	// Register general conversational agent (should be first for fallback)
-	generalAgent := NewGeneralAgent(nil, "") // TODO: Pass Ollama client when available
+	generalAgent := NewGeneralAgent(llm, "") // Model name will be set by the LLM itself
 	if err := o.RegisterAgent(generalAgent); err != nil {
 		return fmt.Errorf("failed to register general agent: %w", err)
 	}

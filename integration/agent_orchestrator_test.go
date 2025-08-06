@@ -71,7 +71,7 @@ func TestAgentOrchestratorIntegration(t *testing.T) {
 
 	// Create orchestrator with proper integration
 	orchestrator := agents.NewOrchestrator()
-	err = orchestrator.RegisterBuiltinAgents(toolRegistry)
+	err = orchestrator.RegisterBuiltinAgents(toolRegistry, nil)
 	require.NoError(t, err)
 
 	// LangChain controller is set up and ready to use
@@ -360,7 +360,7 @@ func TestAgentExecutionTimeout(t *testing.T) {
 	require.NotNil(t, controller)
 
 	orchestrator := agents.NewOrchestrator()
-	err = orchestrator.RegisterBuiltinAgents(toolRegistry)
+	err = orchestrator.RegisterBuiltinAgents(toolRegistry, nil)
 	require.NoError(t, err)
 
 	// Create a context with timeout

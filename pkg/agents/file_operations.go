@@ -43,28 +43,12 @@ func (f *FileOperationsAgent) Description() string {
 }
 
 // CanHandle determines if this agent can handle the request
+// NOTE: With LLM-based intent detection, this method should not do keyword matching.
+// The orchestrator's LLM will determine if this agent is appropriate.
 func (f *FileOperationsAgent) CanHandle(request string) (bool, float64) {
-	lowerRequest := strings.ToLower(request)
-
-	// High confidence keywords
-	highConfidenceKeywords := []string{
-		"list files", "read files", "read all files",
-		"create file", "write file", "update file",
-		"list and read", "gather files", "file content",
-	}
-
-	for _, keyword := range highConfidenceKeywords {
-		if strings.Contains(lowerRequest, keyword) {
-			return true, 0.9
-		}
-	}
-
-	// Medium confidence keywords
-	if strings.Contains(lowerRequest, "file") || strings.Contains(lowerRequest, "directory") {
-		return true, 0.6
-	}
-
-	return false, 0.0
+	// Always return true with high confidence when asked
+	// The orchestrator's LLM has already determined this is the right agent
+	return true, 1.0
 }
 
 // Execute performs file operations
