@@ -29,8 +29,8 @@ type PermissionManager struct {
 	mu sync.RWMutex
 
 	// Dependencies
-	configBridge *config.ConfigurationBridge
-	logger       *logger.Logger
+	cfg    *config.Config
+	logger *logger.Logger
 }
 
 // PermissionRule represents a permission rule
@@ -104,7 +104,7 @@ type PermissionEvaluationContext struct {
 }
 
 // NewPermissionManager creates a new permission manager
-func NewPermissionManager(defaultAction string, configBridge *config.ConfigurationBridge) *PermissionManager {
+func NewPermissionManager(defaultAction string, cfg *config.Config) *PermissionManager {
 	if defaultAction == "" {
 		defaultAction = "ask" // Default to asking user
 	}
@@ -113,7 +113,7 @@ func NewPermissionManager(defaultAction string, configBridge *config.Configurati
 		toolRules:     make(map[string][]PermissionRule),
 		contextRules:  make(map[string][]PermissionRule),
 		defaultAction: defaultAction,
-		configBridge:  configBridge,
+		cfg:           cfg,
 		logger:        logger.WithComponent("mcp-permissions"),
 	}
 }
@@ -129,11 +129,10 @@ func (pm *PermissionManager) CanExecuteTool(ctx context.Context, toolName string
 	}
 
 	// Extract context information if available
-	if pm.configBridge != nil {
-		if projectConfig, err := pm.configBridge.GetProjectConfig(); err == nil {
-			evalCtx.ProjectRoot = projectConfig.ProjectRoot
-		}
-	}
+	// TODO: Reimplement using Viper configuration
+	// if pm.cfg != nil {
+	//     evalCtx.ProjectRoot = viper.GetString("project.root")
+	// }
 
 	// Add file context if this is a file operation
 	pm.extractFileContext(&evalCtx)
@@ -477,11 +476,9 @@ func (pm *PermissionManager) GrantToolPermission(toolName string, scope string) 
 	case "global":
 		pm.systemRules = append(pm.systemRules, rule)
 	case "project":
-		if pm.configBridge != nil {
-			if projectConfig, err := pm.configBridge.GetProjectConfig(); err == nil {
-				pm.contextRules[projectConfig.ProjectRoot] = append(pm.contextRules[projectConfig.ProjectRoot], rule)
-			}
-		}
+		// TODO: Reimplement project-scoped rules using Viper
+		// For now, treat as tool-specific rule
+		pm.toolRules[toolName] = append(pm.toolRules[toolName], rule)
 	default:
 		pm.toolRules[toolName] = append(pm.toolRules[toolName], rule)
 	}
@@ -513,11 +510,9 @@ func (pm *PermissionManager) RevokeToolPermission(toolName string, scope string)
 	case "global":
 		pm.systemRules = append(pm.systemRules, rule)
 	case "project":
-		if pm.configBridge != nil {
-			if projectConfig, err := pm.configBridge.GetProjectConfig(); err == nil {
-				pm.contextRules[projectConfig.ProjectRoot] = append(pm.contextRules[projectConfig.ProjectRoot], rule)
-			}
-		}
+		// TODO: Reimplement project-scoped rules using Viper
+		// For now, treat as tool-specific rule
+		pm.toolRules[toolName] = append(pm.toolRules[toolName], rule)
 	default:
 		pm.toolRules[toolName] = append(pm.toolRules[toolName], rule)
 	}

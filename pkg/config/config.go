@@ -282,87 +282,76 @@ func loadSelfConfig(selfConfigPath string) error {
 	return nil
 }
 
-// setDefaults sets all default configuration values
+// setDefaults sets all default configuration values using Viper's SetDefault
 func setDefaults() {
-	// Use the centralized getAllDefaults function
-	for key, value := range getAllDefaults() {
-		viper.SetDefault(key, value)
-	}
-}
+	// Provider defaults
+	viper.SetDefault("provider", "ollama")
 
-// getAllDefaults returns a map of all default configuration values
-// This is the single source of truth for all defaults
-func getAllDefaults() map[string]interface{} {
-	return map[string]interface{}{
-		// Provider defaults
-		"provider": "ollama",
+	// Ollama defaults
+	viper.SetDefault("ollama.url", "https://ollama.kitty-tetra.ts.net")
+	viper.SetDefault("ollama.model", "qwen3:latest")
+	viper.SetDefault("ollama.system_prompt", "")
+	viper.SetDefault("ollama.timeout", "90s")
+	viper.SetDefault("ollama.poll_interval", 10)
 
-		// Ollama defaults
-		"ollama.url":           "https://ollama.kitty-tetra.ts.net",
-		"ollama.model":         "qwen3:latest",
-		"ollama.system_prompt": "",
-		"ollama.timeout":       "90s",
-		"ollama.poll_interval": 10,
+	// OpenAI defaults
+	viper.SetDefault("openai.api_key", "")
+	viper.SetDefault("openai.model", "gpt-4-turbo-preview")
+	viper.SetDefault("openai.system_prompt", "")
+	viper.SetDefault("openai.timeout", "60s")
+	viper.SetDefault("openai.base_url", "")
 
-		// OpenAI defaults
-		"openai.api_key":       "",
-		"openai.model":         "gpt-4-turbo-preview",
-		"openai.system_prompt": "",
-		"openai.timeout":       "60s",
-		"openai.base_url":      "",
+	// General defaults
+	viper.SetDefault("show_thinking", true)
+	viper.SetDefault("streaming", true)
 
-		// General defaults
-		"show_thinking": true,
-		"streaming":     true,
+	// Logging defaults
+	viper.SetDefault("logging.log_file", "./.ryan/system.log")
+	viper.SetDefault("logging.preserve", false)
+	viper.SetDefault("logging.level", "info")
 
-		// Logging defaults
-		"logging.log_file": "./.ryan/system.log",
-		"logging.preserve": false,
-		"logging.level":    "info",
+	// Context defaults
+	viper.SetDefault("context.directory", "./.ryan/contexts")
+	viper.SetDefault("context.max_file_size", "10MB")
+	viper.SetDefault("context.persist_langchain", true)
 
-		// Context defaults
-		"context.directory":         "./.ryan/contexts",
-		"context.max_file_size":     "10MB",
-		"context.persist_langchain": true,
+	// Tools defaults
+	viper.SetDefault("tools.enabled", true)
+	viper.SetDefault("tools.truncate_output", true)
+	viper.SetDefault("tools.bash.enabled", true)
+	viper.SetDefault("tools.bash.timeout", "90s")
+	viper.SetDefault("tools.bash.skip_permissions", false)
+	viper.SetDefault("tools.file_read.enabled", true)
+	viper.SetDefault("tools.file_read.max_file_size", "10MB")
+	viper.SetDefault("tools.search.enabled", true)
+	viper.SetDefault("tools.search.timeout", "10s")
 
-		// Tools defaults
-		"tools.enabled":                 true,
-		"tools.truncate_output":         true,
-		"tools.bash.enabled":            true,
-		"tools.bash.timeout":            "90s",
-		"tools.bash.skip_permissions":   false,
-		"tools.file_read.enabled":       true,
-		"tools.file_read.max_file_size": "10MB",
-		"tools.search.enabled":          true,
-		"tools.search.timeout":          "10s",
+	// LangChain defaults
+	viper.SetDefault("langchain.tools.max_iterations", 5)
+	viper.SetDefault("langchain.tools.autonomous_reasoning", true)
+	viper.SetDefault("langchain.tools.use_react_pattern", true)
+	viper.SetDefault("langchain.tools.verbose_logging", false)
+	viper.SetDefault("langchain.memory.type", "buffer")
+	viper.SetDefault("langchain.memory.window_size", 10)
+	viper.SetDefault("langchain.memory.max_tokens", 4000)
+	viper.SetDefault("langchain.memory.summary_threshold", 1000)
+	viper.SetDefault("langchain.prompts.context_injection", true)
 
-		// LangChain defaults
-		"langchain.tools.max_iterations":       5,
-		"langchain.tools.autonomous_reasoning": true,
-		"langchain.tools.use_react_pattern":    true,
-		"langchain.tools.verbose_logging":      false,
-		"langchain.memory.type":                "buffer",
-		"langchain.memory.window_size":         10,
-		"langchain.memory.max_tokens":          4000,
-		"langchain.memory.summary_threshold":   1000,
-		"langchain.prompts.context_injection":  true,
+	// Vector store defaults
+	viper.SetDefault("vectorstore.enabled", true)
+	viper.SetDefault("vectorstore.provider", "chromem")
+	viper.SetDefault("vectorstore.persistence_dir", "./.ryan/vectorstore")
+	viper.SetDefault("vectorstore.enable_persistence", true)
+	viper.SetDefault("vectorstore.embedder.provider", "ollama")
+	viper.SetDefault("vectorstore.embedder.model", "nomic-embed-text")
+	viper.SetDefault("vectorstore.embedder.base_url", "https://ollama.kitty-tetra.ts.net")
+	viper.SetDefault("vectorstore.embedder.api_key", "")
+	viper.SetDefault("vectorstore.indexer.chunk_size", 1000)
+	viper.SetDefault("vectorstore.indexer.chunk_overlap", 200)
+	viper.SetDefault("vectorstore.indexer.auto_index", false)
 
-		// Vector store defaults
-		"vectorstore.enabled":               true,
-		"vectorstore.provider":              "chromem",
-		"vectorstore.persistence_dir":       "./.ryan/vectorstore",
-		"vectorstore.enable_persistence":    true,
-		"vectorstore.embedder.provider":     "ollama",
-		"vectorstore.embedder.model":        "nomic-embed-text",
-		"vectorstore.embedder.base_url":     "https://ollama.kitty-tetra.ts.net",
-		"vectorstore.embedder.api_key":      "",
-		"vectorstore.indexer.chunk_size":    1000,
-		"vectorstore.indexer.chunk_overlap": 200,
-		"vectorstore.indexer.auto_index":    false,
-
-		// Self config path default
-		"self_config_path": "./.ryan/self.yaml",
-	}
+	// Self config path default
+	viper.SetDefault("self_config_path", "./.ryan/self.yaml")
 }
 
 // No longer needed - AutomaticEnv handles all RYAN_ prefixed variables
