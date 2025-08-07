@@ -1,120 +1,39 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 
-	"github.com/killallgit/ryan/pkg/config"
-	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/killallgit/ryan/pkg/tui"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var cfgFile string
-var directPrompt string
-var noTUI bool
-var agentType string
-var fallbackAgents string
 
 var rootCmd = &cobra.Command{
 	Use:   "ryan",
 	Short: "Claude's friend",
 	Long:  `Open source Claude Code alternative.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Initialize default configuration if needed
-		if err := config.InitializeDefaults(); err != nil {
-			logger.Error("Failed to initialize default configuration: %v\n", err)
-			return
-		}
-
-		// Load configuration
-		cfg, err := config.Load(cfgFile)
-		if err != nil {
-			logger.Error("Failed to load configuration: %v\n", err)
-			return
-		}
-
-		// Initialize logger with config
-		if err := logger.InitLoggerWithConfig(cfg.Logging.LogFile, cfg.Logging.Preserve, cfg.Logging.Level); err != nil {
-			logger.Error("Failed to initialize logger: %v\n", err)
-			return
-		}
-		defer func() {
-			// Close log files
-			if err := logger.Close(); err != nil {
-				logger.Error("Failed to close log files: %v\n", err)
-			}
-		}()
-
-		// Get command flags
-		// Check for provider override
-		provider, _ := cmd.Flags().GetString("provider")
-		if provider != "" {
-			cfg.Provider = provider
-		}
-
-		// Get model based on provider
-		model := ""
-		ollamaModel, _ := cmd.Flags().GetString("ollama.model")
-		openaiModel, _ := cmd.Flags().GetString("openai.model")
-
-		switch cfg.GetActiveProvider() {
-		case "openai":
-			if openaiModel != "" {
-				model = openaiModel
-			} else {
-				model = cfg.GetActiveProviderModel()
-			}
-		case "ollama":
-			fallthrough
-		default:
-			if ollamaModel != "" {
-				model = ollamaModel
-			} else {
-				model = cfg.GetActiveProviderModel()
-			}
-		}
-
-		// Get system prompt based on provider
-		systemPromptPath := ""
-		ollamaSystemPrompt, _ := cmd.Flags().GetString("ollama.system_prompt")
-		openaiSystemPrompt, _ := cmd.Flags().GetString("openai.system_prompt")
-
-		switch cfg.GetActiveProvider() {
-		case "openai":
-			if openaiSystemPrompt != "" {
-				systemPromptPath = openaiSystemPrompt
-			} else {
-				systemPromptPath = cfg.GetActiveProviderSystemPrompt()
-			}
-		case "ollama":
-			fallthrough
-		default:
-			if ollamaSystemPrompt != "" {
-				systemPromptPath = ollamaSystemPrompt
-			} else {
-				systemPromptPath = cfg.GetActiveProviderSystemPrompt()
-			}
-		}
-
-		continueHistory, _ := cmd.Flags().GetBool("continue")
-
-		// Create application config
-		appConfig := &AppConfig{
-			Config:           cfg,
-			Model:            model,
-			SystemPromptPath: systemPromptPath,
-			ContinueHistory:  continueHistory,
-			DirectPrompt:     directPrompt,
-			NoTUI:            noTUI,
-			AgentType:        agentType,
-			FallbackAgents:   fallbackAgents,
-		}
-
-		// Run the application
-		if err := RunApplication(appConfig); err != nil {
-			logger.Error("Error: %v\n", err)
+		refreshConfig()
+		if err := tui.StartApp(); err != nil {
+			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
 	},
+}
+
+func refreshConfig() {
+	dirFromCfgFile := filepath.Dir(cfgFile)
+	if _, err := os.Stat(dirFromCfgFile); os.IsNotExist(err) {
+		os.Mkdir(dirFromCfgFile, 0755)
+	}
+
+	if err := viper.WriteConfigAs(cfgFile); err != nil {
+		fmt.Printf("Error writing config: %v\n", err)
+	}
 }
 
 func Execute() {
@@ -125,8 +44,58 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is .ryan/settings.yaml)")
+	cobra.OnInitialize(initConfig)
+
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", ".ryan/settings.yaml", "config file (default is .ryan/settings.yaml)")
 	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")
-	rootCmd.PersistentFlags().StringVarP(&directPrompt, "prompt", "p", "", "execute a prompt directly without entering TUI")
-	rootCmd.PersistentFlags().BoolVar(&noTUI, "no-tui", false, "run without TUI (requires --prompt)")
+	rootCmd.PersistentFlags().StringP("prompt", "p", "", "execute a prompt directly without entering TUI")
+	viper.BindPFlag("prompt", rootCmd.PersistentFlags().Lookup("prompt"))
+	rootCmd.PersistentFlags().BoolP("headless", "H", false, "run without TUI (requires --prompt)")
+	viper.BindPFlag("headless", rootCmd.PersistentFlags().Lookup("headless"))
+
+	viper.SetDefault("provider", "ollama")
+	viper.SetDefault("show_thinking", true)
+
+	viper.SetDefault("ollama.url", "http://localhost:11434")
+	viper.SetDefault("ollama.default_model", "qwen3:latest")
+	viper.SetDefault("ollama.timeout", 90)
+
+	viper.SetDefault("logging.log_file", "./.ryan/system.log")
+	viper.SetDefault("logging.preserve", true)
+	viper.SetDefault("logging.level", "info")
+
+	viper.SetDefault("vectorstore.enabled", true)
+	viper.SetDefault("vectorstore.provider", "chromem")
+	viper.SetDefault("vectorstore.persistence_dir", "./.ryan/vectorstore")
+	viper.SetDefault("vectorstore.enable_persistence", true)
+	viper.SetDefault("vectorstore.embedder.provider", "ollama")
+	viper.SetDefault("vectorstore.embedder.model", "nomic-embed-text")
+	viper.SetDefault("vectorstore.embedder.base_url", "http://localhost:11434")
+	viper.SetDefault("vectorstore.embedder.api_key", "")
+
+	viper.SetDefault("vectorstore.indexer.chunk_size", 1000)
+	viper.SetDefault("vectorstore.indexer.chunk_overlap", 200)
+	viper.SetDefault("vectorstore.indexer.auto_index", false)
+
+	viper.SetDefault("langchain.memory.type", "window")
+	viper.SetDefault("langchain.memory.window_size", 10)
+	viper.SetDefault("langchain.tools.max_iterations", 10)
+	viper.SetDefault("langchain.tools.max_retries", 3)
+
+}
+
+func initConfig() {
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+	} else {
+		viper.AddConfigPath("./.ryan")
+		viper.SetConfigType("yaml")
+		viper.SetConfigName("settings")
+	}
+
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	}
 }
