@@ -9,14 +9,13 @@ on:
 permissions: write-all
 jobs:
   review:
-    if: false # TODO: Enable this when we have a model that can do this
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
       - name: AI Code Reviewer
-        uses: killallgit/ai-code-reviewer@main
+        uses: killallgit/ryan@main
         with:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_API_MODEL: "gpt-4o"
