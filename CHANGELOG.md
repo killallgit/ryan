@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **TUI**: Reactive state management and async architecture
+  - Implemented centralized `StateManager` for reactive UI updates and single source of truth
+  - Added `EventBus` for decoupled component communication and event-driven updates
+  - Created `AsyncManager` for non-blocking API operations with proper tview concurrency patterns
+  - Added dynamic model discovery with `OllamaModelProvider` interface for extensible model fetching
+  - Removed static `models.yaml` in favor of runtime model fetching from Ollama API
 - **LLM-Based Intent Detection**: Implemented intelligent intent analysis using actual LLMs
   - Created `LLMIntentAnalyzer` to replace pattern matching with Ollama-powered intent detection
   - Orchestrator now uses LLM reasoning to determine user intent and route to appropriate agents
@@ -33,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `.gitignore` to exclude coverage files from version control
 
 ### Fixed
+- **TUI**: Model selection freezing resolved with proper async architecture
+  - Fixed UI thread blocking during model validation and selection operations
+  - Implemented proper tview concurrency patterns using `QueueUpdateDraw` for all UI updates
+  - Fixed escape key navigation by using centralized state management consistently
+  - Resolved focus management issues with reactive view switching
+  - All API calls now run on background workers preventing UI freezes
 - **Application Startup Performance**: Resolved 60+ second freeze when Ollama is unreachable
   - Reduced Ollama version check timeout from 30s to 3s for faster failure detection
   - Made model refresh asynchronous in TUI to prevent UI blocking
