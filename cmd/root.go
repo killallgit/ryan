@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/killallgit/ryan/pkg/config"
@@ -22,26 +21,26 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// Initialize default configuration if needed
 		if err := config.InitializeDefaults(); err != nil {
-			fmt.Printf("Failed to initialize default configuration: %v\n", err)
+			logger.Error("Failed to initialize default configuration: %v\n", err)
 			return
 		}
 
 		// Load configuration
 		cfg, err := config.Load(cfgFile)
 		if err != nil {
-			fmt.Printf("Failed to load configuration: %v\n", err)
+			logger.Error("Failed to load configuration: %v\n", err)
 			return
 		}
 
 		// Initialize logger with config
 		if err := logger.InitLoggerWithConfig(cfg.Logging.LogFile, cfg.Logging.Preserve, cfg.Logging.Level); err != nil {
-			fmt.Printf("Failed to initialize logger: %v\n", err)
+			logger.Error("Failed to initialize logger: %v\n", err)
 			return
 		}
 		defer func() {
 			// Close log files
 			if err := logger.Close(); err != nil {
-				fmt.Printf("Failed to close log files: %v\n", err)
+				logger.Error("Failed to close log files: %v\n", err)
 			}
 		}()
 
@@ -112,7 +111,7 @@ var rootCmd = &cobra.Command{
 
 		// Run the application
 		if err := RunApplication(appConfig); err != nil {
-			fmt.Printf("Error: %v\n", err)
+			logger.Error("Error: %v\n", err)
 			os.Exit(1)
 		}
 	},
@@ -127,14 +126,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is .ryan/settings.yaml)")
-	rootCmd.PersistentFlags().String("provider", "", "LLM provider to use (ollama, openai)")
-	rootCmd.PersistentFlags().String("ollama.model", "", "Ollama model to use (overrides config)")
-	rootCmd.PersistentFlags().String("ollama.system_prompt", "", "Ollama system prompt to use (overrides config)")
-	rootCmd.PersistentFlags().String("openai.model", "", "OpenAI model to use (overrides config)")
-	rootCmd.PersistentFlags().String("openai.system_prompt", "", "OpenAI system prompt to use (overrides config)")
 	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")
 	rootCmd.PersistentFlags().StringVarP(&directPrompt, "prompt", "p", "", "execute a prompt directly without entering TUI")
 	rootCmd.PersistentFlags().BoolVar(&noTUI, "no-tui", false, "run without TUI (requires --prompt)")
-	rootCmd.PersistentFlags().StringVar(&agentType, "agent", "", "preferred agent type (conversational, ollama-functions, openai-functions)")
-	rootCmd.PersistentFlags().StringVar(&fallbackAgents, "fallback-agents", "", "comma-separated list of fallback agents")
 }
