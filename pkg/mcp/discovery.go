@@ -22,7 +22,7 @@ type ServerDiscoveryManager struct {
 	mu      sync.RWMutex
 
 	// Configuration storage
-	configBridge *config.ConfigurationBridge
+	cfg *config.Config
 
 	// Discovery sources
 	discoveryPaths []string
@@ -32,11 +32,11 @@ type ServerDiscoveryManager struct {
 }
 
 // NewServerDiscoveryManager creates a new server discovery manager
-func NewServerDiscoveryManager(configBridge *config.ConfigurationBridge) *ServerDiscoveryManager {
+func NewServerDiscoveryManager(cfg *config.Config) *ServerDiscoveryManager {
 	manager := &ServerDiscoveryManager{
-		servers:      make(map[string]ServerConfig),
-		configBridge: configBridge,
-		logger:       logger.WithComponent("mcp-discovery"),
+		servers: make(map[string]ServerConfig),
+		cfg:     cfg,
+		logger:  logger.WithComponent("mcp-discovery"),
 		discoveryPaths: []string{
 			"./.ryan/mcp-servers.json",   // Project-specific servers
 			"~/.ryan/mcp-servers.json",   // User-global servers
@@ -72,14 +72,8 @@ func (sdm *ServerDiscoveryManager) DiscoverServers(ctx context.Context) ([]Serve
 	discoveredServers = append(discoveredServers, envServers...)
 
 	// Discovery from project configuration
-	if sdm.configBridge != nil {
-		projectServers, err := sdm.discoverFromProject()
-		if err != nil {
-			sdm.logger.Warn("Failed to discover servers from project config", "error", err)
-		} else {
-			discoveredServers = append(discoveredServers, projectServers...)
-		}
-	}
+	// TODO: Implement project-specific MCP server configuration using Viper
+	// For now, skip project-specific server discovery
 
 	// Update registry with discovered servers
 	for _, server := range discoveredServers {
@@ -230,14 +224,15 @@ func (sdm *ServerDiscoveryManager) discoverFromEnvironment() []ServerConfig {
 
 // discoverFromProject discovers servers from project configuration
 func (sdm *ServerDiscoveryManager) discoverFromProject() ([]ServerConfig, error) {
-	projectConfig, err := sdm.configBridge.GetProjectConfig()
-	if err != nil {
-		return nil, err
-	}
+	// TODO: Implement project-specific MCP server configuration using Viper
+	// For now, return empty list
+	return []ServerConfig{}, nil
+}
 
+// discoverFromProjectOld was the old implementation - preserved for reference
+func (sdm *ServerDiscoveryManager) discoverFromProjectOld() ([]ServerConfig, error) {
 	var servers []ServerConfig
-
-	// Convert MCP servers from project config
+	/* Old implementation that used ProjectConfig.MCPServers
 	for serverName, serverConfig := range projectConfig.MCPServers {
 		if configMap, ok := serverConfig.(map[string]interface{}); ok {
 			server := ServerConfig{
@@ -271,7 +266,7 @@ func (sdm *ServerDiscoveryManager) discoverFromProject() ([]ServerConfig, error)
 			servers = append(servers, server)
 		}
 	}
-
+	*/
 	return servers, nil
 }
 
@@ -309,12 +304,9 @@ func (sdm *ServerDiscoveryManager) RegisterServer(config ServerConfig) error {
 	// Store in registry
 	sdm.servers[config.Name] = config
 
-	// Persist to project configuration if we have access
-	if sdm.configBridge != nil {
-		if err := sdm.configBridge.SetMCPServer(config.Name, config); err != nil {
-			sdm.logger.Warn("Failed to persist server configuration", "server", config.Name, "error", err)
-		}
-	}
+	// TODO: Persist to project configuration using Viper
+	// For now, just log that we would persist
+	sdm.logger.Debug("Would persist server configuration", "server", config.Name)
 
 	sdm.logger.Info("Registered MCP server", "server", config.Name, "url", config.URL)
 	return nil
@@ -328,12 +320,9 @@ func (sdm *ServerDiscoveryManager) UnregisterServer(serverName string) error {
 	// Remove from registry
 	delete(sdm.servers, serverName)
 
-	// Remove from project configuration if we have access
-	if sdm.configBridge != nil {
-		if err := sdm.configBridge.SetMCPServer(serverName, nil); err != nil {
-			sdm.logger.Warn("Failed to remove server from configuration", "server", serverName, "error", err)
-		}
-	}
+	// TODO: Remove from project configuration using Viper
+	// For now, just log that we would remove
+	sdm.logger.Debug("Would remove server from configuration", "server", serverName)
 
 	sdm.logger.Info("Unregistered MCP server", "server", serverName)
 	return nil
