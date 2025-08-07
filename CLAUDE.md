@@ -79,7 +79,6 @@ The agent orchestrator (`pkg/agents/orchestrator.go`) coordinates multiple speci
 
 ### Configuration
 - Main config in `.ryan/settings.yaml`
-- Model definitions in `models.yaml`
 - System prompts in `examples/` directory
 - Uses Viper for configuration management
 
