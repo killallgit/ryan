@@ -13,6 +13,9 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tools"
+	"github.com/killallgit/ryan/pkg/tui/async"
+	"github.com/killallgit/ryan/pkg/tui/events"
+	"github.com/killallgit/ryan/pkg/tui/state"
 	"github.com/rivo/tview"
 )
 
@@ -34,28 +37,35 @@ type ControllerInterface interface {
 	CleanThinkingBlocks()
 }
 
-// App represents the TUI application
+// App represents the TUI application with reactive architecture
 type App struct {
+	// Core tview components
 	app           *tview.Application
 	pages         *tview.Pages
-	controller    ControllerInterface
 	renderManager *RenderManager
 
-	// Views
+	// New architecture components
+	tuiContext   *TUIContext
+	stateManager *state.StateManager
+	eventBus     *events.EventBus
+	asyncManager *async.AsyncManager
+
+	// Controller (will be refactored later)
+	controller ControllerInterface
+
+	// Views (will become reactive components)
 	chatView        *ChatView
 	modelView       *ModelView
 	toolsView       *ToolsView
 	vectorStoreView *VectorStoreView
 	contextTreeView *ContextTreeView
 
-	// State
+	// Legacy state (to be removed after refactor)
 	sending      bool
 	streaming    bool
 	currentView  string
 	previousView string
-
-	// Channels
-	cancelSend chan bool
+	cancelSend   chan bool
 
 	// Config
 	config *config.Config
@@ -82,17 +92,31 @@ func NewApp(controller ControllerInterface) (*App, error) {
 		return nil, fmt.Errorf("failed to create render manager: %w", err)
 	}
 
+	// Create TUI context with new architecture components
+	tuiContext := NewTUIContext(tviewApp)
+
 	app := &App{
+		// Core tview components
 		app:           tviewApp,
 		pages:         tview.NewPages(),
-		controller:    controller,
 		renderManager: renderManager,
-		sending:       false,
-		streaming:     false,
-		currentView:   "chat",
-		previousView:  "chat",
-		cancelSend:    make(chan bool, 1),
-		config:        cfg,
+
+		// New architecture components
+		tuiContext:   tuiContext,
+		stateManager: tuiContext.StateManager,
+		eventBus:     tuiContext.EventBus,
+		asyncManager: tuiContext.AsyncManager,
+
+		// Controller
+		controller: controller,
+
+		// Legacy state (to be migrated)
+		sending:      false,
+		streaming:    false,
+		currentView:  "chat",
+		previousView: "chat",
+		cancelSend:   make(chan bool, 1),
+		config:       cfg,
 	}
 
 	// Set background color for pages container
@@ -103,15 +127,20 @@ func NewApp(controller ControllerInterface) (*App, error) {
 		return nil, fmt.Errorf("failed to initialize views: %w", err)
 	}
 
+	// Initialize state management
+	app.initializeStateManagement()
+
 	// Setup global key bindings
 	app.setupGlobalKeyBindings()
+
+	// Set the input capture handler
+	tviewApp.SetInputCapture(app.originalInputCapture)
 
 	// Set initial focus
 	tviewApp.SetRoot(app.pages, true).SetFocus(app.pages)
 
-	// Initialize with chat view and ensure proper focus
-	app.currentView = "chat"
-	app.previousView = "chat"
+	// Initialize with chat view using state manager
+	app.stateManager.SetView("chat")
 	app.pages.SwitchToPage("chat")
 
 	// Explicitly set focus to chat view input
@@ -143,7 +172,7 @@ func (a *App) initializeViews() error {
 	// Use shorter timeout for UI operations to avoid blocking
 	ollamaClient := ollama.NewClientWithTimeout(ollamaURL, 5*time.Second)
 	modelsController := controllers.NewModelsController(ollamaClient)
-	a.modelView = NewModelView(modelsController, a.controller, a.app, a.renderManager)
+	a.modelView = NewModelView(modelsController, a.controller, a.app, a.renderManager, a.stateManager, a.eventBus, a.asyncManager)
 	a.modelView.SetParentApp(a) // Set parent app reference for view switching
 	a.pages.AddPage("models", a.modelView, true, false)
 	log.Debug("Created model view")
@@ -166,6 +195,102 @@ func (a *App) initializeViews() error {
 	return nil
 }
 
+// initializeStateManagement sets up state management and event subscriptions
+func (a *App) initializeStateManagement() {
+	log := logger.WithComponent("state_management")
+	log.Debug("Initializing state management")
+
+	// Subscribe to view change events to handle navigation
+	a.eventBus.Subscribe(events.EventViewChanged, func(event events.Event) {
+		if payload, ok := event.Payload.(events.ViewChangedPayload); ok {
+			log.Debug("View change event received", "oldView", payload.OldView, "newView", payload.NewView)
+			// Update legacy state for now (will be removed later)
+			a.currentView = payload.NewView
+			a.previousView = payload.OldView
+		}
+	})
+
+	// Subscribe to model events
+	a.eventBus.Subscribe(events.EventModelSelected, func(event events.Event) {
+		if payload, ok := event.Payload.(events.ModelSelectedPayload); ok {
+			log.Debug("Model selected event received", "model", payload.ModelName)
+			// Update state manager
+			a.stateManager.SetCurrentModel(payload.ModelName)
+		}
+	})
+
+	// Subscribe to state changes to make the App itself reactive
+	a.stateManager.Subscribe("view_change", a)
+	a.stateManager.Subscribe("sending_change", a)
+	a.stateManager.Subscribe("streaming_change", a)
+
+	// Initialize current model from controller
+	currentModel := a.controller.GetModel()
+	if currentModel != "" {
+		a.stateManager.SetCurrentModel(currentModel)
+	}
+
+	log.Debug("State management initialized")
+}
+
+// OnStateChanged makes App implement the state.Observer interface
+func (a *App) OnStateChanged(change state.StateChange) {
+	log := logger.WithComponent("app_state_observer")
+
+	switch change.Type {
+	case "view_change":
+		if change.Field == "CurrentView" {
+			newView := change.NewValue.(string)
+			log.Debug("Handling view change", "newView", newView)
+			a.handleViewChange(newView)
+		}
+	case "sending_change":
+		if change.Field == "Sending" {
+			sending := change.NewValue.(bool)
+			log.Debug("Handling sending state change", "sending", sending)
+			// Update legacy state
+			a.sending = sending
+		}
+	case "streaming_change":
+		if change.Field == "Streaming" {
+			streaming := change.NewValue.(bool)
+			log.Debug("Handling streaming state change", "streaming", streaming)
+			// Update legacy state
+			a.streaming = streaming
+		}
+	}
+}
+
+// handleViewChange handles view changes reactively
+func (a *App) handleViewChange(newView string) {
+	a.pages.SwitchToPage(newView)
+
+	// Set focus to the appropriate view
+	switch newView {
+	case "chat":
+		if a.chatView != nil {
+			a.app.SetFocus(a.chatView)
+		}
+	case "models":
+		if a.modelView != nil {
+			a.app.SetFocus(a.modelView)
+		}
+	case "tools":
+		if a.toolsView != nil {
+			a.toolsView.SetCurrentModel(a.controller.GetModel())
+			a.app.SetFocus(a.toolsView)
+		}
+	case "vectorstore":
+		if a.vectorStoreView != nil {
+			a.app.SetFocus(a.vectorStoreView)
+		}
+	case "context-tree":
+		if a.contextTreeView != nil {
+			a.app.SetFocus(a.contextTreeView)
+		}
+	}
+}
+
 // setupGlobalKeyBindings configures application-wide keyboard shortcuts
 func (a *App) setupGlobalKeyBindings() {
 	a.originalInputCapture = func(event *tcell.EventKey) *tcell.EventKey {
@@ -173,7 +298,8 @@ func (a *App) setupGlobalKeyBindings() {
 		log.Debug("Global input capture", "key", event.Key(), "rune", string(event.Rune()))
 
 		// Let Enter key pass through to input field when in chat view
-		if event.Key() == tcell.KeyEnter && a.currentView == "chat" {
+		currentState := a.stateManager.GetState()
+		if event.Key() == tcell.KeyEnter && currentState.CurrentView == "chat" {
 			log.Debug("Enter key - passing through to chat input field")
 			return event // Let the input field handle Enter
 		}
@@ -186,7 +312,7 @@ func (a *App) setupGlobalKeyBindings() {
 
 		// Ctrl-C: Cancel operation or quit
 		if event.Key() == tcell.KeyCtrlC {
-			if a.sending {
+			if currentState.Sending {
 				// Cancel current operation
 				select {
 				case a.cancelSend <- true:
@@ -201,22 +327,33 @@ func (a *App) setupGlobalKeyBindings() {
 
 		// Escape: Return to previous view or chat if nowhere else to go
 		if event.Key() == tcell.KeyEscape {
-			if a.currentView != a.previousView {
-				a.switchToView(a.previousView)
+			if currentState.CurrentView != currentState.PreviousView {
+				a.switchToView(currentState.PreviousView)
 				return nil
-			} else if a.currentView != "chat" {
+			} else if currentState.CurrentView != "chat" {
 				// If current and previous are the same but not chat, go to chat
 				a.switchToView("chat")
 				return nil
 			}
 		}
 
-		// Ctrl-1 through Ctrl-5: Quick view switching
-		if event.Key() >= tcell.KeyCtrlA && event.Key() <= tcell.KeyCtrlE {
-			views := []string{"chat", "models", "tools", "vectorstore", "context-tree"}
-			index := int(event.Key() - tcell.KeyCtrlA)
-			if index < len(views) {
-				a.switchToView(views[index])
+		// Number keys 1-5 for quick view switching
+		if event.Key() == tcell.KeyRune {
+			switch event.Rune() {
+			case '1':
+				a.switchToView("chat")
+				return nil
+			case '2':
+				a.switchToView("models")
+				return nil
+			case '3':
+				a.switchToView("tools")
+				return nil
+			case '4':
+				a.switchToView("vectorstore")
+				return nil
+			case '5':
+				a.switchToView("context-tree")
 				return nil
 			}
 		}
@@ -236,18 +373,13 @@ func (a *App) Stop() {
 	a.app.Stop()
 }
 
-// switchToView switches to the specified view
+// switchToView switches to the specified view using state management
 func (a *App) switchToView(viewName string) {
-	if a.currentView != viewName {
-		a.previousView = a.currentView
-		a.currentView = viewName
-	}
-	a.pages.SwitchToPage(viewName)
+	log := logger.WithComponent("view_switch")
+	log.Debug("Switching to view", "viewName", viewName)
 
-	// Update current model in tools view if switching to it
-	if viewName == "tools" && a.toolsView != nil {
-		a.toolsView.SetCurrentModel(a.controller.GetModel())
-	}
+	// Use state manager to handle view changes reactively
+	a.stateManager.SetView(viewName)
 }
 
 // switchToChatViewWithFocus switches to the chat view and focuses the input field
@@ -528,9 +660,19 @@ func (a *App) UpdateMessages() {
 	}
 }
 
+// UpdateChatStatus updates the chat view status (model, etc.)
+func (a *App) UpdateChatStatus() {
+	if a.chatView != nil {
+		a.app.QueueUpdateDraw(func() {
+			a.chatView.updateStatus()
+		})
+	}
+}
+
 // GetCurrentView returns the name of the current view
 func (a *App) GetCurrentView() string {
-	return a.currentView
+	state := a.stateManager.GetState()
+	return state.CurrentView
 }
 
 // truncateString truncates a string to the specified length

@@ -10,6 +10,10 @@ import (
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/models"
+	"github.com/killallgit/ryan/pkg/ollama"
+	"github.com/killallgit/ryan/pkg/tui/async"
+	"github.com/killallgit/ryan/pkg/tui/events"
+	"github.com/killallgit/ryan/pkg/tui/state"
 	"github.com/rivo/tview"
 )
 
@@ -28,6 +32,11 @@ type ModelView struct {
 	renderManager    *RenderManager
 	parentApp        *App // Reference to parent App for view switching
 
+	// New architecture components
+	stateManager *state.StateManager
+	eventBus     *events.EventBus
+	asyncManager *async.AsyncManager
+
 	// Modal state
 	pullingModel string
 	pullProgress float64
@@ -39,13 +48,24 @@ type ModelView struct {
 }
 
 // NewModelView creates a new model view
-func NewModelView(modelsController *controllers.ModelsController, chatController ControllerInterface, app *tview.Application, renderManager *RenderManager) *ModelView {
+func NewModelView(
+	modelsController *controllers.ModelsController,
+	chatController ControllerInterface,
+	app *tview.Application,
+	renderManager *RenderManager,
+	stateManager *state.StateManager,
+	eventBus *events.EventBus,
+	asyncManager *async.AsyncManager,
+) *ModelView {
 	mv := &ModelView{
 		Flex:             tview.NewFlex().SetDirection(tview.FlexRow),
 		modelsController: modelsController,
 		chatController:   chatController,
 		app:              app,
 		renderManager:    renderManager,
+		stateManager:     stateManager,
+		eventBus:         eventBus,
+		asyncManager:     asyncManager,
 	}
 
 	// Create table for models
@@ -96,9 +116,7 @@ func NewModelView(modelsController *controllers.ModelsController, chatController
 	go func() {
 		// Small delay to let the UI render first
 		time.Sleep(100 * time.Millisecond)
-		mv.app.QueueUpdateDraw(func() {
-			mv.refreshModels()
-		})
+		mv.refreshModelsAsync()
 	}()
 
 	return mv
@@ -133,7 +151,7 @@ func (mv *ModelView) setupKeyBindings() {
 				}
 				return nil
 			case 'r', 'R':
-				mv.refreshModels()
+				mv.refreshModelsAsync()
 				return nil
 			}
 		}
@@ -249,16 +267,175 @@ func (mv *ModelView) refreshModels() {
 	mv.showSuccess(fmt.Sprintf("Loaded %d models", len(response.Models)))
 }
 
-// selectModel switches to the selected model
-func (mv *ModelView) selectModel(modelName string) {
-	if err := mv.chatController.ValidateModel(modelName); err != nil {
-		mv.showError(fmt.Sprintf("Invalid model: %v", err))
+// refreshModelsAsync refreshes the models list asynchronously
+func (mv *ModelView) refreshModelsAsync() {
+	mv.stateManager.SetModelViewLoading(true)
+
+	mv.asyncManager.ExecuteAPICall(
+		"Refreshing model list",
+		func(ctx context.Context) (interface{}, error) {
+			return mv.modelsController.Tags()
+		},
+		func(result interface{}) {
+			if response, ok := result.(*ollama.TagsResponse); ok {
+				mv.updateModelTable(response)
+			}
+			mv.stateManager.SetModelViewLoading(false)
+		},
+		func(err error) {
+			log := logger.WithComponent("model_view")
+			log.Error("Failed to refresh models", "error", err)
+			mv.showError(fmt.Sprintf("Failed to refresh models: %v", err))
+			mv.stateManager.SetModelViewLoading(false)
+		},
+	)
+}
+
+// updateModelTable updates the model table with new data (UI thread safe)
+func (mv *ModelView) updateModelTable(response *ollama.TagsResponse) {
+
+	// Clear existing rows (except header)
+	rowCount := mv.table.GetRowCount()
+	for i := rowCount - 1; i > 0; i-- {
+		mv.table.RemoveRow(i)
+	}
+
+	if len(response.Models) == 0 {
+		// Show empty state
+		cell := tview.NewTableCell("No models found. Pull a model first.").
+			SetAlign(tview.AlignCenter).
+			SetTextColor(tcell.GetColor(ColorMuted)).
+			SetBackgroundColor(tcell.GetColor(ColorBase00)).
+			SetExpansion(6)
+		mv.table.SetCell(1, 0, cell)
 		return
 	}
 
-	mv.chatController.SetModel(modelName)
-	mv.showSuccess(fmt.Sprintf("Switched to model: %s", modelName))
-	mv.refreshModels()
+	currentModel := mv.stateManager.GetState().CurrentModel
+
+	// Add models to table
+	for i, model := range response.Models {
+		// Convert size to human readable format
+		sizeGB := float64(model.Size) / (1024 * 1024 * 1024)
+		sizeStr := fmt.Sprintf("%.1f GB", sizeGB)
+
+		// Get parameter size and quantization
+		paramSize := model.Details.ParameterSize
+		if paramSize == "" {
+			paramSize = "Unknown"
+		}
+
+		quantization := model.Details.QuantizationLevel
+		if quantization == "" {
+			quantization = "Unknown"
+		}
+
+		// Get tool compatibility info
+		modelInfo := models.GetModelInfo(model.Name)
+		toolsSupport := modelInfo.ToolCompatibility.String()
+		if modelInfo.RecommendedForTools {
+			toolsSupport += " ✓"
+		}
+
+		// Determine status
+		status := "Available"
+		if model.Name == currentModel {
+			status = "Current"
+		}
+
+		// Create table cells
+		modelData := []string{model.Name, sizeStr, paramSize, quantization, toolsSupport, status}
+
+		for col, text := range modelData {
+			cell := tview.NewTableCell(text).
+				SetAlign(tview.AlignLeft).
+				SetExpansion(1)
+
+			// Color coding based on column content
+			if col == 0 && model.Name == currentModel {
+				// Current model name in green
+				cell.SetTextColor(tcell.GetColor(ColorGreen))
+			} else if col == 4 { // Tools column
+				// Color code tool compatibility
+				switch modelInfo.ToolCompatibility {
+				case models.ToolCompatibilityExcellent:
+					cell.SetTextColor(tcell.GetColor(ColorGreen))
+				case models.ToolCompatibilityGood:
+					cell.SetTextColor(tcell.GetColor(ColorCyan))
+				case models.ToolCompatibilityBasic:
+					cell.SetTextColor(tcell.GetColor(ColorYellow))
+				case models.ToolCompatibilityNone:
+					cell.SetTextColor(tcell.GetColor(ColorRed))
+				default:
+					cell.SetTextColor(tcell.GetColor(ColorMuted))
+				}
+			} else if col == 5 && status == "Current" {
+				// Current status in green
+				cell.SetTextColor(tcell.GetColor(ColorGreen))
+			} else {
+				cell.SetTextColor(tcell.GetColor(ColorBase05))
+			}
+
+			// Alternate row colors
+			if i%2 == 0 {
+				cell.SetBackgroundColor(tcell.GetColor(ColorBase00))
+			} else {
+				cell.SetBackgroundColor(tcell.GetColor(ColorBase01))
+			}
+
+			mv.table.SetCell(i+1, col, cell)
+		}
+	}
+
+	mv.showSuccess(fmt.Sprintf("Loaded %d models", len(response.Models)))
+}
+
+// selectModel switches to the selected model using async architecture
+func (mv *ModelView) selectModel(modelName string) {
+	log := logger.WithComponent("model_selection")
+	log.Debug("Selecting model", "modelName", modelName)
+
+	// Show immediate feedback
+	mv.showSuccess(fmt.Sprintf("Selecting model: %s...", modelName))
+
+	// Update state to show validation in progress
+	mv.stateManager.SetModelValidating(true)
+	mv.stateManager.SetModelError("")
+
+	// Use async manager to validate model
+	mv.asyncManager.ExecuteModelValidation(
+		modelName,
+		func(ctx context.Context, model string) error {
+			return mv.chatController.ValidateModel(model)
+		},
+		func() {
+			// Model is valid - set it and update state
+			log.Debug("Model validation successful", "model", modelName)
+
+			mv.chatController.SetModel(modelName)
+			mv.stateManager.SetCurrentModel(modelName)
+			mv.stateManager.SetModelValidating(false)
+
+			// Publish model selected event
+			mv.eventBus.Publish(events.EventModelSelected, events.ModelSelectedPayload{
+				ModelName: modelName,
+			}, "model_view")
+
+			// Show success and refresh models list
+			mv.showSuccess(fmt.Sprintf("Switched to model: %s", modelName))
+			mv.refreshModelsAsync()
+		},
+		func(err error) {
+			// Model validation failed
+			log.Error("Model validation failed", "model", modelName, "error", err)
+
+			mv.stateManager.SetModelValidating(false)
+			mv.stateManager.SetModelError(err.Error())
+
+			// Show error
+			mv.showError(fmt.Sprintf("Invalid model: %v", err))
+		},
+	)
 }
 
 // confirmDelete shows a confirmation dialog for model deletion
@@ -327,7 +504,7 @@ func (mv *ModelView) deleteModel(modelName string) {
 	}
 
 	mv.showSuccess(fmt.Sprintf("Model '%s' deleted", modelName))
-	mv.refreshModels()
+	mv.refreshModelsAsync()
 }
 
 // showError displays an error message
@@ -453,7 +630,7 @@ func (mv *ModelView) startModelDownload(modelName string) {
 				mv.selectModel(modelName)
 
 				// Refresh the models list
-				mv.refreshModels()
+				mv.refreshModelsAsync()
 
 				// Close any modal and switch to chat view with focus
 				mv.pullingModel = ""

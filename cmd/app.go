@@ -10,6 +10,7 @@ import (
 	"github.com/killallgit/ryan/pkg/controllers"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/models"
+	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tools"
 	"github.com/killallgit/ryan/pkg/tui"
 )
@@ -30,6 +31,15 @@ type AppConfig struct {
 func RunApplication(appCfg *AppConfig) error {
 	log := logger.WithComponent("app")
 	log.Info("Application starting")
+
+	// Initialize model provider for dynamic model discovery
+	if appCfg.Config != nil && appCfg.Config.GetActiveProvider() == "ollama" {
+		providerURL := appCfg.Config.GetActiveProviderURL()
+		ollamaClient := ollama.NewClient(providerURL)
+		modelProvider := models.NewOllamaModelProvider(ollamaClient)
+		models.SetDefaultProvider(modelProvider)
+		log.Info("Initialized Ollama model provider", "url", providerURL)
+	}
 
 	// Initialize tools if provider supports them
 	var toolRegistry *tools.Registry
@@ -53,9 +63,17 @@ func RunApplication(appCfg *AppConfig) error {
 			}
 
 			// Suggest alternatives
-			recommended := models.GetRecommendedModels()
+			ctx := context.Background()
+			recommended, _ := models.GetRecommendedModels(ctx)
 			if len(recommended) > 0 {
-				fmt.Printf("Recommended tool-compatible models: %v\n", recommended[:3])
+				modelNames := make([]string, 0, 3)
+				for i, m := range recommended {
+					if i >= 3 {
+						break
+					}
+					modelNames = append(modelNames, m.Name)
+				}
+				fmt.Printf("Recommended tool-compatible models: %v\n", modelNames)
 			}
 		}
 	}
