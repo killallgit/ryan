@@ -1,3 +1,0 @@
-ollama:
-  url: http://test-ollama:11434
-self_config_path: ./testdata/missing-self.yaml

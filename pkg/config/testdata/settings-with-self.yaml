@@ -1,4 +1,0 @@
-ollama:
-  url: http://test-ollama:11434
-  model: test-model
-self_config_path: ./testdata/test-self.yaml

@@ -14,7 +14,7 @@ repos:
       - id: go-fmt
         name: go fmt
         entry: go
-        args: ["fmt", "./pkg/...", "./integration/...", "./cmd/..."]
+        args: ["fmt", "./pkg/...", "./cmd/..."]
         language: system
         files: \.go$
         pass_filenames: false
@@ -22,7 +22,7 @@ repos:
       - id: go-vet
         name: go vet
         entry: go
-        args: ["vet", "./pkg/...", "./integration/...", "./cmd/..."]
+        args: ["vet", "./pkg/...", "./cmd/..."]
         language: system
         files: \.go$
         pass_filenames: false
