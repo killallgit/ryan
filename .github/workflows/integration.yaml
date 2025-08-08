@@ -8,12 +8,13 @@ on:
       model:
         description: 'Ollama model to use for testing'
         required: false
-        default: 'qwen2.5:0.5b'
+        default: 'smollm2:135m'
         type: choice
         options:
+          - smollm2:135m
+          - smollm2:360m
           - qwen2.5:0.5b
           - tinyllama:1.1b
-          - gemma2:2b
 
 jobs:
   integration:
