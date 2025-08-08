@@ -46,7 +46,7 @@ func NewChatModel(streamManager *streaming.Manager) chatModel {
 	ta.Prompt = "> "
 	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorOrange))
 
-	vp := createViewport(80, 20)
+	vp := viewport.New(80, 30)
 
 	ta.KeyMap.InsertNewline.SetEnabled(true)
 
