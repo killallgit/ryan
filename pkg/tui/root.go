@@ -4,17 +4,40 @@ import (
 	"context"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type rootModel struct {
-	*AppState
 	ctx        context.Context
 	activeView int
 	views      []tea.Model
 	width      int
 	height     int
+	sub        chan struct{}
+	quitting   bool
+	spinner    spinner.Model
 }
+type responseMsg struct{}
+
+// // Simulate a process that sends events at an irregular interval in real time.
+// // In this case, we'll send events on the channel at a random interval between
+// // 100 to 1000 milliseconds. As a command, Bubble Tea will run this
+// // asynchronously.
+// func listenForActivity(sub chan struct{}) tea.Cmd {
+// 	return func() tea.Msg {
+// 		for {
+// 			sub <- struct{}{}
+// 		}
+// 	}
+// }
+
+// // A command that waits for the activity on a channel.
+// func waitForActivity(sub chan struct{}) tea.Cmd {
+// 	return func() tea.Msg {
+// 		return responseMsg(<-sub)
+// 	}
+// }
 
 func (m rootModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
@@ -56,11 +79,11 @@ func (m rootModel) View() string {
 	return m.views[m.activeView].View()
 }
 
-func NewRootModel(ctx context.Context, appState *AppState, views ...tea.Model) *rootModel {
+func NewRootModel(ctx context.Context, views ...tea.Model) *rootModel {
 	return &rootModel{
-		AppState:   appState,
 		ctx:        ctx,
 		activeView: 0,
 		views:      views,
+		sub:        make(chan struct{}),
 	}
 }

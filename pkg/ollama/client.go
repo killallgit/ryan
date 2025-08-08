@@ -1,23 +1,33 @@
 package ollama
 
 import (
-	"net/http"
+	"context"
+	"log"
 
 	"github.com/spf13/viper"
+	lcollama "github.com/tmc/langchaingo/llms/ollama"
 )
 
 type OllamaClient struct {
-	Url          string
-	DefaultModel string
-	httpClient   *http.Client
+	*lcollama.LLM
 }
 
 func NewClient() *OllamaClient {
 	ollamaUrl := viper.GetString("ollama.url")
-	defaultModel := viper.GetString("ollama.default_model")
-	return &OllamaClient{
-		Url:          ollamaUrl,
-		DefaultModel: defaultModel,
-		httpClient:   &http.Client{},
+	ollamaModel := viper.GetString("ollama.model")
+	ollamaLLM, err := lcollama.New(lcollama.WithModel(ollamaModel), lcollama.WithServerURL(ollamaUrl))
+	if err != nil {
+		log.Fatal(err)
 	}
+	return &OllamaClient{
+		LLM: ollamaLLM,
+	}
+}
+
+func (c *OllamaClient) HealthCheck(ctx context.Context) error {
+	_, err := c.LLM.Call(ctx, "hello")
+	if err != nil {
+		return err
+	}
+	return nil
 }

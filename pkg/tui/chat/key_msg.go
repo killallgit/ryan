@@ -1,10 +1,7 @@
 package chat
 
 import (
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -23,7 +20,7 @@ func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.textarea.Value() != "" {
 			m.messages = append(m.messages, m.createMessageNode("user", m.textarea.Value()))
-			m.viewport.SetContent(lipgloss.NewStyle().Width(m.viewport.Width).Render(strings.Join(m.messages, "\n")))
+			m.setContent(m.messages)
 			m.textarea.Reset()
 			m.textarea.SetHeight(1)
 			m.updateViewportHeight()
