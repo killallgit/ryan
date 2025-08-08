@@ -32,3 +32,8 @@ tasks:
     cmds:
       - mkdir -p coverage
       - go test -coverprofile=coverage/coverage.out ./pkg/... ./cmd/...
+  test:integration:
+    desc: Run integration tests for CLI and agents
+    cmds:
+      - go clean -testcache
+      - go test -v -count=1 ./integration/...

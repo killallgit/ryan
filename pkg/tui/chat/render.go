@@ -39,8 +39,8 @@ func (m chatModel) renderNodes() string {
 			style = m.styles.DefaultMessage
 		}
 
-		// Apply width constraint for word wrapping
-		style = style.Width(availableWidth)
+		// Apply width constraint for word wrapping and add top padding
+		style = style.Width(availableWidth).PaddingTop(1)
 		nodeContent = style.Render(node.Content)
 
 		rendered = append(rendered, nodeContent)

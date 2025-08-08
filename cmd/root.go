@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/killallgit/ryan/pkg/headless"
 	"github.com/killallgit/ryan/pkg/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/term"
 )
 
 var cfgFile string
@@ -40,6 +43,18 @@ var rootCmd = &cobra.Command{
 }
 
 func runHeadless() {
+	// Ensure terminal is reset on exit
+	defer resetTerminal()
+
+	// Setup signal handler for clean exit
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		resetTerminal()
+		os.Exit(0)
+	}()
+
 	// Get the prompt from config, default to "hello" if not provided
 	prompt := viper.GetString("prompt")
 	if prompt == "" {
@@ -63,6 +78,20 @@ func runHeadless() {
 	// Cleanup
 	if err := runner.Cleanup(); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: cleanup error: %v\n", err)
+	}
+}
+
+func resetTerminal() {
+	// Only reset terminal if we're actually connected to a terminal
+	// This prevents escape codes from appearing in test output
+	if term.IsTerminal(int(os.Stdout.Fd())) || term.IsTerminal(int(os.Stderr.Fd())) {
+		// Reset terminal to ensure proper state
+		// Output to stderr to avoid interfering with stdout content
+		// This uses ANSI escape codes that work on most terminals
+		fmt.Fprint(os.Stderr, "\033[?25h")   // Show cursor
+		fmt.Fprint(os.Stderr, "\033[0m")     // Reset colors/attributes
+		fmt.Fprint(os.Stderr, "\033[?1049l") // Switch back from alternate screen buffer if used
+		os.Stderr.Sync()                     // Ensure output is flushed
 	}
 }
 
@@ -154,6 +183,11 @@ func initConfig() {
 	}
 
 	viper.AutomaticEnv()
+
+	// Override ollama.url with OLLAMA_HOST if set
+	if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
+		viper.Set("ollama.url", ollamaHost)
+	}
 
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())

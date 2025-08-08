@@ -17,15 +17,21 @@ var (
 	ColorBase06 = lipgloss.Color("#d3b597") // Light foreground
 	ColorBase07 = lipgloss.Color("#f5d7b9") // Lightest foreground
 
+	// Dim base colors
+	ColorGrey      = lipgloss.Color("#8c8c8c") // Dim dark foreground
+	ColorDim       = lipgloss.Color("#a9a9a9") // Dim default foreground
+	ColorLightGrey = lipgloss.Color("#c5c5c5") // Dim light foreground
+
 	// Accent colors (syntax highlighting)
-	ColorRed    = lipgloss.Color("#d95f5f") // Errors, deletions
-	ColorOrange = lipgloss.Color("#eb8755") // Integers, booleans
-	ColorYellow = lipgloss.Color("#f5b761") // Warnings, strings
-	ColorGreen  = lipgloss.Color("#93b56b") // Success, additions
-	ColorCyan   = lipgloss.Color("#61afaf") // Support, regex
-	ColorBlue   = lipgloss.Color("#6b93b5") // Functions, methods
-	ColorPurple = lipgloss.Color("#976bb5") // Keywords, storage
-	ColorBrown  = lipgloss.Color("#b57f6b") // Deprecated, special
+	ColorRed     = lipgloss.Color("#d95f5f") // Errors, deletions
+	ColorOrange  = lipgloss.Color("#eb8755") // Integers, booleans
+	ColorYellow  = lipgloss.Color("#f5b761") // Warnings, strings
+	ColorGreen   = lipgloss.Color("#93b56b") // Success, additions
+	ColorCyan    = lipgloss.Color("#61afaf") // Support, regex
+	ColorBlue    = lipgloss.Color("#6b93b5") // Functions, methods
+	ColorPurple  = lipgloss.Color("#976bb5") // Keywords, storage
+	ColorBrown   = lipgloss.Color("#b57f6b") // Deprecated, special
+	ColorDimGrey = lipgloss.Color("#444444")
 
 	// UI specific colors
 	ColorBorder    = ColorBase03
@@ -125,10 +131,10 @@ func DefaultStyles() *Styles {
 
 		// Message styles
 		UserMessage: lipgloss.NewStyle().
-			Foreground(ColorGreen),
+			Foreground(ColorGrey),
 
 		AssistantMessage: lipgloss.NewStyle().
-			Foreground(ColorBlue),
+			Foreground(ColorLightGrey),
 
 		SystemMessage: lipgloss.NewStyle().
 			Foreground(ColorPurple),
