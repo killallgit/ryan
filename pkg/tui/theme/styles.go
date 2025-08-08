@@ -38,9 +38,11 @@ var (
 	ColorMuted     = ColorBase03
 	ColorHighlight = ColorYellow
 
-	// Additional colors for activity indicators
-	ColorMagenta = lipgloss.Color("#d33682") // Magenta for agent spawning
-	ColorViolet  = lipgloss.Color("#6c71c4") // Violet for planning operations
+	ColorMagenta = lipgloss.Color("#d33682")
+	ColorViolet  = lipgloss.Color("#6c71c4")
+
+	PaddingNormal = lipgloss.NewStyle().Padding(1)
+	MarginNormal  = lipgloss.NewStyle().Margin(1)
 )
 
 // Styles defines the Lipgloss styles for the TUI components
@@ -65,16 +67,19 @@ type Styles struct {
 	ErrorMessage     lipgloss.Style
 	InfoMessage      lipgloss.Style
 	SuccessMessage   lipgloss.Style
+	DefaultMessage   lipgloss.Style
 
 	// General styles
 	Focused   lipgloss.Style
 	Unfocused lipgloss.Style
+
+	PaddingNormal lipgloss.Style
+	MarginNormal  lipgloss.Style
 }
 
 // DefaultStyles returns the default Lipgloss styles
 func DefaultStyles() *Styles {
 	return &Styles{
-		// Layout styles with backgrounds
 		ChatBody: lipgloss.NewStyle().
 			Background(ColorSelection).
 			Foreground(ColorBase05).
@@ -138,6 +143,9 @@ func DefaultStyles() *Styles {
 		SuccessMessage: lipgloss.NewStyle().
 			Foreground(ColorSuccess),
 
+		DefaultMessage: lipgloss.NewStyle().
+			Foreground(ColorBase05),
+
 		// Focus states
 		Focused: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -146,19 +154,8 @@ func DefaultStyles() *Styles {
 		Unfocused: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorBase03),
+
+		PaddingNormal: PaddingNormal,
+		MarginNormal:  MarginNormal,
 	}
 }
-
-var (
-	titleStyle = func() lipgloss.Style {
-		b := lipgloss.RoundedBorder()
-		b.Right = "├"
-		return lipgloss.NewStyle().BorderStyle(b).Padding(0, 1)
-	}()
-
-	infoStyle = func() lipgloss.Style {
-		b := lipgloss.RoundedBorder()
-		b.Left = "┤"
-		return titleStyle.BorderStyle(b)
-	}()
-)

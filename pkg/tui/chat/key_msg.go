@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,16 +9,20 @@ import (
 
 func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
-	case tea.KeyCtrlC, tea.KeyEsc:
-		fmt.Println(m.textarea.Value())
-		return m, tea.Quit
+	case tea.KeyEscape:
+		m.numEscPress++
+		if m.numEscPress == 2 {
+			m.textarea.Reset()
+			m.numEscPress = 0
+			return m, nil
+		}
 	case tea.KeyEnter:
 		if msg.Alt {
 			// Alt+Enter adds a newline
 			break
 		}
 		if m.textarea.Value() != "" {
-			m.messages = append(m.messages, m.createMessageNode(m.textarea.Value()))
+			m.messages = append(m.messages, m.createMessageNode("user", m.textarea.Value()))
 			m.viewport.SetContent(lipgloss.NewStyle().Width(m.viewport.Width).Render(strings.Join(m.messages, "\n")))
 			m.textarea.Reset()
 			m.textarea.SetHeight(1)
