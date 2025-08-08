@@ -4,6 +4,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Manager struct {
@@ -11,6 +13,7 @@ type Manager struct {
 	Router        *Router
 	activeStreams map[string]*ActiveStream
 	mu            sync.RWMutex
+	program       *tea.Program // Reference to the TUI program for sending updates
 }
 
 type ActiveStream struct {
@@ -64,4 +67,18 @@ func (m *Manager) AppendToStream(streamID string, content string) {
 	if stream, exists := m.activeStreams[streamID]; exists {
 		stream.Buffer.WriteString(content)
 	}
+}
+
+// SetProgram sets the tea.Program reference for sending updates
+func (m *Manager) SetProgram(program *tea.Program) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.program = program
+}
+
+// GetProgram returns the tea.Program reference
+func (m *Manager) GetProgram() *tea.Program {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.program
 }

@@ -18,8 +18,6 @@ tasks:
   lint:
     desc: Run linting checks on the codebase (includes pre-commit)
     cmds:
-      - go fmt ./pkg/... ./cmd/...
-      - go vet ./pkg/... ./cmd/...
       - uvx pre-commit run --all-files
   build:
     cmds:

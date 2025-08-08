@@ -7,6 +7,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/ollama"
+	"github.com/killallgit/ryan/pkg/tokens"
+	"github.com/killallgit/ryan/pkg/tui/chat/status"
+	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -70,10 +73,42 @@ func StreamContent(mgr *Manager, streamID string, sourceID string, prompt string
 
 		ctx := context.Background()
 
-		// Generic streaming function that sends chunks
+		// Initialize token counter
+		modelName := viper.GetString("ollama.default_model")
+		tokenCounter, err := tokens.NewTokenCounter(modelName)
+		if err != nil {
+			// Log warning but continue without token counting
+			fmt.Printf("Warning: Could not initialize token counter: %v\n", err)
+			tokenCounter = nil
+		}
+
+		// Count and send input tokens
+		if tokenCounter != nil && mgr.GetProgram() != nil {
+			inputTokens := tokenCounter.CountTokens(prompt)
+			mgr.GetProgram().Send(status.UpdateTokensMsg{Sent: inputTokens, Recv: 0})
+		}
+
+		// Track tokens received during streaming
+		var receivedContent string
+		lastTokenCount := 0
+
+		// Generic streaming function that sends chunks and counts tokens
 		streamFunc := func(ctx context.Context, chunk []byte) error {
 			// Append to manager's buffer
 			mgr.AppendToStream(streamID, string(chunk))
+
+			// Track received content for token counting
+			receivedContent += string(chunk)
+
+			// Count tokens incrementally
+			if tokenCounter != nil && mgr.GetProgram() != nil {
+				currentTokens := tokenCounter.CountTokens(receivedContent)
+				if currentTokens > lastTokenCount {
+					tokenDiff := currentTokens - lastTokenCount
+					mgr.GetProgram().Send(status.UpdateTokensMsg{Sent: 0, Recv: tokenDiff})
+					lastTokenCount = currentTokens
+				}
+			}
 
 			// Send chunk message (will be handled by update)
 			// For now, we'll return the chunk in the final message
@@ -82,16 +117,16 @@ func StreamContent(mgr *Manager, streamID string, sourceID string, prompt string
 		}
 
 		// Call appropriate provider
-		var err error
+		var genErr error
 		switch provider := source.Provider.(type) {
 		case *ollama.OllamaClient:
 			messages := []llms.MessageContent{
 				llms.TextParts(llms.ChatMessageTypeHuman, prompt),
 			}
-			_, err = provider.GenerateContent(ctx, messages,
+			_, genErr = provider.GenerateContent(ctx, messages,
 				llms.WithStreamingFunc(streamFunc))
 		default:
-			err = fmt.Errorf("unsupported provider type: %T", provider)
+			genErr = fmt.Errorf("unsupported provider type: %T", provider)
 		}
 
 		// Get final content from stream
@@ -101,12 +136,21 @@ func StreamContent(mgr *Manager, streamID string, sourceID string, prompt string
 			finalContent = stream.Buffer.String()
 		}
 
+		// Final token count check
+		if tokenCounter != nil && mgr.GetProgram() != nil && finalContent != "" {
+			finalTokens := tokenCounter.CountTokens(finalContent)
+			if finalTokens > lastTokenCount {
+				tokenDiff := finalTokens - lastTokenCount
+				mgr.GetProgram().Send(status.UpdateTokensMsg{Sent: 0, Recv: tokenDiff})
+			}
+		}
+
 		// End the stream
 		mgr.EndStream(streamID)
 
 		return StreamEndMsg{
 			StreamID:     streamID,
-			Error:        err,
+			Error:        genErr,
 			FinalContent: finalContent,
 		}
 	}
