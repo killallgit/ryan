@@ -24,11 +24,11 @@ jobs:
         ports:
           - 11434:11434
         options: >-
-          --health-cmd "curl -f http://localhost:11434/api/tags || exit 1"
+          --health-cmd "ollama list"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
-          --health-start-period 20s
+          --health-start-period 30s
 
     steps:
       - name: Checkout code
@@ -38,6 +38,24 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.23.x
+
+      - name: Wait for Ollama to be Ready
+        run: |
+          echo "Waiting for Ollama to be ready..."
+          for i in {1..30}; do
+            if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+              echo "Ollama is ready after $i seconds"
+              break
+            fi
+            echo "Attempt $i: Ollama not ready, waiting..."
+            sleep 2
+          done
+
+          # Final check
+          if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+            echo "Ollama failed to start properly"
+            exit 1
+          fi
 
       - name: Pull Ollama Model
         run: |
