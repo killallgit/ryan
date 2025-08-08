@@ -11,17 +11,18 @@ type chatModel struct {
 	viewport     viewport.Model
 	messages     []string
 	textarea     textarea.Model
-	senderStyle  lipgloss.Style
 	err          error
 	width        int
 	height       int
 	styles       *theme.Styles
 	messageIndex int
+	numEscPress  int
 }
 
 func NewChatModel() chatModel {
 	ta := textarea.New()
 	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorOrange))
+	ta.FocusedStyle.Prompt.Render("> ")
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorOrange))
 	ta.Focus()
 	ta.Placeholder = "Type a message..."
@@ -37,14 +38,13 @@ func NewChatModel() chatModel {
 
 	ta.KeyMap.InsertNewline.SetEnabled(true)
 
-	styles := theme.DefaultStyles()
 	return chatModel{
 		textarea:     ta,
 		messages:     []string{},
 		messageIndex: -1,
 		viewport:     vp,
-		senderStyle:  styles.UserMessage,
-		styles:       styles,
+		numEscPress:  0,
 		err:          nil,
+		styles:       theme.DefaultStyles(),
 	}
 }
