@@ -82,8 +82,12 @@ jobs:
       - name: Run Integration Tests
         env:
           OLLAMA_HOST: http://localhost:11434
+          OLLAMA__DEFAULT_MODEL: ${{ github.event.inputs.model || 'smollm2:135m' }}
+          OLLAMA__URL: http://localhost:11434
         run: |
+          MODEL="${{ github.event.inputs.model || 'smollm2:135m' }}"
           echo "Running integration tests with OLLAMA_HOST=$OLLAMA_HOST"
+          echo "Using model: $MODEL"
           go test -v -count=1 -timeout=5m ./integration/...
 
       - name: Upload Test Results
