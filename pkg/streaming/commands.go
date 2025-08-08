@@ -1,0 +1,126 @@
+package streaming
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/ollama"
+	"github.com/tmc/langchaingo/llms"
+)
+
+// StreamFromProvider creates a command to stream from a registered provider
+func StreamFromProvider(mgr *Manager, sourceID string, prompt string, nodeType string) tea.Cmd {
+	return func() tea.Msg {
+		source, exists := mgr.Registry.Get(sourceID)
+		if !exists {
+			return StreamEndMsg{
+				StreamID: sourceID,
+				Error:    fmt.Errorf("source %s not found", sourceID),
+			}
+		}
+
+		// Create unique stream ID
+		streamID := fmt.Sprintf("%s-%d", sourceID, time.Now().UnixNano())
+
+		// Start the stream with prompt
+		mgr.StartStream(streamID, source.Type, nodeType, prompt)
+
+		// Return start message with prompt
+		return StreamStartMsg{
+			StreamID:   streamID,
+			SourceType: nodeType,
+			Prompt:     prompt,
+		}
+	}
+}
+
+// StreamContent handles the actual streaming from the provider
+func StreamContent(mgr *Manager, streamID string, sourceID string, prompt string) tea.Cmd {
+	return func() tea.Msg {
+		source, exists := mgr.Registry.Get(sourceID)
+		if !exists {
+			return StreamEndMsg{
+				StreamID: streamID,
+				Error:    fmt.Errorf("source %s not found", sourceID),
+			}
+		}
+
+		// If prompt is empty, try to get it from the stream
+		if prompt == "" {
+			if stream, exists := mgr.GetStream(streamID); exists {
+				prompt = stream.Prompt
+			}
+		}
+
+		// Validate prompt
+		if prompt == "" {
+			return StreamEndMsg{
+				StreamID: streamID,
+				Error:    fmt.Errorf("empty prompt provided"),
+			}
+		}
+
+		ctx := context.Background()
+
+		// Generic streaming function that sends chunks
+		streamFunc := func(ctx context.Context, chunk []byte) error {
+			// Append to manager's buffer
+			mgr.AppendToStream(streamID, string(chunk))
+
+			// Send chunk message (will be handled by update)
+			// For now, we'll return the chunk in the final message
+			// In a real implementation, we'd use a channel or program.Send
+			return nil
+		}
+
+		// Call appropriate provider
+		var err error
+		switch provider := source.Provider.(type) {
+		case *ollama.OllamaClient:
+			messages := []llms.MessageContent{
+				llms.TextParts(llms.ChatMessageTypeHuman, prompt),
+			}
+			_, err = provider.GenerateContent(ctx, messages,
+				llms.WithStreamingFunc(streamFunc))
+		default:
+			err = fmt.Errorf("unsupported provider type: %T", provider)
+		}
+
+		// Get final content from stream
+		stream, _ := mgr.GetStream(streamID)
+		finalContent := ""
+		if stream != nil {
+			finalContent = stream.Buffer.String()
+		}
+
+		// End the stream
+		mgr.EndStream(streamID)
+
+		return StreamEndMsg{
+			StreamID:     streamID,
+			Error:        err,
+			FinalContent: finalContent,
+		}
+	}
+}
+
+// Message types for streaming (moved here to avoid circular import)
+type StreamStartMsg struct {
+	StreamID   string
+	SourceType string
+	Prompt     string
+}
+
+type StreamChunkMsg struct {
+	StreamID   string
+	Content    string
+	SourceType string
+}
+
+type StreamEndMsg struct {
+	StreamID     string
+	Error        error
+	FinalContent string
+}

@@ -1,29 +1,33 @@
 package chat
 
 import (
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/theme"
 )
 
 type chatModel struct {
-	viewport     viewport.Model
-	messages     []string
-	textarea     textarea.Model
-	err          error
-	width        int
-	height       int
-	styles       *theme.Styles
-	messageIndex int
-	numEscPress  int
+	viewport      viewport.Model
+	messages      []string
+	textarea      textarea.Model
+	err           error
+	width         int
+	height        int
+	styles        *theme.Styles
+	messageIndex  int
+	numEscPress   int
+	streamManager *streaming.Manager
+	nodes         []MessageNode
+	spinner       spinner.Model
+	isStreaming   bool
+	currentStream string
 }
 
-func NewChatModel() chatModel {
+func NewChatModel(streamManager *streaming.Manager) chatModel {
 	ta := textarea.New()
-	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorOrange))
-	ta.FocusedStyle.Prompt.Render("> ")
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorOrange))
 	ta.Focus()
 	ta.Placeholder = "Type a message..."
 	ta.SetHeight(1)
@@ -32,19 +36,37 @@ func NewChatModel() chatModel {
 	ta.ShowLineNumbers = false
 	ta.CharLimit = 0 // No character limit
 
+	// Style the textarea
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	ta.FocusedStyle.Base = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color(theme.ColorOrange))
+
+	// Set prompt style
+	ta.Prompt = "> "
+	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorOrange))
 
 	vp := createViewport(80, 20)
 
 	ta.KeyMap.InsertNewline.SetEnabled(true)
 
+	// Initialize spinner
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
 	return chatModel{
-		textarea:     ta,
-		messages:     []string{},
-		messageIndex: -1,
-		viewport:     vp,
-		numEscPress:  0,
-		err:          nil,
-		styles:       theme.DefaultStyles(),
+		textarea:      ta,
+		messages:      []string{},
+		messageIndex:  -1,
+		viewport:      vp,
+		numEscPress:   0,
+		err:           nil,
+		styles:        theme.DefaultStyles(),
+		streamManager: streamManager,
+		nodes:         []MessageNode{},
+		spinner:       s,
+		isStreaming:   false,
+		currentStream: "",
 	}
 }

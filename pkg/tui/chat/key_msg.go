@@ -1,7 +1,11 @@
 package chat
 
 import (
+	"fmt"
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/streaming"
 )
 
 func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -19,13 +23,30 @@ func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			break
 		}
 		if m.textarea.Value() != "" {
-			m.messages = append(m.messages, m.createMessageNode("user", m.textarea.Value()))
-			m.setContent(m.messages)
+			userInput := m.textarea.Value()
+
+			// Create user message node
+			userNode := MessageNode{
+				ID:        fmt.Sprintf("user-%d", time.Now().UnixNano()),
+				Type:      "user",
+				Content:   userInput,
+				Timestamp: time.Now(),
+			}
+			m.nodes = append(m.nodes, userNode)
+
+			// Clear input
 			m.textarea.Reset()
 			m.textarea.SetHeight(1)
 			m.updateViewportHeight()
-			m.viewport.GotoBottom()
-			return m, nil
+			m.updateViewportContent()
+
+			// Start streaming from registered provider
+			return m, streaming.StreamFromProvider(
+				m.streamManager,
+				"ollama-main", // Provider ID
+				userInput,     // Prompt
+				"assistant",   // Node type for response
+			)
 		}
 	}
 

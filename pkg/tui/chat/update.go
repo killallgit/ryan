@@ -1,10 +1,14 @@
 package chat
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -43,6 +47,67 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case errMsg:
 		m.err = msg
+		return m, nil
+
+	case streaming.StreamStartMsg:
+		// Create new node for this stream
+		node := MessageNode{
+			ID:          msg.StreamID,
+			Type:        msg.SourceType,
+			Content:     "",
+			Timestamp:   time.Now(),
+			StreamID:    msg.StreamID,
+			IsStreaming: true,
+		}
+		m.nodes = append(m.nodes, node)
+		m.isStreaming = true
+		m.currentStream = msg.StreamID
+
+		// Start spinner and begin streaming content with the prompt from the message
+		return m, tea.Batch(
+			m.spinner.Tick,
+			streaming.StreamContent(m.streamManager, msg.StreamID, "ollama-main", msg.Prompt),
+		)
+
+	case streaming.StreamChunkMsg:
+		// Find the node for this stream and append content
+		for i := range m.nodes {
+			if m.nodes[i].StreamID == msg.StreamID {
+				m.nodes[i].Content += msg.Content
+				break
+			}
+		}
+
+		// Update viewport with all nodes
+		m.updateViewportContent()
+		return m, nil
+
+	case streaming.StreamEndMsg:
+		// Mark stream as complete
+		for i := range m.nodes {
+			if m.nodes[i].StreamID == msg.StreamID {
+				m.nodes[i].IsStreaming = false
+				if msg.Error != nil {
+					m.nodes[i].Type = "error"
+					m.nodes[i].Content = fmt.Sprintf("Error: %v", msg.Error)
+				} else if msg.FinalContent != "" {
+					m.nodes[i].Content = msg.FinalContent
+				}
+				break
+			}
+		}
+
+		m.isStreaming = false
+		m.currentStream = ""
+		m.updateViewportContent()
+		return m, nil
+
+	case spinner.TickMsg:
+		if m.isStreaming {
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		}
 		return m, nil
 
 	default:

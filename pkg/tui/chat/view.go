@@ -1,17 +1,19 @@
 package chat
 
 import (
-	"fmt"
-	// "github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss"
 )
 
-// var gap = lipgloss.NewStyle().Height(1).Render(" ")
-
 func (m chatModel) View() string {
-	return fmt.Sprintf(
-		"%s%s%s",
+	statusLine := ""
+	if m.isStreaming {
+		statusLine = m.spinner.View() + " Generating response..."
+	}
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
 		m.viewport.View(),
-		"\n\n",
+		statusLine,
 		m.textarea.View(),
 	)
 }
