@@ -7,23 +7,14 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tui/chat"
 	"github.com/spf13/viper"
 )
 
-type AppState struct {
-	OllamaClient *ollama.OllamaClient
-}
-
 func StartApp() error {
 	ctx := context.Background()
-	ollamaClient := ollama.NewClient()
-	appState := &AppState{
-		OllamaClient: ollamaClient,
-	}
 	views := []tea.Model{chat.NewChatModel()}
-	root := NewRootModel(ctx, appState, views...)
+	root := NewRootModel(ctx, views...)
 	p := tea.NewProgram(root, tea.WithContext(ctx), tea.WithAltScreen())
 	setupDebug()
 
