@@ -65,5 +65,6 @@ func (m StatusModel) View() string {
 		Padding(0, 1).
 		Render(statusLine)
 
-	return statusBar
+	// Add padding below the status bar
+	return statusBar + "\n"
 }

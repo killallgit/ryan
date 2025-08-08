@@ -40,11 +40,11 @@ func NewChatModel(streamManager *streaming.Manager) chatModel {
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
 	ta.FocusedStyle.Base = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(theme.ColorOrange))
+		BorderForeground(lipgloss.Color(theme.ColorGrey))
 
 	// Set prompt style
 	ta.Prompt = "> "
-	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorOrange))
+	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorGrey))
 
 	vp := viewport.New(80, 30)
 

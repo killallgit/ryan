@@ -25,7 +25,7 @@ type StatusModel struct {
 func NewStatusModel() StatusModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(theme.ColorOrange)
+	s.Style = lipgloss.NewStyle().Foreground(theme.ColorViolet)
 
 	return StatusModel{
 		spinner:  s,
