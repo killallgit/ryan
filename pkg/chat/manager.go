@@ -48,6 +48,11 @@ func (m *Manager) AddMessage(role MessageRole, content string) error {
 	return m.history.Add(msg)
 }
 
+// AddMessageWithMetadata adds a message with metadata to the chat
+func (m *Manager) AddMessageWithMetadata(msg *Message) error {
+	return m.history.Add(msg)
+}
+
 // StartStreaming starts streaming a new message
 func (m *Manager) StartStreaming(role MessageRole) (*StreamingMessage, error) {
 	m.mu.Lock()
@@ -96,6 +101,25 @@ func (m *Manager) EndStreaming() error {
 	}
 
 	m.currentStream.Message.Metadata.IsStreaming = false
+	if err := m.history.Add(m.currentStream.Message); err != nil {
+		return fmt.Errorf("failed to add message to history: %w", err)
+	}
+
+	m.currentStream = nil
+	return nil
+}
+
+// EndStreamingWithTokens ends the current streaming message with token count
+func (m *Manager) EndStreamingWithTokens(tokens int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.currentStream == nil {
+		return fmt.Errorf("no active stream")
+	}
+
+	m.currentStream.Message.Metadata.IsStreaming = false
+	m.currentStream.Message.Metadata.TokensUsed = tokens
 	if err := m.history.Add(m.currentStream.Message); err != nil {
 		return fmt.Errorf("failed to add message to history: %w", err)
 	}

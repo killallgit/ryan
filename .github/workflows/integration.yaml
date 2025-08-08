@@ -1,0 +1,78 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ fix/token-display ]
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Ollama model to use for testing'
+        required: false
+        default: 'qwen2.5:0.5b'
+        type: choice
+        options:
+          - qwen2.5:0.5b
+          - tinyllama:1.1b
+          - gemma2:2b
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+        options: >-
+          --health-cmd "curl -f http://localhost:11434/api/tags || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 20s
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.x
+
+      - name: Pull Ollama Model
+        run: |
+          MODEL="${{ github.event.inputs.model || 'qwen2.5:0.5b' }}"
+          echo "Pulling model: $MODEL"
+
+          # Pull the model
+          curl -X POST http://localhost:11434/api/pull \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"$MODEL\"}" \
+            --fail-with-body
+
+          # Verify model is loaded
+          echo "Verifying model is available..."
+          curl -s http://localhost:11434/api/tags | grep -q "$MODEL" || {
+            echo "Model $MODEL not found in available models"
+            curl -s http://localhost:11434/api/tags | jq .
+            exit 1
+          }
+
+          echo "Model $MODEL is ready"
+
+      - name: Run Integration Tests
+        env:
+          OLLAMA_HOST: http://localhost:11434
+        run: |
+          echo "Running integration tests with OLLAMA_HOST=$OLLAMA_HOST"
+          go test -v -count=1 -timeout=5m ./integration/...
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+            coverage/
+            *.log
+            integration/*.log
