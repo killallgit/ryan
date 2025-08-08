@@ -32,6 +32,8 @@ tasks:
       - go test -coverprofile=coverage/coverage.out ./pkg/... ./cmd/...
   test:integration:
     desc: Run integration tests for CLI and agents
+    env:
+      OLLAMA_DEFAULT_MODEL: qwen3:latest
     cmds:
       - go clean -testcache
       - go test -v -count=1 ./integration/...

@@ -108,7 +108,7 @@ func TestCLIContinueFlag(t *testing.T) {
 		require.NoError(t, err)
 
 		historyFile := filepath.Join(configDir, "chat_history.json")
-		testHistory := `[{"role": "user", "content": "previous message"}]`
+		testHistory := `{"messages": [{"role": "user", "content": "previous message"}]}`
 		err = os.WriteFile(historyFile, []byte(testHistory), 0644)
 		require.NoError(t, err)
 
@@ -154,7 +154,7 @@ func TestCLIContinueFlag(t *testing.T) {
 		require.NoError(t, err)
 
 		historyFile := filepath.Join(configDir, "chat_history.json")
-		testHistory := `[{"role": "user", "content": "previous message"}]`
+		testHistory := `{"messages": [{"role": "user", "content": "previous message"}]}`
 		err = os.WriteFile(historyFile, []byte(testHistory), 0644)
 		require.NoError(t, err)
 
