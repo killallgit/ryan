@@ -1,7 +1,6 @@
 package ollama
 
 import (
-	"context"
 	"log"
 
 	"github.com/spf13/viper"
@@ -22,12 +21,4 @@ func NewClient() *OllamaClient {
 	return &OllamaClient{
 		LLM: ollamaLLM,
 	}
-}
-
-func (c *OllamaClient) HealthCheck(ctx context.Context) error {
-	_, err := c.LLM.Call(ctx, "hello")
-	if err != nil {
-		return err
-	}
-	return nil
 }

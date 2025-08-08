@@ -37,16 +37,10 @@ func StartApp() error {
 	return nil
 }
 
-func CmdHandler(msg tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		return msg
-	}
-}
-
 func setupDebug() {
 	logLevel := viper.GetString("logging.level")
 	if logLevel == "debug" {
-		f, err := tea.LogToFile("debug.log", "debug")
+		f, err := tea.LogToFile("system.log", "debug")
 		if err != nil {
 			fmt.Println("fatal:", err)
 			os.Exit(1)
