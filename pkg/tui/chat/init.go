@@ -6,5 +6,8 @@ import (
 )
 
 func (m chatModel) Init() tea.Cmd {
-	return textarea.Blink
+	return tea.Batch(
+		textarea.Blink,
+		m.spinner.Tick,
+	)
 }

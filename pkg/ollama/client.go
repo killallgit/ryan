@@ -14,7 +14,7 @@ type OllamaClient struct {
 
 func NewClient() *OllamaClient {
 	ollamaUrl := viper.GetString("ollama.url")
-	ollamaModel := viper.GetString("ollama.model")
+	ollamaModel := viper.GetString("ollama.default_model")
 	ollamaLLM, err := lcollama.New(lcollama.WithModel(ollamaModel), lcollama.WithServerURL(ollamaUrl))
 	if err != nil {
 		log.Fatal(err)

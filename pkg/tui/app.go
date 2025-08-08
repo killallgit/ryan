@@ -7,13 +7,25 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/ollama"
+	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat"
 	"github.com/spf13/viper"
 )
 
 func StartApp() error {
 	ctx := context.Background()
-	views := []tea.Model{chat.NewChatModel()}
+
+	// Create streaming infrastructure
+	registry := streaming.NewRegistry()
+	manager := streaming.NewManager(registry)
+
+	// Register Ollama provider
+	ollamaClient := ollama.NewClient()
+	registry.Register("ollama-main", "ollama", ollamaClient)
+
+	// Create views with stream manager
+	views := []tea.Model{chat.NewChatModel(manager)}
 	root := NewRootModel(ctx, views...)
 	p := tea.NewProgram(root, tea.WithContext(ctx), tea.WithAltScreen())
 	setupDebug()
