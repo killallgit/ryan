@@ -189,6 +189,11 @@ func initConfig() {
 		viper.Set("ollama.url", ollamaHost)
 	}
 
+	// Override ollama.default_model with OLLAMA_DEFAULT_MODEL if set
+	if ollamaModel := os.Getenv("OLLAMA_DEFAULT_MODEL"); ollamaModel != "" {
+		viper.Set("ollama.default_model", ollamaModel)
+	}
+
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
