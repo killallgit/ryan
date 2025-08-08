@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/killallgit/ryan/pkg/headless"
 	"github.com/killallgit/ryan/pkg/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -17,23 +19,74 @@ var rootCmd = &cobra.Command{
 	Short: "Claude's friend",
 	Long:  `Open source Claude Code alternative.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		refreshConfig()
-		if err := tui.StartApp(); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+		// Save transient values before refreshing config
+		promptValue := viper.GetString("prompt")
+		headlessMode := viper.GetBool("headless")
+		continueHistory := viper.GetBool("continue")
+
+		// Refresh config (this will clear and restore transient values)
+		refreshConfig(promptValue, headlessMode, continueHistory)
+
+		// Check if running in headless mode
+		if headlessMode {
+			runHeadless()
+		} else {
+			if err := tui.StartApp(); err != nil {
+				fmt.Printf("Error: %v\n", err)
+				os.Exit(1)
+			}
 		}
 	},
 }
 
-func refreshConfig() {
+func runHeadless() {
+	// Get the prompt from config, default to "hello" if not provided
+	prompt := viper.GetString("prompt")
+	if prompt == "" {
+		prompt = "hello"
+	}
+
+	// Create and run the headless runner
+	runner, err := headless.NewRunner()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing headless mode: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Run with context
+	ctx := context.Background()
+	if err := runner.Run(ctx, prompt); err != nil {
+		fmt.Fprintf(os.Stderr, "Error running headless mode: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Cleanup
+	if err := runner.Cleanup(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: cleanup error: %v\n", err)
+	}
+}
+
+func refreshConfig(promptValue string, headlessMode bool, continueHistory bool) {
+	// Clear transient flags that shouldn't be persisted
+	viper.Set("prompt", "")
+	viper.Set("headless", false)
+	viper.Set("continue", false)
+
+	// Ensure config directory exists
 	dirFromCfgFile := filepath.Dir(cfgFile)
 	if _, err := os.Stat(dirFromCfgFile); os.IsNotExist(err) {
 		os.Mkdir(dirFromCfgFile, 0755)
 	}
 
+	// Write config without transient values
 	if err := viper.WriteConfigAs(cfgFile); err != nil {
 		fmt.Printf("Error writing config: %v\n", err)
 	}
+
+	// Restore transient values for use in this session
+	viper.Set("prompt", promptValue)
+	viper.Set("headless", headlessMode)
+	viper.Set("continue", continueHistory)
 }
 
 func Execute() {

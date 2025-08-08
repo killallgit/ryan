@@ -1,0 +1,140 @@
+package chat
+
+import (
+	"context"
+	"fmt"
+	"sync"
+)
+
+// StreamCallback is called when new content is streamed
+type StreamCallback func(content string) error
+
+// Manager manages chat conversations
+type Manager struct {
+	history        *History
+	currentStream  *StreamingMessage
+	streamCallback StreamCallback
+	mu             sync.RWMutex
+}
+
+// StreamingMessage represents a message being streamed
+type StreamingMessage struct {
+	Message       *Message
+	ContentBuffer string
+}
+
+// NewManager creates a new chat manager
+func NewManager(historyPath string) (*Manager, error) {
+	history, err := NewHistory(historyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create history: %w", err)
+	}
+
+	return &Manager{
+		history: history,
+	}, nil
+}
+
+// SetStreamCallback sets the callback for streaming content
+func (m *Manager) SetStreamCallback(callback StreamCallback) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.streamCallback = callback
+}
+
+// AddMessage adds a message to the chat
+func (m *Manager) AddMessage(role MessageRole, content string) error {
+	msg := NewMessage(role, content)
+	return m.history.Add(msg)
+}
+
+// StartStreaming starts streaming a new message
+func (m *Manager) StartStreaming(role MessageRole) (*StreamingMessage, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	msg := NewMessage(role, "")
+	msg.Metadata.IsStreaming = true
+
+	m.currentStream = &StreamingMessage{
+		Message:       msg,
+		ContentBuffer: "",
+	}
+
+	return m.currentStream, nil
+}
+
+// AppendToStream appends content to the current streaming message
+func (m *Manager) AppendToStream(content string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.currentStream == nil {
+		return fmt.Errorf("no active stream")
+	}
+
+	m.currentStream.ContentBuffer += content
+	m.currentStream.Message.Content = m.currentStream.ContentBuffer
+
+	// Call the stream callback if set
+	if m.streamCallback != nil {
+		if err := m.streamCallback(content); err != nil {
+			return fmt.Errorf("stream callback error: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// EndStreaming ends the current streaming message
+func (m *Manager) EndStreaming() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.currentStream == nil {
+		return fmt.Errorf("no active stream")
+	}
+
+	m.currentStream.Message.Metadata.IsStreaming = false
+	if err := m.history.Add(m.currentStream.Message); err != nil {
+		return fmt.Errorf("failed to add message to history: %w", err)
+	}
+
+	m.currentStream = nil
+	return nil
+}
+
+// GetHistory returns the chat history
+func (m *Manager) GetHistory() []*Message {
+	return m.history.GetMessages()
+}
+
+// ClearHistory clears the chat history
+func (m *Manager) ClearHistory() error {
+	return m.history.Clear()
+}
+
+// ProcessWithContext processes a message with a given context
+func (m *Manager) ProcessWithContext(ctx context.Context, content string, processor func(context.Context, string) (string, error)) error {
+	// Add user message
+	if err := m.AddMessage(RoleUser, content); err != nil {
+		return fmt.Errorf("failed to add user message: %w", err)
+	}
+
+	// Process with the provided processor
+	response, err := processor(ctx, content)
+	if err != nil {
+		// Add error message
+		errMsg := NewMessage(RoleAssistant, fmt.Sprintf("Error: %v", err))
+		errMsg.Metadata.Error = err.Error()
+		m.history.Add(errMsg)
+		return fmt.Errorf("processor error: %w", err)
+	}
+
+	// Add assistant response
+	if err := m.AddMessage(RoleAssistant, response); err != nil {
+		return fmt.Errorf("failed to add assistant message: %w", err)
+	}
+
+	return nil
+}
