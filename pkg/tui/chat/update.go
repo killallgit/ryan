@@ -1,12 +1,16 @@
 package chat
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
+	"github.com/tmc/langchaingo/llms"
 )
 
 type (
@@ -49,11 +53,45 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		statusModel, _ := m.statusBar.Update(status.StartStreamingMsg{Icon: "↓"})
 		m.statusBar = statusModel.(status.StatusModel)
 
-		// Begin streaming content with the prompt from the message
-		return m, streaming.StreamContent(m.streamManager, msg.StreamID, "ollama-main", msg.Prompt)
+		// Start channel-based streaming
+		go m.startLLMStream(msg.StreamID, msg.Prompt)
 
-	case streaming.StreamChunkMsg:
-		// Find the node for this stream and append content
+		// Start listening for chunks on the channel
+		return m, waitForChunk(m.chunkChan)
+
+	case chunkMsg:
+		// Channel-based chunk message
+
+		// Handle stream end
+		if msg.IsEnd {
+			// Mark stream as complete
+			for i := range m.nodes {
+				if m.nodes[i].StreamID == msg.StreamID {
+					m.nodes[i].IsStreaming = false
+					if msg.Error != nil {
+						m.nodes[i].Type = "error"
+						m.nodes[i].Content = fmt.Sprintf("Error: %v", msg.Error)
+					} else {
+						// Save assistant response to chat history
+						if m.chatManager != nil {
+							m.chatManager.AddMessage(chat.RoleAssistant, m.nodes[i].Content)
+						}
+					}
+					break
+				}
+			}
+
+			m.isStreaming = false
+			m.currentStream = ""
+			m.updateViewportContent()
+
+			// Update status bar
+			statusModel, _ := m.statusBar.Update(status.StopStreamingMsg{})
+			m.statusBar = statusModel.(status.StatusModel)
+			return m, nil
+		}
+
+		// Handle regular chunk
 		for i := range m.nodes {
 			if m.nodes[i].StreamID == msg.StreamID {
 				m.nodes[i].Content += msg.Content
@@ -63,31 +101,9 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Update viewport with all nodes
 		m.updateViewportContent()
-		return m, nil
 
-	case streaming.StreamEndMsg:
-		// Mark stream as complete
-		for i := range m.nodes {
-			if m.nodes[i].StreamID == msg.StreamID {
-				m.nodes[i].IsStreaming = false
-				if msg.Error != nil {
-					m.nodes[i].Type = "error"
-					m.nodes[i].Content = fmt.Sprintf("Error: %v", msg.Error)
-				} else if msg.FinalContent != "" {
-					m.nodes[i].Content = msg.FinalContent
-				}
-				break
-			}
-		}
-
-		m.isStreaming = false
-		m.currentStream = ""
-		m.updateViewportContent()
-
-		// Update status bar
-		statusModel, _ := m.statusBar.Update(status.StopStreamingMsg{})
-		m.statusBar = statusModel.(status.StatusModel)
-		return m, nil
+		// Continue listening for more chunks
+		return m, waitForChunk(m.chunkChan)
 
 	default:
 		// Update status bar
@@ -107,4 +123,56 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+// startLLMStream starts streaming from LLM and sends chunks to channel
+func (m chatModel) startLLMStream(streamID, prompt string) {
+
+	// Get the provider from the streaming manager
+	source, exists := m.streamManager.Registry.Get("ollama-main")
+	if !exists {
+		m.chunkChan <- StreamChunk{
+			StreamID: streamID,
+			IsEnd:    true,
+			Error:    fmt.Errorf("provider ollama-main not found"),
+		}
+		return
+	}
+
+	// Create streaming function that sends to channel
+	streamFunc := func(ctx context.Context, chunk []byte) error {
+		chunkStr := string(chunk)
+
+		m.chunkChan <- StreamChunk{
+			StreamID: streamID,
+			Content:  chunkStr,
+			IsEnd:    false,
+		}
+		return nil
+	}
+
+	// Call the LLM provider
+	ctx := context.Background()
+	switch provider := source.Provider.(type) {
+	case *ollama.OllamaClient:
+		messages := []llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeHuman, prompt),
+		}
+		_, err := provider.GenerateContent(ctx, messages,
+			llms.WithStreamingFunc(streamFunc))
+
+		// Send end message
+		m.chunkChan <- StreamChunk{
+			StreamID: streamID,
+			IsEnd:    true,
+			Error:    err,
+		}
+
+	default:
+		m.chunkChan <- StreamChunk{
+			StreamID: streamID,
+			IsEnd:    true,
+			Error:    fmt.Errorf("unsupported provider type: %T", provider),
+		}
+	}
 }

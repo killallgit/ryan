@@ -5,6 +5,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
 )
@@ -25,6 +26,11 @@ func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.textarea.Value() != "" {
 			userInput := m.textarea.Value()
+
+			// Add message to chat history
+			if m.chatManager != nil {
+				m.chatManager.AddMessage(chat.RoleUser, userInput)
+			}
 
 			// Create user message node
 			userNode := MessageNode{
