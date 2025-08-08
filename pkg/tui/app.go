@@ -24,10 +24,19 @@ func StartApp() error {
 	ollamaClient := ollama.NewClient()
 	registry.Register("ollama-main", "ollama", ollamaClient)
 
-	// Create views with stream manager
-	views := []tea.Model{chat.NewChatModel(manager)}
+	// Create chat model with stream manager
+	chatModel := chat.NewChatModel(manager)
+
+	// Store the chat model for later reference
+	views := []tea.Model{chatModel}
 	root := NewRootModel(ctx, views...)
+
+	// Create the program
 	p := tea.NewProgram(root, tea.WithContext(ctx), tea.WithAltScreen())
+
+	// Store program reference in the stream manager for token updates
+	manager.SetProgram(p)
+
 	setupDebug()
 
 	if _, err := p.Run(); err != nil {
