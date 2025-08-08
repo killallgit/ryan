@@ -8,6 +8,7 @@ import (
 
 type Manager struct {
 	Registry      *Registry
+	Router        *Router
 	activeStreams map[string]*ActiveStream
 	mu            sync.RWMutex
 }
@@ -24,6 +25,7 @@ type ActiveStream struct {
 func NewManager(registry *Registry) *Manager {
 	return &Manager{
 		Registry:      registry,
+		Router:        NewRouter(registry, "ollama-main"),
 		activeStreams: make(map[string]*ActiveStream),
 	}
 }

@@ -1,6 +1,4 @@
-- refactor the chat update method into multiple files so that it's easier to review. Create a separate dimensions.go file with the code related to figuring and setting terminal dimensions.
-- in key_msg when the event to start the stream is sent, we will not know exactly which agent we're going to get a response from. In the future this will be dynamically figured out. We need to come up with a better way of handling that
-- make sure spinner is using theme colors
-- make sure spinner is part of the status row above input text area. This pkg is "status" and will follow the same pattern as the other tui models where each interface func has its own file
-- In the future we need to get the terminal width dynamically using the term library
-- logging needs a better abstraction. For the debug log when the app starts we need to get the directory that viper is using for its config location as the base.
+- Streaming text doesn't seem to work. Either we're not getting it in streaming form or the events are not registering a change. I expect to see the <think><MESSAGE_STREAM...></think> which i know is somehow avail to get access to through langchain.
+- chat_history.json should be saved no matter what type of log level is enabled. This is a good opportunity to setup our contextmanager.
+- status bar tokens are not displayed. We need to think about how to access these from langchain
+- system.log is not using the path set in the settings file -> logging.log_file

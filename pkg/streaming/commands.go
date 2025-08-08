@@ -11,8 +11,14 @@ import (
 )
 
 // StreamFromProvider creates a command to stream from a registered provider
+// If sourceID is empty, it will use the router to determine the provider
 func StreamFromProvider(mgr *Manager, sourceID string, prompt string, nodeType string) tea.Cmd {
 	return func() tea.Msg {
+		// Use router if sourceID not specified
+		if sourceID == "" {
+			sourceID = mgr.Router.Route(prompt)
+		}
+
 		source, exists := mgr.Registry.Get(sourceID)
 		if !exists {
 			return StreamEndMsg{

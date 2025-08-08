@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/streaming"
+	"github.com/killallgit/ryan/pkg/tui/chat/status"
 )
 
 func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -40,12 +41,16 @@ func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.updateViewportHeight()
 			m.updateViewportContent()
 
+			// Update status bar to show sending
+			statusModel, _ := m.statusBar.Update(status.StatusUpdateMsg{Status: "Sending"})
+			m.statusBar = statusModel.(status.StatusModel)
+
 			// Start streaming from registered provider
 			return m, streaming.StreamFromProvider(
 				m.streamManager,
-				"ollama-main", // Provider ID
-				userInput,     // Prompt
-				"assistant",   // Node type for response
+				"",          // Empty to use router
+				userInput,   // Prompt
+				"assistant", // Node type for response
 			)
 		}
 	}
