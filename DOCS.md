@@ -1,0 +1,2 @@
+- langchain-go: https://pkg.go.dev/github.com/tmc/langchaingo
+- https://github.com/charmbracelet/bubbletea
