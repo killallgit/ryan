@@ -43,11 +43,6 @@ func (m chatModel) renderNodes() string {
 		style = style.Width(availableWidth)
 		nodeContent = style.Render(node.Content)
 
-		// Add streaming indicator if still streaming
-		if node.IsStreaming {
-			nodeContent += " " + m.spinner.View()
-		}
-
 		rendered = append(rendered, nodeContent)
 	}
 

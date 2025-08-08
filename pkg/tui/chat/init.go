@@ -8,6 +8,6 @@ import (
 func (m chatModel) Init() tea.Cmd {
 	return tea.Batch(
 		textarea.Blink,
-		m.spinner.Tick,
+		m.statusBar.Init(),
 	)
 }

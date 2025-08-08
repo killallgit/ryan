@@ -1,22 +1,36 @@
 package status
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"time"
 
-type statusModel struct {
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/killallgit/ryan/pkg/tui/theme"
+)
+
+// StatusModel represents the status bar component
+type StatusModel struct {
+	spinner    spinner.Model
+	status     string        // "Streaming", "Thinking", "Sending"
+	timer      time.Duration // Elapsed time
+	icon       string        // "↑" sending, "↓" receiving, "🔨" tool
+	tokensSent int
+	tokensRecv int
+	startTime  time.Time
+	isActive   bool
+	width      int
 }
 
-func NewStatusModel() statusModel {
-	return statusModel{}
-}
+// NewStatusModel creates a new status bar model
+func NewStatusModel() StatusModel {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(theme.ColorOrange)
 
-func (m statusModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m statusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	return m, nil
-}
-
-func (m statusModel) View() string {
-	return ""
+	return StatusModel{
+		spinner:  s,
+		status:   "",
+		icon:     "",
+		isActive: false,
+	}
 }

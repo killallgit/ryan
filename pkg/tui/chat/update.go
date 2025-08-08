@@ -2,14 +2,11 @@ package chat
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/killallgit/ryan/pkg/streaming"
-	"github.com/mattn/go-runewidth"
+	"github.com/killallgit/ryan/pkg/tui/chat/status"
 )
 
 type (
@@ -21,25 +18,10 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-
-		// Set textarea width to use most of the available width
-		// Account for padding/borders
-		m.textarea.SetWidth(msg.Width - 4)
-
-		// Calculate height after setting width
-		textAreaHeight := m.calculateTextAreaHeight()
-		m.textarea.SetHeight(textAreaHeight)
-
-		// Update viewport dimensions
-		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - textAreaHeight - 3
-
-		if len(m.messages) > 0 {
-			m.viewport.SetContent(lipgloss.NewStyle().Width(m.viewport.Width).Render(strings.Join(m.messages, "\n")))
-		}
-		m.viewport.GotoBottom()
+		m.handleWindowResize(msg.Width, msg.Height)
+		// Update status bar width
+		statusModel, _ := m.statusBar.Update(msg)
+		m.statusBar = statusModel.(status.StatusModel)
 
 	case tea.KeyMsg:
 		// All key handling happens in handleKeyMsg
@@ -63,11 +45,12 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isStreaming = true
 		m.currentStream = msg.StreamID
 
-		// Start spinner and begin streaming content with the prompt from the message
-		return m, tea.Batch(
-			m.spinner.Tick,
-			streaming.StreamContent(m.streamManager, msg.StreamID, "ollama-main", msg.Prompt),
-		)
+		// Update status bar
+		statusModel, _ := m.statusBar.Update(status.StartStreamingMsg{Icon: "↓"})
+		m.statusBar = statusModel.(status.StatusModel)
+
+		// Begin streaming content with the prompt from the message
+		return m, streaming.StreamContent(m.streamManager, msg.StreamID, "ollama-main", msg.Prompt)
 
 	case streaming.StreamChunkMsg:
 		// Find the node for this stream and append content
@@ -100,17 +83,18 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isStreaming = false
 		m.currentStream = ""
 		m.updateViewportContent()
-		return m, nil
 
-	case spinner.TickMsg:
-		if m.isStreaming {
-			var cmd tea.Cmd
-			m.spinner, cmd = m.spinner.Update(msg)
-			return m, cmd
-		}
+		// Update status bar
+		statusModel, _ := m.statusBar.Update(status.StopStreamingMsg{})
+		m.statusBar = statusModel.(status.StatusModel)
 		return m, nil
 
 	default:
+		// Update status bar
+		statusModel, statusCmd := m.statusBar.Update(msg)
+		m.statusBar = statusModel.(status.StatusModel)
+		cmds = append(cmds, statusCmd)
+
 		// Update textarea for other messages (like blink cursor)
 		var tiCmd tea.Cmd
 		m.textarea, tiCmd = m.textarea.Update(msg)
@@ -123,58 +107,4 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
-}
-
-func (m *chatModel) calculateTextAreaHeight() int {
-	content := m.textarea.Value()
-	if content == "" {
-		return 1
-	}
-
-	// Split content into actual lines
-	lines := strings.Split(content, "\n")
-	totalVisualLines := 0
-
-	// Get the textarea width for calculating wrapped lines
-	textWidth := m.textarea.Width()
-	if textWidth <= 0 {
-		textWidth = m.width - 4
-		if textWidth <= 0 {
-			textWidth = 80 // fallback
-		}
-	}
-
-	// Calculate visual lines for each actual line
-	for _, line := range lines {
-		if line == "" {
-			totalVisualLines++
-		} else {
-			// Calculate display width using runewidth for proper Unicode handling
-			lineWidth := runewidth.StringWidth(line)
-			// Calculate how many visual lines this takes
-			visualLines := (lineWidth + textWidth - 1) / textWidth
-			if visualLines < 1 {
-				visualLines = 1
-			}
-			totalVisualLines += visualLines
-		}
-	}
-
-	// Apply max height constraint
-	maxHeight := 10
-	if totalVisualLines > maxHeight {
-		return maxHeight
-	}
-	if totalVisualLines < 1 {
-		return 1
-	}
-
-	return totalVisualLines
-}
-
-func (m *chatModel) updateViewportHeight() {
-	if m.height > 0 {
-		textAreaHeight := m.calculateTextAreaHeight()
-		m.viewport.Height = m.height - textAreaHeight - 3
-	}
 }

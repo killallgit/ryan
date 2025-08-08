@@ -1,11 +1,11 @@
 package chat
 
 import (
-	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/killallgit/ryan/pkg/streaming"
+	"github.com/killallgit/ryan/pkg/tui/chat/status"
 	"github.com/killallgit/ryan/pkg/tui/theme"
 )
 
@@ -21,7 +21,7 @@ type chatModel struct {
 	numEscPress   int
 	streamManager *streaming.Manager
 	nodes         []MessageNode
-	spinner       spinner.Model
+	statusBar     status.StatusModel
 	isStreaming   bool
 	currentStream string
 }
@@ -50,10 +50,8 @@ func NewChatModel(streamManager *streaming.Manager) chatModel {
 
 	ta.KeyMap.InsertNewline.SetEnabled(true)
 
-	// Initialize spinner
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	// Initialize status bar
+	statusBar := status.NewStatusModel()
 
 	return chatModel{
 		textarea:      ta,
@@ -65,7 +63,7 @@ func NewChatModel(streamManager *streaming.Manager) chatModel {
 		styles:        theme.DefaultStyles(),
 		streamManager: streamManager,
 		nodes:         []MessageNode{},
-		spinner:       s,
+		statusBar:     statusBar,
 		isStreaming:   false,
 		currentStream: "",
 	}
