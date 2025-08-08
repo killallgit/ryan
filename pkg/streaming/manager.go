@@ -21,8 +21,11 @@ type ActiveStream struct {
 	SourceType string
 	Buffer     strings.Builder
 	StartTime  time.Time
-	NodeType   string // Display element type
-	Prompt     string // Store the prompt for the stream
+	NodeType   string       // Display element type
+	Prompt     string       // Store the prompt for the stream
+	Callback   func(string) // Callback for chunk notifications
+	LastSent   string       // Track last sent content for incremental updates
+	Error      error        // Store any error that occurred during streaming
 }
 
 func NewManager(registry *Registry) *Manager {
@@ -43,6 +46,7 @@ func (m *Manager) StartStream(streamID, sourceType, nodeType, prompt string) *Ac
 		StartTime:  time.Now(),
 		NodeType:   nodeType,
 		Prompt:     prompt,
+		Callback:   func(string) {}, // Set a dummy callback to indicate stream is active
 	}
 	m.activeStreams[streamID] = stream
 	return stream
@@ -66,6 +70,10 @@ func (m *Manager) AppendToStream(streamID string, content string) {
 	defer m.mu.Unlock()
 	if stream, exists := m.activeStreams[streamID]; exists {
 		stream.Buffer.WriteString(content)
+		// Call callback if set
+		if stream.Callback != nil {
+			stream.Callback(content)
+		}
 	}
 }
 
@@ -81,4 +89,51 @@ func (m *Manager) GetProgram() *tea.Program {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.program
+}
+
+// SetStreamCallback sets a callback for when chunks are received
+func (m *Manager) SetStreamCallback(streamID string, callback func(string)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if stream, exists := m.activeStreams[streamID]; exists {
+		stream.Callback = callback
+	}
+}
+
+// GetLastSentContent gets the last sent content for a stream
+func (m *Manager) GetLastSentContent(streamID string) string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if stream, exists := m.activeStreams[streamID]; exists {
+		return stream.LastSent
+	}
+	return ""
+}
+
+// SetLastSentContent sets the last sent content for a stream
+func (m *Manager) SetLastSentContent(streamID string, content string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if stream, exists := m.activeStreams[streamID]; exists {
+		stream.LastSent = content
+	}
+}
+
+// SetStreamError sets an error for a stream
+func (m *Manager) SetStreamError(streamID string, err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if stream, exists := m.activeStreams[streamID]; exists {
+		stream.Error = err
+	}
+}
+
+// GetStreamError gets the error for a stream
+func (m *Manager) GetStreamError(streamID string) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if stream, exists := m.activeStreams[streamID]; exists {
+		return stream.Error
+	}
+	return nil
 }

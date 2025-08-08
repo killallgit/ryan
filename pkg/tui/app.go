@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
+	chatpkg "github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat"
@@ -16,6 +18,28 @@ import (
 func StartApp() error {
 	ctx := context.Background()
 
+	// Get configuration for chat history
+	configFile := viper.ConfigFileUsed()
+	baseDir := filepath.Dir(configFile)
+	if configFile == "" {
+		baseDir = ".ryan"
+	}
+	historyPath := filepath.Join(baseDir, "chat_history.json")
+	continueHistory := viper.GetBool("continue")
+
+	// Create chat manager for history management
+	chatManager, err := chatpkg.NewManager(historyPath)
+	if err != nil {
+		return fmt.Errorf("failed to create chat manager: %w", err)
+	}
+
+	// Clear history if not continuing
+	if !continueHistory {
+		if err := chatManager.ClearHistory(); err != nil {
+			return fmt.Errorf("failed to clear history: %w", err)
+		}
+	}
+
 	// Create streaming infrastructure
 	registry := streaming.NewRegistry()
 	manager := streaming.NewManager(registry)
@@ -24,8 +48,8 @@ func StartApp() error {
 	ollamaClient := ollama.NewClient()
 	registry.Register("ollama-main", "ollama", ollamaClient)
 
-	// Create chat model with stream manager
-	chatModel := chat.NewChatModel(manager)
+	// Create chat model with stream manager and chat manager
+	chatModel := chat.NewChatModel(manager, chatManager)
 
 	// Store the chat model for later reference
 	views := []tea.Model{chatModel}

@@ -3,11 +3,32 @@ package chat
 import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
 	"github.com/killallgit/ryan/pkg/tui/theme"
 )
+
+// StreamChunk represents a chunk of streaming data
+type StreamChunk struct {
+	StreamID string
+	Content  string
+	IsEnd    bool
+	Error    error
+}
+
+// chunkMsg wraps StreamChunk for Bubble Tea messaging
+type chunkMsg StreamChunk
+
+// waitForChunk waits for the next chunk from the streaming channel
+func waitForChunk(chunkChan <-chan StreamChunk) tea.Cmd {
+	return func() tea.Msg {
+		chunk := <-chunkChan
+		return chunkMsg(chunk)
+	}
+}
 
 type chatModel struct {
 	viewport      viewport.Model
@@ -20,13 +41,18 @@ type chatModel struct {
 	messageIndex  int
 	numEscPress   int
 	streamManager *streaming.Manager
+	chatManager   *chat.Manager
 	nodes         []MessageNode
 	statusBar     status.StatusModel
 	isStreaming   bool
 	currentStream string
+
+	// Channel-based streaming
+	chunkChan chan StreamChunk
+	stopChan  chan struct{}
 }
 
-func NewChatModel(streamManager *streaming.Manager) chatModel {
+func NewChatModel(streamManager *streaming.Manager, chatManager *chat.Manager) chatModel {
 	ta := textarea.New()
 	ta.Focus()
 	ta.Placeholder = "Type a message..."
@@ -62,9 +88,14 @@ func NewChatModel(streamManager *streaming.Manager) chatModel {
 		err:           nil,
 		styles:        theme.DefaultStyles(),
 		streamManager: streamManager,
+		chatManager:   chatManager,
 		nodes:         []MessageNode{},
 		statusBar:     statusBar,
 		isStreaming:   false,
 		currentStream: "",
+
+		// Initialize channels for streaming
+		chunkChan: make(chan StreamChunk, 100), // Buffered channel for performance
+		stopChan:  make(chan struct{}),
 	}
 }
