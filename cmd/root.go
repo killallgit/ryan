@@ -47,9 +47,16 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", ".ryan/settings.yaml", "config file (default is .ryan/settings.yaml)")
+
+	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level")
+	viper.BindPFlag("logging.level", rootCmd.PersistentFlags().Lookup("log-level"))
+
 	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")
+	viper.BindPFlag("continue", rootCmd.PersistentFlags().Lookup("continue"))
+
 	rootCmd.PersistentFlags().StringP("prompt", "p", "", "execute a prompt directly without entering TUI")
 	viper.BindPFlag("prompt", rootCmd.PersistentFlags().Lookup("prompt"))
+
 	rootCmd.PersistentFlags().BoolP("headless", "H", false, "run without TUI (requires --prompt)")
 	viper.BindPFlag("headless", rootCmd.PersistentFlags().Lookup("headless"))
 
