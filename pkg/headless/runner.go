@@ -10,6 +10,7 @@ import (
 
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/llm"
+	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/spf13/viper"
 )
 
@@ -19,6 +20,8 @@ type Runner struct {
 	provider    llm.Provider
 	output      *Output
 	config      *Config
+	tokensSent  int
+	tokensRecv  int
 }
 
 // Config contains headless runner configuration
@@ -113,13 +116,33 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 		return fmt.Errorf("prompt cannot be empty in headless mode")
 	}
 
-	// Log prompt if debug logging is enabled
-	if r.config.DebugLogging {
-		log.Printf("User prompt: %s", prompt)
+	// Initialize token counter (declare at function scope)
+	modelName := viper.GetString("ollama.default_model")
+	tokenCounter, err := tokens.NewTokenCounter(modelName)
+	if err != nil {
+		// Log warning but continue
+		if r.config.DebugLogging {
+			log.Printf("Warning: Could not initialize token counter: %v", err)
+		}
+		tokenCounter = nil
 	}
 
-	// Add user message to history
-	if err := r.chatManager.AddMessage(chat.RoleUser, prompt); err != nil {
+	// Count tokens for the prompt
+	promptTokens := 0
+	if tokenCounter != nil {
+		promptTokens = tokenCounter.CountTokens(prompt)
+		r.tokensSent += promptTokens
+	}
+
+	// Log prompt if debug logging is enabled
+	if r.config.DebugLogging {
+		log.Printf("User prompt: %s (tokens: %d)", prompt, promptTokens)
+	}
+
+	// Add user message to history with token count
+	userMsg := chat.NewMessage(chat.RoleUser, prompt)
+	userMsg.Metadata.TokensUsed = promptTokens
+	if err := r.chatManager.AddMessageWithMetadata(userMsg); err != nil {
 		return fmt.Errorf("failed to add user message: %w", err)
 	}
 
@@ -133,7 +156,7 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 	})
 
 	// Start streaming response
-	_, err := r.chatManager.StartStreaming(chat.RoleAssistant)
+	_, err = r.chatManager.StartStreaming(chat.RoleAssistant)
 	if err != nil {
 		return fmt.Errorf("failed to start streaming: %w", err)
 	}
@@ -167,18 +190,32 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 
 	// Update stream with final content
 	finalContent := handler.GetContent()
+
+	// Count response tokens
+	responseTokens := 0
+	if tokenCounter != nil {
+		responseTokens = tokenCounter.CountTokens(finalContent)
+		r.tokensRecv += responseTokens
+	}
+
+	// Append to stream with token metadata
 	if err := r.chatManager.AppendToStream(finalContent); err != nil {
 		return fmt.Errorf("failed to append to stream: %w", err)
 	}
 
-	// End streaming
-	if err := r.chatManager.EndStreaming(); err != nil {
+	// End streaming with token count
+	if err := r.chatManager.EndStreamingWithTokens(responseTokens); err != nil {
 		return fmt.Errorf("failed to end streaming: %w", err)
 	}
 
+	// Print token summary
+	fmt.Printf("\n[Tokens - Sent: %d, Received: %d, Total: %d]\n",
+		r.tokensSent, r.tokensRecv, r.tokensSent+r.tokensRecv)
+
 	// Log completion if debug logging is enabled
 	if r.config.DebugLogging {
-		log.Printf("Response complete")
+		log.Printf("Response complete (tokens: %d)", responseTokens)
+		log.Printf("Total tokens - Sent: %d, Received: %d", r.tokensSent, r.tokensRecv)
 	}
 
 	return nil
