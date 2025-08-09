@@ -52,6 +52,10 @@ type chatModel struct {
 	// Channel-based streaming
 	chunkChan chan StreamChunk
 	stopChan  chan struct{}
+
+	// Token tracking
+	lastTokensSent int
+	lastTokensRecv int
 }
 
 func NewChatModel(streamManager *streaming.Manager, chatManager *chat.Manager, agent agent.Agent) chatModel {
@@ -100,5 +104,9 @@ func NewChatModel(streamManager *streaming.Manager, chatManager *chat.Manager, a
 		// Initialize channels for streaming
 		chunkChan: make(chan StreamChunk, 100), // Buffered channel for performance
 		stopChan:  make(chan struct{}),
+
+		// Initialize token tracking
+		lastTokensSent: 0,
+		lastTokensRecv: 0,
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/process"
 	"github.com/killallgit/ryan/pkg/streaming"
@@ -13,7 +14,11 @@ import (
 )
 
 type (
-	errMsg error
+	errMsg         error
+	tokenUpdateMsg struct {
+		sent int
+		recv int
+	}
 )
 
 func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -57,8 +62,11 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Start channel-based streaming
 		go m.startLLMStream(msg.StreamID, msg.Prompt)
 
-		// Start listening for chunks on the channel
-		return m, waitForChunk(m.chunkChan)
+		// Start listening for chunks on the channel and polling for token updates
+		return m, tea.Batch(
+			waitForChunk(m.chunkChan),
+			pollTokenStats(m.agent),
+		)
 
 	case chunkMsg:
 		// Channel-based chunk message
@@ -110,8 +118,27 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update viewport with all nodes
 		m.updateViewportContent()
 
-		// Continue listening for more chunks
-		return m, waitForChunk(m.chunkChan)
+		// Continue listening for more chunks and polling for tokens
+		return m, tea.Batch(
+			waitForChunk(m.chunkChan),
+			pollTokenStats(m.agent),
+		)
+
+	case tokenUpdateMsg:
+		// Update token counts in status bar
+		statusModel, _ := m.statusBar.Update(status.UpdateTokensMsg{
+			Sent: msg.sent - m.lastTokensSent,
+			Recv: msg.recv - m.lastTokensRecv,
+		})
+		m.statusBar = statusModel.(status.StatusModel)
+		m.lastTokensSent = msg.sent
+		m.lastTokensRecv = msg.recv
+
+		// Continue polling if streaming
+		if m.isStreaming {
+			return m, pollTokenStats(m.agent)
+		}
+		return m, nil
 
 	default:
 		// Update status bar
@@ -190,5 +217,19 @@ func (h *channelStreamHandler) OnError(err error) {
 		StreamID: h.streamID,
 		IsEnd:    true,
 		Error:    err,
+	}
+}
+
+// pollTokenStats polls the agent for token statistics
+func pollTokenStats(agent agent.Agent) tea.Cmd {
+	return func() tea.Msg {
+		// Small delay to avoid too frequent polling
+		time.Sleep(100 * time.Millisecond)
+
+		if agent != nil {
+			sent, recv := agent.GetTokenStats()
+			return tokenUpdateMsg{sent: sent, recv: recv}
+		}
+		return nil
 	}
 }
