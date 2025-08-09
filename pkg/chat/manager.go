@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"github.com/killallgit/ryan/pkg/llm"
+	"github.com/killallgit/ryan/pkg/memory"
 )
 
 // StreamCallback is called when new content is streamed
@@ -12,6 +15,7 @@ type StreamCallback func(content string) error
 // Manager manages chat conversations
 type Manager struct {
 	history        *History
+	memory         *memory.Memory
 	currentStream  *StreamingMessage
 	streamCallback StreamCallback
 	mu             sync.RWMutex
@@ -30,8 +34,15 @@ func NewManager(historyPath string) (*Manager, error) {
 		return nil, fmt.Errorf("failed to create history: %w", err)
 	}
 
+	// Create memory with a session ID based on the history path
+	mem, err := memory.New(fmt.Sprintf("session_%s", historyPath))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create memory: %w", err)
+	}
+
 	return &Manager{
 		history: history,
+		memory:  mem,
 	}, nil
 }
 
@@ -45,6 +56,21 @@ func (m *Manager) SetStreamCallback(callback StreamCallback) {
 // AddMessage adds a message to the chat
 func (m *Manager) AddMessage(role MessageRole, content string) error {
 	msg := NewMessage(role, content)
+
+	// Add to memory if enabled
+	if m.memory != nil {
+		switch role {
+		case RoleUser:
+			if err := m.memory.AddUserMessage(content); err != nil {
+				return fmt.Errorf("failed to add user message to memory: %w", err)
+			}
+		case RoleAssistant:
+			if err := m.memory.AddAssistantMessage(content); err != nil {
+				return fmt.Errorf("failed to add assistant message to memory: %w", err)
+			}
+		}
+	}
+
 	return m.history.Add(msg)
 }
 
@@ -100,6 +126,13 @@ func (m *Manager) EndStreaming() error {
 		return fmt.Errorf("no active stream")
 	}
 
+	// Add to memory if it's an assistant message
+	if m.memory != nil && m.currentStream.Message.Role == RoleAssistant {
+		if err := m.memory.AddAssistantMessage(m.currentStream.Message.Content); err != nil {
+			return fmt.Errorf("failed to add assistant message to memory: %w", err)
+		}
+	}
+
 	m.currentStream.Message.Metadata.IsStreaming = false
 	if err := m.history.Add(m.currentStream.Message); err != nil {
 		return fmt.Errorf("failed to add message to history: %w", err)
@@ -136,6 +169,19 @@ func (m *Manager) GetHistory() []*Message {
 // ClearHistory clears the chat history
 func (m *Manager) ClearHistory() error {
 	return m.history.Clear()
+}
+
+// GetMemoryMessages returns messages from memory for LLM context
+func (m *Manager) GetMemoryMessages() ([]llm.Message, error) {
+	if m.memory == nil {
+		return []llm.Message{}, nil
+	}
+	return m.memory.ConvertToLLMMessages()
+}
+
+// GetMemory returns the memory instance
+func (m *Manager) GetMemory() *memory.Memory {
+	return m.memory
 }
 
 // ProcessWithContext processes a message with a given context

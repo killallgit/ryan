@@ -87,7 +87,6 @@ func TestTokenCountingWithOllama(t *testing.T) {
 		sent, recv := parseTokenCounts(t, output)
 		require.Greater(t, sent, 0, "Must have sent tokens")
 		require.Greater(t, recv, 0, "Must have received tokens")
-
 	case <-time.After(30 * time.Second):
 		cmd.Process.Kill()
 		t.Fatal("Command timed out - Ollama may not be responding")

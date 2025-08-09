@@ -166,8 +166,8 @@ func init() {
 	viper.SetDefault("vectorstore.indexer.chunk_overlap", 200)
 	viper.SetDefault("vectorstore.indexer.auto_index", false)
 
-	viper.SetDefault("langchain.memory.type", "window")
-	viper.SetDefault("langchain.memory.window_size", 10)
+	viper.SetDefault("langchain.memory_type", "window")
+	viper.SetDefault("langchain.memory_window_size", 10)
 	viper.SetDefault("langchain.tools.max_iterations", 10)
 	viper.SetDefault("langchain.tools.max_retries", 3)
 
