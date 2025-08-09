@@ -148,13 +148,13 @@ func init() {
 	viper.SetDefault("ollama.default_model", "qwen3:latest")
 	viper.SetDefault("ollama.timeout", 90)
 
-	viper.SetDefault("logging.log_file", "./.ryan/system.log")
+	viper.SetDefault("logging.log_file", "system.log")
 	viper.SetDefault("logging.preserve", true)
 	viper.SetDefault("logging.level", "info")
 
 	viper.SetDefault("vectorstore.enabled", true)
 	viper.SetDefault("vectorstore.provider", "chromem")
-	viper.SetDefault("vectorstore.persistence_dir", "./.ryan/vectorstore")
+	viper.SetDefault("vectorstore.persistence_dir", "vectorstore")
 	viper.SetDefault("vectorstore.enable_persistence", true)
 	viper.SetDefault("vectorstore.embedder.provider", "ollama")
 	viper.SetDefault("vectorstore.embedder.model", "nomic-embed-text")

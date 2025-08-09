@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/spf13/viper"
@@ -20,13 +20,13 @@ type runner struct {
 	chatManager *chat.Manager
 	agent       agent.Agent
 	output      *Output
-	config      *config
+	config      *runConfig
 	tokensSent  int
 	tokensRecv  int
 }
 
-// config contains headless runner configuration
-type config struct {
+// runConfig contains headless runner configuration
+type runConfig struct {
 	historyPath     string
 	showThinking    bool
 	continueHistory bool
@@ -36,16 +36,9 @@ type config struct {
 
 // newRunner creates a new headless runner with injected agent
 func newRunner(agent agent.Agent) (*runner, error) {
-	// Get the base directory from the config file location
-	configFile := viper.ConfigFileUsed()
-	baseDir := filepath.Dir(configFile)
-	if configFile == "" {
-		baseDir = ".ryan"
-	}
-
-	// Setup configuration
-	cfg := &config{
-		historyPath:     filepath.Join(baseDir, "chat_history.json"),
+	// Setup configuration using config helper
+	cfg := &runConfig{
+		historyPath:     config.BuildSettingsPath("chat_history.json"),
 		showThinking:    viper.GetBool("show_thinking"),
 		continueHistory: viper.GetBool("continue"),
 		debugLogging:    viper.GetString("logging.level") == "debug",
@@ -57,13 +50,10 @@ func newRunner(agent agent.Agent) (*runner, error) {
 		// Handle log file path resolution
 		logPath := cfg.logFile
 		if !filepath.IsAbs(logPath) {
-			// Clean the path and handle relative paths properly
-			logPath = filepath.Clean(logPath)
-			// If it starts with ./, remove it and treat as relative to current directory
-			logPath = strings.TrimPrefix(logPath, "./")
-
-			// Now join with the current working directory
-			logPath = filepath.Join(".", logPath)
+			// If path is relative, make it relative to settings directory
+			// Extract just the filename from the path
+			logFilename := filepath.Base(logPath)
+			logPath = config.BuildSettingsPath(logFilename)
 		}
 
 		// Ensure log directory exists

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/agent"
 	chatpkg "github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat"
@@ -19,13 +19,8 @@ import (
 func RunTUI(agent agent.Agent) error {
 	ctx := context.Background()
 
-	// Get configuration for chat history
-	configFile := viper.ConfigFileUsed()
-	baseDir := filepath.Dir(configFile)
-	if configFile == "" {
-		baseDir = ".ryan"
-	}
-	historyPath := filepath.Join(baseDir, "chat_history.json")
+	// Get configuration for chat history using config helper
+	historyPath := config.BuildSettingsPath("chat_history.json")
 	continueHistory := viper.GetBool("continue")
 
 	// Create chat manager for history management
@@ -74,7 +69,8 @@ func RunTUI(agent agent.Agent) error {
 func setupDebug() {
 	logLevel := viper.GetString("logging.level")
 	if logLevel == "debug" {
-		f, err := tea.LogToFile("system.log", "debug")
+		logPath := config.BuildSettingsPath("tui-debug.log")
+		f, err := tea.LogToFile(logPath, "debug")
 		if err != nil {
 			fmt.Println("fatal:", err)
 			os.Exit(1)

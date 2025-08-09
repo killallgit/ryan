@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/llm"
 	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/llms"
@@ -19,13 +20,8 @@ type Memory struct {
 }
 
 func New(sessionID string) (*Memory, error) {
-
-	configRoot := filepath.Dir(viper.ConfigFileUsed())
-	if configRoot == "" || configRoot == "." {
-		configRoot = ".ryan"
-	}
-	// Create context directory for memory database
-	contextDir := filepath.Join(configRoot, "context")
+	// Create context directory for memory database using config helper
+	contextDir := config.BuildSettingsPath("context")
 	if err := os.MkdirAll(contextDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create context directory: %w", err)
 	}
