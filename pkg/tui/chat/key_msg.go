@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/process"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
 )
@@ -48,7 +49,10 @@ func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.updateViewportContent()
 
 			// Update status bar to show sending
-			statusModel, _ := m.statusBar.Update(status.StatusUpdateMsg{Status: "Sending"})
+			statusModel, _ := m.statusBar.Update(status.StatusUpdateMsg{
+				Status: "Sending",
+				State:  process.StateSending,
+			})
 			m.statusBar = statusModel.(status.StatusModel)
 
 			// Start streaming from registered provider

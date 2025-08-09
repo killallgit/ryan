@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/process"
 )
 
 func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -20,17 +21,34 @@ func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case StatusUpdateMsg:
 		m.status = msg.Status
+		if msg.State != "" {
+			m.processState = msg.State
+			m.icon = msg.State.GetIcon()
+		}
 		return m, nil
 
 	case StartStreamingMsg:
 		m.isActive = true
 		m.startTime = time.Now()
-		m.icon = msg.Icon
+		m.processState = msg.State
+		if msg.State != "" {
+			m.icon = msg.State.GetIcon()
+		} else if msg.Icon != "" {
+			m.icon = msg.Icon
+		} else {
+			m.icon = process.StateReceiving.GetIcon()
+		}
 		m.status = "Streaming"
 		return m, tea.Batch(
 			m.spinner.Tick,
 			tickEvery(),
 		)
+
+	case SetProcessStateMsg:
+		m.processState = msg.State
+		m.icon = msg.State.GetIcon()
+		m.status = msg.State.GetDisplayName()
+		return m, nil
 
 	case StopStreamingMsg:
 		m.isActive = false
