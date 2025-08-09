@@ -123,13 +123,13 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// startLLMStream starts streaming from orchestrator and sends chunks to channel
+// startLLMStream starts streaming from agent and sends chunks to channel
 func (m chatModel) startLLMStream(streamID, prompt string) {
-	if m.orchestrator == nil {
+	if m.agent == nil {
 		m.chunkChan <- StreamChunk{
 			StreamID: streamID,
 			IsEnd:    true,
-			Error:    fmt.Errorf("orchestrator not initialized"),
+			Error:    fmt.Errorf("agent not initialized"),
 		}
 		return
 	}
@@ -140,9 +140,9 @@ func (m chatModel) startLLMStream(streamID, prompt string) {
 		chunkChan: m.chunkChan,
 	}
 
-	// Use orchestrator to generate streaming response
+	// Use agent to generate streaming response
 	ctx := context.Background()
-	err := m.orchestrator.ExecuteStream(ctx, prompt, streamHandler)
+	err := m.agent.ExecuteStream(ctx, prompt, streamHandler)
 	if err != nil {
 		m.chunkChan <- StreamChunk{
 			StreamID: streamID,
