@@ -164,13 +164,26 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 	// No spinner needed for headless mode
 
 	// Generate streaming response with history
-	history := r.chatManager.GetHistory()
-	llmMessages := make([]llm.Message, 0, len(history))
-	for _, msg := range history {
-		llmMessages = append(llmMessages, llm.Message{
-			Role:    string(msg.Role),
-			Content: msg.Content,
-		})
+	// Try to use memory if enabled, otherwise fall back to regular history
+	var llmMessages []llm.Message
+	memoryMessages, err := r.chatManager.GetMemoryMessages()
+	if err != nil {
+		return fmt.Errorf("failed to get memory messages: %w", err)
+	}
+
+	if len(memoryMessages) > 0 {
+		// Use memory messages if available
+		llmMessages = memoryMessages
+	} else {
+		// Fall back to regular history
+		history := r.chatManager.GetHistory()
+		llmMessages = make([]llm.Message, 0, len(history))
+		for _, msg := range history {
+			llmMessages = append(llmMessages, llm.Message{
+				Role:    string(msg.Role),
+				Content: msg.Content,
+			})
+		}
 	}
 
 	// Use provider to generate response
