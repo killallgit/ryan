@@ -10,6 +10,7 @@ import (
 	"github.com/killallgit/ryan/pkg/retrieval"
 	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/tokens"
+	ryantools "github.com/killallgit/ryan/pkg/tools"
 	"github.com/killallgit/ryan/pkg/vectorstore"
 	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/agents"
@@ -49,8 +50,34 @@ func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
 		return nil, fmt.Errorf("failed to create memory: %w", err)
 	}
 
-	// Initialize tools (empty for now, can add later)
+	// Initialize tools with permission checking
 	agentTools := []tools.Tool{}
+	
+	// Only add tools if enabled in config
+	if viper.GetBool("tools.enabled") {
+		// Add file tools
+		if viper.GetBool("tools.file.read.enabled") {
+			agentTools = append(agentTools, ryantools.NewFileReadTool())
+		}
+		if viper.GetBool("tools.file.write.enabled") {
+			agentTools = append(agentTools, ryantools.NewFileWriteTool())
+		}
+		
+		// Add git tool
+		if viper.GetBool("tools.git.enabled") {
+			agentTools = append(agentTools, ryantools.NewGitTool())
+		}
+		
+		// Add search tool
+		if viper.GetBool("tools.search.enabled") {
+			agentTools = append(agentTools, ryantools.NewRipgrepTool())
+		}
+		
+		// Add web fetch tool
+		if viper.GetBool("tools.web.enabled") {
+			agentTools = append(agentTools, ryantools.NewWebFetchTool())
+		}
+	}
 
 	// Initialize RAG components if enabled
 	var vectorStore vectorstore.VectorStore
@@ -102,7 +129,7 @@ func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
 		}
 	}
 
-	// Create the agent - using a conversational agent that can work without tools
+	// Create the agent - using a conversational agent with tools
 	agent := agents.NewConversationalAgent(
 		llm,
 		agentTools,
@@ -210,9 +237,21 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 
 // ExecuteStream handles a request with streaming response
 func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler stream.Handler) error {
+	// Augment prompt with retrieved context if RAG is enabled
+	actualPrompt := prompt
+	if e.augmenter != nil && viper.GetBool("vectorstore.retrieval.enabled") {
+		augmented, err := e.augmenter.AugmentPrompt(ctx, prompt)
+		if err != nil {
+			// Log but don't fail - continue without augmentation
+			fmt.Printf("Warning: Could not augment prompt: %v\n", err)
+		} else {
+			actualPrompt = augmented
+		}
+	}
+
 	// Count input tokens
 	if e.tokenCounter != nil {
-		inputTokens := e.tokenCounter.CountTokens(prompt)
+		inputTokens := e.tokenCounter.CountTokens(actualPrompt)
 		e.tokensMu.Lock()
 		e.tokensSent += inputTokens
 		e.tokensMu.Unlock()
@@ -240,14 +279,14 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 	// Add the current prompt
 	messages = append(messages, stream.Message{
 		Role:    "user",
-		Content: prompt,
+		Content: actualPrompt,
 	})
 
 	// Create a wrapper handler that tracks tokens and updates memory
 	tokenAndMemoryHandler := &tokenAndMemoryHandler{
 		inner:      handler,
 		memory:     e.memory,
-		prompt:     prompt,
+		prompt:     actualPrompt,
 		agent:      e,
 		buffer:     "",
 		lastTokens: 0,

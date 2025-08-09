@@ -28,6 +28,14 @@
   - Integration with ExecutorAgent for automatic prompt augmentation
   - Document chunking and metadata management capabilities
   - Unit and integration tests for RAG workflow (69% coverage)
+- LangChain-Go tool system with 5 core tools (FileRead, FileWrite, Git, Ripgrep, WebFetch)
+- Claude-style ACL permission system using `settings.json` format for tool access control
+- `--skip-permissions` flag to bypass all ACL permission checks
+- SecuredTool base class for consistent permission checking across all tools
+- PermissionManager for pattern-based access control (e.g., `FileRead(*.go)`, `Git(status:*)`)
+- Mock vectorstore implementation for future RAG capabilities
+- Tool configuration via Viper with individual enable/disable flags
+- Integration tests for tools with permission validation
 
 ### Changed
 - Renamed all references to "orchestrator" to the more generic term "agent" throughout the codebase for better clarity and consistency
