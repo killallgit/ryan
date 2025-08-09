@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/killallgit/ryan/pkg/agent"
+	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,8 +48,11 @@ func TestAgentInterface(t *testing.T) {
 		// Setup viper configuration
 		setupViperForTest(t)
 
-		// Create executor agent
-		executorAgent, err := agent.NewExecutorAgent()
+		// Create LLM
+		ollamaClient := ollama.NewClient()
+
+		// Create executor agent with injected LLM
+		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
 		require.NoError(t, err, "Should create executor agent")
 		defer executorAgent.Close()
 
@@ -67,7 +71,8 @@ func TestAgentInterface(t *testing.T) {
 
 	t.Run("Agent handles math questions", func(t *testing.T) {
 		setupViperForTest(t)
-		executorAgent, err := agent.NewExecutorAgent()
+		ollamaClient := ollama.NewClient()
+		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -83,7 +88,8 @@ func TestAgentInterface(t *testing.T) {
 		t.Skip("Memory persistence with LangChain agents needs further investigation")
 
 		setupViperForTest(t)
-		executorAgent, err := agent.NewExecutorAgent()
+		ollamaClient := ollama.NewClient()
+		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -111,7 +117,8 @@ func TestAgentInterface(t *testing.T) {
 
 	t.Run("Agent can clear memory", func(t *testing.T) {
 		setupViperForTest(t)
-		executorAgent, err := agent.NewExecutorAgent()
+		ollamaClient := ollama.NewClient()
+		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -163,7 +170,8 @@ func TestAgentStreaming(t *testing.T) {
 
 	t.Run("Agent can stream responses", func(t *testing.T) {
 		setupViperForTest(t)
-		executorAgent, err := agent.NewExecutorAgent()
+		ollamaClient := ollama.NewClient()
+		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 

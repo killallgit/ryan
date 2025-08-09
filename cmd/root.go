@@ -7,9 +7,11 @@ import (
 
 	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/headless"
+	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tmc/langchaingo/llms"
 )
 
 var cfgFile string
@@ -27,8 +29,15 @@ var rootCmd = &cobra.Command{
 		// Refresh config (this will clear and restore transient values)
 		refreshConfig(promptValue, headlessMode, continueHistory)
 
+		// Create the LLM based on provider configuration
+		llm, err := createLLM()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating LLM: %v\n", err)
+			os.Exit(1)
+		}
+
 		// Create the executor agent once, to be used by both modes
-		executorAgent, err := agent.NewExecutorAgent()
+		executorAgent, err := agent.NewExecutorAgent(llm)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating executor agent: %v\n", err)
 			os.Exit(1)
@@ -45,6 +54,27 @@ var rootCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+// createLLM creates an LLM instance based on the configured provider
+func createLLM() (llms.Model, error) {
+	provider := viper.GetString("provider")
+
+	switch provider {
+	case "ollama":
+		// Create Ollama LLM
+		ollamaClient := ollama.NewClient()
+		return ollamaClient.LLM, nil
+
+	// Future providers can be added here
+	// case "openai":
+	//     return createOpenAILLM()
+	// case "anthropic":
+	//     return createAnthropicLLM()
+
+	default:
+		return nil, fmt.Errorf("unsupported LLM provider: %s", provider)
+	}
 }
 
 func runHeadless(executorAgent agent.Agent) {

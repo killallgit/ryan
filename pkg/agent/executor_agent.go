@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/killallgit/ryan/pkg/memory"
-	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/llms"
@@ -22,11 +21,8 @@ type ExecutorAgent struct {
 	tools    []tools.Tool
 }
 
-// NewExecutorAgent creates a new executor-based agent
-func NewExecutorAgent() (*ExecutorAgent, error) {
-	// Create Ollama LLM
-	ollamaClient := ollama.NewClient()
-
+// NewExecutorAgent creates a new executor-based agent with an injected LLM
+func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
 	// Create memory with a session ID
 	sessionID := "default"
 	if viper.GetBool("continue") {
@@ -43,7 +39,7 @@ func NewExecutorAgent() (*ExecutorAgent, error) {
 
 	// Create the agent - using a conversational agent that can work without tools
 	agent := agents.NewConversationalAgent(
-		ollamaClient.LLM,
+		llm,
 		agentTools,
 	)
 
@@ -65,7 +61,7 @@ func NewExecutorAgent() (*ExecutorAgent, error) {
 	)
 
 	return &ExecutorAgent{
-		llm:      ollamaClient.LLM,
+		llm:      llm,
 		executor: executor,
 		memory:   mem,
 		tools:    agentTools,

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/killallgit/ryan/pkg/agent"
+	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,8 +20,9 @@ func TestDefaultAgentResponses(t *testing.T) {
 		// Setup viper configuration
 		setupViperForTest(t)
 
-		// Create executorAgent
-		executorAgent, err := agent.NewExecutorAgent()
+		// Create LLM and executorAgent
+		ollamaClient := ollama.NewClient()
+		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -45,7 +47,8 @@ func TestDefaultAgentResponses(t *testing.T) {
 
 	t.Run("It outputs response for math questions", func(t *testing.T) {
 		setupViperForTest(t)
-		executorAgent, err := agent.NewExecutorAgent()
+		ollamaClient := ollama.NewClient()
+		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -61,7 +64,8 @@ func TestDefaultAgentResponses(t *testing.T) {
 
 	t.Run("It handles multi-line prompts", func(t *testing.T) {
 		setupViperForTest(t)
-		executorAgent, err := agent.NewExecutorAgent()
+		ollamaClient := ollama.NewClient()
+		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -95,7 +99,8 @@ Complete the list with one more color`
 		t.Skip("Memory persistence with LangChain agents needs further investigation")
 
 		setupViperForTest(t)
-		executorAgent, err := agent.NewExecutorAgent()
+		ollamaClient := ollama.NewClient()
+		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
