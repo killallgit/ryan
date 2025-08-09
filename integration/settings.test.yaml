@@ -1,0 +1,9 @@
+langchain:
+  memory_window_size: 10
+
+ollama:
+  url: http://localhost:11434
+  default_model: qwen3:latest
+  timeout: 90
+
+show_thinking: true
