@@ -2,9 +2,9 @@ package llm
 
 import (
 	"context"
-	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
 )
@@ -21,7 +21,7 @@ func NewTokenTrackingAdapter(provider Provider, modelName string, program *tea.P
 	counter, err := tokens.NewTokenCounter(modelName)
 	if err != nil {
 		// Don't fail if token counter can't be initialized, just log warning
-		fmt.Printf("Warning: Could not initialize token counter: %v\n", err)
+		logger.Warn("Could not initialize token counter: %v", err)
 		counter = nil
 	}
 

@@ -3,14 +3,13 @@ package headless
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
-	"path/filepath"
 
 	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/config"
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/stream"
+	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/spf13/viper"
 )
 
@@ -20,6 +19,8 @@ type runner struct {
 	agent       agent.Agent
 	output      *Output
 	config      *runConfig
+	tokensSent  int
+	tokensRecv  int
 }
 
 // runConfig contains headless runner configuration
@@ -27,8 +28,6 @@ type runConfig struct {
 	historyPath     string
 	showThinking    bool
 	continueHistory bool
-	debugLogging    bool
-	logFile         string
 }
 
 // newRunner creates a new headless runner with injected agent
@@ -38,34 +37,6 @@ func newRunner(agent agent.Agent) (*runner, error) {
 		historyPath:     config.BuildSettingsPath("chat_history.json"),
 		showThinking:    viper.GetBool("show_thinking"),
 		continueHistory: viper.GetBool("continue"),
-		debugLogging:    viper.GetString("logging.level") == "debug",
-		logFile:         viper.GetString("logging.log_file"),
-	}
-
-	// Setup logging if debug is enabled
-	if cfg.debugLogging && cfg.logFile != "" {
-		// Handle log file path resolution
-		logPath := cfg.logFile
-		if !filepath.IsAbs(logPath) {
-			// If path is relative, make it relative to settings directory
-			// Extract just the filename from the path
-			logFilename := filepath.Base(logPath)
-			logPath = config.BuildSettingsPath(logFilename)
-		}
-
-		// Ensure log directory exists
-		logDir := filepath.Dir(logPath)
-		if err := os.MkdirAll(logDir, 0755); err != nil {
-			return nil, fmt.Errorf("failed to create log directory: %w", err)
-		}
-
-		// Create log file
-		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open log file: %w", err)
-		}
-		log.SetOutput(logFile)
-		log.SetPrefix("[HEADLESS] ")
 	}
 
 	// Create chat manager
@@ -98,17 +69,31 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 		return fmt.Errorf("prompt cannot be empty in headless mode")
 	}
 
-	// Log prompt if debug logging is enabled
-	if r.config.debugLogging {
-		log.Printf("User prompt: %s", prompt)
+	// Initialize token counter (declare at function scope)
+	modelName := viper.GetString("ollama.default_model")
+	tokenCounter, err := tokens.NewTokenCounter(modelName)
+	if err != nil {
+		// Log warning but continue
+		logger.Warn("Could not initialize token counter: %v", err)
+		tokenCounter = nil
 	}
 
-	// Add user message to history
-	if err := r.chatManager.AddMessage(chat.RoleUser, prompt); err != nil {
-		return fmt.Errorf("failed to add user message: %w", err)
+	// Count tokens for the prompt
+	promptTokens := 0
+	if tokenCounter != nil {
+		promptTokens = tokenCounter.CountTokens(prompt)
+		r.tokensSent += promptTokens
 	}
 
 	// Log prompt for debugging
+	logger.Debug("User prompt: %s (tokens: %d)", prompt, promptTokens)
+
+	// Add user message to history with token count
+	userMsg := chat.NewMessage(chat.RoleUser, prompt)
+	userMsg.Metadata.TokensUsed = promptTokens
+	if err := r.chatManager.AddMessageWithMetadata(userMsg); err != nil {
+		return fmt.Errorf("failed to add user message: %w", err)
+	}
 
 	// Setup chat manager streaming callback
 	r.chatManager.SetStreamCallback(func(content string) error {
@@ -117,13 +102,12 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 	})
 
 	// Start streaming response
-	_, err := r.chatManager.StartStreaming(chat.RoleAssistant)
+	_, err = r.chatManager.StartStreaming(chat.RoleAssistant)
 	if err != nil {
 		return fmt.Errorf("failed to start streaming: %w", err)
 	}
 
 	// Create a stream handler that prints to console and collects content
-	var finalContent string
 	streamHandler := stream.NewConsoleHandler()
 
 	// Use agent to generate streaming response
@@ -134,37 +118,34 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 	}
 
 	// Get final content from handler
-	finalContent = streamHandler.GetContent()
+	finalContent := streamHandler.GetContent()
 
-	// Append to stream
+	// Count response tokens
+	responseTokens := 0
+	if tokenCounter != nil {
+		responseTokens = tokenCounter.CountTokens(finalContent)
+		r.tokensRecv += responseTokens
+	}
+
+	// Append to stream with token metadata
 	if err := r.chatManager.AppendToStream(finalContent); err != nil {
 		return fmt.Errorf("failed to append to stream: %w", err)
 	}
 
-	// End streaming
-	if err := r.chatManager.EndStreaming(); err != nil {
+	// End streaming with token count
+	if err := r.chatManager.EndStreamingWithTokens(responseTokens); err != nil {
 		return fmt.Errorf("failed to end streaming: %w", err)
 	}
 
-	// Get token statistics from the agent
-	tokensSent, tokensRecv := r.agent.GetTokenStats()
-
 	// Print token summary
 	fmt.Printf("\n[Tokens - Sent: %d, Received: %d, Total: %d]\n",
-		tokensSent, tokensRecv, tokensSent+tokensRecv)
+		r.tokensSent, r.tokensRecv, r.tokensSent+r.tokensRecv)
 
-	// Log completion if debug logging is enabled
-	if r.config.debugLogging {
-		log.Printf("Response complete")
-		log.Printf("Total tokens - Sent: %d, Received: %d", tokensSent, tokensRecv)
-	}
+	// Log completion for debugging
+	logger.Debug("Response complete (tokens: %d)", responseTokens)
+	logger.Debug("Total tokens - Sent: %d, Received: %d", r.tokensSent, r.tokensRecv)
 
 	return nil
-}
-
-// runInteractive runs an interactive session (for future implementation)
-func (r *runner) runInteractive(ctx context.Context) error {
-	return fmt.Errorf("interactive headless mode not yet implemented")
 }
 
 // cleanup performs cleanup operations

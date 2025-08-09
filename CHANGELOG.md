@@ -15,6 +15,9 @@
 - Real-time token counting in status bar during streaming responses
 - Thread-safe token accumulation across multiple conversation exchanges
 - Comprehensive integration tests for token tracking functionality
+- Unified logging system in `pkg/logger/` package with clean interface (.Debug(), .Info(), .Warn(), .Error(), .Fatal())
+- `--persist` CLI flag to control system log persistence across sessions
+- Session-based logging with automatic level checking
 
 ### Changed
 - Renamed all references to "orchestrator" to the more generic term "agent" throughout the codebase for better clarity and consistency
@@ -25,8 +28,13 @@
 - Integrated token tracking with new streaming architecture using `tokenAndMemoryHandler`
 - Refactored headless runner to use agent's centralized token statistics instead of local counting
 - Enhanced status bar to display real-time token counts during streaming
+- Replaced all manual debug level checking with unified logger interface calls
+- Updated error handling throughout codebase to use consistent logger methods
+- Changed `logging.preserve` configuration to `logging.persist` with proper default (false)
 
 ### Fixed
 - Fixed bug where prompt flag value was incorrectly used in TUI mode
 - Fixed TUI viewport height calculation to prevent crashes when dimensions are too small
 - Resolved memory reset functionality to properly clear token counts on conversation restart
+- Eliminated scattered logging approaches and inconsistent error handling patterns
+- Resolved duplication between manual log setup in headless mode and unified system
