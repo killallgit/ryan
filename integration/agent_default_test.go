@@ -19,14 +19,14 @@ func TestDefaultAgentResponses(t *testing.T) {
 		// Setup viper configuration
 		setupViperForTest(t)
 
-		// Create orchestrator
-		orchestrator, err := agent.NewOrchestrator()
+		// Create executorAgent
+		executorAgent, err := agent.NewExecutorAgent()
 		require.NoError(t, err)
-		defer orchestrator.Close()
+		defer executorAgent.Close()
 
 		// Execute prompt
 		ctx := context.Background()
-		response, err := orchestrator.Execute(ctx, "Say hello and nothing else")
+		response, err := executorAgent.Execute(ctx, "Say hello and nothing else")
 		require.NoError(t, err, "Should execute successfully")
 
 		t.Logf("Agent response: %s", response)
@@ -45,12 +45,12 @@ func TestDefaultAgentResponses(t *testing.T) {
 
 	t.Run("It outputs response for math questions", func(t *testing.T) {
 		setupViperForTest(t)
-		orchestrator, err := agent.NewOrchestrator()
+		executorAgent, err := agent.NewExecutorAgent()
 		require.NoError(t, err)
-		defer orchestrator.Close()
+		defer executorAgent.Close()
 
 		ctx := context.Background()
-		response, err := orchestrator.Execute(ctx, "What is 2+2? Answer with just the number.")
+		response, err := executorAgent.Execute(ctx, "What is 2+2? Answer with just the number.")
 		require.NoError(t, err)
 
 		t.Logf("Math response: %s", response)
@@ -61,9 +61,9 @@ func TestDefaultAgentResponses(t *testing.T) {
 
 	t.Run("It handles multi-line prompts", func(t *testing.T) {
 		setupViperForTest(t)
-		orchestrator, err := agent.NewOrchestrator()
+		executorAgent, err := agent.NewExecutorAgent()
 		require.NoError(t, err)
-		defer orchestrator.Close()
+		defer executorAgent.Close()
 
 		// Multi-line prompt
 		prompt := `List three colors:
@@ -73,7 +73,7 @@ func TestDefaultAgentResponses(t *testing.T) {
 Complete the list with one more color`
 
 		ctx := context.Background()
-		response, err := orchestrator.Execute(ctx, prompt)
+		response, err := executorAgent.Execute(ctx, prompt)
 		require.NoError(t, err)
 
 		responseLower := strings.ToLower(response)
@@ -95,19 +95,19 @@ Complete the list with one more color`
 		t.Skip("Memory persistence with LangChain agents needs further investigation")
 
 		setupViperForTest(t)
-		orchestrator, err := agent.NewOrchestrator()
+		executorAgent, err := agent.NewExecutorAgent()
 		require.NoError(t, err)
-		defer orchestrator.Close()
+		defer executorAgent.Close()
 
 		ctx := context.Background()
 
 		// First conversation: establish context
-		response1, err := orchestrator.Execute(ctx, "My favorite number is 42. Remember this.")
+		response1, err := executorAgent.Execute(ctx, "My favorite number is 42. Remember this.")
 		require.NoError(t, err)
 		t.Logf("First response: %s", response1)
 
 		// Second conversation: test context retention
-		response2, err := orchestrator.Execute(ctx, "What was my favorite number?")
+		response2, err := executorAgent.Execute(ctx, "What was my favorite number?")
 		require.NoError(t, err)
 		t.Logf("Second response: %s", response2)
 

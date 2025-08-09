@@ -36,7 +36,7 @@ func setupViperForTest(t *testing.T) {
 	}
 }
 
-// TestAgentInterface tests the orchestrator agent directly without spawning processes
+// TestAgentInterface tests the executorAgent agent directly without spawning processes
 func TestAgentInterface(t *testing.T) {
 	// Skip if no Ollama available
 	if !isOllamaAvailable() {
@@ -47,14 +47,14 @@ func TestAgentInterface(t *testing.T) {
 		// Setup viper configuration
 		setupViperForTest(t)
 
-		// Create orchestrator
-		orchestrator, err := agent.NewOrchestrator()
-		require.NoError(t, err, "Should create orchestrator")
-		defer orchestrator.Close()
+		// Create executor agent
+		executorAgent, err := agent.NewExecutorAgent()
+		require.NoError(t, err, "Should create executor agent")
+		defer executorAgent.Close()
 
 		// Test basic prompt
 		ctx := context.Background()
-		response, err := orchestrator.Execute(ctx, "Say hello and nothing else")
+		response, err := executorAgent.Execute(ctx, "Say hello and nothing else")
 		require.NoError(t, err, "Should execute prompt")
 
 		// Check response contains greeting
@@ -67,12 +67,12 @@ func TestAgentInterface(t *testing.T) {
 
 	t.Run("Agent handles math questions", func(t *testing.T) {
 		setupViperForTest(t)
-		orchestrator, err := agent.NewOrchestrator()
+		executorAgent, err := agent.NewExecutorAgent()
 		require.NoError(t, err)
-		defer orchestrator.Close()
+		defer executorAgent.Close()
 
 		ctx := context.Background()
-		response, err := orchestrator.Execute(ctx, "What is 2+2? Answer with just the number.")
+		response, err := executorAgent.Execute(ctx, "What is 2+2? Answer with just the number.")
 		require.NoError(t, err)
 
 		// Check response contains "4"
@@ -83,19 +83,19 @@ func TestAgentInterface(t *testing.T) {
 		t.Skip("Memory persistence with LangChain agents needs further investigation")
 
 		setupViperForTest(t)
-		orchestrator, err := agent.NewOrchestrator()
+		executorAgent, err := agent.NewExecutorAgent()
 		require.NoError(t, err)
-		defer orchestrator.Close()
+		defer executorAgent.Close()
 
 		ctx := context.Background()
 
 		// First message
-		response1, err := orchestrator.Execute(ctx, "My name is TestUser. Remember this.")
+		response1, err := executorAgent.Execute(ctx, "My name is TestUser. Remember this.")
 		require.NoError(t, err)
 		t.Logf("First response: %s", response1)
 
 		// Second message - should remember the name
-		response2, err := orchestrator.Execute(ctx, "What is my name?")
+		response2, err := executorAgent.Execute(ctx, "What is my name?")
 		require.NoError(t, err)
 		t.Logf("Second response: %s", response2)
 
@@ -111,22 +111,22 @@ func TestAgentInterface(t *testing.T) {
 
 	t.Run("Agent can clear memory", func(t *testing.T) {
 		setupViperForTest(t)
-		orchestrator, err := agent.NewOrchestrator()
+		executorAgent, err := agent.NewExecutorAgent()
 		require.NoError(t, err)
-		defer orchestrator.Close()
+		defer executorAgent.Close()
 
 		ctx := context.Background()
 
 		// Add something to memory
-		_, err = orchestrator.Execute(ctx, "Remember that my favorite color is blue")
+		_, err = executorAgent.Execute(ctx, "Remember that my favorite color is blue")
 		require.NoError(t, err)
 
 		// Clear memory
-		err = orchestrator.ClearMemory()
+		err = executorAgent.ClearMemory()
 		require.NoError(t, err)
 
 		// Ask about the color - should not remember
-		response, err := orchestrator.Execute(ctx, "What is my favorite color?")
+		response, err := executorAgent.Execute(ctx, "What is my favorite color?")
 		require.NoError(t, err)
 
 		// Should not know the color after clearing memory
@@ -163,14 +163,14 @@ func TestAgentStreaming(t *testing.T) {
 
 	t.Run("Agent can stream responses", func(t *testing.T) {
 		setupViperForTest(t)
-		orchestrator, err := agent.NewOrchestrator()
+		executorAgent, err := agent.NewExecutorAgent()
 		require.NoError(t, err)
-		defer orchestrator.Close()
+		defer executorAgent.Close()
 
 		collector := &StreamCollector{}
 		ctx := context.Background()
 
-		err = orchestrator.ExecuteStream(ctx, "Count from 1 to 3", collector)
+		err = executorAgent.ExecuteStream(ctx, "Count from 1 to 3", collector)
 		require.NoError(t, err)
 		require.NoError(t, collector.err)
 

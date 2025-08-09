@@ -27,19 +27,19 @@ var rootCmd = &cobra.Command{
 		// Refresh config (this will clear and restore transient values)
 		refreshConfig(promptValue, headlessMode, continueHistory)
 
-		// Create the orchestrator once, to be used by both modes
-		orchestrator, err := agent.NewOrchestrator()
+		// Create the executor agent once, to be used by both modes
+		executorAgent, err := agent.NewExecutorAgent()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating orchestrator: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error creating executor agent: %v\n", err)
 			os.Exit(1)
 		}
-		defer orchestrator.Close()
+		defer executorAgent.Close()
 
 		// Check if running in headless mode
 		if headlessMode {
-			runHeadless(orchestrator)
+			runHeadless(executorAgent)
 		} else {
-			if err := tui.RunTUI(orchestrator); err != nil {
+			if err := tui.RunTUI(executorAgent); err != nil {
 				fmt.Printf("Error: %v\n", err)
 				os.Exit(1)
 			}
@@ -47,7 +47,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func runHeadless(orchestrator agent.Agent) {
+func runHeadless(executorAgent agent.Agent) {
 	// Get the prompt from config
 	prompt := viper.GetString("prompt")
 	if prompt == "" {
@@ -55,7 +55,7 @@ func runHeadless(orchestrator agent.Agent) {
 	}
 
 	// Simply run the headless mode - no terminal manipulation needed
-	if err := headless.RunHeadless(orchestrator, prompt); err != nil {
+	if err := headless.RunHeadless(executorAgent, prompt); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

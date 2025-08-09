@@ -2,7 +2,7 @@ package agent
 
 import "context"
 
-// Agent defines the interface for interacting with the orchestrator
+// Agent defines the interface for interacting with agents
 // This interface is used by both TUI and headless modes
 type Agent interface {
 	// Execute handles a request and returns a response (blocking)
@@ -18,5 +18,5 @@ type Agent interface {
 	Close() error
 }
 
-// Ensure Orchestrator implements Agent interface
-var _ Agent = (*Orchestrator)(nil)
+// Ensure ExecutorAgent implements Agent interface
+var _ Agent = (*ExecutorAgent)(nil)

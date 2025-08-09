@@ -13,16 +13,17 @@ import (
 	"github.com/tmc/langchaingo/tools"
 )
 
-// Orchestrator is the single agent that handles all requests
-type Orchestrator struct {
+// ExecutorAgent is a LangChain executor-based agent implementation
+// It wraps LangChain's conversational agent with an executor for handling requests
+type ExecutorAgent struct {
 	llm      llms.Model
 	executor *agents.Executor
 	memory   *memory.Memory
 	tools    []tools.Tool
 }
 
-// NewOrchestrator creates a new orchestrator agent
-func NewOrchestrator() (*Orchestrator, error) {
+// NewExecutorAgent creates a new executor-based agent
+func NewExecutorAgent() (*ExecutorAgent, error) {
 	// Create Ollama LLM
 	ollamaClient := ollama.NewClient()
 
@@ -63,7 +64,7 @@ func NewOrchestrator() (*Orchestrator, error) {
 		agents.WithMemory(lcMem),
 	)
 
-	return &Orchestrator{
+	return &ExecutorAgent{
 		llm:      ollamaClient.LLM,
 		executor: executor,
 		memory:   mem,
@@ -72,7 +73,7 @@ func NewOrchestrator() (*Orchestrator, error) {
 }
 
 // Execute handles a request and returns a response
-func (o *Orchestrator) Execute(ctx context.Context, prompt string) (string, error) {
+func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, error) {
 	// The executor will handle memory management now
 	// Just pass the input through
 	input := map[string]any{
@@ -80,7 +81,7 @@ func (o *Orchestrator) Execute(ctx context.Context, prompt string) (string, erro
 	}
 
 	// Execute through the agent (memory is handled by the executor)
-	result, err := o.executor.Call(ctx, input)
+	result, err := e.executor.Call(ctx, input)
 	if err != nil {
 		return "", fmt.Errorf("agent execution failed: %w", err)
 	}
@@ -104,10 +105,10 @@ func (o *Orchestrator) Execute(ctx context.Context, prompt string) (string, erro
 }
 
 // ExecuteStream handles a request with streaming response
-func (o *Orchestrator) ExecuteStream(ctx context.Context, prompt string, handler StreamHandler) error {
+func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler StreamHandler) error {
 	// For now, we'll execute non-streaming and simulate streaming
 	// This is because the agent executor doesn't support streaming directly
-	response, err := o.Execute(ctx, prompt)
+	response, err := e.Execute(ctx, prompt)
 	if err != nil {
 		handler.OnError(err)
 		return err
@@ -137,27 +138,27 @@ type StreamHandler interface {
 }
 
 // GetLLM returns the underlying LLM for direct access if needed
-func (o *Orchestrator) GetLLM() llms.Model {
-	return o.llm
+func (e *ExecutorAgent) GetLLM() llms.Model {
+	return e.llm
 }
 
 // GetMemory returns the memory instance
-func (o *Orchestrator) GetMemory() *memory.Memory {
-	return o.memory
+func (e *ExecutorAgent) GetMemory() *memory.Memory {
+	return e.memory
 }
 
 // ClearMemory clears the conversation memory
-func (o *Orchestrator) ClearMemory() error {
-	if o.memory != nil {
-		return o.memory.Clear()
+func (e *ExecutorAgent) ClearMemory() error {
+	if e.memory != nil {
+		return e.memory.Clear()
 	}
 	return nil
 }
 
 // Close cleans up resources
-func (o *Orchestrator) Close() error {
-	if o.memory != nil {
-		return o.memory.Close()
+func (e *ExecutorAgent) Close() error {
+	if e.memory != nil {
+		return e.memory.Close()
 	}
 	return nil
 }
