@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "task check"
+            "command": "uvx pre-commit run --all-files"
           }
         ]
       }
