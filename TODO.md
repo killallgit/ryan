@@ -1,5 +1,7 @@
-- ✅ Implement memory: https://pkg.go.dev/github.com/tmc/langchaingo@v0.1.13/memory/sqlite3. Memory is always enabled and stored at <viper config root>/context/memory.db
-- Tool usage. Scaffold out the core tools: Bash(), WebSearch(), List(), Search(), Find(), Read(), ReadMany(), Write(). Each of these tools needs to be in their own package: pkg/toole/{bash,list,read_many,etc}. For now we just need to scaffold out the common interface by following the langchain documentation around tool usage: https://python.langchain.com/docs/how_to/#tools since these docs dont exist on the golang official docs you would need to reference the pkg.go.dev pages.
-
-
-- llm chaining
+- we still have references to "orchestrator" in arguments and elsewhere. This should be updated to reflect what it actually is or something more generic to describe the agents
+- absolutely no "simulating" the streaming chunks. Each agent or langchain construct should be able to take a func for handling the streams in real time. We will need a unified interface / abstraction that can be used by both "modes" (headless/tui) so this can be totally decoupled from the display. It looks like this might be halfway implemented already.
+- in headless/runner.go we have a comment about executing a single prompt in headless mode. Does this imply that the reasoning chains will not be able to be used here?
+- Logging improvements. We still need to keep this as simple as possible but all debug and info logging should be going through a logwriter type interface that manages logs for a session. A lot of locations are doing the debug checking outside of the log implementation. The interface should just to use our logger.Debug or .Info whereever and the check whether or not to display based on loglevel happens in the pkg itself. We abstract that logic away from the user
+- sessionId's should be generated
+- We need to update all funcs that write settings file to use the pkg/config/paths.go funcs to create the paths for writing
+- middleware. Chat stream text should be able to be processed before being displayed. We need to introduce a middleware for these streams so that we can add single middlewares to process / f

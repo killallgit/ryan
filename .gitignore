@@ -36,7 +36,10 @@ bin/*
 ryan
 dist/
 !.github/workflows/coverage.yaml
-!CLAUDE.md
 
 # Coverage reports
 coverage/
+
+!.claude
+.claude/*.local.json
+!CLAUDE.md
