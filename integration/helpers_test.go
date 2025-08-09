@@ -1,10 +1,15 @@
 package integration
 
 import (
+	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // parseTokenCounts extracts sent and received token counts from output
@@ -157,26 +162,82 @@ func parseTokenCounts(t *testing.T, output string) (sent, recv int) {
 	return sent, recv
 }
 
-// extractTokenInfo looks for token information in various formats
-func extractTokenInfo(output string) map[string]int {
-	tokens := make(map[string]int)
 
-	// Try to find all numeric values associated with "token" keyword
-	tokenLinePattern := regexp.MustCompile(`(?i).*token.*`)
-	lines := tokenLinePattern.FindAllString(output, -1)
+// setupTestConfig copies the shared test configuration to a temporary directory
+// and returns the config file path. It ensures OLLAMA_HOST is properly set.
+func setupTestConfig(t *testing.T, tempDir string) string {
+	configDir := filepath.Join(tempDir, ".ryan")
+	err := os.MkdirAll(configDir, 0755)
+	require.NoError(t, err)
 
-	for _, line := range lines {
-		// Extract all numbers from token-related lines
-		numPattern := regexp.MustCompile(`(\d+)`)
-		matches := numPattern.FindAllStringSubmatch(line, -1)
-		for i, match := range matches {
-			if val, err := strconv.Atoi(match[1]); err == nil {
-				// Store with a key based on position
-				key := "token_" + strconv.Itoa(i)
-				tokens[key] = val
-			}
+	// Copy the shared test configuration
+	sourceConfig := filepath.Join(".", "settings.test.yaml")
+	targetConfig := filepath.Join(configDir, "settings.yaml")
+
+	sourceFile, err := os.Open(sourceConfig)
+	require.NoError(t, err)
+	defer sourceFile.Close()
+
+	targetFile, err := os.Create(targetConfig)
+	require.NoError(t, err)
+	defer targetFile.Close()
+
+	_, err = io.Copy(targetFile, sourceFile)
+	require.NoError(t, err)
+
+	return targetConfig
+}
+
+// setupEnvWithOverrides creates environment with config overrides
+// PANICS if OLLAMA_HOST is not set - integration tests require this
+func setupEnvWithOverrides(overrides map[string]string) []string {
+	env := setupEnvForOllama() // This will panic if OLLAMA_HOST not set
+
+	// Add config overrides as environment variables
+	// Viper will pick these up and override the config file values
+	for key, value := range overrides {
+		// Convert config keys to environment variable format
+		// e.g., "memory_window_size" -> "LANGCHAIN_MEMORY_WINDOW_SIZE"
+		envKey := ""
+		switch key {
+		case "memory_window_size":
+			envKey = "LANGCHAIN_MEMORY_WINDOW_SIZE"
+		case "memory_type":
+			envKey = "LANGCHAIN_MEMORY_TYPE"
+		default:
+			// Generic conversion: convert dots/underscores to uppercase env format
+			envKey = strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
+		}
+		env = append(env, envKey+"="+value)
+	}
+
+	return env
+}
+
+// setupEnvForOllama ensures OLLAMA_HOST environment variable is available for commands
+// PANICS if OLLAMA_HOST is not set - integration tests require this
+func setupEnvForOllama() []string {
+	env := os.Environ()
+
+	// Check if OLLAMA_HOST is already set
+	ollamaHost := os.Getenv("OLLAMA_HOST")
+	if ollamaHost == "" {
+		panic("OLLAMA_HOST environment variable must be set for integration tests")
+	}
+
+	// Ensure OLLAMA_HOST is in the environment for the command
+	// This will override the config file's ollama.url setting
+	found := false
+	for _, envVar := range env {
+		if strings.HasPrefix(envVar, "OLLAMA_HOST=") {
+			found = true
+			break
 		}
 	}
 
-	return tokens
+	if !found {
+		env = append(env, "OLLAMA_HOST="+ollamaHost)
+	}
+
+	return env
 }

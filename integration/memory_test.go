@@ -26,18 +26,8 @@ func TestMemoryPersistence(t *testing.T) {
 	err = os.MkdirAll(configDir, 0755)
 	require.NoError(t, err)
 
-	// Create config file with memory enabled
-	configFile := filepath.Join(configDir, "settings.yaml")
-	configContent := `langchain:
-  memory_window_size: 10
-ollama:
-  url: http://localhost:11434
-  default_model: qwen3:latest
-  timeout: 90
-show_thinking: true
-`
-	err = os.WriteFile(configFile, []byte(configContent), 0644)
-	require.NoError(t, err)
+	// Use shared test configuration
+	configFile := setupTestConfig(t, tmpDir)
 
 	// Build the binary
 	buildCmd := exec.Command("go", "build", "-o", filepath.Join(tmpDir, "ryan"), "..")
@@ -53,6 +43,7 @@ show_thinking: true
 			"--headless",
 			"--prompt", "My favorite color is blue. Just acknowledge this.")
 		cmd1.Dir = tmpDir
+		cmd1.Env = setupEnvForOllama()
 
 		output1, err := cmd1.CombinedOutput()
 		require.NoError(t, err, "First command failed: %s", string(output1))
@@ -69,6 +60,7 @@ show_thinking: true
 			"--continue",
 			"--prompt", "What was my favorite color?")
 		cmd2.Dir = tmpDir
+		cmd2.Env = setupEnvForOllama()
 
 		output2, err := cmd2.CombinedOutput()
 		require.NoError(t, err, "Second command failed: %s", string(output2))
@@ -89,9 +81,7 @@ show_thinking: true
 		err = os.MkdirAll(sessionConfigDir, 0755)
 		require.NoError(t, err)
 
-		sessionConfigFile := filepath.Join(sessionConfigDir, "settings.yaml")
-		err = os.WriteFile(sessionConfigFile, []byte(configContent), 0644)
-		require.NoError(t, err)
+		sessionConfigFile := setupTestConfig(t, sessionDir)
 
 		// Session 1: Add fact
 		cmd1 := exec.Command(ryanBinary,
@@ -99,6 +89,7 @@ show_thinking: true
 			"--headless",
 			"--prompt", "My pet's name is Fluffy.")
 		cmd1.Dir = sessionDir
+		cmd1.Env = setupEnvForOllama()
 
 		output1, err := cmd1.CombinedOutput()
 		require.NoError(t, err, "Session 1 failed: %s", string(output1))
@@ -110,6 +101,7 @@ show_thinking: true
 			"--continue",
 			"--prompt", "My favorite number is 42.")
 		cmd2.Dir = sessionDir
+		cmd2.Env = setupEnvForOllama()
 
 		output2, err := cmd2.CombinedOutput()
 		require.NoError(t, err, "Session 2 failed: %s", string(output2))
@@ -121,6 +113,7 @@ show_thinking: true
 			"--continue",
 			"--prompt", "What do you remember about my pet and favorite number?")
 		cmd3.Dir = sessionDir
+		cmd3.Env = setupEnvForOllama()
 
 		output3, err := cmd3.CombinedOutput()
 		require.NoError(t, err, "Session 3 failed: %s", string(output3))
@@ -143,17 +136,7 @@ show_thinking: true
 		err = os.MkdirAll(windowConfigDir, 0755)
 		require.NoError(t, err)
 
-		windowConfigFile := filepath.Join(windowConfigDir, "settings.yaml")
-		windowConfig := `langchain:
-  memory_window_size: 2
-ollama:
-  url: http://localhost:11434
-  default_model: qwen3:latest
-  timeout: 90
-show_thinking: true
-`
-		err = os.WriteFile(windowConfigFile, []byte(windowConfig), 0644)
-		require.NoError(t, err)
+		windowConfigFile := setupTestConfig(t, windowDir)
 
 		// Add 3 messages (more than window size)
 		messages := []string{
@@ -176,6 +159,9 @@ show_thinking: true
 
 			cmd := exec.Command(ryanBinary, args...)
 			cmd.Dir = windowDir
+			cmd.Env = setupEnvWithOverrides(map[string]string{
+				"memory_window_size": "2",
+			})
 
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "Message %d failed: %s", i+1, string(output))
@@ -191,6 +177,9 @@ show_thinking: true
 			"--continue",
 			"--prompt", "Where do I live?")
 		cmd.Dir = windowDir
+		cmd.Env = setupEnvWithOverrides(map[string]string{
+			"memory_window_size": "2",
+		})
 
 		output, err := cmd.CombinedOutput()
 		require.NoError(t, err, "Recall command failed: %s", string(output))
@@ -210,9 +199,7 @@ show_thinking: true
 		err = os.MkdirAll(clearConfigDir, 0755)
 		require.NoError(t, err)
 
-		clearConfigFile := filepath.Join(clearConfigDir, "settings.yaml")
-		err = os.WriteFile(clearConfigFile, []byte(configContent), 0644)
-		require.NoError(t, err)
+		clearConfigFile := setupTestConfig(t, clearDir)
 
 		// Add a fact
 		cmd1 := exec.Command(ryanBinary,
@@ -220,6 +207,7 @@ show_thinking: true
 			"--headless",
 			"--prompt", "Remember: my birthday is January 15th.")
 		cmd1.Dir = clearDir
+		cmd1.Env = setupEnvForOllama()
 
 		output1, err := cmd1.CombinedOutput()
 		require.NoError(t, err, "Add fact failed: %s", string(output1))
@@ -230,6 +218,7 @@ show_thinking: true
 			"--headless",
 			"--prompt", "When is my birthday?")
 		cmd2.Dir = clearDir
+		cmd2.Env = setupEnvForOllama()
 
 		output2, err := cmd2.CombinedOutput()
 		require.NoError(t, err, "Query after clear failed: %s", string(output2))
@@ -247,6 +236,7 @@ show_thinking: true
 			"--headless",
 			"--prompt", "test")
 		cmd.Dir = tmpDir
+		cmd.Env = setupEnvForOllama()
 
 		output, err := cmd.CombinedOutput()
 		require.NoError(t, err, "Command should execute successfully: %s", string(output))
