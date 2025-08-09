@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
@@ -42,6 +43,7 @@ type chatModel struct {
 	numEscPress   int
 	streamManager *streaming.Manager
 	chatManager   *chat.Manager
+	orchestrator  agent.Agent
 	nodes         []MessageNode
 	statusBar     status.StatusModel
 	isStreaming   bool
@@ -52,7 +54,7 @@ type chatModel struct {
 	stopChan  chan struct{}
 }
 
-func NewChatModel(streamManager *streaming.Manager, chatManager *chat.Manager) chatModel {
+func NewChatModel(streamManager *streaming.Manager, chatManager *chat.Manager, orchestrator agent.Agent) chatModel {
 	ta := textarea.New()
 	ta.Focus()
 	ta.Placeholder = "Type a message..."
@@ -89,6 +91,7 @@ func NewChatModel(streamManager *streaming.Manager, chatManager *chat.Manager) c
 		styles:        theme.DefaultStyles(),
 		streamManager: streamManager,
 		chatManager:   chatManager,
+		orchestrator:  orchestrator,
 		nodes:         []MessageNode{},
 		statusBar:     statusBar,
 		isStreaming:   false,

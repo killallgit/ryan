@@ -7,10 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/chat"
-	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
-	"github.com/tmc/langchaingo/llms"
 )
 
 type (
@@ -125,54 +123,62 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// startLLMStream starts streaming from LLM and sends chunks to channel
+// startLLMStream starts streaming from orchestrator and sends chunks to channel
 func (m chatModel) startLLMStream(streamID, prompt string) {
-
-	// Get the provider from the streaming manager
-	source, exists := m.streamManager.Registry.Get("ollama-main")
-	if !exists {
+	if m.orchestrator == nil {
 		m.chunkChan <- StreamChunk{
 			StreamID: streamID,
 			IsEnd:    true,
-			Error:    fmt.Errorf("provider ollama-main not found"),
+			Error:    fmt.Errorf("orchestrator not initialized"),
 		}
 		return
 	}
 
-	// Create streaming function that sends to channel
-	streamFunc := func(ctx context.Context, chunk []byte) error {
-		chunkStr := string(chunk)
-
-		m.chunkChan <- StreamChunk{
-			StreamID: streamID,
-			Content:  chunkStr,
-			IsEnd:    false,
-		}
-		return nil
+	// Create a stream handler that sends chunks to the channel
+	streamHandler := &channelStreamHandler{
+		streamID:  streamID,
+		chunkChan: m.chunkChan,
 	}
 
-	// Call the LLM provider
+	// Use orchestrator to generate streaming response
 	ctx := context.Background()
-	switch provider := source.Provider.(type) {
-	case *ollama.OllamaClient:
-		messages := []llms.MessageContent{
-			llms.TextParts(llms.ChatMessageTypeHuman, prompt),
-		}
-		_, err := provider.GenerateContent(ctx, messages,
-			llms.WithStreamingFunc(streamFunc))
-
-		// Send end message
+	err := m.orchestrator.ExecuteStream(ctx, prompt, streamHandler)
+	if err != nil {
 		m.chunkChan <- StreamChunk{
 			StreamID: streamID,
 			IsEnd:    true,
 			Error:    err,
 		}
+	}
+}
 
-	default:
-		m.chunkChan <- StreamChunk{
-			StreamID: streamID,
-			IsEnd:    true,
-			Error:    fmt.Errorf("unsupported provider type: %T", provider),
-		}
+// channelStreamHandler implements agent.StreamHandler to send chunks to a channel
+type channelStreamHandler struct {
+	streamID  string
+	chunkChan chan<- StreamChunk
+}
+
+func (h *channelStreamHandler) OnChunk(chunk string) error {
+	h.chunkChan <- StreamChunk{
+		StreamID: h.streamID,
+		Content:  chunk,
+		IsEnd:    false,
+	}
+	return nil
+}
+
+func (h *channelStreamHandler) OnComplete(finalContent string) error {
+	h.chunkChan <- StreamChunk{
+		StreamID: h.streamID,
+		IsEnd:    true,
+	}
+	return nil
+}
+
+func (h *channelStreamHandler) OnError(err error) {
+	h.chunkChan <- StreamChunk{
+		StreamID: h.streamID,
+		IsEnd:    true,
+		Error:    err,
 	}
 }

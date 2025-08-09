@@ -8,33 +8,33 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/chat"
-	"github.com/killallgit/ryan/pkg/llm"
 	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/spf13/viper"
 )
 
-// Runner runs the chat in headless mode
-type Runner struct {
-	chatManager *chat.Manager
-	provider    llm.Provider
-	output      *Output
-	config      *Config
-	tokensSent  int
-	tokensRecv  int
+// runner runs the chat in headless mode
+type runner struct {
+	chatManager  *chat.Manager
+	orchestrator agent.Agent
+	output       *Output
+	config       *config
+	tokensSent   int
+	tokensRecv   int
 }
 
-// Config contains headless runner configuration
-type Config struct {
-	HistoryPath     string
-	ShowThinking    bool
-	ContinueHistory bool
-	DebugLogging    bool
-	LogFile         string
+// config contains headless runner configuration
+type config struct {
+	historyPath     string
+	showThinking    bool
+	continueHistory bool
+	debugLogging    bool
+	logFile         string
 }
 
-// NewRunner creates a new headless runner
-func NewRunner() (*Runner, error) {
+// newRunner creates a new headless runner with injected orchestrator
+func newRunner(orchestrator agent.Agent) (*runner, error) {
 	// Get the base directory from the config file location
 	configFile := viper.ConfigFileUsed()
 	baseDir := filepath.Dir(configFile)
@@ -43,18 +43,18 @@ func NewRunner() (*Runner, error) {
 	}
 
 	// Setup configuration
-	config := &Config{
-		HistoryPath:     filepath.Join(baseDir, "chat_history.json"),
-		ShowThinking:    viper.GetBool("show_thinking"),
-		ContinueHistory: viper.GetBool("continue"),
-		DebugLogging:    viper.GetString("logging.level") == "debug",
-		LogFile:         viper.GetString("logging.log_file"),
+	cfg := &config{
+		historyPath:     filepath.Join(baseDir, "chat_history.json"),
+		showThinking:    viper.GetBool("show_thinking"),
+		continueHistory: viper.GetBool("continue"),
+		debugLogging:    viper.GetString("logging.level") == "debug",
+		logFile:         viper.GetString("logging.log_file"),
 	}
 
 	// Setup logging if debug is enabled
-	if config.DebugLogging && config.LogFile != "" {
+	if cfg.debugLogging && cfg.logFile != "" {
 		// Handle log file path resolution
-		logPath := config.LogFile
+		logPath := cfg.logFile
 		if !filepath.IsAbs(logPath) {
 			// Clean the path and handle relative paths properly
 			logPath = filepath.Clean(logPath)
@@ -81,37 +81,31 @@ func NewRunner() (*Runner, error) {
 	}
 
 	// Create chat manager
-	chatManager, err := chat.NewManager(config.HistoryPath)
+	chatManager, err := chat.NewManager(cfg.historyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chat manager: %w", err)
 	}
 
 	// Clear history if not continuing
-	if !config.ContinueHistory {
+	if !cfg.continueHistory {
 		if err := chatManager.ClearHistory(); err != nil {
 			return nil, fmt.Errorf("failed to clear history: %w", err)
 		}
 	}
 
-	// Create LLM provider
-	provider, err := llm.NewOllamaAdapter()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create ollama adapter: %w", err)
-	}
-
 	// Create output handler
 	output := NewOutput()
 
-	return &Runner{
-		chatManager: chatManager,
-		provider:    provider,
-		output:      output,
-		config:      config,
+	return &runner{
+		chatManager:  chatManager,
+		orchestrator: orchestrator,
+		output:       output,
+		config:       cfg,
 	}, nil
 }
 
-// Run executes a single prompt in headless mode
-func (r *Runner) Run(ctx context.Context, prompt string) error {
+// run executes a single prompt in headless mode
+func (r *runner) run(ctx context.Context, prompt string) error {
 	if prompt == "" {
 		return fmt.Errorf("prompt cannot be empty in headless mode")
 	}
@@ -121,7 +115,7 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 	tokenCounter, err := tokens.NewTokenCounter(modelName)
 	if err != nil {
 		// Log warning but continue
-		if r.config.DebugLogging {
+		if r.config.debugLogging {
 			log.Printf("Warning: Could not initialize token counter: %v", err)
 		}
 		tokenCounter = nil
@@ -135,7 +129,7 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 	}
 
 	// Log prompt if debug logging is enabled
-	if r.config.DebugLogging {
+	if r.config.debugLogging {
 		log.Printf("User prompt: %s (tokens: %d)", prompt, promptTokens)
 	}
 
@@ -146,12 +140,11 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 		return fmt.Errorf("failed to add user message: %w", err)
 	}
 
-	// Create streaming handler
-	handler := llm.NewConsoleStreamHandler()
+	// Log prompt for debugging
 
 	// Setup chat manager streaming callback
 	r.chatManager.SetStreamCallback(func(content string) error {
-		// Content is already printed by ConsoleStreamHandler
+		// Content is already printed by stream handler
 		return nil
 	})
 
@@ -161,48 +154,21 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 		return fmt.Errorf("failed to start streaming: %w", err)
 	}
 
-	// No spinner needed for headless mode
-
-	// Generate streaming response with history
-	// Try to use memory if enabled, otherwise fall back to regular history
-	var llmMessages []llm.Message
-	memoryMessages, err := r.chatManager.GetMemoryMessages()
-	if err != nil {
-		return fmt.Errorf("failed to get memory messages: %w", err)
+	// Create a stream handler that prints to console and collects content
+	var finalContent string
+	streamHandler := &consoleStreamHandler{
+		content: "",
 	}
 
-	if len(memoryMessages) > 0 {
-		// Use memory messages if available
-		llmMessages = memoryMessages
-	} else {
-		// Fall back to regular history
-		history := r.chatManager.GetHistory()
-		llmMessages = make([]llm.Message, 0, len(history))
-		for _, msg := range history {
-			llmMessages = append(llmMessages, llm.Message{
-				Role:    string(msg.Role),
-				Content: msg.Content,
-			})
-		}
-	}
-
-	// Use provider to generate response
-	var generateErr error
-	if convProvider, ok := r.provider.(llm.ConversationalProvider); ok {
-		generateErr = convProvider.GenerateStreamWithHistory(ctx, llmMessages, handler)
-	} else {
-		generateErr = r.provider.GenerateStream(ctx, prompt, handler)
-	}
-
-	// No spinner to stop
-
+	// Use orchestrator to generate streaming response
+	generateErr := r.orchestrator.ExecuteStream(ctx, prompt, streamHandler)
 	if generateErr != nil {
 		r.output.Error(fmt.Sprintf("Generation error: %v", generateErr))
 		return generateErr
 	}
 
-	// Update stream with final content
-	finalContent := handler.GetContent()
+	// Get final content from handler
+	finalContent = streamHandler.content
 
 	// Count response tokens
 	responseTokens := 0
@@ -226,7 +192,7 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 		r.tokensSent, r.tokensRecv, r.tokensSent+r.tokensRecv)
 
 	// Log completion if debug logging is enabled
-	if r.config.DebugLogging {
+	if r.config.debugLogging {
 		log.Printf("Response complete (tokens: %d)", responseTokens)
 		log.Printf("Total tokens - Sent: %d, Received: %d", r.tokensSent, r.tokensRecv)
 	}
@@ -234,17 +200,36 @@ func (r *Runner) Run(ctx context.Context, prompt string) error {
 	return nil
 }
 
-// RunInteractive runs an interactive session (for future implementation)
-func (r *Runner) RunInteractive(ctx context.Context) error {
+// runInteractive runs an interactive session (for future implementation)
+func (r *runner) runInteractive(ctx context.Context) error {
 	return fmt.Errorf("interactive headless mode not yet implemented")
 }
 
-// Cleanup performs cleanup operations
-func (r *Runner) Cleanup() error {
-	// Save history one final time
-	if r.chatManager != nil {
-		// History is already saved after each message
-		return nil
+// cleanup performs cleanup operations
+func (r *runner) cleanup() error {
+	// Note: orchestrator cleanup is handled by the caller (cmd/root.go)
+	// since it owns the orchestrator lifecycle
+	return nil
+}
+
+// consoleStreamHandler implements the agent.StreamHandler interface
+type consoleStreamHandler struct {
+	content string
+}
+
+func (h *consoleStreamHandler) OnChunk(chunk string) error {
+	fmt.Print(chunk)
+	h.content += chunk
+	return nil
+}
+
+func (h *consoleStreamHandler) OnComplete(finalContent string) error {
+	if finalContent != "" {
+		h.content = finalContent
 	}
 	return nil
+}
+
+func (h *consoleStreamHandler) OnError(err error) {
+	fmt.Fprintf(os.Stderr, "\nStreaming error: %v\n", err)
 }
