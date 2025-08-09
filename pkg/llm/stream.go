@@ -2,9 +2,10 @@ package llm
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"sync"
+
+	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // BufferedStreamHandler buffers streaming content
@@ -90,7 +91,7 @@ func NewConsoleStreamHandler() *ConsoleStreamHandler {
 	})
 
 	handler.WithErrorCallback(func(err error) {
-		fmt.Fprintf(os.Stderr, "\nError: %v\n", err)
+		logger.Error("LLM streaming error: %v", err)
 	})
 
 	return handler

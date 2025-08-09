@@ -3,13 +3,13 @@ package tui
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/agent"
 	chatpkg "github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/config"
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat"
@@ -60,7 +60,7 @@ func RunTUI(agent agent.Agent) error {
 	setupDebug()
 
 	if _, err := p.Run(); err != nil {
-		log.Fatal(err)
+		logger.Fatal("TUI program error: %v", err)
 	}
 
 	return nil
@@ -70,11 +70,11 @@ func setupDebug() {
 	logLevel := viper.GetString("logging.level")
 	if logLevel == "debug" {
 		logPath := config.BuildSettingsPath("tui-debug.log")
-		f, err := tea.LogToFile(logPath, "debug")
+		_, err := tea.LogToFile(logPath, "debug")
 		if err != nil {
-			fmt.Println("fatal:", err)
-			os.Exit(1)
+			logger.Fatal("TUI debug logging setup error: %v", err)
 		}
-		defer f.Close()
+		// Note: tea.LogToFile returns a file that Bubble Tea manages internally
+		// We don't need to manually close it
 	}
 }

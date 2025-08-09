@@ -2,10 +2,11 @@ package stream
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // ConsoleHandler prints streaming content directly to console
@@ -42,9 +43,9 @@ func (c *ConsoleHandler) OnComplete(finalContent string) error {
 	return nil
 }
 
-// OnError prints error to stderr
+// OnError logs streaming error
 func (c *ConsoleHandler) OnError(err error) {
-	fmt.Fprintf(os.Stderr, "\nStreaming error: %v\n", err)
+	logger.Error("Streaming error: %v", err)
 }
 
 // GetContent returns the accumulated content

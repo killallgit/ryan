@@ -1,8 +1,7 @@
 package ollama
 
 import (
-	"log"
-
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/spf13/viper"
 	lcollama "github.com/tmc/langchaingo/llms/ollama"
 )
@@ -16,7 +15,7 @@ func NewClient() *OllamaClient {
 	ollamaModel := viper.GetString("ollama.default_model")
 	ollamaLLM, err := lcollama.New(lcollama.WithModel(ollamaModel), lcollama.WithServerURL(ollamaUrl))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal("Failed to create Ollama client: %v", err)
 	}
 	return &OllamaClient{
 		LLM: ollamaLLM,

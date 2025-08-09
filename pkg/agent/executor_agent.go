@@ -6,8 +6,13 @@ import (
 	"sync"
 
 	"github.com/killallgit/ryan/pkg/memory"
+<<<<<<< HEAD
 	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/tokens"
+||||||| parent of 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
+=======
+	"github.com/killallgit/ryan/pkg/stream"
+>>>>>>> 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
 	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/llms"
@@ -136,6 +141,7 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 }
 
 // ExecuteStream handles a request with streaming response
+<<<<<<< HEAD
 func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler stream.Handler) error {
 	// Count input tokens
 	if e.tokenCounter != nil {
@@ -144,7 +150,22 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 		e.tokensSent += inputTokens
 		e.tokensMu.Unlock()
 	}
+||||||| parent of 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
+func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler StreamHandler) error {
+	// For now, we'll execute non-streaming and simulate streaming
+	// This is because the agent executor doesn't support streaming directly
+	response, err := e.Execute(ctx, prompt)
+	if err != nil {
+		handler.OnError(err)
+		return err
+	}
+=======
+func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler stream.Handler) error {
+	// Create a LangChain streaming source using the agent's LLM
+	source := stream.NewLangChainSource(e.llm)
+>>>>>>> 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
 
+<<<<<<< HEAD
 	// Create a LangChain streaming source using the agent's LLM
 	source := stream.NewLangChainSource(e.llm)
 
@@ -161,9 +182,36 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 					Content: msg.Content,
 				})
 			}
+||||||| parent of 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
+	// Simulate streaming by sending the response in chunks
+	chunkSize := 10
+	for i := 0; i < len(response); i += chunkSize {
+		end := i + chunkSize
+		if end > len(response) {
+			end = len(response)
+		}
+		chunk := response[i:end]
+		if err := handler.OnChunk(chunk); err != nil {
+			return err
+=======
+	// Build conversation messages from memory
+	messages := []stream.Message{}
+
+	// Add conversation history if available
+	if e.memory != nil {
+		llmMessages, err := e.memory.ConvertToLLMMessages()
+		if err == nil {
+			for _, msg := range llmMessages {
+				messages = append(messages, stream.Message{
+					Role:    msg.Role,
+					Content: msg.Content,
+				})
+			}
+>>>>>>> 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
 		}
 	}
 
+<<<<<<< HEAD
 	// Add the current prompt
 	messages = append(messages, stream.Message{
 		Role:    "user",
@@ -182,8 +230,28 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 
 	// Stream with full conversation history
 	return source.StreamWithHistory(ctx, messages, tokenAndMemoryHandler)
+||||||| parent of 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
+	return handler.OnComplete(response)
+=======
+	// Add the current prompt
+	messages = append(messages, stream.Message{
+		Role:    "user",
+		Content: prompt,
+	})
+
+	// Create a wrapper handler that also updates memory
+	memoryHandler := &memoryUpdatingHandler{
+		inner:  handler,
+		memory: e.memory,
+		prompt: prompt,
+	}
+
+	// Stream with full conversation history
+	return source.StreamWithHistory(ctx, messages, memoryHandler)
+>>>>>>> 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
 }
 
+<<<<<<< HEAD
 // tokenAndMemoryHandler wraps a stream handler to track tokens and update memory
 type tokenAndMemoryHandler struct {
 	inner      stream.Handler
@@ -245,6 +313,46 @@ func (h *tokenAndMemoryHandler) OnComplete(finalContent string) error {
 
 func (h *tokenAndMemoryHandler) OnError(err error) {
 	h.inner.OnError(err)
+||||||| parent of 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
+// StreamHandler handles streaming responses
+type StreamHandler interface {
+	OnChunk(chunk string) error
+	OnComplete(finalContent string) error
+	OnError(err error)
+=======
+// memoryUpdatingHandler wraps a stream handler to update memory
+type memoryUpdatingHandler struct {
+	inner   stream.Handler
+	memory  *memory.Memory
+	prompt  string
+	content string
+}
+
+func (m *memoryUpdatingHandler) OnChunk(chunk string) error {
+	m.content += chunk
+	return m.inner.OnChunk(chunk)
+}
+
+func (m *memoryUpdatingHandler) OnComplete(finalContent string) error {
+	if finalContent == "" {
+		finalContent = m.content
+	}
+
+	// Update memory with the exchange
+	if m.memory != nil {
+		// Add user message
+		_ = m.memory.AddUserMessage(m.prompt)
+
+		// Add assistant response
+		_ = m.memory.AddAssistantMessage(finalContent)
+	}
+
+	return m.inner.OnComplete(finalContent)
+}
+
+func (m *memoryUpdatingHandler) OnError(err error) {
+	m.inner.OnError(err)
+>>>>>>> 6192c2e ([streaming]: Unified streaming architecture with real LangChain support (#113))
 }
 
 // GetLLM returns the underlying LLM for direct access if needed

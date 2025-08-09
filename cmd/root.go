@@ -7,6 +7,7 @@ import (
 
 	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/headless"
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tui"
 	"github.com/spf13/cobra"
@@ -28,6 +29,13 @@ var rootCmd = &cobra.Command{
 
 		// Refresh config (this will clear and restore transient values)
 		refreshConfig(promptValue, headlessMode, continueHistory)
+
+		// Initialize logger
+		if err := logger.Init(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing logger: %v\n", err)
+			os.Exit(1)
+		}
+		defer logger.Close()
 
 		// Create the LLM based on provider configuration
 		llm, err := createLLM()
@@ -132,6 +140,9 @@ func init() {
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level")
 	viper.BindPFlag("logging.level", rootCmd.PersistentFlags().Lookup("log-level"))
 
+	rootCmd.PersistentFlags().Bool("persist", false, "persist system logs across sessions")
+	viper.BindPFlag("logging.persist", rootCmd.PersistentFlags().Lookup("persist"))
+
 	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")
 	viper.BindPFlag("continue", rootCmd.PersistentFlags().Lookup("continue"))
 
@@ -149,7 +160,7 @@ func init() {
 	viper.SetDefault("ollama.timeout", 90)
 
 	viper.SetDefault("logging.log_file", "system.log")
-	viper.SetDefault("logging.preserve", true)
+	viper.SetDefault("logging.persist", false)
 	viper.SetDefault("logging.level", "info")
 
 	viper.SetDefault("vectorstore.enabled", true)

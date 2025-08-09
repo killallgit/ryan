@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/killallgit/ryan/pkg/agent"
+	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // RunHeadless executes a single prompt in headless mode
@@ -29,7 +30,7 @@ func RunHeadless(agent agent.Agent, prompt string) error {
 	// Cleanup
 	if err := runner.cleanup(); err != nil {
 		// Log warning but don't fail
-		fmt.Printf("Warning: cleanup error: %v\n", err)
+		logger.Warn("Cleanup error: %v", err)
 	}
 
 	return nil

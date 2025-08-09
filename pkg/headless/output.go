@@ -1,8 +1,7 @@
 package headless
 
 import (
-	"fmt"
-	"os"
+	"github.com/killallgit/ryan/pkg/logger"
 )
 
 // Output handles console output for headless mode
@@ -13,7 +12,7 @@ func NewOutput() *Output {
 	return &Output{}
 }
 
-// Error prints an error message to stderr
+// Error prints an error message using the logger
 func (o *Output) Error(msg string) {
-	fmt.Fprintf(os.Stderr, "[ERROR] %s\n", msg)
+	logger.Error(msg)
 }
