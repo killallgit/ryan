@@ -172,12 +172,12 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 
 	// Create a wrapper handler that tracks tokens and updates memory
 	tokenAndMemoryHandler := &tokenAndMemoryHandler{
-		inner:        handler,
-		memory:       e.memory,
-		prompt:       prompt,
-		agent:        e,
-		buffer:       "",
-		lastTokens:   0,
+		inner:      handler,
+		memory:     e.memory,
+		prompt:     prompt,
+		agent:      e,
+		buffer:     "",
+		lastTokens: 0,
 	}
 
 	// Stream with full conversation history
@@ -286,4 +286,3 @@ func (e *ExecutorAgent) Close() error {
 	}
 	return nil
 }
-
