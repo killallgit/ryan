@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/agent"

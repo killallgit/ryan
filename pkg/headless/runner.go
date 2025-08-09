@@ -102,7 +102,7 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 	})
 
 	// Start streaming response
-	_, err := r.chatManager.StartStreaming(chat.RoleAssistant)
+	_, err = r.chatManager.StartStreaming(chat.RoleAssistant)
 	if err != nil {
 		return fmt.Errorf("failed to start streaming: %w", err)
 	}
