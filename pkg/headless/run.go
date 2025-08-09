@@ -9,13 +9,13 @@ import (
 
 // RunHeadless executes a single prompt in headless mode
 // This is the main entry point for headless/CLI execution
-func RunHeadless(orchestrator agent.Agent, prompt string) error {
+func RunHeadless(agent agent.Agent, prompt string) error {
 	if prompt == "" {
 		return fmt.Errorf("prompt cannot be empty in headless mode")
 	}
 
 	// Create runner (internal implementation detail)
-	runner, err := newRunner(orchestrator)
+	runner, err := newRunner(agent)
 	if err != nil {
 		return fmt.Errorf("failed to initialize headless mode: %w", err)
 	}

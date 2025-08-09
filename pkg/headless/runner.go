@@ -16,12 +16,12 @@ import (
 
 // runner runs the chat in headless mode
 type runner struct {
-	chatManager  *chat.Manager
-	orchestrator agent.Agent
-	output       *Output
-	config       *config
-	tokensSent   int
-	tokensRecv   int
+	chatManager *chat.Manager
+	agent       agent.Agent
+	output      *Output
+	config      *config
+	tokensSent  int
+	tokensRecv  int
 }
 
 // config contains headless runner configuration
@@ -33,8 +33,8 @@ type config struct {
 	logFile         string
 }
 
-// newRunner creates a new headless runner with injected orchestrator
-func newRunner(orchestrator agent.Agent) (*runner, error) {
+// newRunner creates a new headless runner with injected agent
+func newRunner(agent agent.Agent) (*runner, error) {
 	// Get the base directory from the config file location
 	configFile := viper.ConfigFileUsed()
 	baseDir := filepath.Dir(configFile)
@@ -97,10 +97,10 @@ func newRunner(orchestrator agent.Agent) (*runner, error) {
 	output := NewOutput()
 
 	return &runner{
-		chatManager:  chatManager,
-		orchestrator: orchestrator,
-		output:       output,
-		config:       cfg,
+		chatManager: chatManager,
+		agent:       agent,
+		output:      output,
+		config:      cfg,
 	}, nil
 }
 
@@ -160,8 +160,8 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 		content: "",
 	}
 
-	// Use orchestrator to generate streaming response
-	generateErr := r.orchestrator.ExecuteStream(ctx, prompt, streamHandler)
+	// Use agent to generate streaming response
+	generateErr := r.agent.ExecuteStream(ctx, prompt, streamHandler)
 	if generateErr != nil {
 		r.output.Error(fmt.Sprintf("Generation error: %v", generateErr))
 		return generateErr
@@ -207,8 +207,8 @@ func (r *runner) runInteractive(ctx context.Context) error {
 
 // cleanup performs cleanup operations
 func (r *runner) cleanup() error {
-	// Note: orchestrator cleanup is handled by the caller (cmd/root.go)
-	// since it owns the orchestrator lifecycle
+	// Note: agent cleanup is handled by the caller (cmd/root.go)
+	// since it owns the agent lifecycle
 	return nil
 }
 

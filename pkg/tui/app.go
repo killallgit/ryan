@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func RunTUI(orchestrator agent.Agent) error {
+func RunTUI(agent agent.Agent) error {
 	ctx := context.Background()
 
 	// Get configuration for chat history
@@ -49,8 +49,8 @@ func RunTUI(orchestrator agent.Agent) error {
 	ollamaClient := ollama.NewClient()
 	registry.Register("ollama-main", "ollama", ollamaClient)
 
-	// Create chat model with stream manager, chat manager, and injected orchestrator
-	chatModel := chat.NewChatModel(manager, chatManager, orchestrator)
+	// Create chat model with stream manager, chat manager, and injected agent
+	chatModel := chat.NewChatModel(manager, chatManager, agent)
 
 	// Store the chat model for later reference
 	views := []tea.Model{chatModel}
