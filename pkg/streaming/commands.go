@@ -8,12 +8,12 @@ import (
 )
 
 // StreamFromProvider creates a command to stream from a registered provider
-// If sourceID is empty, it will use the router to determine the provider
+// If sourceID is empty, it will use the default provider
 func StreamFromProvider(mgr *Manager, sourceID string, prompt string, nodeType string) tea.Cmd {
 	return func() tea.Msg {
-		// Use router if sourceID not specified
+		// Use default provider if sourceID not specified
 		if sourceID == "" {
-			sourceID = mgr.Router.Route(prompt)
+			sourceID = "ollama-main"
 		}
 
 		source, exists := mgr.Registry.Get(sourceID)

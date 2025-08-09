@@ -1,18 +1,17 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 
+	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/headless"
+	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/term"
+	"github.com/tmc/langchaingo/llms"
 )
 
 var cfgFile string
@@ -30,11 +29,26 @@ var rootCmd = &cobra.Command{
 		// Refresh config (this will clear and restore transient values)
 		refreshConfig(promptValue, headlessMode, continueHistory)
 
+		// Create the LLM based on provider configuration
+		llm, err := createLLM()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating LLM: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Create the executor agent once, to be used by both modes
+		executorAgent, err := agent.NewExecutorAgent(llm)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating executor agent: %v\n", err)
+			os.Exit(1)
+		}
+		defer executorAgent.Close()
+
 		// Check if running in headless mode
 		if headlessMode {
-			runHeadless()
+			runHeadless(executorAgent)
 		} else {
-			if err := tui.StartApp(); err != nil {
+			if err := tui.RunTUI(executorAgent); err != nil {
 				fmt.Printf("Error: %v\n", err)
 				os.Exit(1)
 			}
@@ -42,56 +56,38 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func runHeadless() {
-	// Ensure terminal is reset on exit
-	defer resetTerminal()
+// createLLM creates an LLM instance based on the configured provider
+func createLLM() (llms.Model, error) {
+	provider := viper.GetString("provider")
 
-	// Setup signal handler for clean exit
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		resetTerminal()
-		os.Exit(0)
-	}()
+	switch provider {
+	case "ollama":
+		// Create Ollama LLM
+		ollamaClient := ollama.NewClient()
+		return ollamaClient.LLM, nil
 
-	// Get the prompt from config, default to "hello" if not provided
+	// Future providers can be added here
+	// case "openai":
+	//     return createOpenAILLM()
+	// case "anthropic":
+	//     return createAnthropicLLM()
+
+	default:
+		return nil, fmt.Errorf("unsupported LLM provider: %s", provider)
+	}
+}
+
+func runHeadless(executorAgent agent.Agent) {
+	// Get the prompt from config
 	prompt := viper.GetString("prompt")
 	if prompt == "" {
 		prompt = "hello"
 	}
 
-	// Create and run the headless runner
-	runner, err := headless.NewRunner()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error initializing headless mode: %v\n", err)
+	// Simply run the headless mode - no terminal manipulation needed
+	if err := headless.RunHeadless(executorAgent, prompt); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
-	}
-
-	// Run with context
-	ctx := context.Background()
-	if err := runner.Run(ctx, prompt); err != nil {
-		fmt.Fprintf(os.Stderr, "Error running headless mode: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Cleanup
-	if err := runner.Cleanup(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: cleanup error: %v\n", err)
-	}
-}
-
-func resetTerminal() {
-	// Only reset terminal if we're actually connected to a terminal
-	// This prevents escape codes from appearing in test output
-	if term.IsTerminal(int(os.Stdout.Fd())) || term.IsTerminal(int(os.Stderr.Fd())) {
-		// Reset terminal to ensure proper state
-		// Output to stderr to avoid interfering with stdout content
-		// This uses ANSI escape codes that work on most terminals
-		fmt.Fprint(os.Stderr, "\033[?25h")   // Show cursor
-		fmt.Fprint(os.Stderr, "\033[0m")     // Reset colors/attributes
-		fmt.Fprint(os.Stderr, "\033[?1049l") // Switch back from alternate screen buffer if used
-		os.Stderr.Sync()                     // Ensure output is flushed
 	}
 }
 

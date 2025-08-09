@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/agent"
 	chatpkg "github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/streaming"
@@ -15,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func StartApp() error {
+func RunTUI(orchestrator agent.Agent) error {
 	ctx := context.Background()
 
 	// Get configuration for chat history
@@ -48,8 +49,8 @@ func StartApp() error {
 	ollamaClient := ollama.NewClient()
 	registry.Register("ollama-main", "ollama", ollamaClient)
 
-	// Create chat model with stream manager and chat manager
-	chatModel := chat.NewChatModel(manager, chatManager)
+	// Create chat model with stream manager, chat manager, and injected orchestrator
+	chatModel := chat.NewChatModel(manager, chatManager, orchestrator)
 
 	// Store the chat model for later reference
 	views := []tea.Model{chatModel}

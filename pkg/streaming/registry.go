@@ -1,28 +1,22 @@
 package streaming
 
-import "sync"
-
 type StreamSource struct {
 	ID       string
-	Type     string      // "ollama", "openai", "agent", etc.
-	Provider interface{} // The actual LLM client
+	Type     string      // Always "ollama" now
+	Provider interface{} // The Ollama client
 }
 
 type Registry struct {
-	sources map[string]*StreamSource
-	mu      sync.RWMutex
+	source *StreamSource
 }
 
 func NewRegistry() *Registry {
-	return &Registry{
-		sources: make(map[string]*StreamSource),
-	}
+	return &Registry{}
 }
 
 func (r *Registry) Register(id string, sourceType string, provider interface{}) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.sources[id] = &StreamSource{
+	// Now we only keep a single source
+	r.source = &StreamSource{
 		ID:       id,
 		Type:     sourceType,
 		Provider: provider,
@@ -30,14 +24,13 @@ func (r *Registry) Register(id string, sourceType string, provider interface{}) 
 }
 
 func (r *Registry) Get(id string) (*StreamSource, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	source, exists := r.sources[id]
-	return source, exists
+	// Return the single source regardless of ID for backwards compatibility
+	if r.source != nil {
+		return r.source, true
+	}
+	return nil, false
 }
 
-func (r *Registry) Unregister(id string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.sources, id)
+func (r *Registry) GetSource() *StreamSource {
+	return r.source
 }

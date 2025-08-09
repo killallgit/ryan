@@ -109,3 +109,8 @@ func (m *Memory) Clear() error {
 func (m *Memory) Close() error {
 	return nil
 }
+
+// ChatMessageHistory returns the underlying chat message history for use with agents
+func (m *Memory) ChatMessageHistory() *sqlite3.SqliteChatMessageHistory {
+	return m.store
+}

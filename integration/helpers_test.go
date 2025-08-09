@@ -2,15 +2,38 @@ package integration
 
 import (
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+// isOllamaAvailable checks if Ollama is accessible
+func isOllamaAvailable() bool {
+	ollamaHost := os.Getenv("OLLAMA_HOST")
+	if ollamaHost == "" {
+		ollamaHost = "http://localhost:11434"
+	}
+
+	// Try to reach Ollama API
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+	}
+
+	resp, err := client.Get(ollamaHost + "/api/tags")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode == http.StatusOK
+}
 
 // parseTokenCounts extracts sent and received token counts from output
 func parseTokenCounts(t *testing.T, output string) (sent, recv int) {
