@@ -47,8 +47,10 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isStreaming = true
 		m.currentStream = msg.StreamID
 
-		// Update status bar
-		statusModel, _ := m.statusBar.Update(status.StartStreamingMsg{Icon: "↓"})
+		// Update status bar - start in thinking state
+		statusModel, _ := m.statusBar.Update(status.StartStreamingMsg{
+			State: status.StateThinking,
+		})
 		m.statusBar = statusModel.(status.StatusModel)
 
 		// Start channel-based streaming
@@ -92,6 +94,13 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle regular chunk
 		for i := range m.nodes {
 			if m.nodes[i].StreamID == msg.StreamID {
+				// If this is the first content, transition from thinking to receiving
+				if m.nodes[i].Content == "" && msg.Content != "" {
+					statusModel, _ := m.statusBar.Update(status.SetProcessStateMsg{
+						State: status.StateReceiving,
+					})
+					m.statusBar = statusModel.(status.StatusModel)
+				}
 				m.nodes[i].Content += msg.Content
 				break
 			}

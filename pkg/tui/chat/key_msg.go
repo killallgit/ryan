@@ -48,7 +48,10 @@ func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.updateViewportContent()
 
 			// Update status bar to show sending
-			statusModel, _ := m.statusBar.Update(status.StatusUpdateMsg{Status: "Sending"})
+			statusModel, _ := m.statusBar.Update(status.StatusUpdateMsg{
+				Status: "Sending",
+				State:  status.StateSending,
+			})
 			m.statusBar = statusModel.(status.StatusModel)
 
 			// Start streaming from registered provider

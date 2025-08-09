@@ -20,17 +20,46 @@ func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case StatusUpdateMsg:
 		m.status = msg.Status
+		if msg.State != "" {
+			m.processState = msg.State
+			m.icon = getIconForState(msg.State)
+		}
 		return m, nil
 
 	case StartStreamingMsg:
 		m.isActive = true
 		m.startTime = time.Now()
-		m.icon = msg.Icon
+		m.processState = msg.State
+		if msg.State != "" {
+			m.icon = getIconForState(msg.State)
+		} else if msg.Icon != "" {
+			m.icon = msg.Icon
+		} else {
+			m.icon = getIconForState(StateReceiving)
+		}
 		m.status = "Streaming"
 		return m, tea.Batch(
 			m.spinner.Tick,
 			tickEvery(),
 		)
+
+	case SetProcessStateMsg:
+		m.processState = msg.State
+		m.icon = getIconForState(msg.State)
+		// Update status text based on state
+		switch msg.State {
+		case StateSending:
+			m.status = "Sending"
+		case StateReceiving:
+			m.status = "Receiving"
+		case StateThinking:
+			m.status = "Thinking"
+		case StateToolUse:
+			m.status = "Using tools"
+		default:
+			m.status = ""
+		}
+		return m, nil
 
 	case StopStreamingMsg:
 		m.isActive = false
@@ -60,4 +89,20 @@ func tickEvery() tea.Cmd {
 	return tea.Every(time.Second, func(t time.Time) tea.Msg {
 		return TickMsg(t)
 	})
+}
+
+// getIconForState returns the appropriate icon for a given process state
+func getIconForState(state ProcessState) string {
+	switch state {
+	case StateSending:
+		return "↑"
+	case StateReceiving:
+		return "↓"
+	case StateToolUse:
+		return "🔨"
+	case StateThinking:
+		return "🤔"
+	default:
+		return ""
+	}
 }
