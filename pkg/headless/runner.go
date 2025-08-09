@@ -10,6 +10,7 @@ import (
 
 	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/spf13/viper"
 )
@@ -156,9 +157,7 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 
 	// Create a stream handler that prints to console and collects content
 	var finalContent string
-	streamHandler := &consoleStreamHandler{
-		content: "",
-	}
+	streamHandler := stream.NewConsoleHandler()
 
 	// Use agent to generate streaming response
 	generateErr := r.agent.ExecuteStream(ctx, prompt, streamHandler)
@@ -168,7 +167,7 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 	}
 
 	// Get final content from handler
-	finalContent = streamHandler.content
+	finalContent = streamHandler.GetContent()
 
 	// Count response tokens
 	responseTokens := 0
@@ -210,26 +209,4 @@ func (r *runner) cleanup() error {
 	// Note: agent cleanup is handled by the caller (cmd/root.go)
 	// since it owns the agent lifecycle
 	return nil
-}
-
-// consoleStreamHandler implements the agent.StreamHandler interface
-type consoleStreamHandler struct {
-	content string
-}
-
-func (h *consoleStreamHandler) OnChunk(chunk string) error {
-	fmt.Print(chunk)
-	h.content += chunk
-	return nil
-}
-
-func (h *consoleStreamHandler) OnComplete(finalContent string) error {
-	if finalContent != "" {
-		h.content = finalContent
-	}
-	return nil
-}
-
-func (h *consoleStreamHandler) OnError(err error) {
-	fmt.Fprintf(os.Stderr, "\nStreaming error: %v\n", err)
 }

@@ -108,8 +108,11 @@ func refreshConfig(promptValue string, headlessMode bool, continueHistory bool) 
 		fmt.Printf("Error writing config: %v\n", err)
 	}
 
-	// Restore transient values for use in this session
-	viper.Set("prompt", promptValue)
+	// Only restore prompt value if running in headless mode
+	// In TUI mode, prompt should not be used
+	if headlessMode {
+		viper.Set("prompt", promptValue)
+	}
 	viper.Set("headless", headlessMode)
 	viper.Set("continue", continueHistory)
 }
