@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/process"
 	"github.com/killallgit/ryan/pkg/streaming"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
 )
@@ -49,7 +50,7 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Update status bar - start in thinking state
 		statusModel, _ := m.statusBar.Update(status.StartStreamingMsg{
-			State: status.StateThinking,
+			State: process.StateThinking,
 		})
 		m.statusBar = statusModel.(status.StatusModel)
 
@@ -97,7 +98,7 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// If this is the first content, transition from thinking to receiving
 				if m.nodes[i].Content == "" && msg.Content != "" {
 					statusModel, _ := m.statusBar.Update(status.SetProcessStateMsg{
-						State: status.StateReceiving,
+						State: process.StateReceiving,
 					})
 					m.statusBar = statusModel.(status.StatusModel)
 				}

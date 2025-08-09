@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/process"
 )
 
 func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -22,7 +23,7 @@ func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = msg.Status
 		if msg.State != "" {
 			m.processState = msg.State
-			m.icon = getIconForState(msg.State)
+			m.icon = msg.State.GetIcon()
 		}
 		return m, nil
 
@@ -31,11 +32,11 @@ func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.startTime = time.Now()
 		m.processState = msg.State
 		if msg.State != "" {
-			m.icon = getIconForState(msg.State)
+			m.icon = msg.State.GetIcon()
 		} else if msg.Icon != "" {
 			m.icon = msg.Icon
 		} else {
-			m.icon = getIconForState(StateReceiving)
+			m.icon = process.StateReceiving.GetIcon()
 		}
 		m.status = "Streaming"
 		return m, tea.Batch(
@@ -45,20 +46,8 @@ func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case SetProcessStateMsg:
 		m.processState = msg.State
-		m.icon = getIconForState(msg.State)
-		// Update status text based on state
-		switch msg.State {
-		case StateSending:
-			m.status = "Sending"
-		case StateReceiving:
-			m.status = "Receiving"
-		case StateThinking:
-			m.status = "Thinking"
-		case StateToolUse:
-			m.status = "Using tools"
-		default:
-			m.status = ""
-		}
+		m.icon = msg.State.GetIcon()
+		m.status = msg.State.GetDisplayName()
 		return m, nil
 
 	case StopStreamingMsg:
@@ -89,20 +78,4 @@ func tickEvery() tea.Cmd {
 	return tea.Every(time.Second, func(t time.Time) tea.Msg {
 		return TickMsg(t)
 	})
-}
-
-// getIconForState returns the appropriate icon for a given process state
-func getIconForState(state ProcessState) string {
-	switch state {
-	case StateSending:
-		return "↑"
-	case StateReceiving:
-		return "↓"
-	case StateToolUse:
-		return "🔨"
-	case StateThinking:
-		return "🤔"
-	default:
-		return ""
-	}
 }

@@ -1,28 +1,20 @@
 package status
 
-import "time"
-
-// ProcessState represents the current processing state
-type ProcessState string
-
-const (
-	StateIdle      ProcessState = ""
-	StateSending   ProcessState = "sending"
-	StateReceiving ProcessState = "receiving"
-	StateThinking  ProcessState = "thinking"
-	StateToolUse   ProcessState = "tool"
+import (
+	"github.com/killallgit/ryan/pkg/process"
+	"time"
 )
 
 // StatusUpdateMsg updates the status text
 type StatusUpdateMsg struct {
 	Status string
-	State  ProcessState
+	State  process.State
 }
 
 // StartStreamingMsg indicates streaming has started
 type StartStreamingMsg struct {
 	Icon  string
-	State ProcessState
+	State process.State
 }
 
 // StopStreamingMsg indicates streaming has stopped
@@ -36,7 +28,7 @@ type UpdateTokensMsg struct {
 
 // SetProcessStateMsg sets the current process state and icon
 type SetProcessStateMsg struct {
-	State ProcessState
+	State process.State
 }
 
 // TickMsg updates the timer

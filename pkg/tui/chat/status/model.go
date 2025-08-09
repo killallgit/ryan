@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/killallgit/ryan/pkg/process"
 	"github.com/killallgit/ryan/pkg/tui/theme"
 )
 
@@ -14,7 +15,7 @@ type StatusModel struct {
 	status       string        // "Streaming", "Thinking", "Sending"
 	timer        time.Duration // Elapsed time
 	icon         string        // "↑" sending, "↓" receiving, "🔨" tool, "🤔" thinking
-	processState ProcessState  // Current processing state
+	processState process.State // Current processing state
 	tokensSent   int
 	tokensRecv   int
 	startTime    time.Time
