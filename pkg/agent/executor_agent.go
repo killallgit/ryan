@@ -59,6 +59,32 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 
 	// Initialize tools with permission checking
 	agentTools := []tools.Tool{}
+	
+	// Only add tools if enabled in config
+	if viper.GetBool("tools.enabled") {
+		// Add file tools
+		if viper.GetBool("tools.file.read.enabled") {
+			agentTools = append(agentTools, ryantools.NewFileReadTool())
+		}
+		if viper.GetBool("tools.file.write.enabled") {
+			agentTools = append(agentTools, ryantools.NewFileWriteTool())
+		}
+		
+		// Add git tool
+		if viper.GetBool("tools.git.enabled") {
+			agentTools = append(agentTools, ryantools.NewGitTool())
+		}
+		
+		// Add search tool
+		if viper.GetBool("tools.search.enabled") {
+			agentTools = append(agentTools, ryantools.NewRipgrepTool())
+		}
+		
+		// Add web fetch tool
+		if viper.GetBool("tools.web.enabled") {
+			agentTools = append(agentTools, ryantools.NewWebFetchTool())
+		}
+	}
 
 	// Only add tools if enabled in config
 	if viper.GetBool("tools.enabled") {
