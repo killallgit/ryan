@@ -162,7 +162,7 @@ func (m chatModel) startLLMStream(streamID, prompt string) {
 	}
 }
 
-// channelStreamHandler implements agent.StreamHandler to send chunks to a channel
+// channelStreamHandler implements stream.Handler to send chunks to a channel
 type channelStreamHandler struct {
 	streamID  string
 	chunkChan chan<- StreamChunk

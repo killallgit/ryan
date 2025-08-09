@@ -6,10 +6,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/chat"
+	"github.com/killallgit/ryan/pkg/config"
+	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/spf13/viper"
 )
@@ -19,13 +20,13 @@ type runner struct {
 	chatManager *chat.Manager
 	agent       agent.Agent
 	output      *Output
-	config      *config
+	config      *runConfig
 	tokensSent  int
 	tokensRecv  int
 }
 
-// config contains headless runner configuration
-type config struct {
+// runConfig contains headless runner configuration
+type runConfig struct {
 	historyPath     string
 	showThinking    bool
 	continueHistory bool
@@ -35,16 +36,9 @@ type config struct {
 
 // newRunner creates a new headless runner with injected agent
 func newRunner(agent agent.Agent) (*runner, error) {
-	// Get the base directory from the config file location
-	configFile := viper.ConfigFileUsed()
-	baseDir := filepath.Dir(configFile)
-	if configFile == "" {
-		baseDir = ".ryan"
-	}
-
-	// Setup configuration
-	cfg := &config{
-		historyPath:     filepath.Join(baseDir, "chat_history.json"),
+	// Setup configuration using config helper
+	cfg := &runConfig{
+		historyPath:     config.BuildSettingsPath("chat_history.json"),
 		showThinking:    viper.GetBool("show_thinking"),
 		continueHistory: viper.GetBool("continue"),
 		debugLogging:    viper.GetString("logging.level") == "debug",
@@ -56,13 +50,10 @@ func newRunner(agent agent.Agent) (*runner, error) {
 		// Handle log file path resolution
 		logPath := cfg.logFile
 		if !filepath.IsAbs(logPath) {
-			// Clean the path and handle relative paths properly
-			logPath = filepath.Clean(logPath)
-			// If it starts with ./, remove it and treat as relative to current directory
-			logPath = strings.TrimPrefix(logPath, "./")
-
-			// Now join with the current working directory
-			logPath = filepath.Join(".", logPath)
+			// If path is relative, make it relative to settings directory
+			// Extract just the filename from the path
+			logFilename := filepath.Base(logPath)
+			logPath = config.BuildSettingsPath(logFilename)
 		}
 
 		// Ensure log directory exists
@@ -156,9 +147,7 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 
 	// Create a stream handler that prints to console and collects content
 	var finalContent string
-	streamHandler := &consoleStreamHandler{
-		content: "",
-	}
+	streamHandler := stream.NewConsoleHandler()
 
 	// Use agent to generate streaming response
 	generateErr := r.agent.ExecuteStream(ctx, prompt, streamHandler)
@@ -168,7 +157,7 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 	}
 
 	// Get final content from handler
-	finalContent = streamHandler.content
+	finalContent = streamHandler.GetContent()
 
 	// Count response tokens
 	responseTokens := 0
@@ -210,26 +199,4 @@ func (r *runner) cleanup() error {
 	// Note: agent cleanup is handled by the caller (cmd/root.go)
 	// since it owns the agent lifecycle
 	return nil
-}
-
-// consoleStreamHandler implements the agent.StreamHandler interface
-type consoleStreamHandler struct {
-	content string
-}
-
-func (h *consoleStreamHandler) OnChunk(chunk string) error {
-	fmt.Print(chunk)
-	h.content += chunk
-	return nil
-}
-
-func (h *consoleStreamHandler) OnComplete(finalContent string) error {
-	if finalContent != "" {
-		h.content = finalContent
-	}
-	return nil
-}
-
-func (h *consoleStreamHandler) OnError(err error) {
-	fmt.Fprintf(os.Stderr, "\nStreaming error: %v\n", err)
 }

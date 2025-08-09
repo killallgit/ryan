@@ -1,7 +1,7 @@
-- ✅ we still have references to "orchestrator" in arguments and elsewhere. This should be updated to reflect what it actually is or something more generic to describe the agents
+
 - absolutely no "simulating" the streaming chunks. Each agent or langchain construct should be able to take a func for handling the streams in real time. We will need a unified interface / abstraction that can be used by both "modes" (headless/tui) so this can be totally decoupled from the display. It looks like this might be halfway implemented already. If we the responses are not streamable, the handler should
 - in headless/runner.go we have a comment about executing a single prompt in headless mode. Does this imply that the reasoning chains will not be able to be used here?
 - Logging improvements. We still need to keep this as simple as possible but all debug and info logging should be going through a logwriter type interface that manages logs for a session. A lot of locations are doing the debug checking outside of the log implementation. The interface should just to use our logger.Debug or .Info whereever and the check whether or not to display based on loglevel happens in the pkg itself. We abstract that logic away from the user
 - sessionId's should be generated
-- We need to update all funcs that write settings file to use the pkg/config/paths.go funcs to create the paths for writing
-- middleware. Chat stream text should be able to be processed before being displayed. We need to introduce a middleware for these streams so that we can add single middlewares to process / f
+- We need to update all funcs that write settings files to use the pkg/config/paths.go funcs to create the paths for writing
+- lets start organizing our providers better. They should be in their own package. pkg/providers/ollama is the only one right now. We can also take this time to do a review of how the provider is created, configured, and injected and whether there's obvious areas of improvement in the context of the app as a whole

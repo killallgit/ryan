@@ -108,8 +108,11 @@ func refreshConfig(promptValue string, headlessMode bool, continueHistory bool) 
 		fmt.Printf("Error writing config: %v\n", err)
 	}
 
-	// Restore transient values for use in this session
-	viper.Set("prompt", promptValue)
+	// Only restore prompt value if running in headless mode
+	// In TUI mode, prompt should not be used
+	if headlessMode {
+		viper.Set("prompt", promptValue)
+	}
 	viper.Set("headless", headlessMode)
 	viper.Set("continue", continueHistory)
 }
@@ -145,13 +148,13 @@ func init() {
 	viper.SetDefault("ollama.default_model", "qwen3:latest")
 	viper.SetDefault("ollama.timeout", 90)
 
-	viper.SetDefault("logging.log_file", "./.ryan/system.log")
+	viper.SetDefault("logging.log_file", "system.log")
 	viper.SetDefault("logging.preserve", true)
 	viper.SetDefault("logging.level", "info")
 
 	viper.SetDefault("vectorstore.enabled", true)
 	viper.SetDefault("vectorstore.provider", "chromem")
-	viper.SetDefault("vectorstore.persistence_dir", "./.ryan/vectorstore")
+	viper.SetDefault("vectorstore.persistence_dir", "vectorstore")
 	viper.SetDefault("vectorstore.enable_persistence", true)
 	viper.SetDefault("vectorstore.embedder.provider", "ollama")
 	viper.SetDefault("vectorstore.embedder.model", "nomic-embed-text")

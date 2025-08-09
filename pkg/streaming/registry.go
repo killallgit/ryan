@@ -1,13 +1,14 @@
 package streaming
 
-type StreamSource struct {
+// RegisteredSource represents a registered streaming provider
+type RegisteredSource struct {
 	ID       string
 	Type     string      // Always "ollama" now
 	Provider interface{} // The Ollama client
 }
 
 type Registry struct {
-	source *StreamSource
+	source *RegisteredSource
 }
 
 func NewRegistry() *Registry {
@@ -16,14 +17,14 @@ func NewRegistry() *Registry {
 
 func (r *Registry) Register(id string, sourceType string, provider interface{}) {
 	// Now we only keep a single source
-	r.source = &StreamSource{
+	r.source = &RegisteredSource{
 		ID:       id,
 		Type:     sourceType,
 		Provider: provider,
 	}
 }
 
-func (r *Registry) Get(id string) (*StreamSource, bool) {
+func (r *Registry) Get(id string) (*RegisteredSource, bool) {
 	// Return the single source regardless of ID for backwards compatibility
 	if r.source != nil {
 		return r.source, true
@@ -31,6 +32,6 @@ func (r *Registry) Get(id string) (*StreamSource, bool) {
 	return nil, false
 }
 
-func (r *Registry) GetSource() *StreamSource {
+func (r *Registry) GetSource() *RegisteredSource {
 	return r.source
 }
