@@ -13,7 +13,7 @@ tasks:
       - go mod verify
       - go fmt ./pkg/... ./cmd/...
       - go vet ./pkg/... ./cmd/...
-      - task: test
+      - task: lint
 
   lint:
     desc: Run linting checks on the codebase (includes pre-commit)
@@ -25,11 +25,12 @@ tasks:
   run:
     cmds:
       - task: build
-      - ./bin/ryan
+      - ./bin/ryan {{.CLI_ARGS}}
   test:
     cmds:
       - mkdir -p coverage
       - go test -coverprofile=coverage/coverage.out ./pkg/... ./cmd/...
+
   test:integration:
     desc: Run integration tests for CLI and agents
     env:
