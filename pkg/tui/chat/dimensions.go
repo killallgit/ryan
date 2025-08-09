@@ -60,7 +60,11 @@ func (m *chatModel) updateViewportHeight() {
 	if m.height > 0 {
 		textAreaHeight := m.calculateTextAreaHeight()
 		// Account for status bar (1 line) and spacing
-		m.viewport.Height = m.height - textAreaHeight - 4
+		newHeight := m.height - textAreaHeight - 4
+		if newHeight < 1 {
+			newHeight = 1
+		}
+		m.viewport.Height = newHeight
 	}
 }
 
@@ -80,7 +84,11 @@ func (m *chatModel) handleWindowResize(width, height int) {
 	// Update viewport dimensions
 	m.viewport.Width = width
 	// Account for textarea, status bar, and spacing
-	m.viewport.Height = height - textAreaHeight - 4
+	newHeight := height - textAreaHeight - 4
+	if newHeight < 1 {
+		newHeight = 1
+	}
+	m.viewport.Height = newHeight
 
 	// Re-render content if we have messages
 	if len(m.nodes) > 0 {

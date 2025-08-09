@@ -3,9 +3,11 @@ package agent
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/killallgit/ryan/pkg/memory"
 	"github.com/killallgit/ryan/pkg/stream"
+	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/llms"
@@ -16,10 +18,14 @@ import (
 // ExecutorAgent is a LangChain executor-based agent implementation
 // It wraps LangChain's conversational agent with an executor for handling requests
 type ExecutorAgent struct {
-	llm      llms.Model
-	executor *agents.Executor
-	memory   *memory.Memory
-	tools    []tools.Tool
+	llm          llms.Model
+	executor     *agents.Executor
+	memory       *memory.Memory
+	tools        []tools.Tool
+	tokenCounter *tokens.TokenCounter
+	tokensSent   int
+	tokensRecv   int
+	tokensMu     sync.RWMutex
 }
 
 // NewExecutorAgent creates a new executor-based agent with an injected LLM
@@ -61,16 +67,36 @@ func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
 		agents.WithMemory(lcMem),
 	)
 
+	// Initialize token counter
+	modelName := viper.GetString("ollama.default_model")
+	tokenCounter, err := tokens.NewTokenCounter(modelName)
+	if err != nil {
+		// Don't fail if token counter can't be initialized, just log warning
+		fmt.Printf("Warning: Could not initialize token counter: %v\n", err)
+		tokenCounter = nil
+	}
+
 	return &ExecutorAgent{
-		llm:      llm,
-		executor: executor,
-		memory:   mem,
-		tools:    agentTools,
+		llm:          llm,
+		executor:     executor,
+		memory:       mem,
+		tools:        agentTools,
+		tokenCounter: tokenCounter,
+		tokensSent:   0,
+		tokensRecv:   0,
 	}, nil
 }
 
 // Execute handles a request and returns a response
 func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, error) {
+	// Count input tokens
+	if e.tokenCounter != nil {
+		inputTokens := e.tokenCounter.CountTokens(prompt)
+		e.tokensMu.Lock()
+		e.tokensSent += inputTokens
+		e.tokensMu.Unlock()
+	}
+
 	// The executor will handle memory management now
 	// Just pass the input through
 	input := map[string]any{
@@ -98,11 +124,27 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 		}
 	}
 
+	// Count output tokens
+	if e.tokenCounter != nil {
+		outputTokens := e.tokenCounter.CountTokens(response)
+		e.tokensMu.Lock()
+		e.tokensRecv += outputTokens
+		e.tokensMu.Unlock()
+	}
+
 	return response, nil
 }
 
 // ExecuteStream handles a request with streaming response
 func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler stream.Handler) error {
+	// Count input tokens
+	if e.tokenCounter != nil {
+		inputTokens := e.tokenCounter.CountTokens(prompt)
+		e.tokensMu.Lock()
+		e.tokensSent += inputTokens
+		e.tokensMu.Unlock()
+	}
+
 	// Create a LangChain streaming source using the agent's LLM
 	source := stream.NewLangChainSource(e.llm)
 
@@ -128,49 +170,81 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 		Content: prompt,
 	})
 
-	// Create a wrapper handler that also updates memory
-	memoryHandler := &memoryUpdatingHandler{
-		inner:  handler,
-		memory: e.memory,
-		prompt: prompt,
+	// Create a wrapper handler that tracks tokens and updates memory
+	tokenAndMemoryHandler := &tokenAndMemoryHandler{
+		inner:      handler,
+		memory:     e.memory,
+		prompt:     prompt,
+		agent:      e,
+		buffer:     "",
+		lastTokens: 0,
 	}
 
 	// Stream with full conversation history
-	return source.StreamWithHistory(ctx, messages, memoryHandler)
+	return source.StreamWithHistory(ctx, messages, tokenAndMemoryHandler)
 }
 
-// memoryUpdatingHandler wraps a stream handler to update memory
-type memoryUpdatingHandler struct {
-	inner   stream.Handler
-	memory  *memory.Memory
-	prompt  string
-	content string
+// tokenAndMemoryHandler wraps a stream handler to track tokens and update memory
+type tokenAndMemoryHandler struct {
+	inner      stream.Handler
+	memory     *memory.Memory
+	prompt     string
+	agent      *ExecutorAgent
+	buffer     string
+	lastTokens int
 }
 
-func (m *memoryUpdatingHandler) OnChunk(chunk string) error {
-	m.content += chunk
-	return m.inner.OnChunk(chunk)
+func (h *tokenAndMemoryHandler) OnChunk(chunk string) error {
+	// Accumulate chunks for memory and token tracking
+	h.buffer += chunk
+
+	// Count tokens in accumulated buffer
+	if h.agent.tokenCounter != nil {
+		currentTokens := h.agent.tokenCounter.CountTokens(h.buffer)
+		// Only update if token count changed
+		if currentTokens > h.lastTokens {
+			tokenDiff := currentTokens - h.lastTokens
+			h.agent.tokensMu.Lock()
+			h.agent.tokensRecv += tokenDiff
+			h.agent.tokensMu.Unlock()
+			h.lastTokens = currentTokens
+		}
+	}
+
+	// Forward to original handler
+	return h.inner.OnChunk(chunk)
 }
 
-func (m *memoryUpdatingHandler) OnComplete(finalContent string) error {
+func (h *tokenAndMemoryHandler) OnComplete(finalContent string) error {
 	if finalContent == "" {
-		finalContent = m.content
+		finalContent = h.buffer
+	}
+
+	// Final token count (in case there's any discrepancy)
+	if h.agent.tokenCounter != nil && finalContent != "" {
+		finalTokens := h.agent.tokenCounter.CountTokens(finalContent)
+		if finalTokens > h.lastTokens {
+			tokenDiff := finalTokens - h.lastTokens
+			h.agent.tokensMu.Lock()
+			h.agent.tokensRecv += tokenDiff
+			h.agent.tokensMu.Unlock()
+		}
 	}
 
 	// Update memory with the exchange
-	if m.memory != nil {
+	if h.memory != nil {
 		// Add user message
-		_ = m.memory.AddUserMessage(m.prompt)
+		_ = h.memory.AddUserMessage(h.prompt)
 
 		// Add assistant response
-		_ = m.memory.AddAssistantMessage(finalContent)
+		_ = h.memory.AddAssistantMessage(finalContent)
 	}
 
-	return m.inner.OnComplete(finalContent)
+	return h.inner.OnComplete(finalContent)
 }
 
-func (m *memoryUpdatingHandler) OnError(err error) {
-	m.inner.OnError(err)
+func (h *tokenAndMemoryHandler) OnError(err error) {
+	h.inner.OnError(err)
 }
 
 // GetLLM returns the underlying LLM for direct access if needed
@@ -183,12 +257,26 @@ func (e *ExecutorAgent) GetMemory() *memory.Memory {
 	return e.memory
 }
 
-// ClearMemory clears the conversation memory
+// ClearMemory clears the conversation memory and resets token counts
 func (e *ExecutorAgent) ClearMemory() error {
+	// Reset token counts
+	e.tokensMu.Lock()
+	e.tokensSent = 0
+	e.tokensRecv = 0
+	e.tokensMu.Unlock()
+
+	// Clear memory
 	if e.memory != nil {
 		return e.memory.Clear()
 	}
 	return nil
+}
+
+// GetTokenStats returns the cumulative token usage statistics
+func (e *ExecutorAgent) GetTokenStats() (int, int) {
+	e.tokensMu.RLock()
+	defer e.tokensMu.RUnlock()
+	return e.tokensSent, e.tokensRecv
 }
 
 // Close cleans up resources

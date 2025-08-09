@@ -43,3 +43,4 @@ coverage/
 !.claude
 .claude/*.local.json
 !CLAUDE.md
+memory.db

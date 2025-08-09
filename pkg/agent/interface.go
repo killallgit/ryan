@@ -18,6 +18,10 @@ type Agent interface {
 	// ClearMemory clears the conversation memory
 	ClearMemory() error
 
+	// GetTokenStats returns the cumulative token usage statistics
+	// Returns (tokensSent, tokensReceived)
+	GetTokenStats() (int, int)
+
 	// Close cleans up resources
 	Close() error
 }
