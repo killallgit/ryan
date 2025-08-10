@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -33,11 +34,21 @@ type OllamaConfig struct {
 // NewOllamaEmbedder creates a new Ollama embedder
 func NewOllamaEmbedder(config OllamaConfig) (*OllamaEmbedder, error) {
 	if config.Endpoint == "" {
-		config.Endpoint = "http://localhost:11434"
+		// Check OLLAMA_HOST environment variable first
+		if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
+			config.Endpoint = ollamaHost
+		} else {
+			config.Endpoint = "http://localhost:11434"
+		}
 	}
 
 	if config.Model == "" {
-		config.Model = "nomic-embed-text"
+		// Check OLLAMA_DEFAULT_MODEL for embedding model override
+		if ollamaModel := os.Getenv("OLLAMA_EMBED_MODEL"); ollamaModel != "" {
+			config.Model = ollamaModel
+		} else {
+			config.Model = "nomic-embed-text"
+		}
 	}
 
 	if config.Timeout == 0 {
@@ -156,4 +167,56 @@ func (e *OllamaEmbedder) GetDimensions() int {
 func (e *OllamaEmbedder) Close() error {
 	// HTTP client doesn't need explicit closing
 	return nil
+}
+
+// NewOllamaEmbedderForTesting creates a new Ollama embedder for integration tests.
+// This version PANICS if OLLAMA_HOST is not set and no endpoint is provided.
+// This ensures integration tests don't accidentally fall back to localhost.
+//
+// Use this function in integration tests where OLLAMA_HOST must be set.
+// Use NewOllamaEmbedder for production code where fallback to localhost is acceptable.
+func NewOllamaEmbedderForTesting(config OllamaConfig) (*OllamaEmbedder, error) {
+	if config.Endpoint == "" {
+		// In testing, we REQUIRE OLLAMA_HOST to be set - no fallback to localhost
+		ollamaHost := os.Getenv("OLLAMA_HOST")
+		if ollamaHost == "" {
+			panic("OLLAMA_HOST environment variable MUST be set for integration tests - no fallback allowed")
+		}
+		config.Endpoint = ollamaHost
+	}
+
+	// Now create the embedder directly without going through NewOllamaEmbedder
+	// to avoid any fallback logic
+	if config.Model == "" {
+		// Check OLLAMA_DEFAULT_MODEL for embedding model override
+		if ollamaModel := os.Getenv("OLLAMA_EMBED_MODEL"); ollamaModel != "" {
+			config.Model = ollamaModel
+		} else {
+			config.Model = "nomic-embed-text"
+		}
+	}
+
+	if config.Timeout == 0 {
+		config.Timeout = 30 * time.Second
+	}
+
+	embedder := &OllamaEmbedder{
+		endpoint: config.Endpoint,
+		model:    config.Model,
+		client: &http.Client{
+			Timeout: config.Timeout,
+		},
+	}
+
+	// Get model dimensions by creating a test embedding
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	testEmbed, err := embedder.EmbedText(ctx, "test")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get embedding dimensions from %s: %w", config.Endpoint, err)
+	}
+	embedder.dimensions = len(testEmbed)
+
+	return embedder, nil
 }
