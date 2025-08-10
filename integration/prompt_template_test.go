@@ -212,9 +212,16 @@ func TestLoadTemplatesFromFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, template)
 
-		// Format with the loaded template
+		// Format with the loaded template (provide all variables)
 		result, err := template.Format(map[string]any{
-			"task": "Test task",
+			"task":          "Test task",
+			"system_prompt": "",
+			"context":       "",
+			"instructions":  "",
+			"examples":      "",
+			"constraints":   "",
+			"input":         "",
+			"format":        "",
 		})
 		require.NoError(t, err)
 		assert.Contains(t, result, "Task: Test task")
@@ -230,8 +237,12 @@ func TestLoadTemplatesFromFiles(t *testing.T) {
 
 		// Format messages with the loaded template
 		messages, err := template.FormatMessages(map[string]any{
-			"role":    "assistant",
-			"message": "Hello",
+			"role":         "assistant",
+			"capabilities": "",
+			"instructions": "",
+			"constraints":  "",
+			"message":      "Hello",
+			"context":      "",
 		})
 		require.NoError(t, err)
 		assert.NotEmpty(t, messages)
@@ -247,8 +258,11 @@ func TestLoadTemplatesFromFiles(t *testing.T) {
 
 		// Format with tool information
 		result, err := template.Format(map[string]any{
-			"task":  "Calculate 5+5",
-			"tools": "calculator: Performs math calculations",
+			"task":        "Calculate 5+5",
+			"tools":       "calculator: Performs math calculations",
+			"context":     "",
+			"history":     "",
+			"constraints": "",
 		})
 		require.NoError(t, err)
 		assert.Contains(t, result, "You have access to the following tools")

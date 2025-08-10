@@ -34,40 +34,8 @@ template: |
 
   Begin:
 variables:
-  - name: task
-    type: string
-    required: true
-    description: The task or question for the agent to complete
-  - name: tools
-    type: string
-    required: false
-    description: Description of available tools and their usage
-  - name: context
-    type: string
-    required: false
-    description: Relevant context for the task
-  - name: history
-    type: string
-    required: false
-    description: Previous conversation or action history
-  - name: constraints
-    type: string
-    required: false
-    description: Any constraints on tool usage or response format
-metadata:
-  version: "1.0"
-  langchain_compatible: true
-  use_cases:
-    - "Tool-using agents (calculators, search, APIs)"
-    - "Multi-step reasoning tasks"
-    - "Chain-of-thought prompting"
-    - "Agent executor workflows"
-  example_usage: |
-    template := prompt.GetTemplate("agent")
-    formatted, _ := template.Format(map[string]any{
-      "task": "Calculate the compound interest on $1000 at 5% for 3 years",
-      "tools": "calculator: Performs mathematical calculations",
-      "constraints": "Show your work step by step"
-    })
-    chain := chains.NewLLMChain(llm, template)
-    result, _ := chain.Call(ctx, values)
+  - task
+  - tools
+  - context
+  - history
+  - constraints
