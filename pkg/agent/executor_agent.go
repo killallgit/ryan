@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/killallgit/ryan/pkg/embeddings"
 	"github.com/killallgit/ryan/pkg/memory"
@@ -39,12 +40,18 @@ type ExecutorAgent struct {
 
 // NewExecutorAgent creates a new executor-based agent with an injected LLM
 func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
-	// Create memory with a session ID
-	sessionID := "default"
+	// Generate a unique session ID for this agent instance
+	// This ensures each agent has its own isolated memory
+	sessionID := fmt.Sprintf("session_%d", time.Now().UnixNano())
 	if viper.GetBool("continue") {
 		sessionID = "continued"
 	}
 
+	return NewExecutorAgentWithSession(llm, sessionID)
+}
+
+// NewExecutorAgentWithSession creates a new executor-based agent with a specific session ID
+func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAgent, error) {
 	mem, err := memory.New(sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create memory: %w", err)
@@ -209,6 +216,13 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 		return "", fmt.Errorf("agent execution failed: %w", err)
 	}
 
+	// Manually add to memory since LangChain executor might not be doing it
+	// Add user message
+	if err := e.memory.AddUserMessage(actualPrompt); err != nil {
+		// Log but don't fail
+		fmt.Printf("Warning: Could not add user message to memory: %v\n", err)
+	}
+
 	// Extract the response
 	response, ok := result["output"].(string)
 	if !ok {
@@ -230,6 +244,12 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 		e.tokensMu.Lock()
 		e.tokensRecv += outputTokens
 		e.tokensMu.Unlock()
+	}
+
+	// Add assistant message to memory
+	if err := e.memory.AddAssistantMessage(response); err != nil {
+		// Log but don't fail
+		fmt.Printf("Warning: Could not add assistant message to memory: %v\n", err)
 	}
 
 	return response, nil
