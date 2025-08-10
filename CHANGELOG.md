@@ -18,6 +18,16 @@
 - Unified logging system in `pkg/logger/` package with clean interface (.Debug(), .Info(), .Warn(), .Error(), .Fatal())
 - `--persist` CLI flag to control system log persistence across sessions
 - Session-based logging with automatic level checking
+- **Vector Store Integration** - Added chromem in-memory vector store for Retrieval Augmented Generation (RAG)
+  - `pkg/vectorstore/` package with interface definitions and chromem adapter
+  - `pkg/embeddings/` package with Ollama embedder support (nomic-embed-text model)
+  - `pkg/retrieval/` package with retriever, augmenter, and document management
+  - Mock embedder implementation for testing without external dependencies
+  - Optional persistence support for vector store data
+  - Comprehensive configuration via Viper with sensible defaults
+  - Integration with ExecutorAgent for automatic prompt augmentation
+  - Document chunking and metadata management capabilities
+  - Unit and integration tests for RAG workflow (69% coverage)
 
 ### Changed
 - Renamed all references to "orchestrator" to the more generic term "agent" throughout the codebase for better clarity and consistency
