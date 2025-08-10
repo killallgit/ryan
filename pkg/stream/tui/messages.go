@@ -1,15 +1,16 @@
-package stream
+package tui
 
 import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/stream/core"
 )
 
 // StateChangeMsg is a Bubble Tea message for stream state changes
 type StateChangeMsg struct {
 	StreamID  string
-	State     State
+	State     core.State
 	Timestamp time.Time
 	Error     error
 }
@@ -69,7 +70,7 @@ func (m *MessageHandler) OnComplete(finalContent string) error {
 		})
 		m.program.Send(StateChangeMsg{
 			StreamID:  m.streamID,
-			State:     StateComplete,
+			State:     core.StateComplete,
 			Timestamp: time.Now(),
 		})
 	}
@@ -86,7 +87,7 @@ func (m *MessageHandler) OnError(err error) {
 		})
 		m.program.Send(StateChangeMsg{
 			StreamID:  m.streamID,
-			State:     StateError,
+			State:     core.StateError,
 			Timestamp: time.Now(),
 			Error:     err,
 		})
@@ -94,4 +95,4 @@ func (m *MessageHandler) OnError(err error) {
 }
 
 // Ensure MessageHandler implements Handler
-var _ Handler = (*MessageHandler)(nil)
+var _ core.Handler = (*MessageHandler)(nil)

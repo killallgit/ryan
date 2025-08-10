@@ -1,4 +1,4 @@
-package stream
+package core
 
 // Processor transforms stream chunks before they reach handlers
 // This enables middleware-style processing pipelines

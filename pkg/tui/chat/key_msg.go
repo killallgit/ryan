@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/process"
-	"github.com/killallgit/ryan/pkg/streaming"
+	"github.com/killallgit/ryan/pkg/stream/tui"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
 )
 
@@ -56,7 +56,7 @@ func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusBar = statusModel.(status.StatusModel)
 
 			// Start streaming from registered provider
-			return m, streaming.StreamFromProvider(
+			return m, tui.StreamFromProvider(
 				m.streamManager,
 				"",          // Empty to use router
 				userInput,   // Prompt

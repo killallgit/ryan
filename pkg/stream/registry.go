@@ -1,4 +1,4 @@
-package streaming
+package stream
 
 // RegisteredSource represents a registered streaming provider
 type RegisteredSource struct {

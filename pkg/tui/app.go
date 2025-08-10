@@ -10,7 +10,8 @@ import (
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
-	"github.com/killallgit/ryan/pkg/streaming"
+	"github.com/killallgit/ryan/pkg/stream"
+	"github.com/killallgit/ryan/pkg/stream/tui"
 	"github.com/killallgit/ryan/pkg/tui/chat"
 	"github.com/spf13/viper"
 )
@@ -36,8 +37,8 @@ func RunTUI(agent agent.Agent) error {
 	}
 
 	// Create streaming infrastructure
-	registry := streaming.NewRegistry()
-	manager := streaming.NewManager(registry)
+	registry := stream.NewRegistry()
+	manager := tui.NewManager(registry)
 
 	// Register Ollama provider
 	ollamaClient := ollama.NewClient()

@@ -9,7 +9,7 @@ import (
 	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/process"
-	"github.com/killallgit/ryan/pkg/streaming"
+	"github.com/killallgit/ryan/pkg/stream/tui"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
 )
 
@@ -39,7 +39,7 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg
 		return m, nil
 
-	case streaming.StreamStartMsg:
+	case tui.StreamStartMsg:
 		// Create new node for this stream
 		node := MessageNode{
 			ID:          msg.StreamID,
