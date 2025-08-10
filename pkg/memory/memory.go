@@ -27,7 +27,7 @@ func New(sessionID string) (*Memory, error) {
 	}
 	dbPath := filepath.Join(contextDir, "memory.db")
 
-	connectionString := fmt.Sprintf("file:%s?cache=shared&mode=rwc", dbPath)
+	connectionString := fmt.Sprintf("file:%s?mode=rwc", dbPath)
 	chatHistory := sqlite3.NewSqliteChatMessageHistory(
 		sqlite3.WithDBAddress(connectionString),
 		sqlite3.WithSession(sessionID),

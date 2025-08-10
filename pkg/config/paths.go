@@ -7,6 +7,11 @@ import (
 )
 
 func BaseSettingsDir() string {
+	// Check if config.path is explicitly set (for testing)
+	if configPath := viper.GetString("config.path"); configPath != "" {
+		return configPath
+	}
+
 	currentConfig := viper.ConfigFileUsed()
 	currentConfigDir := filepath.Dir(currentConfig)
 	return currentConfigDir
