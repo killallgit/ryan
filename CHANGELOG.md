@@ -28,6 +28,12 @@
   - Integration with ExecutorAgent for automatic prompt augmentation
   - Document chunking and metadata management capabilities
   - Unit and integration tests for RAG workflow (69% coverage)
+- **Agent Package Unit Tests** - Comprehensive test suite for ExecutorAgent
+  - Mock LLM implementation following langchain-go patterns
+  - Tests for agent creation, execution, streaming, and memory management
+  - Concurrent access and thread safety tests
+  - Error handling and context cancellation tests
+  - Achieved 70.9% code coverage for agent package (up from 0%)
 - LangChain-Go tool system with 5 core tools (FileRead, FileWrite, Git, Ripgrep, WebFetch)
 - Claude-style ACL permission system using `settings.json` format for tool access control
 - `--skip-permissions` flag to bypass all ACL permission checks
