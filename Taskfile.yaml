@@ -37,3 +37,7 @@ tasks:
     cmds:
       - go clean -testcache
       - go test -v -count=1 ./integration/...
+  test:all:
+    cmds:
+      - task: check
+      - task: test:integration

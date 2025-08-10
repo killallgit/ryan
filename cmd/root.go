@@ -3,14 +3,13 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/killallgit/ryan/pkg/agent"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/headless"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tui"
-	"github.com/killallgit/ryan/pkg/vectorstore"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/llms"
@@ -27,9 +26,16 @@ var rootCmd = &cobra.Command{
 		promptValue := viper.GetString("prompt")
 		headlessMode := viper.GetBool("headless")
 		continueHistory := viper.GetBool("continue")
+		skipPermissions := viper.GetBool("skip_permissions")
+
+		// Set transient values in config
+		config.SetTransientValues(promptValue, headlessMode, continueHistory, skipPermissions)
 
 		// Refresh config (this will clear and restore transient values)
-		refreshConfig(promptValue, headlessMode, continueHistory)
+		if err := config.RefreshConfig(promptValue, headlessMode, continueHistory); err != nil {
+			fmt.Fprintf(os.Stderr, "Error refreshing config: %v\n", err)
+			os.Exit(1)
+		}
 
 		// Initialize logger
 		if err := logger.Init(); err != nil {
@@ -54,7 +60,7 @@ var rootCmd = &cobra.Command{
 		defer executorAgent.Close()
 
 		// Check if running in headless mode
-		if headlessMode {
+		if config.Global.Headless {
 			runHeadless(executorAgent)
 		} else {
 			if err := tui.RunTUI(executorAgent); err != nil {
@@ -67,9 +73,7 @@ var rootCmd = &cobra.Command{
 
 // createLLM creates an LLM instance based on the configured provider
 func createLLM() (llms.Model, error) {
-	provider := viper.GetString("provider")
-
-	switch provider {
+	switch config.Global.Provider {
 	case "ollama":
 		// Create Ollama LLM
 		ollamaClient := ollama.NewClient()
@@ -82,13 +86,13 @@ func createLLM() (llms.Model, error) {
 	//     return createAnthropicLLM()
 
 	default:
-		return nil, fmt.Errorf("unsupported LLM provider: %s", provider)
+		return nil, fmt.Errorf("unsupported LLM provider: %s", config.Global.Provider)
 	}
 }
 
 func runHeadless(executorAgent agent.Agent) {
 	// Get the prompt from config
-	prompt := viper.GetString("prompt")
+	prompt := config.Global.Prompt
 	if prompt == "" {
 		prompt = "hello"
 	}
@@ -100,32 +104,6 @@ func runHeadless(executorAgent agent.Agent) {
 	}
 }
 
-func refreshConfig(promptValue string, headlessMode bool, continueHistory bool) {
-	// Clear transient flags that shouldn't be persisted
-	viper.Set("prompt", "")
-	viper.Set("headless", false)
-	viper.Set("continue", false)
-
-	// Ensure config directory exists
-	dirFromCfgFile := filepath.Dir(cfgFile)
-	if _, err := os.Stat(dirFromCfgFile); os.IsNotExist(err) {
-		os.Mkdir(dirFromCfgFile, 0755)
-	}
-
-	// Write config without transient values
-	if err := viper.WriteConfigAs(cfgFile); err != nil {
-		fmt.Printf("Error writing config: %v\n", err)
-	}
-
-	// Only restore prompt value if running in headless mode
-	// In TUI mode, prompt should not be used
-	if headlessMode {
-		viper.Set("prompt", promptValue)
-	}
-	viper.Set("headless", headlessMode)
-	viper.Set("continue", continueHistory)
-}
-
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -135,9 +113,6 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-
-	// Set vector store configuration defaults
-	vectorstore.SetDefaults()
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", ".ryan/settings.yaml", "config file (default is .ryan/settings.yaml)")
 
@@ -158,48 +133,12 @@ func init() {
 
 	rootCmd.PersistentFlags().Bool("skip-permissions", false, "skip all ACL permission checks for tools")
 	viper.BindPFlag("skip_permissions", rootCmd.PersistentFlags().Lookup("skip-permissions"))
-
-	viper.SetDefault("provider", "ollama")
-	viper.SetDefault("show_thinking", true)
-
-	viper.SetDefault("ollama.default_model", "qwen3:latest")
-	viper.SetDefault("ollama.timeout", 90)
-
-	viper.SetDefault("logging.log_file", "system.log")
-	viper.SetDefault("logging.persist", false)
-	viper.SetDefault("logging.level", "info")
-
-	viper.SetDefault("langchain.memory_type", "window")
-	viper.SetDefault("langchain.memory_window_size", 10)
-	viper.SetDefault("langchain.tools.max_iterations", 10)
-	viper.SetDefault("langchain.tools.max_retries", 3)
-
-	// Tool configuration defaults
-	viper.SetDefault("tools.enabled", true)
-	viper.SetDefault("tools.file.read.enabled", true)
-	viper.SetDefault("tools.file.write.enabled", true)
-	viper.SetDefault("tools.git.enabled", true)
-	viper.SetDefault("tools.search.enabled", true)
-	viper.SetDefault("tools.web.enabled", true)
 }
 
 func initConfig() {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.AddConfigPath("./.ryan")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("settings")
-	}
-
-	viper.AutomaticEnv()
-
-	// Override ollama.default_model with OLLAMA_DEFAULT_MODEL if set
-	if ollamaModel := os.Getenv("OLLAMA_DEFAULT_MODEL"); ollamaModel != "" {
-		viper.Set("ollama.default_model", ollamaModel)
-	}
-
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	// Initialize the config package
+	if err := config.Init(cfgFile); err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing config: %v\n", err)
+		os.Exit(1)
 	}
 }

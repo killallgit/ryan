@@ -3,8 +3,8 @@ package ollama
 import (
 	"os"
 
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/logger"
-	"github.com/spf13/viper"
 	lcollama "github.com/tmc/langchaingo/llms/ollama"
 )
 
@@ -18,7 +18,7 @@ func NewClient() *OllamaClient {
 	if ollamaUrl == "" {
 		logger.Fatal("OLLAMA_HOST environment variable is not set")
 	}
-	ollamaModel := viper.GetString("ollama.default_model")
+	ollamaModel := config.Global.Ollama.DefaultModel
 
 	logger.Info("Creating Ollama client - URL: %s, Model: %s", ollamaUrl, ollamaModel)
 

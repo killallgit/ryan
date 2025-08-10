@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/tools"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -142,9 +143,19 @@ func TestToolsWithPermissions(t *testing.T) {
 }
 
 func TestToolsWithSkipPermissions(t *testing.T) {
+	// Initialize config first
+	setupViperForTest(t)
+
 	// Set skip permissions flag
 	viper.Set("skip_permissions", true)
-	defer viper.Set("skip_permissions", false)
+	defer func() {
+		viper.Set("skip_permissions", false)
+		config.Load() // Reload config to clear skip flag
+	}()
+
+	// Reload config to apply skip permissions
+	err := config.Load()
+	require.NoError(t, err)
 
 	tempDir := t.TempDir()
 

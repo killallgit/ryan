@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,6 +116,18 @@ func (m *MockLLM) SetStreamError(err error) {
 	m.streamError = err
 }
 
+// TestMain sets up the test environment
+func TestMain(m *testing.M) {
+	// Initialize config for tests
+	if err := config.Init(""); err != nil {
+		panic(err)
+	}
+
+	// Run tests
+	code := m.Run()
+	os.Exit(code)
+}
+
 // TestNewExecutorAgent tests the creation of a new ExecutorAgent
 func TestNewExecutorAgent(t *testing.T) {
 	// Set up test configuration
@@ -123,6 +136,11 @@ func TestNewExecutorAgent(t *testing.T) {
 	viper.Set("vectorstore.enabled", false)
 	viper.Set("langchain.tools.max_iterations", 5)
 	viper.Set("ollama.default_model", "test-model")
+
+	// Reload config after setting test values
+	if err := config.Load(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create mock LLM
 	mockLLM := NewMockLLM([]string{"test response"})

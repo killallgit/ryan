@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/embeddings"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/memory"
@@ -16,7 +17,6 @@ import (
 	"github.com/killallgit/ryan/pkg/tokens"
 	ryantools "github.com/killallgit/ryan/pkg/tools"
 	"github.com/killallgit/ryan/pkg/vectorstore"
-	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/llms"
 	lcmemory "github.com/tmc/langchaingo/memory"
@@ -47,7 +47,8 @@ type ExecutorAgent struct {
 // NewExecutorAgent creates a new executor-based agent with an injected LLM
 func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
 	var sessionID string
-	if viper.GetBool("continue") {
+	settings := config.Get()
+	if settings.Continue {
 		// Use a consistent session ID per project to maintain conversation context
 		// This allows continuing conversations across ryan invocations
 		sessionID = "default_project_session"
@@ -76,34 +77,37 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	// Initialize tools with permission checking
 	agentTools := []tools.Tool{}
 
+	// Get configuration settings
+	settings := config.Get()
+
 	// Only add tools if enabled in config
-	if viper.GetBool("tools.enabled") {
+	if settings.Tools.Enabled {
 		logger.Debug("Tools are enabled, initializing available tools")
 
 		// Add file tools
-		if viper.GetBool("tools.file.read.enabled") {
+		if settings.Tools.File.Read.Enabled {
 			agentTools = append(agentTools, ryantools.NewFileReadTool())
 			logger.Debug("Added FileReadTool")
 		}
-		if viper.GetBool("tools.file.write.enabled") {
+		if settings.Tools.File.Write.Enabled {
 			agentTools = append(agentTools, ryantools.NewFileWriteTool())
 			logger.Debug("Added FileWriteTool")
 		}
 
 		// Add git tool
-		if viper.GetBool("tools.git.enabled") {
+		if settings.Tools.Git.Enabled {
 			agentTools = append(agentTools, ryantools.NewGitTool())
 			logger.Debug("Added GitTool")
 		}
 
 		// Add search tool
-		if viper.GetBool("tools.search.enabled") {
+		if settings.Tools.Search.Enabled {
 			agentTools = append(agentTools, ryantools.NewRipgrepTool())
 			logger.Debug("Added RipgrepTool")
 		}
 
 		// Add web fetch tool
-		if viper.GetBool("tools.web.enabled") {
+		if settings.Tools.Web.Enabled {
 			agentTools = append(agentTools, ryantools.NewWebFetchTool())
 			logger.Debug("Added WebFetchTool")
 		}
@@ -118,7 +122,7 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	var retriever *retrieval.Retriever
 	var augmenter *retrieval.Augmenter
 
-	if viper.GetBool("vectorstore.enabled") {
+	if settings.VectorStore.Enabled {
 		logger.Info("Vector store is enabled, initializing RAG components")
 
 		// Load vector store configuration
@@ -156,9 +160,9 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 
 				// Create augmenter
 				augmenter = retrieval.NewAugmenter(retriever, retrieval.AugmenterConfig{
-					MaxContextLength: viper.GetInt("vectorstore.retrieval.max_context_length"),
+					MaxContextLength: 4000, // TODO: Add to settings if needed
 				})
-				logger.Debug("Augmenter created with max context length: %d", viper.GetInt("vectorstore.retrieval.max_context_length"))
+				logger.Debug("Augmenter created with max context length: %d", 4000)
 
 				// Add retriever as a LangChain tool if available
 				if retriever != nil {
@@ -183,7 +187,7 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	)
 
 	// Create executor with options
-	maxIterations := viper.GetInt("langchain.tools.max_iterations")
+	maxIterations := settings.LangChain.Tools.MaxIterations
 	if maxIterations == 0 {
 		maxIterations = 10
 	}
@@ -195,7 +199,7 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	)
 
 	// Initialize token counter
-	modelName := viper.GetString("ollama.default_model")
+	modelName := settings.Ollama.DefaultModel
 	tokenCounter, err := tokens.NewTokenCounter(modelName)
 	if err != nil {
 		// Don't fail if token counter can't be initialized, just log warning
@@ -235,7 +239,8 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 	}
 
 	// Augment prompt with retrieved context if RAG is enabled
-	if e.augmenter != nil && viper.GetBool("vectorstore.retrieval.enabled") {
+	settings := config.Get()
+	if e.augmenter != nil && settings.VectorStore.Enabled {
 		logger.Debug("Attempting to augment prompt with RAG")
 		augmented, err := e.augmenter.AugmentPrompt(ctx, actualPrompt)
 		if err != nil {
@@ -329,7 +334,8 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 	}
 
 	// Augment prompt with retrieved context if RAG is enabled
-	if e.augmenter != nil && viper.GetBool("vectorstore.retrieval.enabled") {
+	settings := config.Get()
+	if e.augmenter != nil && settings.VectorStore.Enabled {
 		logger.Debug("Attempting to augment prompt with RAG (streaming)")
 		augmented, err := e.augmenter.AugmentPrompt(ctx, actualPrompt)
 		if err != nil {

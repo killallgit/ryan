@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/killallgit/ryan/pkg/config"
-	"github.com/spf13/viper"
 )
 
 // LogLevel represents the logging level
@@ -50,15 +49,16 @@ type Logger struct {
 
 var defaultLogger *Logger
 
-// Init initializes the logger with configuration from viper
+// Init initializes the logger with configuration from global config
 func Init() error {
 	if defaultLogger != nil && defaultLogger.initialized {
 		return nil // Already initialized
 	}
 
-	level := parseLevel(viper.GetString("logging.level"))
-	logFile := viper.GetString("logging.log_file")
-	preserve := viper.GetBool("logging.persist")
+	settings := config.Get()
+	level := parseLevel(settings.Logging.Level)
+	logFile := settings.Logging.LogFile
+	preserve := settings.Logging.Persist
 
 	logger, err := New(level, logFile, preserve)
 	if err != nil {

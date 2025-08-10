@@ -13,7 +13,6 @@ import (
 	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/stream/tui"
 	"github.com/killallgit/ryan/pkg/tui/chat"
-	"github.com/spf13/viper"
 )
 
 func RunTUI(agent agent.Agent) error {
@@ -21,7 +20,7 @@ func RunTUI(agent agent.Agent) error {
 
 	// Get configuration for chat history using config helper
 	historyPath := config.BuildSettingsPath("chat_history.json")
-	continueHistory := viper.GetBool("continue")
+	continueHistory := config.Global.Continue
 
 	// Create chat manager for history management
 	chatManager, err := chatpkg.NewManager(historyPath)

@@ -8,7 +8,6 @@ import (
 
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/llm"
-	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/memory/sqlite3"
 )
@@ -90,7 +89,8 @@ func (m *Memory) ConvertToLLMMessages() ([]llm.Message, error) {
 		}
 	}
 
-	windowSize := viper.GetInt("langchain.memory_window_size")
+	settings := config.Get()
+	windowSize := settings.LangChain.MemoryWindowSize
 	if windowSize > 0 && len(messages) > windowSize {
 		messages = messages[len(messages)-windowSize:]
 	}

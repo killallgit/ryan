@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/killallgit/ryan/pkg/agent"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/memory"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/spf13/viper"
@@ -135,6 +136,10 @@ func TestMemoryWindowSize(t *testing.T) {
 		setupViperForTest(t)
 		// Set small window size for testing
 		viper.Set("langchain.memory_window_size", 3)
+
+		// Reload config to apply the window size
+		err := config.Load()
+		require.NoError(t, err)
 
 		sessionID := fmt.Sprintf("test-window-size-%d", time.Now().UnixNano())
 		mem, err := memory.New(sessionID)

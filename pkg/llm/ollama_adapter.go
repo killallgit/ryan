@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/ollama"
-	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -18,7 +18,8 @@ type OllamaAdapter struct {
 // NewOllamaAdapter creates a new Ollama adapter
 func NewOllamaAdapter() (*OllamaAdapter, error) {
 	client := ollama.NewClient()
-	model := viper.GetString("ollama.default_model")
+	settings := config.Get()
+	model := settings.Ollama.DefaultModel
 
 	return &OllamaAdapter{
 		client: client,

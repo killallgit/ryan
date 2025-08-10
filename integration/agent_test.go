@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/killallgit/ryan/pkg/agent"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -15,14 +16,19 @@ import (
 
 // setupViperForTest initializes viper configuration for tests
 func setupViperForTest(t *testing.T) {
-	// Set defaults
-	viper.SetDefault("provider", "ollama")
-	viper.SetDefault("ollama.default_model", "qwen3:latest")
-	viper.SetDefault("ollama.timeout", 90)
-	viper.SetDefault("langchain.memory_type", "window")
-	viper.SetDefault("langchain.memory_window_size", 10)
-	viper.SetDefault("langchain.tools.max_iterations", 10)
-	viper.SetDefault("langchain.tools.max_retries", 3)
+	// Initialize config package first
+	if err := config.Init(""); err != nil {
+		t.Fatalf("Failed to initialize config: %v", err)
+	}
+
+	// Set test-specific overrides
+	viper.Set("provider", "ollama")
+	viper.Set("ollama.default_model", "qwen3:latest")
+	viper.Set("ollama.timeout", 90)
+	viper.Set("langchain.memory_type", "window")
+	viper.Set("langchain.memory_window_size", 10)
+	viper.Set("langchain.tools.max_iterations", 10)
+	viper.Set("langchain.tools.max_retries", 3)
 
 	// OLLAMA_HOST environment variable is required for integration tests
 	// No fallback to localhost allowed
@@ -30,6 +36,11 @@ func setupViperForTest(t *testing.T) {
 	// Override model if set in environment
 	if ollamaModel := os.Getenv("OLLAMA_DEFAULT_MODEL"); ollamaModel != "" {
 		viper.Set("ollama.default_model", ollamaModel)
+	}
+
+	// Reload config after setting test values
+	if err := config.Load(); err != nil {
+		t.Fatalf("Failed to reload config: %v", err)
 	}
 }
 
