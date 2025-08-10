@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/killallgit/ryan/pkg/llm"
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/memory"
 )
 
@@ -29,16 +30,25 @@ type StreamingMessage struct {
 
 // NewManager creates a new chat manager
 func NewManager(historyPath string) (*Manager, error) {
+	logger.Debug("Creating chat manager with history path: %s", historyPath)
+
 	history, err := NewHistory(historyPath)
 	if err != nil {
+		logger.Error("Failed to create history: %v", err)
 		return nil, fmt.Errorf("failed to create history: %w", err)
 	}
 
 	// Create memory with a session ID based on the history path
-	mem, err := memory.New(fmt.Sprintf("session_%s", historyPath))
+	sessionID := fmt.Sprintf("session_%s", historyPath)
+	logger.Debug("Creating memory with session ID: %s", sessionID)
+
+	mem, err := memory.New(sessionID)
 	if err != nil {
+		logger.Error("Failed to create memory: %v", err)
 		return nil, fmt.Errorf("failed to create memory: %w", err)
 	}
+
+	logger.Info("Chat manager created successfully")
 
 	return &Manager{
 		history: history,
@@ -55,6 +65,8 @@ func (m *Manager) SetStreamCallback(callback StreamCallback) {
 
 // AddMessage adds a message to the chat
 func (m *Manager) AddMessage(role MessageRole, content string) error {
+	logger.Debug("Adding message - Role: %s, Content length: %d", role, len(content))
+
 	msg := NewMessage(role, content)
 
 	// Add to memory if enabled
@@ -62,16 +74,27 @@ func (m *Manager) AddMessage(role MessageRole, content string) error {
 		switch role {
 		case RoleUser:
 			if err := m.memory.AddUserMessage(content); err != nil {
+				logger.Error("Failed to add user message to memory: %v", err)
 				return fmt.Errorf("failed to add user message to memory: %w", err)
 			}
+			logger.Debug("User message added to memory")
 		case RoleAssistant:
 			if err := m.memory.AddAssistantMessage(content); err != nil {
+				logger.Error("Failed to add assistant message to memory: %v", err)
 				return fmt.Errorf("failed to add assistant message to memory: %w", err)
 			}
+			logger.Debug("Assistant message added to memory")
 		}
 	}
 
-	return m.history.Add(msg)
+	err := m.history.Add(msg)
+	if err != nil {
+		logger.Error("Failed to add message to history: %v", err)
+		return err
+	}
+
+	logger.Debug("Message added to history successfully")
+	return nil
 }
 
 // AddMessageWithMetadata adds a message with metadata to the chat

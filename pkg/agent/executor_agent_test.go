@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -354,7 +355,10 @@ func TestExecutorAgentWithRAG(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", true)
 	viper.Set("vectorstore.embedding.provider", "ollama")
-	viper.Set("vectorstore.embedding.endpoint", "http://localhost:11434")
+	// Use environment variable for test endpoint
+	if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
+		viper.Set("vectorstore.embedding.endpoint", ollamaHost)
+	}
 	viper.Set("vectorstore.embedding.model", "test-embed")
 	viper.Set("vectorstore.retrieval.k", 5)
 	viper.Set("vectorstore.retrieval.score_threshold", 0.7)

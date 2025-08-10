@@ -84,7 +84,7 @@ Ryan is an open-source Claude Code alternative that provides chat functionality 
 ## Configuration
 
 - Settings managed via Viper (supports YAML, environment variables)
-- Default Ollama endpoint: `http://localhost:11434`
+- Ollama endpoint: Set via `OLLAMA_HOST` environment variable (required)
 - Environment variable: `OLLAMA_DEFAULT_MODEL` for model selection
 - Config file support via `--config` flag
 

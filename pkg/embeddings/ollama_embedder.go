@@ -34,11 +34,10 @@ type OllamaConfig struct {
 // NewOllamaEmbedder creates a new Ollama embedder
 func NewOllamaEmbedder(config OllamaConfig) (*OllamaEmbedder, error) {
 	if config.Endpoint == "" {
-		// Check OLLAMA_HOST environment variable first
-		if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
-			config.Endpoint = ollamaHost
-		} else {
-			config.Endpoint = "http://localhost:11434"
+		// Use OLLAMA_HOST environment variable, no default
+		config.Endpoint = os.Getenv("OLLAMA_HOST")
+		if config.Endpoint == "" {
+			return nil, fmt.Errorf("OLLAMA_HOST environment variable is not set and no endpoint provided")
 		}
 	}
 

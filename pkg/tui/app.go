@@ -66,14 +66,14 @@ func RunTUI(agent agent.Agent) error {
 }
 
 func setupDebug() {
-	logLevel := viper.GetString("logging.level")
-	if logLevel == "debug" {
-		logPath := config.BuildSettingsPath("tui-debug.log")
-		_, err := tea.LogToFile(logPath, "debug")
-		if err != nil {
-			logger.Fatal("TUI debug logging setup error: %v", err)
-		}
-		// Note: tea.LogToFile returns a file that Bubble Tea manages internally
-		// We don't need to manually close it
+	// Always enable Bubble Tea debug logging for better debugging
+	logPath := config.BuildSettingsPath("tui-debug.log")
+	_, err := tea.LogToFile(logPath, "debug")
+	if err != nil {
+		logger.Error("TUI debug logging setup error: %v", err)
+		// Don't fatal here - the app can still run without TUI debug logs
 	}
+	logger.Debug("Bubble Tea debug logging enabled at: %s", logPath)
+	// Note: tea.LogToFile returns a file that Bubble Tea manages internally
+	// We don't need to manually close it
 }

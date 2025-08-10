@@ -24,12 +24,8 @@ func setupViperForTest(t *testing.T) {
 	viper.SetDefault("langchain.tools.max_iterations", 10)
 	viper.SetDefault("langchain.tools.max_retries", 3)
 
-	// Override with environment variable if set
-	if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
-		viper.Set("ollama.url", ollamaHost)
-	} else {
-		viper.Set("ollama.url", "http://localhost:11434")
-	}
+	// OLLAMA_HOST environment variable is required for integration tests
+	// No fallback to localhost allowed
 
 	// Override model if set in environment
 	if ollamaModel := os.Getenv("OLLAMA_DEFAULT_MODEL"); ollamaModel != "" {
