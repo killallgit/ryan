@@ -24,8 +24,14 @@ func TestOllamaEmbedderIntegration(t *testing.T) {
 
 	t.Run("Creates embedder with explicit config", func(t *testing.T) {
 		// Create embedder with config using OLLAMA_HOST from environment
+		// Use OLLAMA_EMBEDDING_MODEL if set (for CI), otherwise use default
+		embeddingModel := os.Getenv("OLLAMA_EMBEDDING_MODEL")
+		if embeddingModel == "" {
+			embeddingModel = "nomic-embed-text"
+		}
 		config := embeddings.OllamaConfig{
 			Endpoint: ollamaHost,
+			Model:    embeddingModel,
 		}
 		embedder, err := embeddings.NewOllamaEmbedder(config)
 		require.NoError(t, err, "Should create embedder with config")
