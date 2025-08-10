@@ -1,1 +1,3 @@
-- Scaffold a secondary view model for managing and pulling models. This view will be accessed via a "slash command" 
+- Lets scaffold out "slash command" processing for the tui. Look at other cli tools that use this idea on github and come up with a modular plan for implementation. We need a way to register slash commands and attach some kind of hook to fire when they are submitted in the chat as the first characters.
+- Scaffold a secondary view model for managing and pulling models. This view will be accessed via the slash command "/models" and has a totally separate view than the chat. Pressing <esc> should go back to the last view from the model view.
+- <esc> being pressed twice in a row should arrest the current processing of chat and cancel any actions in progress.
