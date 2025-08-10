@@ -40,11 +40,15 @@ type ExecutorAgent struct {
 
 // NewExecutorAgent creates a new executor-based agent with an injected LLM
 func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
-	// Generate a unique session ID for this agent instance
-	// This ensures each agent has its own isolated memory
-	sessionID := fmt.Sprintf("session_%d", time.Now().UnixNano())
+	var sessionID string
 	if viper.GetBool("continue") {
-		sessionID = "continued"
+		// Use a consistent session ID per project to maintain conversation context
+		// This allows continuing conversations across ryan invocations
+		sessionID = "default_project_session"
+	} else {
+		// Generate a unique session ID for new conversations
+		// This ensures each agent has its own isolated memory
+		sessionID = fmt.Sprintf("session_%d", time.Now().UnixNano())
 	}
 
 	return NewExecutorAgentWithSession(llm, sessionID)
@@ -59,32 +63,6 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 
 	// Initialize tools with permission checking
 	agentTools := []tools.Tool{}
-	
-	// Only add tools if enabled in config
-	if viper.GetBool("tools.enabled") {
-		// Add file tools
-		if viper.GetBool("tools.file.read.enabled") {
-			agentTools = append(agentTools, ryantools.NewFileReadTool())
-		}
-		if viper.GetBool("tools.file.write.enabled") {
-			agentTools = append(agentTools, ryantools.NewFileWriteTool())
-		}
-		
-		// Add git tool
-		if viper.GetBool("tools.git.enabled") {
-			agentTools = append(agentTools, ryantools.NewGitTool())
-		}
-		
-		// Add search tool
-		if viper.GetBool("tools.search.enabled") {
-			agentTools = append(agentTools, ryantools.NewRipgrepTool())
-		}
-		
-		// Add web fetch tool
-		if viper.GetBool("tools.web.enabled") {
-			agentTools = append(agentTools, ryantools.NewWebFetchTool())
-		}
-	}
 
 	// Only add tools if enabled in config
 	if viper.GetBool("tools.enabled") {
