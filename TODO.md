@@ -1,3 +1,7 @@
+
+
+
+
 - ollama in tests needs to be always set via env var
 - Each domain should handle setting its own config defaults
 - We should have one config initialization package and inject the configs into functions for better composability. This will require updating all the tests to use this config injection as well
