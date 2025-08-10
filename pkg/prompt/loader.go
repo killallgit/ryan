@@ -16,22 +16,12 @@ import (
 // FileLoader loads templates from files
 type FileLoader struct {
 	baseDir string
-	config  *Config
 }
 
 // NewFileLoader creates a new file-based template loader
 func NewFileLoader(baseDir string) *FileLoader {
 	return &FileLoader{
 		baseDir: baseDir,
-		config:  &Config{},
-	}
-}
-
-// NewFileLoaderWithConfig creates a new file loader with configuration
-func NewFileLoaderWithConfig(baseDir string, config *Config) *FileLoader {
-	return &FileLoader{
-		baseDir: baseDir,
-		config:  config,
 	}
 }
 

@@ -134,11 +134,11 @@ func TestGlobalRegistry(t *testing.T) {
 
 func TestCommonTemplates(t *testing.T) {
 	// Re-register common templates since they may have been cleared
-	registerCommonTemplates()
+	registerBuiltInTemplates()
 
 	// Test that common templates are registered
-	t.Run("qa template", func(t *testing.T) {
-		template := GetQATemplate()
+	t.Run("simple qa template", func(t *testing.T) {
+		template := GetSimpleQATemplate()
 		assert.NotNil(t, template)
 
 		result, err := template.Format(map[string]any{
@@ -146,19 +146,6 @@ func TestCommonTemplates(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Contains(t, result, "What is the meaning of life?")
-	})
-
-	t.Run("qa with context template", func(t *testing.T) {
-		template := GetQAWithContextTemplate()
-		assert.NotNil(t, template)
-
-		result, err := template.Format(map[string]any{
-			"context":  "The answer is 42.",
-			"question": "What is the answer?",
-		})
-		require.NoError(t, err)
-		assert.Contains(t, result, "The answer is 42.")
-		assert.Contains(t, result, "What is the answer?")
 	})
 
 	t.Run("summarization template", func(t *testing.T) {
@@ -189,8 +176,8 @@ func TestCommonTemplates(t *testing.T) {
 		assert.Contains(t, result, "Must be efficient")
 	})
 
-	t.Run("assistant chat template", func(t *testing.T) {
-		template := GetAssistantTemplate()
+	t.Run("simple assistant chat template", func(t *testing.T) {
+		template := GetSimpleAssistantTemplate()
 		assert.NotNil(t, template)
 
 		result, err := template.Format(map[string]any{
@@ -202,8 +189,8 @@ func TestCommonTemplates(t *testing.T) {
 		assert.Contains(t, result, "Hello!")
 	})
 
-	t.Run("RAG chat template", func(t *testing.T) {
-		template := GetRAGTemplate()
+	t.Run("simple RAG chat template", func(t *testing.T) {
+		template := GetSimpleRAGTemplate()
 		assert.NotNil(t, template)
 
 		result, err := template.Format(map[string]any{

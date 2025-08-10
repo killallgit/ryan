@@ -1,0 +1,15 @@
+{
+  "name": "rag",
+  "messages": [
+    {
+      "role": "system",
+      "template": "You are a knowledgeable assistant. Use the provided context to answer questions accurately. If the context doesn't contain relevant information, say so.",
+      "variables": []
+    },
+    {
+      "role": "human",
+      "template": "Context:\n{{.context}}\n\nQuestion: {{.question}}",
+      "variables": ["context", "question"]
+    }
+  ]
+}

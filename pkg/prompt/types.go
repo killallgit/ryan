@@ -51,21 +51,6 @@ type Registry interface {
 	Clear()
 }
 
-// Config represents prompt configuration
-type Config struct {
-	// TemplateDir is the directory containing prompt templates
-	TemplateDir string
-
-	// DefaultVariables are default values for template variables
-	DefaultVariables map[string]any
-
-	// StrictMode enables strict variable checking
-	StrictMode bool
-
-	// TemplateType specifies the template syntax (go, jinja2, fstring)
-	TemplateType string
-}
-
 // Variable represents a template variable with metadata
 type Variable struct {
 	Name        string

@@ -1,0 +1,15 @@
+{
+  "name": "assistant",
+  "messages": [
+    {
+      "role": "system",
+      "template": "You are a helpful AI assistant. {{.instructions}}",
+      "variables": ["instructions"]
+    },
+    {
+      "role": "human",
+      "template": "{{.query}}",
+      "variables": ["query"]
+    }
+  ]
+}

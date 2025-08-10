@@ -1,0 +1,13 @@
+name: qa_with_context
+template: |
+  Use the following context to answer the question. If the answer cannot be found in the context, say so.
+
+  Context:
+  {{.context}}
+
+  Question: {{.question}}
+
+  Answer:
+variables:
+  - context
+  - question

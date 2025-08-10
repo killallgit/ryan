@@ -5,27 +5,15 @@ import "github.com/tmc/langchaingo/prompts"
 // Common prompt templates that can be registered and reused
 
 func init() {
-	// Register some common templates
-	registerCommonTemplates()
+	// Register built-in templates
+	registerBuiltInTemplates()
 }
 
-func registerCommonTemplates() {
+func registerBuiltInTemplates() {
 	// Simple Q&A template
-	MustRegister("qa", NewPromptTemplate(
+	MustRegister("simple_qa", NewPromptTemplate(
 		"Answer the following question: {{.question}}",
 		[]string{"question"},
-	))
-
-	// Context-based Q&A template
-	MustRegister("qa_with_context", NewPromptTemplate(
-		`Use the following context to answer the question:
-
-Context: {{.context}}
-
-Question: {{.question}}
-
-Answer:`,
-		[]string{"context", "question"},
 	))
 
 	// Summarization template
@@ -49,7 +37,7 @@ Code:`,
 		[]string{"language", "description", "requirements"},
 	))
 
-	// Chat template for assistant
+	// Simple chat template for assistant
 	chatMessages := []prompts.MessageFormatter{
 		prompts.NewSystemMessagePromptTemplate(
 			"You are a helpful assistant. {{.instructions}}",
@@ -61,9 +49,9 @@ Code:`,
 		),
 	}
 
-	MustRegister("assistant", NewChatTemplate(chatMessages))
+	MustRegister("simple_assistant", NewChatTemplate(chatMessages))
 
-	// RAG template
+	// Simple RAG template
 	ragMessages := []prompts.MessageFormatter{
 		prompts.NewSystemMessagePromptTemplate(
 			`You are a knowledgeable assistant. Use the provided context to answer questions accurately.
@@ -79,17 +67,12 @@ Question: {{.question}}`,
 		),
 	}
 
-	MustRegister("rag", NewChatTemplate(ragMessages))
+	MustRegister("simple_rag", NewChatTemplate(ragMessages))
 }
 
-// GetQATemplate returns a Q&A prompt template
-func GetQATemplate() Template {
-	return MustGet("qa")
-}
-
-// GetQAWithContextTemplate returns a context-based Q&A template
-func GetQAWithContextTemplate() Template {
-	return MustGet("qa_with_context")
+// GetSimpleQATemplate returns a simple Q&A prompt template
+func GetSimpleQATemplate() Template {
+	return MustGet("simple_qa")
 }
 
 // GetSummarizationTemplate returns a summarization template
@@ -102,12 +85,12 @@ func GetCodeGenTemplate() Template {
 	return MustGet("code_gen")
 }
 
-// GetAssistantTemplate returns a chat assistant template
-func GetAssistantTemplate() ChatTemplate {
-	return MustGet("assistant").(ChatTemplate)
+// GetSimpleAssistantTemplate returns a simple chat assistant template
+func GetSimpleAssistantTemplate() ChatTemplate {
+	return MustGet("simple_assistant").(ChatTemplate)
 }
 
-// GetRAGTemplate returns a RAG chat template
-func GetRAGTemplate() ChatTemplate {
-	return MustGet("rag").(ChatTemplate)
+// GetSimpleRAGTemplate returns a simple RAG chat template
+func GetSimpleRAGTemplate() ChatTemplate {
+	return MustGet("simple_rag").(ChatTemplate)
 }
