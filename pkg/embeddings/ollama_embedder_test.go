@@ -53,7 +53,7 @@ func TestOllamaEmbedderConfig(t *testing.T) {
 		// proves it used the config, not the environment variable
 	})
 
-	t.Run("defaults to localhost when no env var", func(t *testing.T) {
+	t.Run("requires OLLAMA_HOST when no endpoint provided", func(t *testing.T) {
 		// Clear environment variable
 		originalHost := os.Getenv("OLLAMA_HOST")
 		os.Unsetenv("OLLAMA_HOST")
@@ -63,10 +63,9 @@ func TestOllamaEmbedderConfig(t *testing.T) {
 		config := OllamaConfig{}
 		embedder, err := NewOllamaEmbedder(config)
 
-		// We expect an error because localhost server probably doesn't exist
-		// but this proves it's using the default localhost endpoint
-		_ = embedder
-		_ = err
-		// The test shows the default behavior - it will try localhost:11434
+		// We expect an error because OLLAMA_HOST is not set
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "OLLAMA_HOST environment variable is not set and no endpoint provided")
+		assert.Nil(t, embedder)
 	})
 }

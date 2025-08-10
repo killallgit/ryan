@@ -3,6 +3,15 @@
 ## [Unreleased]
 
 ### Added
+- **Comprehensive Debug Logging** - Enhanced logging throughout the application for better debugging and monitoring
+  - Added debug logging to agent initialization, tool setup, and RAG components
+  - Added logging to Ollama client connection and model initialization
+  - Added logging to chat manager for message handling and memory operations
+  - Added logging to tools for permission validation and access control
+  - Enabled Bubble Tea debug logging by default for UI debugging
+  - Fixed configuration mismatch (logging.preserve → logging.persist)
+
+### Added
 - Status bar process icons in TUI to show current system state (↑ sending, ↓ receiving, 🤔 thinking, 🔨 tool usage)
 - Shared process state constants package (`pkg/process`) for consistent state management across the application
 - Unit tests for process state package with 100% coverage

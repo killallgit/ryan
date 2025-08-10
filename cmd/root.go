@@ -162,7 +162,6 @@ func init() {
 	viper.SetDefault("provider", "ollama")
 	viper.SetDefault("show_thinking", true)
 
-	viper.SetDefault("ollama.url", "http://localhost:11434")
 	viper.SetDefault("ollama.default_model", "qwen3:latest")
 	viper.SetDefault("ollama.timeout", 90)
 
@@ -194,11 +193,6 @@ func initConfig() {
 	}
 
 	viper.AutomaticEnv()
-
-	// Override ollama.url with OLLAMA_HOST if set
-	if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
-		viper.Set("ollama.url", ollamaHost)
-	}
 
 	// Override ollama.default_model with OLLAMA_DEFAULT_MODEL if set
 	if ollamaModel := os.Getenv("OLLAMA_DEFAULT_MODEL"); ollamaModel != "" {

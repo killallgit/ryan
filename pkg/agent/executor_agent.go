@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/killallgit/ryan/pkg/embeddings"
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/memory"
 	"github.com/killallgit/ryan/pkg/retrieval"
 	"github.com/killallgit/ryan/pkg/stream"
@@ -45,10 +46,12 @@ func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
 		// Use a consistent session ID per project to maintain conversation context
 		// This allows continuing conversations across ryan invocations
 		sessionID = "default_project_session"
+		logger.Debug("Using continued session ID: %s", sessionID)
 	} else {
 		// Generate a unique session ID for new conversations
 		// This ensures each agent has its own isolated memory
 		sessionID = fmt.Sprintf("session_%d", time.Now().UnixNano())
+		logger.Debug("Created new session ID: %s", sessionID)
 	}
 
 	return NewExecutorAgentWithSession(llm, sessionID)
@@ -56,38 +59,53 @@ func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
 
 // NewExecutorAgentWithSession creates a new executor-based agent with a specific session ID
 func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAgent, error) {
+	logger.Info("Initializing ExecutorAgent with session: %s", sessionID)
+
 	mem, err := memory.New(sessionID)
 	if err != nil {
+		logger.Error("Failed to create memory for session %s: %v", sessionID, err)
 		return nil, fmt.Errorf("failed to create memory: %w", err)
 	}
+	logger.Debug("Memory initialized for session: %s", sessionID)
 
 	// Initialize tools with permission checking
 	agentTools := []tools.Tool{}
 
 	// Only add tools if enabled in config
 	if viper.GetBool("tools.enabled") {
+		logger.Debug("Tools are enabled, initializing available tools")
+
 		// Add file tools
 		if viper.GetBool("tools.file.read.enabled") {
 			agentTools = append(agentTools, ryantools.NewFileReadTool())
+			logger.Debug("Added FileReadTool")
 		}
 		if viper.GetBool("tools.file.write.enabled") {
 			agentTools = append(agentTools, ryantools.NewFileWriteTool())
+			logger.Debug("Added FileWriteTool")
 		}
 
 		// Add git tool
 		if viper.GetBool("tools.git.enabled") {
 			agentTools = append(agentTools, ryantools.NewGitTool())
+			logger.Debug("Added GitTool")
 		}
 
 		// Add search tool
 		if viper.GetBool("tools.search.enabled") {
 			agentTools = append(agentTools, ryantools.NewRipgrepTool())
+			logger.Debug("Added RipgrepTool")
 		}
 
 		// Add web fetch tool
 		if viper.GetBool("tools.web.enabled") {
 			agentTools = append(agentTools, ryantools.NewWebFetchTool())
+			logger.Debug("Added WebFetchTool")
 		}
+
+		logger.Info("Initialized %d tools", len(agentTools))
+	} else {
+		logger.Info("Tools are disabled in configuration")
 	}
 
 	// Initialize RAG components if enabled
@@ -96,8 +114,11 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	var augmenter *retrieval.Augmenter
 
 	if viper.GetBool("vectorstore.enabled") {
+		logger.Info("Vector store is enabled, initializing RAG components")
+
 		// Load vector store configuration
 		vsConfig := vectorstore.LoadConfig()
+		logger.Debug("Vector store config - Provider: %s, Collection: %s", vsConfig.Provider, vsConfig.CollectionName)
 
 		// Create embedder based on configuration
 		var embedder embeddings.Embedder
@@ -108,7 +129,9 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 			}
 			embedder, err = embeddings.NewOllamaEmbedder(embedConfig)
 			if err != nil {
-				fmt.Printf("Warning: Could not initialize embedder: %v\n", err)
+				logger.Warn("Could not initialize embedder: %v", err)
+			} else {
+				logger.Debug("Initialized Ollama embedder with model: %s", vsConfig.Embedding.Model)
 			}
 		}
 
@@ -116,18 +139,21 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 		if embedder != nil {
 			vectorStore, err = vectorstore.NewVectorStore(vsConfig, embedder)
 			if err != nil {
-				fmt.Printf("Warning: Could not initialize vector store: %v\n", err)
+				logger.Warn("Could not initialize vector store: %v", err)
 			} else {
+				logger.Info("Vector store initialized successfully")
 				// Create retriever
 				retriever = retrieval.NewRetriever(vectorStore, retrieval.Config{
 					MaxDocuments:   vsConfig.Retrieval.K,
 					ScoreThreshold: vsConfig.Retrieval.ScoreThreshold,
 				})
+				logger.Debug("Retriever created with K=%d, threshold=%f", vsConfig.Retrieval.K, vsConfig.Retrieval.ScoreThreshold)
 
 				// Create augmenter
 				augmenter = retrieval.NewAugmenter(retriever, retrieval.AugmenterConfig{
 					MaxContextLength: viper.GetInt("vectorstore.retrieval.max_context_length"),
 				})
+				logger.Debug("Augmenter created with max context length: %d", viper.GetInt("vectorstore.retrieval.max_context_length"))
 
 				// Add retriever as a LangChain tool if available
 				if retriever != nil {
@@ -188,15 +214,19 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 
 // Execute handles a request and returns a response
 func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, error) {
+	logger.Debug("Execute called with prompt: %s", prompt)
+
 	// Augment prompt with retrieved context if RAG is enabled
 	actualPrompt := prompt
 	if e.augmenter != nil && viper.GetBool("vectorstore.retrieval.enabled") {
+		logger.Debug("Attempting to augment prompt with RAG")
 		augmented, err := e.augmenter.AugmentPrompt(ctx, prompt)
 		if err != nil {
 			// Log but don't fail - continue without augmentation
-			fmt.Printf("Warning: Could not augment prompt: %v\n", err)
+			logger.Warn("Could not augment prompt: %v", err)
 		} else {
 			actualPrompt = augmented
+			logger.Debug("Prompt augmented successfully")
 		}
 	}
 
@@ -206,6 +236,7 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 		e.tokensMu.Lock()
 		e.tokensSent += inputTokens
 		e.tokensMu.Unlock()
+		logger.Debug("Input tokens: %d (total sent: %d)", inputTokens, e.tokensSent)
 	}
 
 	// The executor will handle memory management now
@@ -215,16 +246,19 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 	}
 
 	// Execute through the agent (memory is handled by the executor)
+	logger.Debug("Calling executor with input")
 	result, err := e.executor.Call(ctx, input)
 	if err != nil {
+		logger.Error("Agent execution failed: %v", err)
 		return "", fmt.Errorf("agent execution failed: %w", err)
 	}
+	logger.Debug("Executor call completed successfully")
 
 	// Manually add to memory since LangChain executor might not be doing it
 	// Add user message
 	if err := e.memory.AddUserMessage(actualPrompt); err != nil {
 		// Log but don't fail
-		fmt.Printf("Warning: Could not add user message to memory: %v\n", err)
+		logger.Warn("Could not add user message to memory: %v", err)
 	}
 
 	// Extract the response
@@ -248,12 +282,13 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 		e.tokensMu.Lock()
 		e.tokensRecv += outputTokens
 		e.tokensMu.Unlock()
+		logger.Debug("Output tokens: %d (total received: %d)", outputTokens, e.tokensRecv)
 	}
 
 	// Add assistant message to memory
 	if err := e.memory.AddAssistantMessage(response); err != nil {
 		// Log but don't fail
-		fmt.Printf("Warning: Could not add assistant message to memory: %v\n", err)
+		logger.Warn("Could not add assistant message to memory: %v", err)
 	}
 
 	return response, nil
@@ -261,15 +296,19 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 
 // ExecuteStream handles a request with streaming response
 func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler stream.Handler) error {
+	logger.Debug("ExecuteStream called with prompt: %s", prompt)
+
 	// Augment prompt with retrieved context if RAG is enabled
 	actualPrompt := prompt
 	if e.augmenter != nil && viper.GetBool("vectorstore.retrieval.enabled") {
+		logger.Debug("Attempting to augment prompt with RAG (streaming)")
 		augmented, err := e.augmenter.AugmentPrompt(ctx, prompt)
 		if err != nil {
 			// Log but don't fail - continue without augmentation
-			fmt.Printf("Warning: Could not augment prompt: %v\n", err)
+			logger.Warn("Could not augment prompt: %v", err)
 		} else {
 			actualPrompt = augmented
+			logger.Debug("Prompt augmented successfully (streaming)")
 		}
 	}
 
@@ -279,6 +318,7 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 		e.tokensMu.Lock()
 		e.tokensSent += inputTokens
 		e.tokensMu.Unlock()
+		logger.Debug("Input tokens: %d (total sent: %d)", inputTokens, e.tokensSent)
 	}
 
 	// Create a LangChain streaming source using the agent's LLM
@@ -297,6 +337,9 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 					Content: msg.Content,
 				})
 			}
+			logger.Debug("Added %d messages from memory to context", len(llmMessages))
+		} else {
+			logger.Warn("Could not convert memory to LLM messages: %v", err)
 		}
 	}
 

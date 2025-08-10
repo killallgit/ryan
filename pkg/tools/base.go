@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/tools/acl"
 )
 
@@ -18,5 +19,12 @@ func NewSecuredTool() *SecuredTool {
 
 // ValidateAccess checks if the tool operation is permitted
 func (t *SecuredTool) ValidateAccess(toolName, input string) error {
-	return t.permissionManager.Validate(toolName, input)
+	logger.Debug("Validating access for tool: %s, input: %s", toolName, input)
+	err := t.permissionManager.Validate(toolName, input)
+	if err != nil {
+		logger.Warn("Access denied for tool %s: %v", toolName, err)
+	} else {
+		logger.Debug("Access granted for tool: %s", toolName)
+	}
+	return err
 }

@@ -18,7 +18,8 @@ import (
 func isOllamaAvailable() bool {
 	ollamaHost := os.Getenv("OLLAMA_HOST")
 	if ollamaHost == "" {
-		ollamaHost = "http://localhost:11434"
+		// No OLLAMA_HOST set, Ollama is not available
+		return false
 	}
 
 	// Try to reach Ollama API

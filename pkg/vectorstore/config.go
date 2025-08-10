@@ -71,12 +71,10 @@ func SetDefaults() {
 	viper.SetDefault("vectorstore.embedding.provider", "ollama")
 	viper.SetDefault("vectorstore.embedding.model", "nomic-embed-text")
 
-	// Use OLLAMA_HOST environment variable if set, otherwise default
-	ollamaEndpoint := "http://localhost:11434"
+	// Use OLLAMA_HOST environment variable if set
 	if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
-		ollamaEndpoint = ollamaHost
+		viper.SetDefault("vectorstore.embedding.endpoint", ollamaHost)
 	}
-	viper.SetDefault("vectorstore.embedding.endpoint", ollamaEndpoint)
 
 	viper.SetDefault("vectorstore.retrieval.k", 4)
 	viper.SetDefault("vectorstore.retrieval.score_threshold", 0.0)
