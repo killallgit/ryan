@@ -167,31 +167,6 @@ func init() {
 	viper.SetDefault("logging.persist", false)
 	viper.SetDefault("logging.level", "info")
 
-	// Vector store configuration
-	viper.SetDefault("vectorstore.enabled", false)
-	viper.SetDefault("vectorstore.provider", "chromem")
-	viper.SetDefault("vectorstore.collection.name", "default")
-
-	// Persistence configuration
-	viper.SetDefault("vectorstore.persistence.enabled", false)
-	viper.SetDefault("vectorstore.persistence.path", "./data/vectors")
-
-	// Embedding configuration
-	viper.SetDefault("vectorstore.embedding.provider", "ollama")
-	viper.SetDefault("vectorstore.embedding.model", "nomic-embed-text")
-	viper.SetDefault("vectorstore.embedding.endpoint", "http://localhost:11434")
-	viper.SetDefault("vectorstore.embedding.api_key", "")
-
-	// Retrieval configuration
-	viper.SetDefault("vectorstore.retrieval.enabled", true)
-	viper.SetDefault("vectorstore.retrieval.k", 4)
-	viper.SetDefault("vectorstore.retrieval.score_threshold", 0.0)
-	viper.SetDefault("vectorstore.retrieval.max_context_length", 4000)
-
-	// Document processing configuration
-	viper.SetDefault("vectorstore.document.chunk_size", 1000)
-	viper.SetDefault("vectorstore.document.chunk_overlap", 200)
-
 	viper.SetDefault("langchain.memory_type", "window")
 	viper.SetDefault("langchain.memory_window_size", 10)
 	viper.SetDefault("langchain.tools.max_iterations", 10)
