@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -33,11 +34,21 @@ type OllamaConfig struct {
 // NewOllamaEmbedder creates a new Ollama embedder
 func NewOllamaEmbedder(config OllamaConfig) (*OllamaEmbedder, error) {
 	if config.Endpoint == "" {
-		config.Endpoint = "http://localhost:11434"
+		// Check OLLAMA_HOST environment variable first
+		if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
+			config.Endpoint = ollamaHost
+		} else {
+			config.Endpoint = "http://localhost:11434"
+		}
 	}
 
 	if config.Model == "" {
-		config.Model = "nomic-embed-text"
+		// Check OLLAMA_DEFAULT_MODEL for embedding model override
+		if ollamaModel := os.Getenv("OLLAMA_EMBED_MODEL"); ollamaModel != "" {
+			config.Model = ollamaModel
+		} else {
+			config.Model = "nomic-embed-text"
+		}
 	}
 
 	if config.Timeout == 0 {
