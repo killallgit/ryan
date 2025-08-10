@@ -39,11 +39,6 @@ func setupViperForTest(t *testing.T) {
 	// OLLAMA_HOST environment variable is required for integration tests
 	// No fallback to localhost allowed
 
-	// Override model if set in environment
-	if ollamaModel := os.Getenv("OLLAMA_DEFAULT_MODEL"); ollamaModel != "" {
-		viper.Set("ollama.default_model", ollamaModel)
-	}
-
 	// Reload config after setting test values
 	if err := config.Load(); err != nil {
 		t.Fatalf("Failed to reload config: %v", err)
