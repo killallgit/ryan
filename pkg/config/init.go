@@ -103,8 +103,12 @@ func Init(cfgFile string) error {
 	// Enable environment variable support
 	viper.AutomaticEnv()
 
-	// Override with environment variables
-	applyEnvironmentOverrides()
+	// Bind specific environment variables to config keys
+	// This allows OLLAMA_HOST to map to ollama.host
+	viper.BindEnv("ollama.host", "OLLAMA_HOST")
+	viper.BindEnv("ollama.default_model", "OLLAMA_DEFAULT_MODEL")
+	viper.BindEnv("vectorstore.embedding.model", "OLLAMA_EMBEDDING_MODEL")
+	viper.BindEnv("vectorstore.embedding.endpoint", "OLLAMA_HOST") // Reuse OLLAMA_HOST for embedding endpoint
 
 	// Read config file if it exists
 	if err := viper.ReadInConfig(); err == nil {
@@ -154,21 +158,6 @@ func setDefaults() {
 	viper.SetDefault("vectorstore.embedding.model", "nomic-embed-text")
 	viper.SetDefault("vectorstore.retrieval.k", 4)
 	viper.SetDefault("vectorstore.retrieval.score_threshold", 0.0)
-}
-
-// applyEnvironmentOverrides applies environment variable overrides
-func applyEnvironmentOverrides() {
-	// Override ollama.default_model with OLLAMA_DEFAULT_MODEL if set
-	if ollamaModel := os.Getenv("OLLAMA_DEFAULT_MODEL"); ollamaModel != "" {
-		viper.Set("ollama.default_model", ollamaModel)
-	}
-
-	// Override ollama.host with OLLAMA_HOST if set
-	if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
-		viper.Set("ollama.host", ollamaHost)
-		// Also set for vectorstore embedding endpoint
-		viper.SetDefault("vectorstore.embedding.endpoint", ollamaHost)
-	}
 }
 
 // Load loads configuration from viper into the Settings struct

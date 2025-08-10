@@ -34,20 +34,11 @@ type OllamaConfig struct {
 // NewOllamaEmbedder creates a new Ollama embedder
 func NewOllamaEmbedder(config OllamaConfig) (*OllamaEmbedder, error) {
 	if config.Endpoint == "" {
-		// Use OLLAMA_HOST environment variable, no default
-		config.Endpoint = os.Getenv("OLLAMA_HOST")
-		if config.Endpoint == "" {
-			return nil, fmt.Errorf("OLLAMA_HOST environment variable is not set and no endpoint provided")
-		}
+		return nil, fmt.Errorf("endpoint not provided in config")
 	}
 
 	if config.Model == "" {
-		// Check OLLAMA_EMBEDDING_MODEL for embedding model override
-		if ollamaModel := os.Getenv("OLLAMA_EMBEDDING_MODEL"); ollamaModel != "" {
-			config.Model = ollamaModel
-		} else {
-			config.Model = "nomic-embed-text"
-		}
+		config.Model = "nomic-embed-text"
 	}
 
 	if config.Timeout == 0 {
@@ -184,15 +175,8 @@ func NewOllamaEmbedderForTesting(config OllamaConfig) (*OllamaEmbedder, error) {
 		config.Endpoint = ollamaHost
 	}
 
-	// Now create the embedder directly without going through NewOllamaEmbedder
-	// to avoid any fallback logic
 	if config.Model == "" {
-		// Check OLLAMA_EMBEDDING_MODEL for embedding model override
-		if ollamaModel := os.Getenv("OLLAMA_EMBEDDING_MODEL"); ollamaModel != "" {
-			config.Model = ollamaModel
-		} else {
-			config.Model = "nomic-embed-text"
-		}
+		config.Model = "nomic-embed-text"
 	}
 
 	if config.Timeout == 0 {

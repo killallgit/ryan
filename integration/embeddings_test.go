@@ -22,11 +22,13 @@ func TestOllamaEmbedderIntegration(t *testing.T) {
 		t.Skipf("Skipping test: Ollama is not available at %s", ollamaHost)
 	}
 
-	t.Run("Creates embedder with OLLAMA_HOST from environment", func(t *testing.T) {
-		// Create embedder with empty config - it MUST use OLLAMA_HOST
-		config := embeddings.OllamaConfig{}
+	t.Run("Creates embedder with explicit config", func(t *testing.T) {
+		// Create embedder with config using OLLAMA_HOST from environment
+		config := embeddings.OllamaConfig{
+			Endpoint: ollamaHost,
+		}
 		embedder, err := embeddings.NewOllamaEmbedder(config)
-		require.NoError(t, err, "Should create embedder with OLLAMA_HOST from environment")
+		require.NoError(t, err, "Should create embedder with config")
 		require.NotNil(t, embedder)
 		defer embedder.Close()
 

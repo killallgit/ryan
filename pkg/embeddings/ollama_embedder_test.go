@@ -1,41 +1,24 @@
 package embeddings
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOllamaEmbedderConfig(t *testing.T) {
-	t.Run("respects OLLAMA_HOST environment variable", func(t *testing.T) {
-		// Set environment variable
-		originalHost := os.Getenv("OLLAMA_HOST")
-		testHost := "http://test-server:8080"
-		os.Setenv("OLLAMA_HOST", testHost)
-		defer os.Setenv("OLLAMA_HOST", originalHost)
-
+	t.Run("requires endpoint in config", func(t *testing.T) {
 		// Create embedder with empty config
-		// Note: This will fail to connect but we can verify the configuration was set correctly
 		config := OllamaConfig{}
 		embedder, err := NewOllamaEmbedder(config)
 
-		// We expect an error because test server doesn't exist
+		// We expect an error because endpoint is required
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get embedding dimensions")
-
-		// Even though initialization failed, we can verify the endpoint was set correctly
-		// by checking the error contains our test host
-		// The embedder will be nil, but the error proves it tried the right endpoint
+		assert.Contains(t, err.Error(), "endpoint not provided in config")
 		assert.Nil(t, embedder)
 	})
 
-	t.Run("uses provided config over environment variable", func(t *testing.T) {
-		// Set environment variable
-		originalHost := os.Getenv("OLLAMA_HOST")
-		os.Setenv("OLLAMA_HOST", "http://env-server:8080")
-		defer os.Setenv("OLLAMA_HOST", originalHost)
-
+	t.Run("uses provided config endpoint", func(t *testing.T) {
 		// Create embedder with explicit config
 		configEndpoint := "http://config-server:9090"
 		config := OllamaConfig{
@@ -47,25 +30,7 @@ func TestOllamaEmbedderConfig(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get embedding dimensions")
 
-		// Embedder will be nil, but the error message should show it tried the config endpoint
-		assert.Nil(t, embedder)
-		// Can't directly check the endpoint, but the fact that it failed with config-server
-		// proves it used the config, not the environment variable
-	})
-
-	t.Run("requires OLLAMA_HOST when no endpoint provided", func(t *testing.T) {
-		// Clear environment variable
-		originalHost := os.Getenv("OLLAMA_HOST")
-		os.Unsetenv("OLLAMA_HOST")
-		defer os.Setenv("OLLAMA_HOST", originalHost)
-
-		// Create embedder with empty config
-		config := OllamaConfig{}
-		embedder, err := NewOllamaEmbedder(config)
-
-		// We expect an error because OLLAMA_HOST is not set
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "OLLAMA_HOST environment variable is not set and no endpoint provided")
+		// Embedder will be nil, but the error shows it tried the config endpoint
 		assert.Nil(t, embedder)
 	})
 }
