@@ -156,6 +156,9 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("headless", "H", false, "run without TUI (requires --prompt)")
 	viper.BindPFlag("headless", rootCmd.PersistentFlags().Lookup("headless"))
 
+	rootCmd.PersistentFlags().Bool("skip-permissions", false, "skip all ACL permission checks for tools")
+	viper.BindPFlag("skip_permissions", rootCmd.PersistentFlags().Lookup("skip-permissions"))
+
 	viper.SetDefault("provider", "ollama")
 	viper.SetDefault("show_thinking", true)
 
@@ -172,6 +175,13 @@ func init() {
 	viper.SetDefault("langchain.tools.max_iterations", 10)
 	viper.SetDefault("langchain.tools.max_retries", 3)
 
+	// Tool configuration defaults
+	viper.SetDefault("tools.enabled", true)
+	viper.SetDefault("tools.file.read.enabled", true)
+	viper.SetDefault("tools.file.write.enabled", true)
+	viper.SetDefault("tools.git.enabled", true)
+	viper.SetDefault("tools.search.enabled", true)
+	viper.SetDefault("tools.web.enabled", true)
 }
 
 func initConfig() {
