@@ -43,6 +43,7 @@
 - Tool configuration via Viper with individual enable/disable flags
 - Integration tests for tools with permission validation
 
+
 ### Changed
 - Renamed all references to "orchestrator" to the more generic term "agent" throughout the codebase for better clarity and consistency
 - Status bar now displays dynamic icons and states during message processing
