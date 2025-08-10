@@ -56,12 +56,19 @@ Ryan is an open-source Claude Code alternative that provides chat functionality 
    - Session-based memory management
    - Mock implementation available for testing
 
-5. **UI Components** (`pkg/tui/`)
+5. **Streaming System** (`pkg/stream/`)
+   - **Core**: Unified streaming interfaces and handlers (`pkg/stream/core/`)
+   - **Providers**: LLM provider implementations (`pkg/stream/providers/`)
+   - **TUI Integration**: Bubble Tea message handling (`pkg/stream/tui/`)
+   - Supports console, channel, and buffer handlers
+   - Middleware pipeline for stream processing
+
+6. **UI Components** (`pkg/tui/`)
    - Bubble Tea-based terminal UI
    - Chat interface with status bar
    - Theme support via Lipgloss
 
-6. **Headless Mode** (`pkg/headless/`)
+7. **Headless Mode** (`pkg/headless/`)
    - CLI execution without UI
    - Supports scripting and automation
    - Streaming output support
@@ -77,7 +84,7 @@ Ryan is an open-source Claude Code alternative that provides chat functionality 
 
 1. **Interface-driven design**: All major components use interfaces for flexibility
 2. **LangChain integration**: Uses `tmc/langchaingo` for LLM orchestration
-3. **Streaming support**: First-class support for streaming responses throughout
+3. **Unified streaming**: Consolidated streaming architecture with core/providers/tui separation
 4. **Provider abstraction**: LLM providers are abstracted behind common interfaces
 5. **Memory persistence**: SQLite-based conversation memory with session management
 

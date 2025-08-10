@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Added
+- **TUI Testing with teatest** - Implemented golden file testing for Bubble Tea components
+  - Added teatest from github.com/charmbracelet/x/exp/teatest for TUI testing
+  - Created comprehensive test suite for status bar component with golden file snapshots
+  - Tests cover inactive/active states, token display, and all process states
+  - Fixed teatest hanging issue with proper model termination wrapper
+  - Achieved 50% code coverage for status bar package
+
 - **Comprehensive Debug Logging** - Enhanced logging throughout the application for better debugging and monitoring
   - Added debug logging to agent initialization, tool setup, and RAG components
   - Added logging to Ollama client connection and model initialization
@@ -10,8 +17,6 @@
   - Added logging to tools for permission validation and access control
   - Enabled Bubble Tea debug logging by default for UI debugging
   - Fixed configuration mismatch (logging.preserve → logging.persist)
-
-### Added
 - Status bar process icons in TUI to show current system state (↑ sending, ↓ receiving, 🤔 thinking, 🔨 tool usage)
 - Shared process state constants package (`pkg/process`) for consistent state management across the application
 - Unit tests for process state package with 100% coverage

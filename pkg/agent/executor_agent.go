@@ -11,7 +11,8 @@ import (
 	"github.com/killallgit/ryan/pkg/memory"
 	"github.com/killallgit/ryan/pkg/prompt"
 	"github.com/killallgit/ryan/pkg/retrieval"
-	"github.com/killallgit/ryan/pkg/stream"
+	"github.com/killallgit/ryan/pkg/stream/core"
+	"github.com/killallgit/ryan/pkg/stream/providers"
 	"github.com/killallgit/ryan/pkg/tokens"
 	ryantools "github.com/killallgit/ryan/pkg/tools"
 	"github.com/killallgit/ryan/pkg/vectorstore"
@@ -311,7 +312,7 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 }
 
 // ExecuteStream handles a request with streaming response
-func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler stream.Handler) error {
+func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler core.Handler) error {
 	logger.Debug("ExecuteStream called with prompt: %s", prompt)
 
 	// Format prompt using template if configured
@@ -350,17 +351,17 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 	}
 
 	// Create a LangChain streaming source using the agent's LLM
-	source := stream.NewLangChainSource(e.llm)
+	source := providers.NewLangChainSource(e.llm)
 
 	// Build conversation messages from memory
-	messages := []stream.Message{}
+	messages := []core.Message{}
 
 	// Add conversation history if available
 	if e.memory != nil {
 		llmMessages, err := e.memory.ConvertToLLMMessages()
 		if err == nil {
 			for _, msg := range llmMessages {
-				messages = append(messages, stream.Message{
+				messages = append(messages, core.Message{
 					Role:    msg.Role,
 					Content: msg.Content,
 				})
@@ -372,7 +373,7 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 	}
 
 	// Add the current prompt
-	messages = append(messages, stream.Message{
+	messages = append(messages, core.Message{
 		Role:    "user",
 		Content: actualPrompt,
 	})
@@ -393,7 +394,7 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 
 // tokenAndMemoryHandler wraps a stream handler to track tokens and update memory
 type tokenAndMemoryHandler struct {
-	inner      stream.Handler
+	inner      core.Handler
 	memory     *memory.Memory
 	prompt     string
 	agent      *ExecutorAgent

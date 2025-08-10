@@ -1,4 +1,4 @@
-package streaming
+package tui
 
 import (
 	"strings"
@@ -6,10 +6,11 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/killallgit/ryan/pkg/stream"
 )
 
 type Manager struct {
-	Registry      *Registry
+	Registry      *stream.Registry
 	activeStreams map[string]*ActiveStream
 	mu            sync.RWMutex
 	program       *tea.Program // Reference to the TUI program for sending updates
@@ -27,7 +28,7 @@ type ActiveStream struct {
 	Error      error        // Store any error that occurred during streaming
 }
 
-func NewManager(registry *Registry) *Manager {
+func NewManager(registry *stream.Registry) *Manager {
 	return &Manager{
 		Registry:      registry,
 		activeStreams: make(map[string]*ActiveStream),

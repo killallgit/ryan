@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/chat"
-	"github.com/killallgit/ryan/pkg/streaming"
+	"github.com/killallgit/ryan/pkg/stream/tui"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
 	"github.com/killallgit/ryan/pkg/tui/theme"
 )
@@ -41,7 +41,7 @@ type chatModel struct {
 	styles        *theme.Styles
 	messageIndex  int
 	numEscPress   int
-	streamManager *streaming.Manager
+	streamManager *tui.Manager
 	chatManager   *chat.Manager
 	agent         agent.Agent
 	nodes         []MessageNode
@@ -58,7 +58,7 @@ type chatModel struct {
 	lastTokensRecv int
 }
 
-func NewChatModel(streamManager *streaming.Manager, chatManager *chat.Manager, agent agent.Agent) chatModel {
+func NewChatModel(streamManager *tui.Manager, chatManager *chat.Manager, agent agent.Agent) chatModel {
 	ta := textarea.New()
 	ta.Focus()
 	ta.Placeholder = "Type a message..."

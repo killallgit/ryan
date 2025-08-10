@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"github.com/killallgit/ryan/pkg/stream"
+	"github.com/killallgit/ryan/pkg/stream/core"
 )
 
 // Agent defines the interface for interacting with agents
@@ -13,7 +13,7 @@ type Agent interface {
 	Execute(ctx context.Context, prompt string) (string, error)
 
 	// ExecuteStream handles a request with streaming response
-	ExecuteStream(ctx context.Context, prompt string, handler stream.Handler) error
+	ExecuteStream(ctx context.Context, prompt string, handler core.Handler) error
 
 	// ClearMemory clears the conversation memory
 	ClearMemory() error

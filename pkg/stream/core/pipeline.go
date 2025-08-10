@@ -1,4 +1,4 @@
-package stream
+package core
 
 // Pipeline wraps a Handler with processing middleware
 type Pipeline struct {

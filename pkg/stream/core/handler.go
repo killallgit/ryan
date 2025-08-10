@@ -1,4 +1,4 @@
-package stream
+package core
 
 // Handler is the core interface for handling streaming responses
 // This provides a unified contract for all streaming implementations

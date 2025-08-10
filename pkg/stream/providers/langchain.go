@@ -1,9 +1,10 @@
-package stream
+package providers
 
 import (
 	"context"
 	"strings"
 
+	"github.com/killallgit/ryan/pkg/stream/core"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -20,15 +21,15 @@ func NewLangChainSource(llm llms.Model) *LangChainSource {
 }
 
 // Stream initiates a streaming response with a single prompt
-func (l *LangChainSource) Stream(ctx context.Context, prompt string, handler Handler) error {
-	messages := []Message{
+func (l *LangChainSource) Stream(ctx context.Context, prompt string, handler core.Handler) error {
+	messages := []core.Message{
 		{Role: "user", Content: prompt},
 	}
 	return l.StreamWithHistory(ctx, messages, handler)
 }
 
 // StreamWithHistory streams with conversation history using real LangChain streaming
-func (l *LangChainSource) StreamWithHistory(ctx context.Context, messages []Message, handler Handler) error {
+func (l *LangChainSource) StreamWithHistory(ctx context.Context, messages []core.Message, handler core.Handler) error {
 	// Convert messages to LangChain format
 	llmMessages := make([]llms.MessageContent, 0, len(messages))
 	for _, msg := range messages {
@@ -86,4 +87,4 @@ func (l *LangChainSource) StreamWithHistory(ctx context.Context, messages []Mess
 }
 
 // Ensure LangChainSource implements Source
-var _ Source = (*LangChainSource)(nil)
+var _ core.Source = (*LangChainSource)(nil)
