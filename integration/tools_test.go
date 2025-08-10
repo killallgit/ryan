@@ -7,9 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/tools"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,25 +141,11 @@ func TestToolsWithPermissions(t *testing.T) {
 }
 
 func TestToolsWithSkipPermissions(t *testing.T) {
-	// Initialize config first
-	setupViperForTest(t)
-
-	// Set skip permissions flag
-	viper.Set("skip_permissions", true)
-	defer func() {
-		viper.Set("skip_permissions", false)
-		config.Load() // Reload config to clear skip flag
-	}()
-
-	// Reload config to apply skip permissions
-	err := config.Load()
-	require.NoError(t, err)
-
 	tempDir := t.TempDir()
 
 	t.Run("All operations allowed with skip flag", func(t *testing.T) {
-		// FileRead - any file should work
-		tool := tools.NewFileReadTool()
+		// FileRead - any file should work with bypass enabled
+		tool := tools.NewFileReadToolWithBypass(true)
 		ctx := context.Background()
 
 		testFile := filepath.Join(tempDir, "any.xyz")
@@ -172,8 +156,8 @@ func TestToolsWithSkipPermissions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "content", result)
 
-		// FileWrite - any path should work
-		writeTool := tools.NewFileWriteTool()
+		// FileWrite - any path should work with bypass enabled
+		writeTool := tools.NewFileWriteToolWithBypass(true)
 		writePath := filepath.Join(tempDir, "anywhere.txt")
 		input := writePath + ":::content"
 
@@ -181,8 +165,8 @@ func TestToolsWithSkipPermissions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Contains(t, result, "Successfully wrote")
 
-		// Git - any command should work (may fail for other reasons)
-		gitTool := tools.NewGitTool()
+		// Git - any command should work with bypass enabled (may fail for other reasons)
+		gitTool := tools.NewGitToolWithBypass(true)
 		_, err = gitTool.Call(ctx, "push --force")
 		// Should not be permission denied
 		if err != nil {

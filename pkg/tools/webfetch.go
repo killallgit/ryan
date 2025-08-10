@@ -19,8 +19,13 @@ type WebFetchTool struct {
 
 // NewWebFetchTool creates a new web fetch tool
 func NewWebFetchTool() *WebFetchTool {
+	return NewWebFetchToolWithBypass(false)
+}
+
+// NewWebFetchToolWithBypass creates a new web fetch tool with optional permission bypass
+func NewWebFetchToolWithBypass(bypass bool) *WebFetchTool {
 	return &WebFetchTool{
-		SecuredTool: NewSecuredTool(),
+		SecuredTool: NewSecuredToolWithBypass(bypass),
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 			// Disable following redirects automatically to check permissions

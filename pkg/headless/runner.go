@@ -31,12 +31,17 @@ type runConfig struct {
 
 // newRunner creates a new headless runner with injected agent
 func newRunner(agent agent.Agent) (*runner, error) {
+	return newRunnerWithOptions(agent, false)
+}
+
+// newRunnerWithOptions creates a new headless runner with injected agent and options
+func newRunnerWithOptions(agent agent.Agent, continueHistory bool) (*runner, error) {
 	// Setup configuration using config helper
 	settings := config.Get()
 	cfg := &runConfig{
 		historyPath:     config.BuildSettingsPath("chat_history.json"),
 		showThinking:    settings.ShowThinking,
-		continueHistory: settings.Continue,
+		continueHistory: continueHistory,
 	}
 
 	// Create chat manager

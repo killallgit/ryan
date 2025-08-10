@@ -45,10 +45,25 @@ type ExecutorAgent struct {
 }
 
 // NewExecutorAgent creates a new executor-based agent with an injected LLM
+// By default, creates a new session (no continuation)
 func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
+	// Generate a unique session ID for new conversations
+	// This ensures each agent has its own isolated memory
+	sessionID := fmt.Sprintf("session_%d", time.Now().UnixNano())
+	logger.Debug("Created new session ID: %s", sessionID)
+
+	return NewExecutorAgentWithSession(llm, sessionID)
+}
+
+// NewExecutorAgentWithContinue creates a new executor-based agent with continuation support
+func NewExecutorAgentWithContinue(llm llms.Model, continueHistory bool) (*ExecutorAgent, error) {
+	return NewExecutorAgentWithOptions(llm, continueHistory, false)
+}
+
+// NewExecutorAgentWithOptions creates a new executor-based agent with full options
+func NewExecutorAgentWithOptions(llm llms.Model, continueHistory, skipPermissions bool) (*ExecutorAgent, error) {
 	var sessionID string
-	settings := config.Get()
-	if settings.Continue {
+	if continueHistory {
 		// Use a consistent session ID per project to maintain conversation context
 		// This allows continuing conversations across ryan invocations
 		sessionID = "default_project_session"
@@ -60,11 +75,16 @@ func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
 		logger.Debug("Created new session ID: %s", sessionID)
 	}
 
-	return NewExecutorAgentWithSession(llm, sessionID)
+	return NewExecutorAgentWithSessionAndOptions(llm, sessionID, skipPermissions)
 }
 
 // NewExecutorAgentWithSession creates a new executor-based agent with a specific session ID
 func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAgent, error) {
+	return NewExecutorAgentWithSessionAndOptions(llm, sessionID, false)
+}
+
+// NewExecutorAgentWithSessionAndOptions creates a new executor-based agent with a specific session ID and options
+func NewExecutorAgentWithSessionAndOptions(llm llms.Model, sessionID string, skipPermissions bool) (*ExecutorAgent, error) {
 	logger.Info("Initializing ExecutorAgent with session: %s", sessionID)
 
 	mem, err := memory.New(sessionID)
@@ -86,29 +106,29 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 
 		// Add file tools
 		if settings.Tools.File.Read.Enabled {
-			agentTools = append(agentTools, ryantools.NewFileReadTool())
+			agentTools = append(agentTools, ryantools.NewFileReadToolWithBypass(skipPermissions))
 			logger.Debug("Added FileReadTool")
 		}
 		if settings.Tools.File.Write.Enabled {
-			agentTools = append(agentTools, ryantools.NewFileWriteTool())
+			agentTools = append(agentTools, ryantools.NewFileWriteToolWithBypass(skipPermissions))
 			logger.Debug("Added FileWriteTool")
 		}
 
 		// Add git tool
 		if settings.Tools.Git.Enabled {
-			agentTools = append(agentTools, ryantools.NewGitTool())
+			agentTools = append(agentTools, ryantools.NewGitToolWithBypass(skipPermissions))
 			logger.Debug("Added GitTool")
 		}
 
 		// Add search tool
 		if settings.Tools.Search.Enabled {
-			agentTools = append(agentTools, ryantools.NewRipgrepTool())
+			agentTools = append(agentTools, ryantools.NewRipgrepToolWithBypass(skipPermissions))
 			logger.Debug("Added RipgrepTool")
 		}
 
 		// Add web fetch tool
 		if settings.Tools.Web.Enabled {
-			agentTools = append(agentTools, ryantools.NewWebFetchTool())
+			agentTools = append(agentTools, ryantools.NewWebFetchToolWithBypass(skipPermissions))
 			logger.Debug("Added WebFetchTool")
 		}
 

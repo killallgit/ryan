@@ -19,8 +19,13 @@ type RipgrepTool struct {
 
 // NewRipgrepTool creates a new ripgrep tool
 func NewRipgrepTool() *RipgrepTool {
+	return NewRipgrepToolWithBypass(false)
+}
+
+// NewRipgrepToolWithBypass creates a new ripgrep tool with optional permission bypass
+func NewRipgrepToolWithBypass(bypass bool) *RipgrepTool {
 	return &RipgrepTool{
-		SecuredTool: NewSecuredTool(),
+		SecuredTool: NewSecuredToolWithBypass(bypass),
 		timeout:     30 * time.Second,
 		maxResults:  1000,
 		maxFileSize: "50M",

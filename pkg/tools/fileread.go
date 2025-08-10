@@ -16,8 +16,13 @@ type FileReadTool struct {
 
 // NewFileReadTool creates a new file read tool
 func NewFileReadTool() *FileReadTool {
+	return NewFileReadToolWithBypass(false)
+}
+
+// NewFileReadToolWithBypass creates a new file read tool with optional permission bypass
+func NewFileReadToolWithBypass(bypass bool) *FileReadTool {
 	return &FileReadTool{
-		SecuredTool: NewSecuredTool(),
+		SecuredTool: NewSecuredToolWithBypass(bypass),
 	}
 }
 

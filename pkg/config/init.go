@@ -75,12 +75,8 @@ type Settings struct {
 		}
 	}
 
-	// Runtime flags (transient, not persisted)
-	Prompt          string
-	Headless        bool
-	Continue        bool
-	SkipPermissions bool
-	ConfigFile      string
+	// ConfigFile stores the path to the config file used
+	ConfigFile string
 }
 
 // Global settings instance
@@ -218,56 +214,29 @@ func Load() error {
 	Global.VectorStore.Retrieval.K = viper.GetInt("vectorstore.retrieval.k")
 	Global.VectorStore.Retrieval.ScoreThreshold = float32(viper.GetFloat64("vectorstore.retrieval.score_threshold"))
 
-	// Runtime flags
-	Global.Prompt = viper.GetString("prompt")
-	Global.Headless = viper.GetBool("headless")
-	Global.Continue = viper.GetBool("continue")
-	Global.SkipPermissions = viper.GetBool("skip_permissions")
-
 	return nil
 }
 
-// RefreshConfig refreshes the configuration, clearing transient values
-func RefreshConfig(promptValue string, headlessMode bool, continueHistory bool) error {
-	// Clear transient flags that shouldn't be persisted
-	viper.Set("prompt", "")
-	viper.Set("headless", false)
-	viper.Set("continue", false)
+// WriteDefaultConfig writes default configuration values to disk, preserving existing settings
+func WriteDefaultConfig() error {
+	if Global.ConfigFile == "" {
+		return fmt.Errorf("config file path not set")
+	}
 
 	// Ensure config directory exists
-	dirFromCfgFile := filepath.Dir(Global.ConfigFile)
-	if _, err := os.Stat(dirFromCfgFile); os.IsNotExist(err) {
-		if err := os.MkdirAll(dirFromCfgFile, 0755); err != nil {
+	configDir := filepath.Dir(Global.ConfigFile)
+	if _, err := os.Stat(configDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(configDir, 0755); err != nil {
 			return fmt.Errorf("failed to create config directory: %w", err)
 		}
 	}
 
-	// Write config without transient values
+	// Write current configuration to file (preserves existing + adds defaults)
 	if err := viper.WriteConfigAs(Global.ConfigFile); err != nil {
 		return fmt.Errorf("error writing config: %w", err)
 	}
 
-	// Only restore prompt value if running in headless mode
-	// In TUI mode, prompt should not be used
-	if headlessMode {
-		viper.Set("prompt", promptValue)
-		Global.Prompt = promptValue
-	}
-	viper.Set("headless", headlessMode)
-	viper.Set("continue", continueHistory)
-
-	Global.Headless = headlessMode
-	Global.Continue = continueHistory
-
 	return nil
-}
-
-// SetTransientValues sets transient runtime values
-func SetTransientValues(prompt string, headless, continueHistory, skipPermissions bool) {
-	Global.Prompt = prompt
-	Global.Headless = headless
-	Global.Continue = continueHistory
-	Global.SkipPermissions = skipPermissions
 }
 
 // Get returns the global settings instance

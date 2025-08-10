@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/killallgit/ryan/pkg/config"
 )
 
 // PermissionManager handles tool access control based on configured patterns
@@ -18,10 +16,14 @@ type PermissionManager struct {
 
 // NewPermissionManager creates a new permission manager from settings
 func NewPermissionManager() *PermissionManager {
-	settings := config.Get()
+	return NewPermissionManagerWithBypass(false)
+}
+
+// NewPermissionManagerWithBypass creates a new permission manager with optional bypass
+func NewPermissionManagerWithBypass(bypass bool) *PermissionManager {
 	return &PermissionManager{
 		allowedPatterns: loadPermissions(),
-		bypassEnabled:   settings.SkipPermissions,
+		bypassEnabled:   bypass,
 	}
 }
 

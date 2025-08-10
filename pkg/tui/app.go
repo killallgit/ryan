@@ -16,11 +16,14 @@ import (
 )
 
 func RunTUI(agent agent.Agent) error {
+	return RunTUIWithOptions(agent, false)
+}
+
+func RunTUIWithOptions(agent agent.Agent, continueHistory bool) error {
 	ctx := context.Background()
 
 	// Get configuration for chat history using config helper
 	historyPath := config.BuildSettingsPath("chat_history.json")
-	continueHistory := config.Global.Continue
 
 	// Create chat manager for history management
 	chatManager, err := chatpkg.NewManager(historyPath)

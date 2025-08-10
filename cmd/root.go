@@ -22,20 +22,11 @@ var rootCmd = &cobra.Command{
 	Short: "Claude's friend",
 	Long:  `Open source Claude Code alternative.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Save transient values before refreshing config
-		promptValue := viper.GetString("prompt")
-		headlessMode := viper.GetBool("headless")
-		continueHistory := viper.GetBool("continue")
-		skipPermissions := viper.GetBool("skip_permissions")
-
-		// Set transient values in config
-		config.SetTransientValues(promptValue, headlessMode, continueHistory, skipPermissions)
-
-		// Refresh config (this will clear and restore transient values)
-		if err := config.RefreshConfig(promptValue, headlessMode, continueHistory); err != nil {
-			fmt.Fprintf(os.Stderr, "Error refreshing config: %v\n", err)
-			os.Exit(1)
-		}
+		// Get CLI arguments directly from cobra flags
+		promptValue, _ := cmd.Flags().GetString("prompt")
+		headlessMode, _ := cmd.Flags().GetBool("headless")
+		continueHistory, _ := cmd.Flags().GetBool("continue")
+		skipPermissions, _ := cmd.Flags().GetBool("skip-permissions")
 
 		// Initialize logger
 		if err := logger.Init(); err != nil {
@@ -52,7 +43,8 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Create the executor agent once, to be used by both modes
-		executorAgent, err := agent.NewExecutorAgent(llm)
+		// Pass skipPermissions to the agent creation
+		executorAgent, err := createExecutorAgent(llm, continueHistory, skipPermissions)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating executor agent: %v\n", err)
 			os.Exit(1)
@@ -60,13 +52,10 @@ var rootCmd = &cobra.Command{
 		defer executorAgent.Close()
 
 		// Check if running in headless mode
-		if config.Global.Headless {
-			runHeadless(executorAgent)
+		if headlessMode {
+			runHeadless(executorAgent, promptValue, continueHistory)
 		} else {
-			if err := tui.RunTUI(executorAgent); err != nil {
-				fmt.Printf("Error: %v\n", err)
-				os.Exit(1)
-			}
+			runTUI(executorAgent, continueHistory)
 		}
 	},
 }
@@ -90,16 +79,27 @@ func createLLM() (llms.Model, error) {
 	}
 }
 
-func runHeadless(executorAgent agent.Agent) {
-	// Get the prompt from config
-	prompt := config.Global.Prompt
+// createExecutorAgent creates an executor agent with the given configuration
+func createExecutorAgent(llm llms.Model, continueHistory, skipPermissions bool) (agent.Agent, error) {
+	return agent.NewExecutorAgentWithOptions(llm, continueHistory, skipPermissions)
+}
+
+func runHeadless(executorAgent agent.Agent, prompt string, continueHistory bool) {
+	// Use provided prompt or default
 	if prompt == "" {
 		prompt = "hello"
 	}
 
 	// Simply run the headless mode - no terminal manipulation needed
-	if err := headless.RunHeadless(executorAgent, prompt); err != nil {
+	if err := headless.RunHeadlessWithOptions(executorAgent, prompt, continueHistory); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func runTUI(executorAgent agent.Agent, continueHistory bool) {
+	if err := tui.RunTUIWithOptions(executorAgent, continueHistory); err != nil {
+		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -122,17 +122,11 @@ func init() {
 	rootCmd.PersistentFlags().Bool("persist", false, "persist system logs across sessions")
 	viper.BindPFlag("logging.persist", rootCmd.PersistentFlags().Lookup("persist"))
 
+	// CLI-only flags (not stored in configuration)
 	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")
-	viper.BindPFlag("continue", rootCmd.PersistentFlags().Lookup("continue"))
-
 	rootCmd.PersistentFlags().StringP("prompt", "p", "", "execute a prompt directly without entering TUI")
-	viper.BindPFlag("prompt", rootCmd.PersistentFlags().Lookup("prompt"))
-
 	rootCmd.PersistentFlags().BoolP("headless", "H", false, "run without TUI (requires --prompt)")
-	viper.BindPFlag("headless", rootCmd.PersistentFlags().Lookup("headless"))
-
 	rootCmd.PersistentFlags().Bool("skip-permissions", false, "skip all ACL permission checks for tools")
-	viper.BindPFlag("skip_permissions", rootCmd.PersistentFlags().Lookup("skip-permissions"))
 }
 
 func initConfig() {
