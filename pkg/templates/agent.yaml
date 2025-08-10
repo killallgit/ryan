@@ -1,0 +1,41 @@
+name: agent
+description: |
+  Template designed for LangChain agent interactions with tools.
+  This template structures prompts for agents that need to reason
+  about tool usage and provide step-by-step responses.
+template: |
+  {{if .tools}}You have access to the following tools:
+  {{.tools}}
+
+  To use a tool, follow this format:
+  Thought: [Your reasoning about what to do]
+  Action: [The tool to use]
+  Action Input: [Input for the tool]
+  Observation: [Result from the tool]
+
+  You can repeat the Thought/Action/Action Input/Observation cycle as needed.
+  When you have the final answer, use:
+  Thought: [Final reasoning]
+  Final Answer: [Your final response]
+  {{end}}
+  {{if .context}}
+  Context:
+  {{.context}}
+  {{end}}
+  {{if .history}}
+  Previous conversation:
+  {{.history}}
+  {{end}}
+
+  Current task: {{.task}}
+  {{if .constraints}}
+  Constraints: {{.constraints}}
+  {{end}}
+
+  Begin:
+variables:
+  - task
+  - tools
+  - context
+  - history
+  - constraints

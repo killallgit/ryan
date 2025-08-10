@@ -1,0 +1,40 @@
+name: generic
+description: |
+  A flexible, general-purpose prompt template that can be customized
+  for various tasks. This template demonstrates all available features
+  and serves as both a practical tool and a self-documenting example.
+template: |
+  {{if .system_prompt}}System: {{.system_prompt}}{{end}}
+  {{if .context}}
+  Context:
+  {{.context}}
+  {{end}}
+  {{if .instructions}}
+  Instructions: {{.instructions}}
+  {{end}}
+  {{if .examples}}
+  Examples:
+  {{.examples}}
+  {{end}}
+  {{if .constraints}}
+  Constraints: {{.constraints}}
+  {{end}}
+
+  Task: {{.task}}
+  {{if .input}}
+  Input: {{.input}}
+  {{end}}
+  {{if .format}}
+  Expected Format: {{.format}}
+  {{end}}
+
+  Response:
+variables:
+  - task
+  - system_prompt
+  - context
+  - instructions
+  - examples
+  - constraints
+  - input
+  - format

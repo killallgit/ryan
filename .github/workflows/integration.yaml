@@ -1,6 +1,37 @@
 name: Integration Tests
 
+# This workflow runs integration tests following industry standard practices:
+# - On every pull request to main branch
+# - On pushes to main branch
+# - On a nightly schedule for comprehensive testing
+# - Manually via workflow_dispatch for debugging
+#
+# The workflow uses a lightweight model (smollm2:135m) by default for speed,
+# but can be configured to use larger models via manual dispatch.
+
 on:
+  # Run on all pull requests
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+  # Run on pushes to main branch
+  push:
+    branches: [main]
+    paths:
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'integration/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/integration.yaml'
+
+  # Nightly runs for comprehensive testing
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+
+  # Manual trigger for debugging and custom model testing
   workflow_dispatch:
     inputs:
       model:
@@ -13,6 +44,11 @@ on:
           - smollm2:360m
           - qwen2.5:0.5b
           - tinyllama:1.1b
+      verbose:
+        description: 'Enable verbose test output'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   integration:
@@ -56,9 +92,26 @@ jobs:
             exit 1
           fi
 
+      - name: Determine Test Model
+        id: model
+        run: |
+          # Use different models based on trigger type
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            # Use a more comprehensive model for nightly runs
+            MODEL="qwen2.5:0.5b"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Use the user-specified model
+            MODEL="${{ github.event.inputs.model || 'smollm2:135m' }}"
+          else
+            # Use lightweight model for PR/push tests
+            MODEL="smollm2:135m"
+          fi
+          echo "model=$MODEL" >> $GITHUB_OUTPUT
+          echo "Selected model: $MODEL for event: ${{ github.event_name }}"
+
       - name: Pull Ollama Model
         run: |
-          MODEL="${{ github.event.inputs.model || 'smollm2:135m' }}"
+          MODEL="${{ steps.model.outputs.model }}"
           echo "Pulling model: $MODEL"
 
           # Pull the model
@@ -80,20 +133,60 @@ jobs:
       - name: Run Integration Tests
         env:
           OLLAMA_HOST: http://localhost:11434
-          OLLAMA_DEFAULT_MODEL: ${{ github.event.inputs.model || 'smollm2:135m' }}
+          OLLAMA_DEFAULT_MODEL: ${{ steps.model.outputs.model }}
           OLLAMA_URL: http://localhost:11434
         run: |
-          MODEL="${{ github.event.inputs.model || 'smollm2:135m' }}"
+          MODEL="${{ steps.model.outputs.model }}"
           echo "Running integration tests with OLLAMA_HOST=$OLLAMA_HOST"
           echo "Using model: $MODEL"
-          go test -v -count=1 -timeout=5m ./integration/...
+          echo "Event type: ${{ github.event_name }}"
+
+          # Set verbose flag if requested
+          VERBOSE_FLAG=""
+          if [[ "${{ github.event.inputs.verbose }}" == "true" ]]; then
+            VERBOSE_FLAG="-v"
+            echo "Verbose mode enabled"
+          fi
+
+          # Run tests with appropriate timeout based on trigger
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            # Longer timeout for nightly runs
+            TIMEOUT="10m"
+          else
+            TIMEOUT="5m"
+          fi
+
+          echo "Test timeout: $TIMEOUT"
+          go test $VERBOSE_FLAG -count=1 -timeout=$TIMEOUT ./integration/...
 
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ github.run_number }}
           path: |
             coverage/
             *.log
             integration/*.log
+
+      - name: Generate Test Summary
+        if: always()
+        run: |
+          echo "## Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** ${{ steps.model.outputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ **Status:** All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- Ollama Host: http://localhost:11434" >> $GITHUB_STEP_SUMMARY
+          echo "- Test Timeout: ${{ github.event_name == 'schedule' && '10m' || '5m' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Verbose Output: ${{ github.event.inputs.verbose || 'false' }}" >> $GITHUB_STEP_SUMMARY

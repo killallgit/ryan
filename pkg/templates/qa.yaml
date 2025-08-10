@@ -1,0 +1,9 @@
+name: qa
+template: |
+  Answer the following question concisely and accurately:
+
+  Question: {{.question}}
+
+  Answer:
+variables:
+  - question

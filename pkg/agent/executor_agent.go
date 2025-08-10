@@ -9,6 +9,7 @@ import (
 	"github.com/killallgit/ryan/pkg/embeddings"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/memory"
+	"github.com/killallgit/ryan/pkg/prompt"
 	"github.com/killallgit/ryan/pkg/retrieval"
 	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/tokens"
@@ -37,6 +38,9 @@ type ExecutorAgent struct {
 	vectorStore vectorstore.VectorStore
 	retriever   *retrieval.Retriever
 	augmenter   *retrieval.Augmenter
+
+	// Prompt template for formatting inputs
+	promptTemplate prompt.Template
 }
 
 // NewExecutorAgent creates a new executor-based agent with an injected LLM
@@ -194,7 +198,7 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	tokenCounter, err := tokens.NewTokenCounter(modelName)
 	if err != nil {
 		// Don't fail if token counter can't be initialized, just log warning
-		fmt.Printf("Warning: Could not initialize token counter: %v\n", err)
+		logger.Warn("Could not initialize token counter: %v", err)
 		tokenCounter = nil
 	}
 
@@ -216,11 +220,23 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, error) {
 	logger.Debug("Execute called with prompt: %s", prompt)
 
-	// Augment prompt with retrieved context if RAG is enabled
+	// Format prompt using template if configured
 	actualPrompt := prompt
+	if e.promptTemplate != nil {
+		formatted, err := e.FormatPrompt(prompt, nil)
+		if err != nil {
+			// Log but continue with original prompt
+			logger.Warn("Could not format prompt with template: %v", err)
+		} else {
+			actualPrompt = formatted
+			logger.Debug("Prompt formatted with template")
+		}
+	}
+
+	// Augment prompt with retrieved context if RAG is enabled
 	if e.augmenter != nil && viper.GetBool("vectorstore.retrieval.enabled") {
 		logger.Debug("Attempting to augment prompt with RAG")
-		augmented, err := e.augmenter.AugmentPrompt(ctx, prompt)
+		augmented, err := e.augmenter.AugmentPrompt(ctx, actualPrompt)
 		if err != nil {
 			// Log but don't fail - continue without augmentation
 			logger.Warn("Could not augment prompt: %v", err)
@@ -298,11 +314,23 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler stream.Handler) error {
 	logger.Debug("ExecuteStream called with prompt: %s", prompt)
 
-	// Augment prompt with retrieved context if RAG is enabled
+	// Format prompt using template if configured
 	actualPrompt := prompt
+	if e.promptTemplate != nil {
+		formatted, err := e.FormatPrompt(prompt, nil)
+		if err != nil {
+			// Log but continue with original prompt
+			logger.Warn("Could not format prompt with template: %v", err)
+		} else {
+			actualPrompt = formatted
+			logger.Debug("Prompt formatted with template")
+		}
+	}
+
+	// Augment prompt with retrieved context if RAG is enabled
 	if e.augmenter != nil && viper.GetBool("vectorstore.retrieval.enabled") {
 		logger.Debug("Attempting to augment prompt with RAG (streaming)")
-		augmented, err := e.augmenter.AugmentPrompt(ctx, prompt)
+		augmented, err := e.augmenter.AugmentPrompt(ctx, actualPrompt)
 		if err != nil {
 			// Log but don't fail - continue without augmentation
 			logger.Warn("Could not augment prompt: %v", err)
@@ -496,4 +524,34 @@ func (e *ExecutorAgent) GetVectorStore() vectorstore.VectorStore {
 // GetRetriever returns the retriever instance
 func (e *ExecutorAgent) GetRetriever() *retrieval.Retriever {
 	return e.retriever
+}
+
+// SetPromptTemplate sets a custom prompt template for the agent
+func (e *ExecutorAgent) SetPromptTemplate(template prompt.Template) {
+	e.promptTemplate = template
+}
+
+// GetPromptTemplate returns the current prompt template
+func (e *ExecutorAgent) GetPromptTemplate() prompt.Template {
+	return e.promptTemplate
+}
+
+// FormatPrompt formats the input using the configured prompt template
+func (e *ExecutorAgent) FormatPrompt(input string, additionalVars map[string]any) (string, error) {
+	if e.promptTemplate == nil {
+		// No template configured, return input as-is
+		return input, nil
+	}
+
+	// Create variables map with the input
+	vars := make(map[string]any)
+	vars["input"] = input
+
+	// Add any additional variables
+	for k, v := range additionalVars {
+		vars[k] = v
+	}
+
+	// Format the prompt
+	return e.promptTemplate.Format(vars)
 }

@@ -1,0 +1,16 @@
+{
+  "name": "generic_chat",
+  "description": "A flexible chat template for conversational AI interactions",
+  "messages": [
+    {
+      "role": "system",
+      "template": "{{if .role}}You are {{.role}}.{{end}} {{if .capabilities}}Your capabilities include: {{.capabilities}}.{{end}} {{if .instructions}}{{.instructions}}{{end}} {{if .constraints}}Constraints: {{.constraints}}{{end}}",
+      "variables": ["role", "capabilities", "instructions", "constraints"]
+    },
+    {
+      "role": "human",
+      "template": "{{if .context}}Context: {{.context}}\n\n{{end}}{{.message}}",
+      "variables": ["message", "context"]
+    }
+  ]
+}

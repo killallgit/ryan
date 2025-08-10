@@ -1,1 +1,1 @@
-- Status bar process icons for tokens and tools: <arrow_up|arrow_down|hammer|thinking> for sending / receiving tokens, and the hammer for tool usage, and the thinking emoji for in-between states
+- Scaffold a secondary view model for managing and pulling models. This view will be accessed via a "slash command" 
