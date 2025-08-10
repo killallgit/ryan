@@ -250,7 +250,7 @@ func setupEnvForOllama() []string {
 	}
 
 	// Ensure OLLAMA_HOST is in the environment for the command
-	// This will override the config file's ollama.url setting
+	// OLLAMA_HOST is now the only source for ollama endpoint configuration
 	found := false
 	for _, envVar := range env {
 		if strings.HasPrefix(envVar, "OLLAMA_HOST=") {
