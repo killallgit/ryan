@@ -168,3 +168,23 @@ func (e *OllamaEmbedder) Close() error {
 	// HTTP client doesn't need explicit closing
 	return nil
 }
+
+// NewOllamaEmbedderForTesting creates a new Ollama embedder for integration tests.
+// This version PANICS if OLLAMA_HOST is not set and no endpoint is provided.
+// This ensures integration tests don't accidentally fall back to localhost.
+//
+// Use this function in integration tests where OLLAMA_HOST must be set.
+// Use NewOllamaEmbedder for production code where fallback to localhost is acceptable.
+func NewOllamaEmbedderForTesting(config OllamaConfig) (*OllamaEmbedder, error) {
+	if config.Endpoint == "" {
+		// In testing, we REQUIRE OLLAMA_HOST to be set
+		ollamaHost := os.Getenv("OLLAMA_HOST")
+		if ollamaHost == "" {
+			panic("OLLAMA_HOST environment variable MUST be set for integration tests - no fallback allowed")
+		}
+		config.Endpoint = ollamaHost
+	}
+
+	// Use the regular constructor once we have an endpoint
+	return NewOllamaEmbedder(config)
+}
