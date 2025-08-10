@@ -14,6 +14,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// isLangChainCompatibleModel checks if the configured model is known to work well with LangChain agents
+func isLangChainCompatibleModel() bool {
+	model := os.Getenv("OLLAMA_DEFAULT_MODEL")
+	if model == "" {
+		model = "qwen3:latest" // default
+	}
+
+	// Small models that are known to have issues with LangChain agent parsing
+	incompatibleModels := []string{
+		"smollm2:135m",
+		"smollm2:360m",
+		"tinyllama:1.1b",
+	}
+
+	for _, incompatible := range incompatibleModels {
+		if model == incompatible {
+			return false
+		}
+	}
+
+	return true
+}
+
 // setupViperForTest initializes viper configuration for tests
 func setupViperForTest(t *testing.T) {
 	// Initialize config package first
@@ -53,6 +76,12 @@ func TestAgentInterface(t *testing.T) {
 	}
 
 	t.Run("Agent responds to basic prompts", func(t *testing.T) {
+		// Skip if using model incompatible with LangChain agents
+		if !isLangChainCompatibleModel() {
+			t.Skipf("Skipping agent test: model %s may not be compatible with LangChain agent parsing",
+				os.Getenv("OLLAMA_DEFAULT_MODEL"))
+		}
+
 		// Setup viper configuration
 		setupViperForTest(t)
 
@@ -78,6 +107,12 @@ func TestAgentInterface(t *testing.T) {
 	})
 
 	t.Run("Agent handles math questions", func(t *testing.T) {
+		// Skip if using model incompatible with LangChain agents
+		if !isLangChainCompatibleModel() {
+			t.Skipf("Skipping agent test: model %s may not be compatible with LangChain agent parsing",
+				os.Getenv("OLLAMA_DEFAULT_MODEL"))
+		}
+
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
 		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
@@ -124,6 +159,12 @@ func TestAgentInterface(t *testing.T) {
 	})
 
 	t.Run("Agent can clear memory", func(t *testing.T) {
+		// Skip if using model incompatible with LangChain agents
+		if !isLangChainCompatibleModel() {
+			t.Skipf("Skipping agent test: model %s may not be compatible with LangChain agent parsing",
+				os.Getenv("OLLAMA_DEFAULT_MODEL"))
+		}
+
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
 		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
@@ -177,6 +218,12 @@ func TestAgentStreaming(t *testing.T) {
 	}
 
 	t.Run("Agent can stream responses", func(t *testing.T) {
+		// Skip if using model incompatible with LangChain agents
+		if !isLangChainCompatibleModel() {
+			t.Skipf("Skipping agent test: model %s may not be compatible with LangChain agent parsing",
+				os.Getenv("OLLAMA_DEFAULT_MODEL"))
+		}
+
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
 		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)

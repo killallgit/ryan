@@ -37,12 +37,13 @@ on:
       model:
         description: 'Ollama model to use for testing'
         required: false
-        default: 'qwen2.5:0.5b'
+        default: 'qwen3:latest'
         type: choice
         options:
+          - qwen3:latest
+          - qwen2.5:0.5b
           - smollm2:135m
           - smollm2:360m
-          - qwen2.5:0.5b
           - tinyllama:1.1b
       verbose:
         description: 'Enable verbose test output'
@@ -101,10 +102,10 @@ jobs:
             MODEL="qwen2.5:0.5b"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             # Use the user-specified model
-            MODEL="${{ github.event.inputs.model || 'qwen2.5:0.5b' }}"
+            MODEL="${{ github.event.inputs.model || 'qwen3:latest' }}"
           else
-            # Use qwen2.5:0.5b for PR/push tests - small enough for CI but capable of LangChain agent interactions
-            MODEL="qwen2.5:0.5b"
+            # Use qwen3:latest for PR/push tests - proven to work with LangChain agent interactions
+            MODEL="qwen3:latest"
           fi
           echo "model=$MODEL" >> $GITHUB_OUTPUT
           echo "Selected model: $MODEL for event: ${{ github.event_name }}"
