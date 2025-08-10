@@ -22,6 +22,7 @@ func isLangChainCompatibleModel() bool {
 	}
 
 	// Small models that are known to have issues with LangChain agent parsing
+	// qwen2.5 models (0.5b and above) should work with tool calling
 	incompatibleModels := []string{
 		"smollm2:135m",
 		"smollm2:360m",
@@ -54,6 +55,12 @@ func setupViperForTest(t *testing.T) {
 	}
 	viper.Set("ollama.default_model", testModel)
 	viper.Set("ollama.timeout", 90)
+
+	// Use environment variable for embedding model if set (for CI)
+	embeddingModel := os.Getenv("OLLAMA_EMBEDDING_MODEL")
+	if embeddingModel != "" {
+		viper.Set("vectorstore.embedding.model", embeddingModel)
+	}
 	viper.Set("langchain.memory_type", "window")
 	viper.Set("langchain.memory_window_size", 10)
 	viper.Set("langchain.tools.max_iterations", 10)
