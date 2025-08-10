@@ -106,7 +106,8 @@ jobs:
             # Use the user-specified model
             MODEL="${{ github.event.inputs.model || 'qwen2.5:3b' }}"
           else
-            # Use qwen2.5:3b for PR/push tests - small (1.9GB), fast, and supports tool calling
+            # Use qwen2.5:3b for PR/push tests - smaller and faster
+            # Some agent-specific tests will be skipped for this model
             MODEL="qwen2.5:3b"
           fi
           echo "model=$MODEL" >> $GITHUB_OUTPUT

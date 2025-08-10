@@ -42,8 +42,8 @@ func NewOllamaEmbedder(config OllamaConfig) (*OllamaEmbedder, error) {
 	}
 
 	if config.Model == "" {
-		// Check OLLAMA_DEFAULT_MODEL for embedding model override
-		if ollamaModel := os.Getenv("OLLAMA_EMBED_MODEL"); ollamaModel != "" {
+		// Check OLLAMA_EMBEDDING_MODEL for embedding model override
+		if ollamaModel := os.Getenv("OLLAMA_EMBEDDING_MODEL"); ollamaModel != "" {
 			config.Model = ollamaModel
 		} else {
 			config.Model = "nomic-embed-text"
@@ -187,8 +187,8 @@ func NewOllamaEmbedderForTesting(config OllamaConfig) (*OllamaEmbedder, error) {
 	// Now create the embedder directly without going through NewOllamaEmbedder
 	// to avoid any fallback logic
 	if config.Model == "" {
-		// Check OLLAMA_DEFAULT_MODEL for embedding model override
-		if ollamaModel := os.Getenv("OLLAMA_EMBED_MODEL"); ollamaModel != "" {
+		// Check OLLAMA_EMBEDDING_MODEL for embedding model override
+		if ollamaModel := os.Getenv("OLLAMA_EMBEDDING_MODEL"); ollamaModel != "" {
 			config.Model = ollamaModel
 		} else {
 			config.Model = "nomic-embed-text"

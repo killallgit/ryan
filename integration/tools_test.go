@@ -87,12 +87,14 @@ func TestToolsWithPermissions(t *testing.T) {
 		// Clean up
 		os.Remove(allowedPath)
 
-		// Test blocked path
-		blockedPath := filepath.Join(tempDir, "blocked.txt")
+		// Test blocked path (outside /tmp)
+		blockedPath := "/etc/passwd"
 		input = blockedPath + ":::blocked content"
 		_, err = tool.Call(ctx, input)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "permission denied")
+		assert.Error(t, err, "Should error on blocked path")
+		if err != nil {
+			assert.Contains(t, err.Error(), "permission denied")
+		}
 	})
 
 	// Test GitTool

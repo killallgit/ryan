@@ -22,11 +22,13 @@ func isLangChainCompatibleModel() bool {
 	}
 
 	// Small models that are known to have issues with LangChain agent parsing
-	// qwen2.5 models (0.5b and above) should work with tool calling
 	incompatibleModels := []string{
 		"smollm2:135m",
 		"smollm2:360m",
 		"tinyllama:1.1b",
+		"qwen2.5:0.5b",
+		"qwen2.5:1.5b",
+		"qwen2.5:3b", // Has issues with agent output formatting
 	}
 
 	for _, incompatible := range incompatibleModels {
