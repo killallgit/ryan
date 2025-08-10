@@ -10,14 +10,6 @@
   - Fixed teatest hanging issue with proper model termination wrapper
   - Achieved 50% code coverage for status bar package
 
-- **Centralized Configuration System** - Consolidated all configuration into a single global Settings object
-  - Created `pkg/config/init.go` with strongly-typed configuration structure
-  - Migrated all Viper defaults and settings to centralized package
-  - Removed scattered `viper.Get*()` calls throughout the codebase
-  - Global `config.Get()` function provides type-safe access to all settings
-  - Improved test initialization with proper config setup
-  - Environment variable support maintained (OLLAMA_HOST, OLLAMA_DEFAULT_MODEL)
-  - Configuration is decoupled from UI modes and loaded upfront for better testability
 - **Comprehensive Debug Logging** - Enhanced logging throughout the application for better debugging and monitoring
   - Added debug logging to agent initialization, tool setup, and RAG components
   - Added logging to Ollama client connection and model initialization
