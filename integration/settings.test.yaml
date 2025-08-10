@@ -3,6 +3,8 @@ langchain:
 
 ollama:
   # url is now loaded from OLLAMA_HOST environment variable
+  # default_model will be loaded from OLLAMA_DEFAULT_MODEL environment variable
+  # This fallback is only used if neither environment variable nor viper override is set
   default_model: qwen3:latest
   timeout: 90
 

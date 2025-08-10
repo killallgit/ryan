@@ -23,7 +23,13 @@ func setupViperForTest(t *testing.T) {
 
 	// Set test-specific overrides
 	viper.Set("provider", "ollama")
-	viper.Set("ollama.default_model", "qwen3:latest")
+
+	// Use OLLAMA_DEFAULT_MODEL environment variable if set, otherwise default to qwen3:latest
+	testModel := os.Getenv("OLLAMA_DEFAULT_MODEL")
+	if testModel == "" {
+		testModel = "qwen3:latest"
+	}
+	viper.Set("ollama.default_model", testModel)
 	viper.Set("ollama.timeout", 90)
 	viper.Set("langchain.memory_type", "window")
 	viper.Set("langchain.memory_window_size", 10)

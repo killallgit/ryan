@@ -37,7 +37,7 @@ on:
       model:
         description: 'Ollama model to use for testing'
         required: false
-        default: 'smollm2:135m'
+        default: 'qwen2.5:0.5b'
         type: choice
         options:
           - smollm2:135m
@@ -101,10 +101,10 @@ jobs:
             MODEL="qwen2.5:0.5b"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             # Use the user-specified model
-            MODEL="${{ github.event.inputs.model || 'smollm2:135m' }}"
+            MODEL="${{ github.event.inputs.model || 'qwen2.5:0.5b' }}"
           else
-            # Use lightweight model for PR/push tests
-            MODEL="smollm2:135m"
+            # Use qwen2.5:0.5b for PR/push tests - small enough for CI but capable of LangChain agent interactions
+            MODEL="qwen2.5:0.5b"
           fi
           echo "model=$MODEL" >> $GITHUB_OUTPUT
           echo "Selected model: $MODEL for event: ${{ github.event_name }}"
