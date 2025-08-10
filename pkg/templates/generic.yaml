@@ -1,0 +1,73 @@
+name: generic
+description: |
+  A flexible, general-purpose prompt template that can be customized
+  for various tasks. This template demonstrates all available features
+  and serves as both a practical tool and a self-documenting example.
+template: |
+  {{if .system_prompt}}System: {{.system_prompt}}{{end}}
+  {{if .context}}
+  Context:
+  {{.context}}
+  {{end}}
+  {{if .instructions}}
+  Instructions: {{.instructions}}
+  {{end}}
+  {{if .examples}}
+  Examples:
+  {{.examples}}
+  {{end}}
+  {{if .constraints}}
+  Constraints: {{.constraints}}
+  {{end}}
+
+  Task: {{.task}}
+  {{if .input}}
+  Input: {{.input}}
+  {{end}}
+  {{if .format}}
+  Expected Format: {{.format}}
+  {{end}}
+
+  Response:
+variables:
+  - name: task
+    type: string
+    required: true
+    description: The main task or question to be addressed
+  - name: system_prompt
+    type: string
+    required: false
+    description: Optional system-level context or role definition
+  - name: context
+    type: string
+    required: false
+    description: Additional context or background information
+  - name: instructions
+    type: string
+    required: false
+    description: Specific instructions for completing the task
+  - name: examples
+    type: string
+    required: false
+    description: Example inputs/outputs to guide the response
+  - name: constraints
+    type: string
+    required: false
+    description: Any limitations or requirements for the response
+  - name: input
+    type: string
+    required: false
+    description: The specific input data to process
+  - name: format
+    type: string
+    required: false
+    description: Expected output format (e.g., JSON, markdown, list)
+metadata:
+  version: "1.0"
+  author: "Ryan AI System"
+  use_cases:
+    - "Code generation with specific requirements"
+    - "Question answering with context"
+    - "Data transformation tasks"
+    - "Analysis and summarization"
+    - "Creative writing with constraints"

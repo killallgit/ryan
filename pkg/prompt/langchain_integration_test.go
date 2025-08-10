@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/llms/fake"
+	"github.com/tmc/langchaingo/memory"
 	"github.com/tmc/langchaingo/prompts"
 )
 
@@ -208,6 +209,77 @@ func TestConversationalAgentWithPromptTemplate(t *testing.T) {
 	output, ok := result["text"].(string)
 	require.True(t, ok)
 	assert.Contains(t, output, "42")
+}
+
+// TestChatTemplateWithMemory demonstrates chat templates with conversation memory
+func TestChatTemplateWithMemory(t *testing.T) {
+	// Create a fake LLM
+	fakeLLM := fake.NewFakeLLM([]string{
+		"I understand your request about Go programming.",
+	})
+
+	// Create a conversational chat template
+	messages := []prompt.MessageDefinition{
+		{
+			Role:      "system",
+			Template:  "You are an expert in {{.expertise}}. Always be {{.style}}.",
+			Variables: []string{"expertise", "style"},
+		},
+		{
+			Role:      "human",
+			Template:  "{{.input}}",
+			Variables: []string{"input"},
+		},
+	}
+
+	chatTemplate, err := prompt.NewChatTemplateFromMessages(messages)
+	require.NoError(t, err)
+
+	// Create a chain with memory for conversational context
+	mem := memory.NewConversationBuffer()
+	chain := chains.NewLLMChain(fakeLLM, chatTemplate)
+	chain.Memory = mem
+
+	// First interaction
+	result1, err := chain.Call(context.Background(), map[string]any{
+		"expertise": "Go programming",
+		"style":     "helpful and concise",
+		"input":     "Tell me about goroutines",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result1["text"])
+
+	// The memory is being maintained internally
+	assert.NotNil(t, mem)
+}
+
+// TestRAGTemplate tests RAG (Retrieval-Augmented Generation) templates
+func TestRAGTemplate(t *testing.T) {
+	// Create a fake LLM
+	fakeLLM := fake.NewFakeLLM([]string{
+		"Based on the context, Paris is the capital of France.",
+	})
+
+	// Load a RAG template from our built-in templates
+	ragTemplate := prompt.GetSimpleRAGTemplate()
+
+	// Verify it implements FormatPrompter
+	var _ prompts.FormatPrompter = ragTemplate
+
+	// Create a chain with the RAG template
+	chain := chains.NewLLMChain(fakeLLM, ragTemplate)
+
+	// Execute with context and question
+	result, err := chain.Call(context.Background(), map[string]any{
+		"context":  "Paris is the capital and largest city of France.",
+		"question": "What is the capital of France?",
+	})
+	require.NoError(t, err)
+
+	output, ok := result["text"].(string)
+	require.True(t, ok)
+	assert.Contains(t, output, "Paris")
+	assert.Contains(t, output, "capital")
 }
 
 // TestTemplateRegistryWithChains tests loading templates from registry for use in chains

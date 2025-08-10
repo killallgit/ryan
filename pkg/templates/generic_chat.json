@@ -1,0 +1,43 @@
+{
+  "name": "generic_chat",
+  "description": "A flexible chat template for conversational AI interactions with customizable system prompts and conversation flow",
+  "messages": [
+    {
+      "role": "system",
+      "template": "{{if .role}}You are {{.role}}.{{end}} {{if .capabilities}}Your capabilities include: {{.capabilities}}.{{end}} {{if .instructions}}{{.instructions}}{{end}} {{if .constraints}}Constraints: {{.constraints}}{{end}}",
+      "variables": ["role", "capabilities", "instructions", "constraints"],
+      "optional": ["role", "capabilities", "instructions", "constraints"]
+    },
+    {
+      "role": "assistant",
+      "template": "{{if .greeting}}{{.greeting}}{{else}}Hello! I'm ready to assist you. How can I help today?{{end}}",
+      "variables": ["greeting"],
+      "optional": ["greeting"]
+    },
+    {
+      "role": "human",
+      "template": "{{if .context}}Context: {{.context}}\n\n{{end}}{{.message}}",
+      "variables": ["message", "context"],
+      "optional": ["context"]
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "use_cases": [
+      "Customer support conversations",
+      "Educational tutoring sessions",
+      "Code review and assistance",
+      "General Q&A interactions",
+      "Task-oriented dialogues"
+    ],
+    "example_variables": {
+      "role": "a helpful coding assistant",
+      "capabilities": "code review, debugging, testing, refactoring",
+      "instructions": "Always explain your reasoning and provide examples where helpful.",
+      "constraints": "Keep responses concise and focused on the task.",
+      "greeting": "Hello! I'm your coding assistant. What would you like to work on today?",
+      "context": "Working on a Go project using LangChain",
+      "message": "How do I create a custom prompt template?"
+    }
+  }
+}
