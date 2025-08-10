@@ -10,6 +10,7 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/tui"
+	"github.com/killallgit/ryan/pkg/vectorstore"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/llms"
@@ -135,6 +136,9 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
+	// Set vector store configuration defaults
+	vectorstore.SetDefaults()
+
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", ".ryan/settings.yaml", "config file (default is .ryan/settings.yaml)")
 
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level")
@@ -163,18 +167,30 @@ func init() {
 	viper.SetDefault("logging.persist", false)
 	viper.SetDefault("logging.level", "info")
 
-	viper.SetDefault("vectorstore.enabled", true)
+	// Vector store configuration
+	viper.SetDefault("vectorstore.enabled", false)
 	viper.SetDefault("vectorstore.provider", "chromem")
-	viper.SetDefault("vectorstore.persistence_dir", "vectorstore")
-	viper.SetDefault("vectorstore.enable_persistence", true)
-	viper.SetDefault("vectorstore.embedder.provider", "ollama")
-	viper.SetDefault("vectorstore.embedder.model", "nomic-embed-text")
-	viper.SetDefault("vectorstore.embedder.base_url", "http://localhost:11434")
-	viper.SetDefault("vectorstore.embedder.api_key", "")
+	viper.SetDefault("vectorstore.collection.name", "default")
 
-	viper.SetDefault("vectorstore.indexer.chunk_size", 1000)
-	viper.SetDefault("vectorstore.indexer.chunk_overlap", 200)
-	viper.SetDefault("vectorstore.indexer.auto_index", false)
+	// Persistence configuration
+	viper.SetDefault("vectorstore.persistence.enabled", false)
+	viper.SetDefault("vectorstore.persistence.path", "./data/vectors")
+
+	// Embedding configuration
+	viper.SetDefault("vectorstore.embedding.provider", "ollama")
+	viper.SetDefault("vectorstore.embedding.model", "nomic-embed-text")
+	viper.SetDefault("vectorstore.embedding.endpoint", "http://localhost:11434")
+	viper.SetDefault("vectorstore.embedding.api_key", "")
+
+	// Retrieval configuration
+	viper.SetDefault("vectorstore.retrieval.enabled", true)
+	viper.SetDefault("vectorstore.retrieval.k", 4)
+	viper.SetDefault("vectorstore.retrieval.score_threshold", 0.0)
+	viper.SetDefault("vectorstore.retrieval.max_context_length", 4000)
+
+	// Document processing configuration
+	viper.SetDefault("vectorstore.document.chunk_size", 1000)
+	viper.SetDefault("vectorstore.document.chunk_overlap", 200)
 
 	viper.SetDefault("langchain.memory_type", "window")
 	viper.SetDefault("langchain.memory_window_size", 10)
