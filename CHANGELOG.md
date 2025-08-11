@@ -3,6 +3,15 @@
 ## [Unreleased]
 
 ### Added
+- **Orchestrator Testing Framework** - Comprehensive testing infrastructure for multi-agent orchestrator system
+  - Mock LLM with configurable responses, intent analysis, and behavior simulation
+  - Mock agents with tool calling simulation, failure rates, and retry logic
+  - Scenario-based test utilities with fluent builders for complex multi-agent workflows
+  - Comprehensive assertions library for routing, tool calls, status, and execution flow validation
+  - 25+ test scenarios covering simple, complex, failure, performance, and regression cases
+  - Support for partial success behaviors and infinite loop detection for max iteration testing
+  - Smart tool call simulation based on instruction content (file operations, bash commands, git operations)
+  - Intent analysis with keyword-based classification for test scenario routing
 - **TUI Testing with teatest** - Implemented golden file testing for Bubble Tea components
   - Added teatest from github.com/charmbracelet/x/exp/teatest for TUI testing
   - Created comprehensive test suite for status bar component with golden file snapshots

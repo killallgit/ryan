@@ -50,6 +50,10 @@ type Settings struct {
 		Git    struct{ Enabled bool }
 		Search struct{ Enabled bool }
 		Web    struct{ Enabled bool }
+		Bash   struct {
+			Enabled bool
+			Timeout int
+		}
 	}
 
 	// Vector store configuration
@@ -147,6 +151,8 @@ func setDefaults() {
 	viper.SetDefault("tools.git.enabled", true)
 	viper.SetDefault("tools.search.enabled", true)
 	viper.SetDefault("tools.web.enabled", true)
+	viper.SetDefault("tools.bash.enabled", true)
+	viper.SetDefault("tools.bash.timeout", 30)
 
 	// Vector store defaults
 	viper.SetDefault("vectorstore.enabled", false)
@@ -189,6 +195,8 @@ func Load() error {
 	Global.Tools.Git.Enabled = viper.GetBool("tools.git.enabled")
 	Global.Tools.Search.Enabled = viper.GetBool("tools.search.enabled")
 	Global.Tools.Web.Enabled = viper.GetBool("tools.web.enabled")
+	Global.Tools.Bash.Enabled = viper.GetBool("tools.bash.enabled")
+	Global.Tools.Bash.Timeout = viper.GetInt("tools.bash.timeout")
 
 	// Vector store settings
 	Global.VectorStore.Enabled = viper.GetBool("vectorstore.enabled")

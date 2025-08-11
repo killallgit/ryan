@@ -1,0 +1,101 @@
+{
+  "tool_caller_responses": [
+    {
+      "agent_type": "tool_caller",
+      "response": "Successfully executed bash command: ls\n\nfile1.go\nfile2.go\nREADME.md",
+      "status": "success",
+      "tools_called": [
+        {
+          "name": "bash",
+          "arguments": {"command": "ls"},
+          "result": "file1.go\nfile2.go\nREADME.md"
+        }
+      ]
+    },
+    {
+      "agent_type": "tool_caller",
+      "response": "File read successfully:\n\n```json\n{\"name\": \"test-project\", \"version\": \"1.0.0\"}\n```",
+      "status": "success",
+      "tools_called": [
+        {
+          "name": "file_read",
+          "arguments": {"path": "package.json"},
+          "result": "{\"name\": \"test-project\", \"version\": \"1.0.0\"}"
+        }
+      ]
+    },
+    {
+      "agent_type": "tool_caller",
+      "response": "Error: Command failed with exit code 1",
+      "status": "failed",
+      "error": "bash command execution failed"
+    }
+  ],
+  "code_gen_responses": [
+    {
+      "agent_type": "code_gen",
+      "response": "```go\npackage main\n\nimport \"fmt\"\n\nfunc reverseString(s string) string {\n\trunes := []rune(s)\n\tfor i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {\n\t\trunes[i], runes[j] = runes[j], runes[i]\n\t}\n\treturn string(runes)\n}\n\nfunc main() {\n\tfmt.Println(reverseString(\"hello\"))\n}\n```",
+      "status": "success"
+    },
+    {
+      "agent_type": "code_gen",
+      "response": "```go\npackage main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n)\n\nfunc handler(w http.ResponseWriter, r *http.Request) {\n\tfmt.Fprintf(w, \"Hello, World!\")\n}\n\nfunc main() {\n\thttp.HandleFunc(\"/\", handler)\n\tfmt.Println(\"Server starting on :8080\")\n\thttp.ListenAndServe(\":8080\", nil)\n}\n```",
+      "status": "success"
+    }
+  ],
+  "reasoner_responses": [
+    {
+      "agent_type": "reasoner",
+      "response": "Recursion is a programming technique where a function calls itself to solve a smaller version of the same problem. Here's how it works:\n\n1. **Base Case**: A condition that stops the recursion\n2. **Recursive Case**: The function calls itself with modified parameters\n3. **Progress**: Each recursive call should move closer to the base case\n\nExample: Calculating factorial\n- factorial(5) calls factorial(4)\n- factorial(4) calls factorial(3)\n- And so on until factorial(1) returns 1\n\nRecursion is useful for problems with recursive structure like trees, graphs, and mathematical sequences.",
+      "status": "success"
+    },
+    {
+      "agent_type": "reasoner",
+      "response": "I need more context to help you debug this error. Could you please provide:\n\n1. The complete error message\n2. The code that's causing the error\n3. What you were trying to accomplish\n4. Your development environment details\n\nWith this information, I can provide specific guidance on resolving the issue.",
+      "status": "success"
+    }
+  ],
+  "searcher_responses": [
+    {
+      "agent_type": "searcher",
+      "response": "Found the following Go files in the project:\n\n- main.go (entry point)\n- pkg/agent/executor_agent.go (agent implementation)\n- pkg/orchestrator/orchestrator.go (orchestrator logic)\n- cmd/root.go (CLI commands)\n- integration/agent_test.go (integration tests)\n\nTotal: 5 Go files found",
+      "status": "success"
+    },
+    {
+      "agent_type": "searcher",
+      "response": "Found main function in the following locations:\n\n1. **main.go:15** - Application entry point\n   ```go\n   func main() {\n       cmd.Execute()\n   }\n   ```\n\n2. **examples/simple.go:10** - Example code\n   ```go\n   func main() {\n       fmt.Println(\"Hello, World!\")\n   }\n   ```",
+      "status": "success"
+    }
+  ],
+  "planner_responses": [
+    {
+      "agent_type": "planner",
+      "response": "Here's a plan to create a new Go module with a main function:\n\n## Step 1: Initialize Module\n- Create a new directory for the project\n- Run `go mod init <module-name>` to initialize the Go module\n\n## Step 2: Create Main File\n- Create main.go file\n- Add package main declaration\n- Implement main function with basic functionality\n\n## Step 3: Test and Validate\n- Run `go build` to ensure compilation\n- Run `go run main.go` to test execution\n- Add any necessary dependencies\n\nShall I proceed with implementing these steps?",
+      "status": "success",
+      "next_action": {
+        "target_agent": "tool_caller",
+        "instruction": "Execute the planned steps to create Go module",
+        "expected_output": "json"
+      }
+    }
+  ],
+  "error_responses": [
+    {
+      "agent_type": "tool_caller",
+      "response": "",
+      "status": "failed",
+      "error": "Permission denied: cannot execute command"
+    },
+    {
+      "agent_type": "code_gen",
+      "response": "",
+      "status": "failed",
+      "error": "Unable to generate code: insufficient context"
+    },
+    {
+      "agent_type": "reasoner",
+      "response": "I apologize, but I couldn't process that request.",
+      "status": "partial"
+    }
+  ]
+}

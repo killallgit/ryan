@@ -1,0 +1,146 @@
+{
+  "tool_use_intents": [
+    {
+      "query": "list files in directory",
+      "type": "tool_use",
+      "confidence": 0.9,
+      "required_capabilities": ["bash", "file"]
+    },
+    {
+      "query": "run npm install",
+      "type": "tool_use",
+      "confidence": 0.95,
+      "required_capabilities": ["bash"]
+    },
+    {
+      "query": "search for TODO comments",
+      "type": "tool_use",
+      "confidence": 0.8,
+      "required_capabilities": ["search", "ripgrep"]
+    },
+    {
+      "query": "commit changes to git",
+      "type": "tool_use",
+      "confidence": 0.9,
+      "required_capabilities": ["git"]
+    }
+  ],
+  "code_generation_intents": [
+    {
+      "query": "write a function to reverse a string",
+      "type": "code_generation",
+      "confidence": 0.95,
+      "required_capabilities": ["coding"]
+    },
+    {
+      "query": "implement a binary search algorithm",
+      "type": "code_generation",
+      "confidence": 0.9,
+      "required_capabilities": ["coding", "algorithms"]
+    },
+    {
+      "query": "create a HTTP server in Go",
+      "type": "code_generation",
+      "confidence": 0.85,
+      "required_capabilities": ["coding", "go", "networking"]
+    },
+    {
+      "query": "refactor this function to use channels",
+      "type": "code_generation",
+      "confidence": 0.8,
+      "required_capabilities": ["coding", "refactoring", "go"]
+    }
+  ],
+  "reasoning_intents": [
+    {
+      "query": "explain how recursion works",
+      "type": "reasoning",
+      "confidence": 0.9,
+      "required_capabilities": ["explanation", "algorithms"]
+    },
+    {
+      "query": "what are the pros and cons of microservices",
+      "type": "reasoning",
+      "confidence": 0.85,
+      "required_capabilities": ["architecture", "analysis"]
+    },
+    {
+      "query": "help me debug this error message",
+      "type": "reasoning",
+      "confidence": 0.8,
+      "required_capabilities": ["debugging", "analysis"]
+    },
+    {
+      "query": "compare different sorting algorithms",
+      "type": "reasoning",
+      "confidence": 0.9,
+      "required_capabilities": ["comparison", "algorithms"]
+    }
+  ],
+  "search_intents": [
+    {
+      "query": "find all Go files in the project",
+      "type": "search",
+      "confidence": 0.95,
+      "required_capabilities": ["search", "file_system"]
+    },
+    {
+      "query": "locate the main function",
+      "type": "search",
+      "confidence": 0.9,
+      "required_capabilities": ["search", "code_analysis"]
+    },
+    {
+      "query": "show me all test files",
+      "type": "search",
+      "confidence": 0.9,
+      "required_capabilities": ["search", "testing"]
+    },
+    {
+      "query": "find where this variable is used",
+      "type": "search",
+      "confidence": 0.85,
+      "required_capabilities": ["search", "code_analysis"]
+    }
+  ],
+  "planning_intents": [
+    {
+      "query": "create a new microservice architecture",
+      "type": "planning",
+      "confidence": 0.9,
+      "required_capabilities": ["planning", "architecture", "decomposition"]
+    },
+    {
+      "query": "plan the implementation of user authentication",
+      "type": "planning",
+      "confidence": 0.85,
+      "required_capabilities": ["planning", "security", "design"]
+    },
+    {
+      "query": "break down this complex feature into tasks",
+      "type": "planning",
+      "confidence": 0.8,
+      "required_capabilities": ["planning", "decomposition"]
+    }
+  ],
+  "edge_cases": [
+    {
+      "query": "",
+      "type": "reasoning",
+      "confidence": 0.1,
+      "required_capabilities": ["general"]
+    },
+    {
+      "query": "xyzabc123 random string",
+      "type": "reasoning",
+      "confidence": 0.2,
+      "required_capabilities": ["general"]
+    },
+    {
+      "query": "a very long query that goes on and on and might test the limits of the intent analysis system with lots of words that don't really make sense together",
+      "type": "reasoning",
+      "confidence": 0.3,
+      "required_capabilities": ["general"]
+    }
+  ]
+}
