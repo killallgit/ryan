@@ -10,7 +10,6 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/stream/core"
 	"github.com/killallgit/ryan/pkg/tokens"
-	"github.com/spf13/viper"
 )
 
 // runner runs the chat in headless mode
@@ -32,11 +31,17 @@ type runConfig struct {
 
 // newRunner creates a new headless runner with injected agent
 func newRunner(agent agent.Agent) (*runner, error) {
+	return newRunnerWithOptions(agent, false)
+}
+
+// newRunnerWithOptions creates a new headless runner with injected agent and options
+func newRunnerWithOptions(agent agent.Agent, continueHistory bool) (*runner, error) {
 	// Setup configuration using config helper
+	settings := config.Get()
 	cfg := &runConfig{
 		historyPath:     config.BuildSettingsPath("chat_history.json"),
-		showThinking:    viper.GetBool("show_thinking"),
-		continueHistory: viper.GetBool("continue"),
+		showThinking:    settings.ShowThinking,
+		continueHistory: continueHistory,
 	}
 
 	// Create chat manager
@@ -70,8 +75,8 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 	}
 
 	// Initialize token counter (declare at function scope)
-	modelName := viper.GetString("ollama.default_model")
-	tokenCounter, err := tokens.NewTokenCounter(modelName)
+	settings := config.Get()
+	tokenCounter, err := tokens.NewTokenCounter(settings.Ollama.DefaultModel)
 	if err != nil {
 		// Log warning but continue
 		logger.Warn("Could not initialize token counter: %v", err)

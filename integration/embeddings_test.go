@@ -22,11 +22,19 @@ func TestOllamaEmbedderIntegration(t *testing.T) {
 		t.Skipf("Skipping test: Ollama is not available at %s", ollamaHost)
 	}
 
-	t.Run("Creates embedder with OLLAMA_HOST from environment", func(t *testing.T) {
-		// Create embedder with empty config - it MUST use OLLAMA_HOST
-		config := embeddings.OllamaConfig{}
+	t.Run("Creates embedder with explicit config", func(t *testing.T) {
+		// Create embedder with config using OLLAMA_HOST from environment
+		// Use OLLAMA_EMBEDDING_MODEL if set (for CI), otherwise use default
+		embeddingModel := os.Getenv("OLLAMA_EMBEDDING_MODEL")
+		if embeddingModel == "" {
+			embeddingModel = "nomic-embed-text"
+		}
+		config := embeddings.OllamaConfig{
+			Endpoint: ollamaHost,
+			Model:    embeddingModel,
+		}
 		embedder, err := embeddings.NewOllamaEmbedder(config)
-		require.NoError(t, err, "Should create embedder with OLLAMA_HOST from environment")
+		require.NoError(t, err, "Should create embedder with config")
 		require.NotNil(t, embedder)
 		defer embedder.Close()
 
@@ -41,9 +49,14 @@ func TestOllamaEmbedderIntegration(t *testing.T) {
 	t.Run("Explicit config overrides OLLAMA_HOST", func(t *testing.T) {
 		// When we provide explicit config, it should use that instead of env var
 		// But for integration tests, we'll use the actual OLLAMA_HOST value
+		// Use OLLAMA_EMBEDDING_MODEL if set (for CI), otherwise use default
+		embeddingModel := os.Getenv("OLLAMA_EMBEDDING_MODEL")
+		if embeddingModel == "" {
+			embeddingModel = "nomic-embed-text"
+		}
 		config := embeddings.OllamaConfig{
 			Endpoint: ollamaHost, // Use the actual host for testing
-			Model:    "nomic-embed-text",
+			Model:    embeddingModel,
 		}
 		embedder, err := embeddings.NewOllamaEmbedder(config)
 		require.NoError(t, err, "Should create embedder with explicit config")

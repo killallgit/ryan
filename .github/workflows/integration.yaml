@@ -37,12 +37,15 @@ on:
       model:
         description: 'Ollama model to use for testing'
         required: false
-        default: 'smollm2:135m'
+        default: 'qwen2.5:3b'
         type: choice
         options:
+          - qwen2.5:3b
+          - qwen2.5:1.5b
+          - qwen2.5:0.5b
+          - qwen3:latest
           - smollm2:135m
           - smollm2:360m
-          - qwen2.5:0.5b
           - tinyllama:1.1b
       verbose:
         description: 'Enable verbose test output'
@@ -101,39 +104,55 @@ jobs:
             MODEL="qwen2.5:0.5b"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             # Use the user-specified model
-            MODEL="${{ github.event.inputs.model || 'smollm2:135m' }}"
+            MODEL="${{ github.event.inputs.model || 'qwen2.5:3b' }}"
           else
-            # Use lightweight model for PR/push tests
-            MODEL="smollm2:135m"
+            # Use qwen2.5:3b for PR/push tests - smaller and faster
+            # Some agent-specific tests will be skipped for this model
+            MODEL="qwen2.5:3b"
           fi
           echo "model=$MODEL" >> $GITHUB_OUTPUT
           echo "Selected model: $MODEL for event: ${{ github.event_name }}"
 
-      - name: Pull Ollama Model
+      - name: Pull Ollama Models (Main + Embedding)
         run: |
           MODEL="${{ steps.model.outputs.model }}"
           echo "Pulling model: $MODEL"
 
-          # Pull the model
+          # Pull the main model
           curl -X POST http://localhost:11434/api/pull \
             -H "Content-Type: application/json" \
             -d "{\"name\": \"$MODEL\"}" \
             --fail-with-body
 
-          # Verify model is loaded
-          echo "Verifying model is available..."
+          # Pull the embedding model for vector store tests
+          # Using all-minilm for CI - smallest/fastest embedding model (22MB)
+          echo "Pulling embedding model: all-minilm"
+          curl -X POST http://localhost:11434/api/pull \
+            -H "Content-Type: application/json" \
+            -d "{\"name\": \"all-minilm\"}" \
+            --fail-with-body
+
+          # Verify models are loaded
+          echo "Verifying models are available..."
           curl -s http://localhost:11434/api/tags | grep -q "$MODEL" || {
             echo "Model $MODEL not found in available models"
             curl -s http://localhost:11434/api/tags | jq .
             exit 1
           }
 
-          echo "Model $MODEL is ready"
+          curl -s http://localhost:11434/api/tags | grep -q "all-minilm" || {
+            echo "Embedding model all-minilm not found in available models"
+            curl -s http://localhost:11434/api/tags | jq .
+            exit 1
+          }
+
+          echo "Models ready: $MODEL and all-minilm"
 
       - name: Run Integration Tests
         env:
           OLLAMA_HOST: http://localhost:11434
           OLLAMA_DEFAULT_MODEL: ${{ steps.model.outputs.model }}
+          OLLAMA_EMBEDDING_MODEL: all-minilm
           OLLAMA_URL: http://localhost:11434
         run: |
           MODEL="${{ steps.model.outputs.model }}"

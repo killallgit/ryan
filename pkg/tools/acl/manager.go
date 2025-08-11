@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/spf13/viper"
 )
 
 // PermissionManager handles tool access control based on configured patterns
@@ -18,9 +16,14 @@ type PermissionManager struct {
 
 // NewPermissionManager creates a new permission manager from settings
 func NewPermissionManager() *PermissionManager {
+	return NewPermissionManagerWithBypass(false)
+}
+
+// NewPermissionManagerWithBypass creates a new permission manager with optional bypass
+func NewPermissionManagerWithBypass(bypass bool) *PermissionManager {
 	return &PermissionManager{
 		allowedPatterns: loadPermissions(),
-		bypassEnabled:   viper.GetBool("skip_permissions"),
+		bypassEnabled:   bypass,
 	}
 }
 

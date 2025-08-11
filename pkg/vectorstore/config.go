@@ -2,10 +2,9 @@ package vectorstore
 
 import (
 	"fmt"
-	"os"
 
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/embeddings"
-	"github.com/spf13/viper"
 )
 
 // Config contains configuration for vector stores
@@ -38,46 +37,28 @@ type PersistenceConfig struct {
 	Path string
 }
 
-// LoadConfig loads vector store configuration from Viper
+// LoadConfig loads vector store configuration from global config
 func LoadConfig() Config {
+	settings := config.Get()
 	return Config{
-		Enabled:        viper.GetBool("vectorstore.enabled"),
-		Provider:       viper.GetString("vectorstore.provider"),
-		CollectionName: viper.GetString("vectorstore.collection.name"),
+		Enabled:        settings.VectorStore.Enabled,
+		Provider:       settings.VectorStore.Provider,
+		CollectionName: settings.VectorStore.Collection.Name,
 		Persistence: PersistenceConfig{
-			Enabled: viper.GetBool("vectorstore.persistence.enabled"),
-			Path:    viper.GetString("vectorstore.persistence.path"),
+			Enabled: settings.VectorStore.Persistence.Enabled,
+			Path:    settings.VectorStore.Persistence.Path,
 		},
 		Embedding: embeddings.Config{
-			Provider: viper.GetString("vectorstore.embedding.provider"),
-			Model:    viper.GetString("vectorstore.embedding.model"),
-			Endpoint: viper.GetString("vectorstore.embedding.endpoint"),
-			APIKey:   viper.GetString("vectorstore.embedding.api_key"),
+			Provider: settings.VectorStore.Embedding.Provider,
+			Model:    settings.VectorStore.Embedding.Model,
+			Endpoint: settings.VectorStore.Embedding.Endpoint,
+			APIKey:   settings.VectorStore.Embedding.APIKey,
 		},
 		Retrieval: RetrieverConfig{
-			K:              viper.GetInt("vectorstore.retrieval.k"),
-			ScoreThreshold: float32(viper.GetFloat64("vectorstore.retrieval.score_threshold")),
+			K:              settings.VectorStore.Retrieval.K,
+			ScoreThreshold: settings.VectorStore.Retrieval.ScoreThreshold,
 		},
 	}
-}
-
-// SetDefaults sets default configuration values
-func SetDefaults() {
-	viper.SetDefault("vectorstore.enabled", false)
-	viper.SetDefault("vectorstore.provider", "chromem")
-	viper.SetDefault("vectorstore.collection.name", "default")
-	viper.SetDefault("vectorstore.persistence.enabled", false)
-	viper.SetDefault("vectorstore.persistence.path", "./data/vectors")
-	viper.SetDefault("vectorstore.embedding.provider", "ollama")
-	viper.SetDefault("vectorstore.embedding.model", "nomic-embed-text")
-
-	// Use OLLAMA_HOST environment variable if set
-	if ollamaHost := os.Getenv("OLLAMA_HOST"); ollamaHost != "" {
-		viper.SetDefault("vectorstore.embedding.endpoint", ollamaHost)
-	}
-
-	viper.SetDefault("vectorstore.retrieval.k", 4)
-	viper.SetDefault("vectorstore.retrieval.score_threshold", 0.0)
 }
 
 // NewVectorStore creates a new vector store based on configuration

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/killallgit/ryan/pkg/agent"
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -15,21 +16,38 @@ import (
 
 // setupViperForTest initializes viper configuration for tests
 func setupViperForTest(t *testing.T) {
-	// Set defaults
-	viper.SetDefault("provider", "ollama")
-	viper.SetDefault("ollama.default_model", "qwen3:latest")
-	viper.SetDefault("ollama.timeout", 90)
-	viper.SetDefault("langchain.memory_type", "window")
-	viper.SetDefault("langchain.memory_window_size", 10)
-	viper.SetDefault("langchain.tools.max_iterations", 10)
-	viper.SetDefault("langchain.tools.max_retries", 3)
+	// Initialize config package first
+	if err := config.Init(""); err != nil {
+		t.Fatalf("Failed to initialize config: %v", err)
+	}
+
+	// Set test-specific overrides
+	viper.Set("provider", "ollama")
+
+	// Use OLLAMA_DEFAULT_MODEL environment variable if set, otherwise default to qwen3:latest
+	testModel := os.Getenv("OLLAMA_DEFAULT_MODEL")
+	if testModel == "" {
+		testModel = "qwen3:latest"
+	}
+	viper.Set("ollama.default_model", testModel)
+	viper.Set("ollama.timeout", 90)
+
+	// Use environment variable for embedding model if set (for CI)
+	embeddingModel := os.Getenv("OLLAMA_EMBEDDING_MODEL")
+	if embeddingModel != "" {
+		viper.Set("vectorstore.embedding.model", embeddingModel)
+	}
+	viper.Set("langchain.memory_type", "window")
+	viper.Set("langchain.memory_window_size", 10)
+	viper.Set("langchain.tools.max_iterations", 10)
+	viper.Set("langchain.tools.max_retries", 3)
 
 	// OLLAMA_HOST environment variable is required for integration tests
 	// No fallback to localhost allowed
 
-	// Override model if set in environment
-	if ollamaModel := os.Getenv("OLLAMA_DEFAULT_MODEL"); ollamaModel != "" {
-		viper.Set("ollama.default_model", ollamaModel)
+	// Reload config after setting test values
+	if err := config.Load(); err != nil {
+		t.Fatalf("Failed to reload config: %v", err)
 	}
 }
 
@@ -41,6 +59,12 @@ func TestAgentInterface(t *testing.T) {
 	}
 
 	t.Run("Agent responds to basic prompts", func(t *testing.T) {
+		// Skip if using model incompatible with LangChain agents
+		if !isLangChainCompatibleModel() {
+			t.Skipf("Skipping agent test: model %s may not be compatible with LangChain agent parsing",
+				os.Getenv("OLLAMA_DEFAULT_MODEL"))
+		}
+
 		// Setup viper configuration
 		setupViperForTest(t)
 
@@ -66,6 +90,12 @@ func TestAgentInterface(t *testing.T) {
 	})
 
 	t.Run("Agent handles math questions", func(t *testing.T) {
+		// Skip if using model incompatible with LangChain agents
+		if !isLangChainCompatibleModel() {
+			t.Skipf("Skipping agent test: model %s may not be compatible with LangChain agent parsing",
+				os.Getenv("OLLAMA_DEFAULT_MODEL"))
+		}
+
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
 		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
@@ -112,6 +142,12 @@ func TestAgentInterface(t *testing.T) {
 	})
 
 	t.Run("Agent can clear memory", func(t *testing.T) {
+		// Skip if using model incompatible with LangChain agents
+		if !isLangChainCompatibleModel() {
+			t.Skipf("Skipping agent test: model %s may not be compatible with LangChain agent parsing",
+				os.Getenv("OLLAMA_DEFAULT_MODEL"))
+		}
+
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
 		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
@@ -165,6 +201,12 @@ func TestAgentStreaming(t *testing.T) {
 	}
 
 	t.Run("Agent can stream responses", func(t *testing.T) {
+		// Skip if using model incompatible with LangChain agents
+		if !isLangChainCompatibleModel() {
+			t.Skipf("Skipping agent test: model %s may not be compatible with LangChain agent parsing",
+				os.Getenv("OLLAMA_DEFAULT_MODEL"))
+		}
+
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
 		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)

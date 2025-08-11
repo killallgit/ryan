@@ -17,8 +17,13 @@ type GitTool struct {
 
 // NewGitTool creates a new git tool
 func NewGitTool() *GitTool {
+	return NewGitToolWithBypass(false)
+}
+
+// NewGitToolWithBypass creates a new git tool with optional permission bypass
+func NewGitToolWithBypass(bypass bool) *GitTool {
 	return &GitTool{
-		SecuredTool: NewSecuredTool(),
+		SecuredTool: NewSecuredToolWithBypass(bypass),
 		timeout:     30 * time.Second,
 	}
 }

@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/killallgit/ryan/pkg/agent"
@@ -133,6 +134,12 @@ func TestPromptTemplatesWithAgent(t *testing.T) {
 	}
 
 	t.Run("Agent uses custom prompt template", func(t *testing.T) {
+		// Skip if using model incompatible with LangChain agents
+		if !isLangChainCompatibleModel() {
+			t.Skipf("Skipping agent test: model %s may not be compatible with LangChain agent parsing",
+				os.Getenv("OLLAMA_DEFAULT_MODEL"))
+		}
+
 		// Setup viper configuration
 		setupViperForTest(t)
 

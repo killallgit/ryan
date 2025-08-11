@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/killallgit/ryan/pkg/tools"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -88,12 +87,14 @@ func TestToolsWithPermissions(t *testing.T) {
 		// Clean up
 		os.Remove(allowedPath)
 
-		// Test blocked path
-		blockedPath := filepath.Join(tempDir, "blocked.txt")
+		// Test blocked path (outside /tmp)
+		blockedPath := "/etc/passwd"
 		input = blockedPath + ":::blocked content"
 		_, err = tool.Call(ctx, input)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "permission denied")
+		assert.Error(t, err, "Should error on blocked path")
+		if err != nil {
+			assert.Contains(t, err.Error(), "permission denied")
+		}
 	})
 
 	// Test GitTool
@@ -142,15 +143,11 @@ func TestToolsWithPermissions(t *testing.T) {
 }
 
 func TestToolsWithSkipPermissions(t *testing.T) {
-	// Set skip permissions flag
-	viper.Set("skip_permissions", true)
-	defer viper.Set("skip_permissions", false)
-
 	tempDir := t.TempDir()
 
 	t.Run("All operations allowed with skip flag", func(t *testing.T) {
-		// FileRead - any file should work
-		tool := tools.NewFileReadTool()
+		// FileRead - any file should work with bypass enabled
+		tool := tools.NewFileReadToolWithBypass(true)
 		ctx := context.Background()
 
 		testFile := filepath.Join(tempDir, "any.xyz")
@@ -161,8 +158,8 @@ func TestToolsWithSkipPermissions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "content", result)
 
-		// FileWrite - any path should work
-		writeTool := tools.NewFileWriteTool()
+		// FileWrite - any path should work with bypass enabled
+		writeTool := tools.NewFileWriteToolWithBypass(true)
 		writePath := filepath.Join(tempDir, "anywhere.txt")
 		input := writePath + ":::content"
 
@@ -170,8 +167,8 @@ func TestToolsWithSkipPermissions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Contains(t, result, "Successfully wrote")
 
-		// Git - any command should work (may fail for other reasons)
-		gitTool := tools.NewGitTool()
+		// Git - any command should work with bypass enabled (may fail for other reasons)
+		gitTool := tools.NewGitToolWithBypass(true)
 		_, err = gitTool.Call(ctx, "push --force")
 		// Should not be permission denied
 		if err != nil {

@@ -12,8 +12,13 @@ type SecuredTool struct {
 
 // NewSecuredTool creates a new secured tool with permission checking
 func NewSecuredTool() *SecuredTool {
+	return NewSecuredToolWithBypass(false)
+}
+
+// NewSecuredToolWithBypass creates a new secured tool with optional permission bypass
+func NewSecuredToolWithBypass(bypass bool) *SecuredTool {
 	return &SecuredTool{
-		permissionManager: acl.NewPermissionManager(),
+		permissionManager: acl.NewPermissionManagerWithBypass(bypass),
 	}
 }
 

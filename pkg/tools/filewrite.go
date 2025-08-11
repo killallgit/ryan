@@ -16,8 +16,13 @@ type FileWriteTool struct {
 
 // NewFileWriteTool creates a new file write tool
 func NewFileWriteTool() *FileWriteTool {
+	return NewFileWriteToolWithBypass(false)
+}
+
+// NewFileWriteToolWithBypass creates a new file write tool with optional permission bypass
+func NewFileWriteToolWithBypass(bypass bool) *FileWriteTool {
 	return &FileWriteTool{
-		SecuredTool: NewSecuredTool(),
+		SecuredTool: NewSecuredToolWithBypass(bypass),
 	}
 }
 

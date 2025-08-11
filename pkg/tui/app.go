@@ -13,15 +13,17 @@ import (
 	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/stream/tui"
 	"github.com/killallgit/ryan/pkg/tui/chat"
-	"github.com/spf13/viper"
 )
 
 func RunTUI(agent agent.Agent) error {
+	return RunTUIWithOptions(agent, false)
+}
+
+func RunTUIWithOptions(agent agent.Agent, continueHistory bool) error {
 	ctx := context.Background()
 
 	// Get configuration for chat history using config helper
 	historyPath := config.BuildSettingsPath("chat_history.json")
-	continueHistory := viper.GetBool("continue")
 
 	// Create chat manager for history management
 	chatManager, err := chatpkg.NewManager(historyPath)

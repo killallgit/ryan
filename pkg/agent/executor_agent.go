@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/embeddings"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/memory"
@@ -16,7 +17,6 @@ import (
 	"github.com/killallgit/ryan/pkg/tokens"
 	ryantools "github.com/killallgit/ryan/pkg/tools"
 	"github.com/killallgit/ryan/pkg/vectorstore"
-	"github.com/spf13/viper"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/llms"
 	lcmemory "github.com/tmc/langchaingo/memory"
@@ -45,9 +45,25 @@ type ExecutorAgent struct {
 }
 
 // NewExecutorAgent creates a new executor-based agent with an injected LLM
+// By default, creates a new session (no continuation)
 func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
+	// Generate a unique session ID for new conversations
+	// This ensures each agent has its own isolated memory
+	sessionID := fmt.Sprintf("session_%d", time.Now().UnixNano())
+	logger.Debug("Created new session ID: %s", sessionID)
+
+	return NewExecutorAgentWithSession(llm, sessionID)
+}
+
+// NewExecutorAgentWithContinue creates a new executor-based agent with continuation support
+func NewExecutorAgentWithContinue(llm llms.Model, continueHistory bool) (*ExecutorAgent, error) {
+	return NewExecutorAgentWithOptions(llm, continueHistory, false)
+}
+
+// NewExecutorAgentWithOptions creates a new executor-based agent with full options
+func NewExecutorAgentWithOptions(llm llms.Model, continueHistory, skipPermissions bool) (*ExecutorAgent, error) {
 	var sessionID string
-	if viper.GetBool("continue") {
+	if continueHistory {
 		// Use a consistent session ID per project to maintain conversation context
 		// This allows continuing conversations across ryan invocations
 		sessionID = "default_project_session"
@@ -59,11 +75,16 @@ func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
 		logger.Debug("Created new session ID: %s", sessionID)
 	}
 
-	return NewExecutorAgentWithSession(llm, sessionID)
+	return NewExecutorAgentWithSessionAndOptions(llm, sessionID, skipPermissions)
 }
 
 // NewExecutorAgentWithSession creates a new executor-based agent with a specific session ID
 func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAgent, error) {
+	return NewExecutorAgentWithSessionAndOptions(llm, sessionID, false)
+}
+
+// NewExecutorAgentWithSessionAndOptions creates a new executor-based agent with a specific session ID and options
+func NewExecutorAgentWithSessionAndOptions(llm llms.Model, sessionID string, skipPermissions bool) (*ExecutorAgent, error) {
 	logger.Info("Initializing ExecutorAgent with session: %s", sessionID)
 
 	mem, err := memory.New(sessionID)
@@ -76,35 +97,38 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	// Initialize tools with permission checking
 	agentTools := []tools.Tool{}
 
+	// Get configuration settings
+	settings := config.Get()
+
 	// Only add tools if enabled in config
-	if viper.GetBool("tools.enabled") {
+	if settings.Tools.Enabled {
 		logger.Debug("Tools are enabled, initializing available tools")
 
 		// Add file tools
-		if viper.GetBool("tools.file.read.enabled") {
-			agentTools = append(agentTools, ryantools.NewFileReadTool())
+		if settings.Tools.File.Read.Enabled {
+			agentTools = append(agentTools, ryantools.NewFileReadToolWithBypass(skipPermissions))
 			logger.Debug("Added FileReadTool")
 		}
-		if viper.GetBool("tools.file.write.enabled") {
-			agentTools = append(agentTools, ryantools.NewFileWriteTool())
+		if settings.Tools.File.Write.Enabled {
+			agentTools = append(agentTools, ryantools.NewFileWriteToolWithBypass(skipPermissions))
 			logger.Debug("Added FileWriteTool")
 		}
 
 		// Add git tool
-		if viper.GetBool("tools.git.enabled") {
-			agentTools = append(agentTools, ryantools.NewGitTool())
+		if settings.Tools.Git.Enabled {
+			agentTools = append(agentTools, ryantools.NewGitToolWithBypass(skipPermissions))
 			logger.Debug("Added GitTool")
 		}
 
 		// Add search tool
-		if viper.GetBool("tools.search.enabled") {
-			agentTools = append(agentTools, ryantools.NewRipgrepTool())
+		if settings.Tools.Search.Enabled {
+			agentTools = append(agentTools, ryantools.NewRipgrepToolWithBypass(skipPermissions))
 			logger.Debug("Added RipgrepTool")
 		}
 
 		// Add web fetch tool
-		if viper.GetBool("tools.web.enabled") {
-			agentTools = append(agentTools, ryantools.NewWebFetchTool())
+		if settings.Tools.Web.Enabled {
+			agentTools = append(agentTools, ryantools.NewWebFetchToolWithBypass(skipPermissions))
 			logger.Debug("Added WebFetchTool")
 		}
 
@@ -118,7 +142,7 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	var retriever *retrieval.Retriever
 	var augmenter *retrieval.Augmenter
 
-	if viper.GetBool("vectorstore.enabled") {
+	if settings.VectorStore.Enabled {
 		logger.Info("Vector store is enabled, initializing RAG components")
 
 		// Load vector store configuration
@@ -156,9 +180,9 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 
 				// Create augmenter
 				augmenter = retrieval.NewAugmenter(retriever, retrieval.AugmenterConfig{
-					MaxContextLength: viper.GetInt("vectorstore.retrieval.max_context_length"),
+					MaxContextLength: 4000, // TODO: Add to settings if needed
 				})
-				logger.Debug("Augmenter created with max context length: %d", viper.GetInt("vectorstore.retrieval.max_context_length"))
+				logger.Debug("Augmenter created with max context length: %d", 4000)
 
 				// Add retriever as a LangChain tool if available
 				if retriever != nil {
@@ -183,7 +207,7 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	)
 
 	// Create executor with options
-	maxIterations := viper.GetInt("langchain.tools.max_iterations")
+	maxIterations := settings.LangChain.Tools.MaxIterations
 	if maxIterations == 0 {
 		maxIterations = 10
 	}
@@ -195,7 +219,7 @@ func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAge
 	)
 
 	// Initialize token counter
-	modelName := viper.GetString("ollama.default_model")
+	modelName := settings.Ollama.DefaultModel
 	tokenCounter, err := tokens.NewTokenCounter(modelName)
 	if err != nil {
 		// Don't fail if token counter can't be initialized, just log warning
@@ -235,7 +259,8 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 	}
 
 	// Augment prompt with retrieved context if RAG is enabled
-	if e.augmenter != nil && viper.GetBool("vectorstore.retrieval.enabled") {
+	settings := config.Get()
+	if e.augmenter != nil && settings.VectorStore.Enabled {
 		logger.Debug("Attempting to augment prompt with RAG")
 		augmented, err := e.augmenter.AugmentPrompt(ctx, actualPrompt)
 		if err != nil {
@@ -329,7 +354,8 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 	}
 
 	// Augment prompt with retrieved context if RAG is enabled
-	if e.augmenter != nil && viper.GetBool("vectorstore.retrieval.enabled") {
+	settings := config.Get()
+	if e.augmenter != nil && settings.VectorStore.Enabled {
 		logger.Debug("Attempting to augment prompt with RAG (streaming)")
 		augmented, err := e.augmenter.AugmentPrompt(ctx, actualPrompt)
 		if err != nil {
