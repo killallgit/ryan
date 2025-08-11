@@ -32,7 +32,8 @@ func (fl *FeedbackLoop) Run(ctx context.Context, state *TaskState) (*TaskResult,
 	state.Status = StatusInProgress
 
 	for i := 0; i < fl.maxIterations; i++ {
-		logger.Debug("Feedback loop iteration %d/%d", i+1, fl.maxIterations)
+		logger.Info("🔄 Feedback loop iteration %d/%d", i+1, fl.maxIterations)
+		logger.Debug("📍 Current phase: %s, Status: %s", state.CurrentPhase, state.Status)
 
 		// Check context cancellation
 		select {
@@ -43,26 +44,30 @@ func (fl *FeedbackLoop) Run(ctx context.Context, state *TaskState) (*TaskResult,
 		}
 
 		// Get routing decision
+		logger.Debug("🎯 Getting next action for iteration %d", i+1)
 		decision, err := fl.getNextAction(ctx, state)
 		if err != nil {
-			logger.Error("Failed to get next action: %v", err)
+			logger.Error("❌ Failed to get next action: %v", err)
 			state.Status = StatusFailed
 			return fl.buildResult(state, startTime), err
 		}
 
 		// Check if task is complete
 		if decision == nil {
-			logger.Info("Task completed successfully")
+			logger.Info("✅ Task completed successfully - no more actions needed")
 			state.Status = StatusCompleted
 			state.CurrentPhase = PhaseComplete
 			return fl.buildResult(state, startTime), nil
 		}
 
+		logger.Info("🎯 Next action: execute with %s agent", decision.TargetAgent)
+
 		// Execute with selected agent
 		state.CurrentPhase = PhaseExecution
+		logger.Debug("⚙️ Executing with %s agent", decision.TargetAgent)
 		response, err := fl.executeWithAgent(ctx, decision, state)
 		if err != nil {
-			logger.Error("Agent execution failed: %v", err)
+			logger.Error("❌ Agent execution failed: %v", err)
 			errorStr := err.Error()
 			response = &AgentResponse{
 				AgentType: decision.TargetAgent,
@@ -70,6 +75,8 @@ func (fl *FeedbackLoop) Run(ctx context.Context, state *TaskState) (*TaskResult,
 				Error:     &errorStr,
 				Timestamp: time.Now(),
 			}
+		} else {
+			logger.Debug("✅ Agent execution completed with status: %s", response.Status)
 		}
 
 		// Add response to history

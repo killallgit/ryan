@@ -77,8 +77,12 @@ func (o *Orchestrator) Execute(ctx context.Context, query string) (*TaskResult, 
 
 // AnalyzeIntent determines the task type and required capabilities
 func (o *Orchestrator) AnalyzeIntent(ctx context.Context, query string) (*TaskIntent, error) {
+	logger.Debug("🧠 Analyzing intent for query: %s", query)
+
 	prompt := fmt.Sprintf(`Analyze the following user query and determine the task type and required capabilities.
-Respond in JSON format with the following structure:
+Respond ONLY with valid JSON, no other text or formatting.
+
+JSON structure required:
 {
   "type": "one of: tool_use, code_generation, reasoning, search, planning",
   "confidence": 0.0 to 1.0,
@@ -88,10 +92,14 @@ Respond in JSON format with the following structure:
 
 User Query: %s`, query)
 
+	logger.Debug("📝 Sending intent analysis prompt to LLM")
 	response, err := o.llm.Call(ctx, prompt)
 	if err != nil {
+		logger.Error("❌ LLM call failed for intent analysis: %v", err)
 		return nil, fmt.Errorf("failed to call LLM for intent analysis: %w", err)
 	}
+
+	logger.Debug("📋 LLM response received: %s", response)
 
 	var result struct {
 		Type                 string   `json:"type"`
@@ -101,31 +109,47 @@ User Query: %s`, query)
 	}
 
 	if err := json.Unmarshal([]byte(response), &result); err != nil {
-		logger.Warn("Failed to parse JSON response, falling back to defaults: %v", err)
+		logger.Warn("⚠️ Failed to parse JSON response, falling back to defaults: %v", err)
+		logger.Debug("📄 Raw response was: %s", response)
 		// Fallback to basic intent
-		return &TaskIntent{
+		fallbackIntent := &TaskIntent{
 			Type:                 "reasoning",
 			Confidence:           0.5,
 			RequiredCapabilities: []string{"general"},
-		}, nil
+		}
+		logger.Info("🎯 Intent analysis fallback: %+v", fallbackIntent)
+		return fallbackIntent, nil
 	}
 
-	return &TaskIntent{
+	intent := &TaskIntent{
 		Type:                 result.Type,
 		Confidence:           result.Confidence,
 		RequiredCapabilities: result.RequiredCapabilities,
-	}, nil
+	}
+
+	logger.Info("🎯 Intent analyzed: type=%s, confidence=%.2f, capabilities=%v",
+		intent.Type, intent.Confidence, intent.RequiredCapabilities)
+	if result.Reasoning != "" {
+		logger.Debug("💭 Reasoning: %s", result.Reasoning)
+	}
+
+	return intent, nil
 }
 
 // Route determines which agent should handle the task
 func (o *Orchestrator) Route(ctx context.Context, intent *TaskIntent, state *TaskState) (*RouteDecision, error) {
+	logger.Debug("🎯 Routing task based on intent: %s", intent.Type)
+
 	// Determine best agent based on intent
 	agentType := o.selectAgentForIntent(intent)
+	logger.Info("🤖 Selected agent: %s for intent type: %s", agentType, intent.Type)
 
 	// Check if agent is available
 	if !o.registry.HasAgent(agentType) {
+		logger.Error("❌ Agent %s is not available", agentType)
 		return nil, fmt.Errorf("no agent available for type: %s", agentType)
 	}
+	logger.Debug("✅ Agent %s is available", agentType)
 
 	// Create routing decision
 	decision := &RouteDecision{
@@ -147,17 +171,33 @@ func (o *Orchestrator) Route(ctx context.Context, intent *TaskIntent, state *Tas
 		decision.ExpectedOutput = OutputFormatList
 	}
 
-	logger.Debug("Routing to agent: %s", agentType)
+	logger.Info("📋 Routing decision created: agent=%s, output_format=%s",
+		decision.TargetAgent, decision.ExpectedOutput)
+	if len(decision.Tools) > 0 {
+		logger.Debug("🔧 Available tools: %v", decision.Tools)
+	}
+
 	return decision, nil
 }
 
 // ProcessFeedback handles responses from agents and determines next steps
 func (o *Orchestrator) ProcessFeedback(ctx context.Context, feedback *AgentResponse, state *TaskState) (*NextStep, error) {
+	logger.Debug("🔄 Processing feedback from agent: %s", feedback.AgentType)
+	logger.Debug("📊 Agent response status: %s", feedback.Status)
+	if feedback.Error != nil {
+		logger.Debug("⚠️ Agent reported error: %s", *feedback.Error)
+	}
+	if len(feedback.ToolsCalled) > 0 {
+		logger.Debug("🔧 Agent used %d tools", len(feedback.ToolsCalled))
+	}
+
 	// Update state with feedback
 	state.History = append(state.History, *feedback)
+	logger.Debug("📚 State history now has %d entries", len(state.History))
 
 	// Check if task is complete
 	if feedback.Status == "success" && feedback.NextAction == nil {
+		logger.Info("✅ Task completed successfully")
 		state.Status = StatusCompleted
 		return &NextStep{
 			Action:   ActionComplete,
@@ -167,15 +207,19 @@ func (o *Orchestrator) ProcessFeedback(ctx context.Context, feedback *AgentRespo
 
 	// Check for errors
 	if feedback.Status == "failed" {
+		logger.Warn("❌ Agent failed, attempting retry")
 		state.Status = StatusFailed
+		retryDecision := o.createRetryDecision(feedback, state)
+		logger.Debug("🔄 Created retry decision for agent: %s", retryDecision.TargetAgent)
 		return &NextStep{
 			Action:   ActionRetry,
-			Decision: o.createRetryDecision(feedback, state),
+			Decision: retryDecision,
 		}, nil
 	}
 
 	// Process next action if specified
 	if feedback.NextAction != nil {
+		logger.Info("➡️ Agent suggested next action: %s", feedback.NextAction.TargetAgent)
 		return &NextStep{
 			Action:   ActionContinue,
 			Decision: feedback.NextAction,
@@ -183,6 +227,7 @@ func (o *Orchestrator) ProcessFeedback(ctx context.Context, feedback *AgentRespo
 	}
 
 	// Default: mark as complete
+	logger.Info("✅ Task completed (default completion)")
 	state.Status = StatusCompleted
 	return &NextStep{
 		Action:   ActionComplete,

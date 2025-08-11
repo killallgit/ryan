@@ -229,7 +229,8 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 		augmented, err := e.augmenter.AugmentPrompt(ctx, actualPrompt)
 		if err != nil {
 			// Log but don't fail - continue without augmentation
-			logger.Warn("Could not augment prompt: %v", err)
+			// This is common when vector store is empty, so use debug level
+			logger.Debug("Could not augment prompt (likely empty vector store): %v", err)
 		} else {
 			actualPrompt = augmented
 			logger.Debug("Prompt augmented successfully")
@@ -324,7 +325,8 @@ func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handle
 		augmented, err := e.augmenter.AugmentPrompt(ctx, actualPrompt)
 		if err != nil {
 			// Log but don't fail - continue without augmentation
-			logger.Warn("Could not augment prompt: %v", err)
+			// This is common when vector store is empty, so use debug level
+			logger.Debug("Could not augment prompt (likely empty vector store): %v", err)
 		} else {
 			actualPrompt = augmented
 			logger.Debug("Prompt augmented successfully (streaming)")
