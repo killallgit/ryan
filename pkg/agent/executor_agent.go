@@ -132,6 +132,12 @@ func NewExecutorAgentWithSessionAndOptions(llm llms.Model, sessionID string, ski
 			logger.Debug("Added WebFetchTool")
 		}
 
+		// Add bash tool
+		if settings.Tools.Bash.Enabled {
+			agentTools = append(agentTools, ryantools.NewBashToolWithBypass(skipPermissions))
+			logger.Debug("Added BashTool")
+		}
+
 		logger.Info("Initialized %d tools", len(agentTools))
 	} else {
 		logger.Info("Tools are disabled in configuration")
