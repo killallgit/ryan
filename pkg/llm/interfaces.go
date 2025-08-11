@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"github.com/killallgit/ryan/pkg/stream"
 )
 
 // Provider defines the interface for LLM providers
@@ -19,17 +20,10 @@ type Provider interface {
 	GetModel() string
 }
 
-// StreamHandler handles streaming responses from LLM providers
-type StreamHandler interface {
-	// OnChunk is called when a new chunk of content is received
-	OnChunk(chunk string) error
-
-	// OnComplete is called when streaming is complete
-	OnComplete(finalContent string) error
-
-	// OnError is called when an error occurs during streaming
-	OnError(err error)
-}
+// StreamHandler is deprecated. Use stream.Handler instead.
+// This type alias is provided for backward compatibility during migration.
+// Deprecated: Use github.com/killallgit/ryan/pkg/stream.Handler
+type StreamHandler = stream.Handler
 
 // TokenCounter provides token counting capabilities
 type TokenCounter interface {

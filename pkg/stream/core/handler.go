@@ -1,35 +1,34 @@
 package core
 
-// Handler is the core interface for handling streaming responses
-// This provides a unified contract for all streaming implementations
-type Handler interface {
-	// OnChunk is called when a new chunk of content is received
-	OnChunk(chunk string) error
+import "github.com/killallgit/ryan/pkg/stream"
 
-	// OnComplete is called when streaming is complete with final content
-	OnComplete(finalContent string) error
+// Handler is deprecated. Use stream.Handler instead.
+// This type alias is provided for backward compatibility during migration.
+// Deprecated: Use github.com/killallgit/ryan/pkg/stream.Handler
+type Handler = stream.Handler
 
-	// OnError is called when an error occurs during streaming
-	OnError(err error)
-}
+// HandlerFunc is deprecated. Use stream.HandlerFunc instead.
+// Deprecated: Use github.com/killallgit/ryan/pkg/stream.HandlerFunc
+type HandlerFunc = stream.HandlerFunc
 
-// HandlerFunc is a function adapter for Handler interface
-type HandlerFunc struct {
+// LegacyStringHandler provides compatibility for old string-based handlers
+// Deprecated: Update code to use []byte chunks instead
+type LegacyStringHandler struct {
 	ChunkFunc    func(chunk string) error
 	CompleteFunc func(finalContent string) error
 	ErrorFunc    func(err error)
 }
 
-// OnChunk implements Handler
-func (h HandlerFunc) OnChunk(chunk string) error {
+// OnChunk implements Handler by converting []byte to string
+func (h LegacyStringHandler) OnChunk(chunk []byte) error {
 	if h.ChunkFunc != nil {
-		return h.ChunkFunc(chunk)
+		return h.ChunkFunc(string(chunk))
 	}
 	return nil
 }
 
 // OnComplete implements Handler
-func (h HandlerFunc) OnComplete(finalContent string) error {
+func (h LegacyStringHandler) OnComplete(finalContent string) error {
 	if h.CompleteFunc != nil {
 		return h.CompleteFunc(finalContent)
 	}
@@ -37,11 +36,11 @@ func (h HandlerFunc) OnComplete(finalContent string) error {
 }
 
 // OnError implements Handler
-func (h HandlerFunc) OnError(err error) {
+func (h LegacyStringHandler) OnError(err error) {
 	if h.ErrorFunc != nil {
 		h.ErrorFunc(err)
 	}
 }
 
-// Ensure HandlerFunc implements Handler
-var _ Handler = HandlerFunc{}
+// Ensure LegacyStringHandler implements Handler
+var _ Handler = LegacyStringHandler{}

@@ -97,9 +97,9 @@ type tokenTrackingStreamHandler struct {
 	lastTokens int
 }
 
-func (h *tokenTrackingStreamHandler) OnChunk(chunk string) error {
+func (h *tokenTrackingStreamHandler) OnChunk(chunk []byte) error {
 	// Accumulate chunks
-	h.buffer += chunk
+	h.buffer += string(chunk)
 
 	// Count tokens in accumulated buffer
 	if h.adapter.tokenCounter != nil && h.adapter.program != nil {

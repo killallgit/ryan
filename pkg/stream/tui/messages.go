@@ -50,11 +50,11 @@ func NewMessageHandler(streamID string, program *tea.Program) *MessageHandler {
 }
 
 // OnChunk sends a chunk message
-func (m *MessageHandler) OnChunk(chunk string) error {
+func (m *MessageHandler) OnChunk(chunk []byte) error {
 	if m.program != nil {
 		m.program.Send(ChunkMsg{
 			StreamID: m.streamID,
-			Content:  chunk,
+			Content:  string(chunk),
 		})
 	}
 	return nil

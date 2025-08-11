@@ -52,7 +52,7 @@ func (a *OllamaAdapter) GenerateStream(ctx context.Context, prompt string, handl
 	}
 
 	streamFunc := func(ctx context.Context, chunk []byte) error {
-		return handler.OnChunk(string(chunk))
+		return handler.OnChunk(chunk)
 	}
 
 	_, err := a.client.GenerateContent(ctx, messages,
@@ -133,7 +133,7 @@ func (a *OllamaAdapter) GenerateStreamWithHistory(ctx context.Context, messages 
 	}
 
 	streamFunc := func(ctx context.Context, chunk []byte) error {
-		return handler.OnChunk(string(chunk))
+		return handler.OnChunk(chunk)
 	}
 
 	_, err := a.client.GenerateContent(ctx, lcMessages,

@@ -21,12 +21,12 @@ func NewConsoleHandler() *ConsoleHandler {
 }
 
 // OnChunk prints chunk to stdout
-func (c *ConsoleHandler) OnChunk(chunk string) error {
+func (c *ConsoleHandler) OnChunk(chunk []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	fmt.Print(chunk)
-	c.content.WriteString(chunk)
+	fmt.Print(string(chunk))
+	c.content.Write(chunk)
 	return nil
 }
 
@@ -72,18 +72,18 @@ func NewChannelHandler(streamID string, channel chan<- Event) *ChannelHandler {
 }
 
 // OnChunk sends chunk event
-func (c *ChannelHandler) OnChunk(chunk string) error {
+func (c *ChannelHandler) OnChunk(chunk []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.buffer.WriteString(chunk)
+	c.buffer.Write(chunk)
 
 	select {
 	case c.channel <- Event{
 		StreamID:  c.streamID,
 		State:     StateStreaming,
 		Timestamp: time.Now(),
-		Data:      chunk,
+		Data:      string(chunk),
 	}:
 		return nil
 	default:
@@ -139,10 +139,10 @@ func NewBufferHandler() *BufferHandler {
 }
 
 // OnChunk adds chunk to buffer
-func (b *BufferHandler) OnChunk(chunk string) error {
+func (b *BufferHandler) OnChunk(chunk []byte) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.buffer.WriteString(chunk)
+	b.buffer.Write(chunk)
 	return nil
 }
 

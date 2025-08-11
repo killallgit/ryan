@@ -52,11 +52,10 @@ func (l *LangChainSource) StreamWithHistory(ctx context.Context, messages []core
 
 	// Create streaming function that calls our handler
 	streamingFunc := func(ctx context.Context, chunk []byte) error {
-		chunkStr := string(chunk)
-		contentBuilder.WriteString(chunkStr)
+		contentBuilder.Write(chunk)
 
 		// Pass chunk to handler
-		if err := handler.OnChunk(chunkStr); err != nil {
+		if err := handler.OnChunk(chunk); err != nil {
 			return err
 		}
 
@@ -77,7 +76,7 @@ func (l *LangChainSource) StreamWithHistory(ctx context.Context, messages []core
 	if finalContent == "" && len(response.Choices) > 0 {
 		finalContent = response.Choices[0].Content
 		// Send as single chunk if we didn't stream
-		if err := handler.OnChunk(finalContent); err != nil {
+		if err := handler.OnChunk([]byte(finalContent)); err != nil {
 			return err
 		}
 	}

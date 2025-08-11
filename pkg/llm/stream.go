@@ -1,104 +1,48 @@
 package llm
 
+// This file is deprecated. All streaming functionality has been moved to pkg/stream.
+// The types below are provided as aliases for backward compatibility during migration.
+
 import (
 	"fmt"
-	"strings"
-	"sync"
-
 	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/killallgit/ryan/pkg/stream"
 )
 
-// BufferedStreamHandler buffers streaming content
-type BufferedStreamHandler struct {
-	buffer  strings.Builder
-	onChunk func(string) error
-	onError func(error)
-	mu      sync.Mutex
-}
+// BufferedStreamHandler is deprecated. Use stream.WriterHandler or create a custom handler.
+// Deprecated: Use github.com/killallgit/ryan/pkg/stream package
+type BufferedStreamHandler = stream.HandlerFunc
 
 // NewBufferedStreamHandler creates a new buffered stream handler
-func NewBufferedStreamHandler() *BufferedStreamHandler {
-	return &BufferedStreamHandler{}
+// Deprecated: Use stream.NewWriterHandler or stream.HandlerFunc
+func NewBufferedStreamHandler() *stream.HandlerFunc {
+	logger.Warn("BufferedStreamHandler is deprecated. Use stream.WriterHandler instead.")
+	return &stream.HandlerFunc{}
 }
 
-// WithChunkCallback sets the chunk callback
-func (h *BufferedStreamHandler) WithChunkCallback(fn func(string) error) *BufferedStreamHandler {
-	h.onChunk = fn
-	return h
-}
-
-// WithErrorCallback sets the error callback
-func (h *BufferedStreamHandler) WithErrorCallback(fn func(error)) *BufferedStreamHandler {
-	h.onError = fn
-	return h
-}
-
-// OnChunk handles a new chunk of content
-func (h *BufferedStreamHandler) OnChunk(chunk string) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.buffer.WriteString(chunk)
-
-	if h.onChunk != nil {
-		return h.onChunk(chunk)
-	}
-	return nil
-}
-
-// OnComplete handles completion of streaming
-func (h *BufferedStreamHandler) OnComplete(finalContent string) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// If finalContent is provided, use it; otherwise use buffer
-	if finalContent == "" {
-		finalContent = h.buffer.String()
-	}
-	return nil
-}
-
-// OnError handles streaming errors
-func (h *BufferedStreamHandler) OnError(err error) {
-	if h.onError != nil {
-		h.onError(err)
-	}
-}
-
-// GetContent returns the buffered content
-func (h *BufferedStreamHandler) GetContent() string {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.buffer.String()
-}
-
-// ConsoleStreamHandler outputs streaming content to console
+// ConsoleStreamHandler is deprecated. Use stream/core.ConsoleHandler
+// Deprecated: Use github.com/killallgit/ryan/pkg/stream/core.ConsoleHandler
 type ConsoleStreamHandler struct {
-	*BufferedStreamHandler
+	*stream.HandlerFunc
 }
 
 // NewConsoleStreamHandler creates a stream handler that outputs to console
+// Deprecated: Use stream/core.NewConsoleHandler
 func NewConsoleStreamHandler() *ConsoleStreamHandler {
+	logger.Warn("ConsoleStreamHandler is deprecated. Use stream/core.ConsoleHandler instead.")
 	handler := &ConsoleStreamHandler{
-		BufferedStreamHandler: NewBufferedStreamHandler(),
+		HandlerFunc: &stream.HandlerFunc{
+			ChunkFunc: func(chunk []byte) error {
+				fmt.Print(string(chunk))
+				return nil
+			},
+		},
 	}
-
-	// Set chunk callback to print to console without overwriting
-	handler.WithChunkCallback(func(chunk string) error {
-		// Print chunk directly to stdout without any special formatting
-		fmt.Print(chunk)
-		return nil
-	})
-
-	handler.WithErrorCallback(func(err error) {
-		logger.Error("LLM streaming error: %v", err)
-	})
-
 	return handler
 }
 
 // OnComplete handles completion
 func (h *ConsoleStreamHandler) OnComplete(finalContent string) error {
 	fmt.Println() // Add newline after streaming
-	return h.BufferedStreamHandler.OnComplete(finalContent)
+	return nil
 }

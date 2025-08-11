@@ -434,9 +434,9 @@ type tokenAndMemoryHandler struct {
 	lastTokens int
 }
 
-func (h *tokenAndMemoryHandler) OnChunk(chunk string) error {
+func (h *tokenAndMemoryHandler) OnChunk(chunk []byte) error {
 	// Accumulate chunks for memory and token tracking
-	h.buffer += chunk
+	h.buffer += string(chunk)
 
 	// Count tokens in accumulated buffer
 	if h.agent.tokenCounter != nil {

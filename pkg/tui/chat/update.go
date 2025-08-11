@@ -195,10 +195,10 @@ type channelStreamHandler struct {
 	chunkChan chan<- StreamChunk
 }
 
-func (h *channelStreamHandler) OnChunk(chunk string) error {
+func (h *channelStreamHandler) OnChunk(chunk []byte) error {
 	h.chunkChan <- StreamChunk{
 		StreamID: h.streamID,
-		Content:  chunk,
+		Content:  string(chunk),
 		IsEnd:    false,
 	}
 	return nil
