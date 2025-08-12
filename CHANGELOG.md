@@ -29,6 +29,16 @@
   - Refresh capability with 'r' key to update model list
   - Proper error handling for connection issues
   - Replaced placeholder views (History and Settings) with functional Models view
+  - **Code Refactoring** - Broke down large 877-line models.go into 7 focused files
+    - `models_types.go` (54 lines) - Type definitions and struct declarations
+    - `models_messages.go` (40 lines) - BubbleTea message type definitions
+    - `models_download.go` (226 lines) - Download functionality and progress handling
+    - `models_delete.go` (72 lines) - Delete operations and confirmations
+    - `models_modals.go` (186 lines) - Modal rendering functions
+    - `models_table.go` (138 lines) - Table management and cursor logic
+    - `models.go` (250 lines) - Main orchestration and view lifecycle
+    - Improved maintainability with single-responsibility principle
+    - Enhanced readability and easier debugging
 - **Tool Registry System** - Centralized tool registration and initialization using factory pattern
   - Created `pkg/tools/registry/` package with Registry interface and implementation
   - Factory pattern for tool creation with `ToolFactory` functions
