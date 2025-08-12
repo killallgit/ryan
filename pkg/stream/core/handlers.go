@@ -9,23 +9,24 @@ import (
 	"github.com/killallgit/ryan/pkg/logger"
 )
 
-// ConsoleHandler prints streaming content directly to console
+// BufferedHandler accumulates streaming content in a buffer (renamed from ConsoleHandler)
+// Deprecated: Use BufferHandler instead
 type ConsoleHandler struct {
 	content strings.Builder
 	mu      sync.Mutex
 }
 
-// NewConsoleHandler creates a handler for console output
+// NewConsoleHandler creates a handler for buffering output
+// Deprecated: Use NewBufferHandler instead
 func NewConsoleHandler() *ConsoleHandler {
 	return &ConsoleHandler{}
 }
 
-// OnChunk prints chunk to stdout
+// OnChunk adds chunk to buffer
 func (c *ConsoleHandler) OnChunk(chunk []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	fmt.Print(string(chunk))
 	c.content.Write(chunk)
 	return nil
 }
