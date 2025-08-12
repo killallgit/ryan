@@ -26,5 +26,17 @@ type Agent interface {
 	Close() error
 }
 
-// Ensure ExecutorAgent implements Agent interface
+// ModeAgent extends Agent with operating mode support
+type ModeAgent interface {
+	Agent
+
+	// GetMode returns the current operating mode
+	GetMode() OperatingMode
+
+	// SetMode changes the operating mode
+	SetMode(mode OperatingMode) error
+}
+
+// Ensure implementations satisfy interfaces
 var _ Agent = (*ExecutorAgent)(nil)
+var _ ModeAgent = (*MRKLAgent)(nil)
