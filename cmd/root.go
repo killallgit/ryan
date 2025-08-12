@@ -35,6 +35,7 @@ var rootCmd = &cobra.Command{
 		customPrompt, _ := cmd.Flags().GetString("system-prompt")
 		appendPrompt, _ := cmd.Flags().GetString("append-system-prompt")
 		planningBias, _ := cmd.Flags().GetBool("plan")
+		maxIterations, _ := cmd.Flags().GetInt("max-iterations")
 
 		// Initialize logger
 		if err := logger.Init(); err != nil {
@@ -42,6 +43,16 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		defer logger.Close()
+
+		// Apply CLI overrides to configuration
+		if maxIterations > 0 {
+			viper.Set("agent.max_iterations", maxIterations)
+			// Reload config to apply the override
+			if err := config.Load(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error reloading config: %v\n", err)
+				os.Exit(1)
+			}
+		}
 
 		// Create the LLM based on provider configuration
 		llm, err := createLLM()
@@ -234,6 +245,9 @@ func init() {
 	rootCmd.PersistentFlags().String("system-prompt", "", "override the default system prompt entirely")
 	rootCmd.PersistentFlags().String("append-system-prompt", "", "append additional instructions to the system prompt")
 	rootCmd.PersistentFlags().Bool("plan", false, "encourage planning behavior for complex tasks before execution")
+
+	// Agent configuration flags
+	rootCmd.PersistentFlags().Int("max-iterations", 0, "maximum number of agent iterations (0 uses config default)")
 }
 
 func initConfig() {

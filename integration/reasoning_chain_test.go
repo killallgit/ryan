@@ -157,7 +157,7 @@ func setupViperWithBashTool(t *testing.T) {
 	// LangChain settings for agent
 	viper.Set("langchain.memory_type", "window")
 	viper.Set("langchain.memory_window_size", 10)
-	viper.Set("langchain.tools.max_iterations", 10)
+	viper.Set("agent.max_iterations", 10)
 	viper.Set("langchain.tools.max_retries", 3)
 
 	// Reload config after setting test values

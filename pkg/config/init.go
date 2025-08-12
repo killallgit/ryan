@@ -30,14 +30,16 @@ type Settings struct {
 		Level   string
 	}
 
+	// Agent configuration
+	Agent struct {
+		MaxIterations int
+		MaxRetries    int
+	}
+
 	// LangChain configuration
 	LangChain struct {
 		MemoryType       string
 		MemoryWindowSize int
-		Tools            struct {
-			MaxIterations int
-			MaxRetries    int
-		}
 	}
 
 	// Tools configuration
@@ -138,11 +140,13 @@ func setDefaults() {
 	viper.SetDefault("logging.persist", false)
 	viper.SetDefault("logging.level", "info")
 
+	// Agent defaults
+	viper.SetDefault("agent.max_iterations", 15)
+	viper.SetDefault("agent.max_retries", 3)
+
 	// LangChain defaults
 	viper.SetDefault("langchain.memory_type", "window")
 	viper.SetDefault("langchain.memory_window_size", 10)
-	viper.SetDefault("langchain.tools.max_iterations", 10)
-	viper.SetDefault("langchain.tools.max_retries", 3)
 
 	// Tool configuration defaults
 	viper.SetDefault("tools.enabled", true)
@@ -182,11 +186,13 @@ func Load() error {
 	Global.Logging.Persist = viper.GetBool("logging.persist")
 	Global.Logging.Level = viper.GetString("logging.level")
 
+	// Agent settings
+	Global.Agent.MaxIterations = viper.GetInt("agent.max_iterations")
+	Global.Agent.MaxRetries = viper.GetInt("agent.max_retries")
+
 	// LangChain settings
 	Global.LangChain.MemoryType = viper.GetString("langchain.memory_type")
 	Global.LangChain.MemoryWindowSize = viper.GetInt("langchain.memory_window_size")
-	Global.LangChain.Tools.MaxIterations = viper.GetInt("langchain.tools.max_iterations")
-	Global.LangChain.Tools.MaxRetries = viper.GetInt("langchain.tools.max_retries")
 
 	// Tools settings
 	Global.Tools.Enabled = viper.GetBool("tools.enabled")

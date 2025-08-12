@@ -171,9 +171,9 @@ func NewExecutorAgentWithSessionAndOptions(llm llms.Model, sessionID string, ski
 	)
 
 	// Create executor with options
-	maxIterations := settings.LangChain.Tools.MaxIterations
+	maxIterations := settings.Agent.MaxIterations
 	if maxIterations == 0 {
-		maxIterations = 10
+		maxIterations = 15
 	}
 
 	executor := agents.NewExecutor(

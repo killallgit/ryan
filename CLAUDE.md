@@ -94,6 +94,7 @@ Ryan is an open-source Claude Code alternative that provides chat functionality 
 - Ollama endpoint: Set via `OLLAMA_HOST` environment variable (required)
 - Environment variable: `OLLAMA_DEFAULT_MODEL` for model selection
 - Config file support via `--config` flag
+- Agent behavior configurable via `--max-iterations` flag or `agent.max_iterations` setting (default: 15)
 
 ## Dependencies
 

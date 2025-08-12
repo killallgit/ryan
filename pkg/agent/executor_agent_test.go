@@ -134,7 +134,7 @@ func TestNewExecutorAgent(t *testing.T) {
 	viper.Reset()
 	viper.Set("continue", false)
 	viper.Set("vectorstore.enabled", false)
-	viper.Set("langchain.tools.max_iterations", 5)
+	viper.Set("agent.max_iterations", 5)
 	viper.Set("ollama.default_model", "test-model")
 
 	// Reload config after setting test values

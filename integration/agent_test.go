@@ -39,7 +39,7 @@ func setupViperForTest(t *testing.T) {
 	}
 	viper.Set("langchain.memory_type", "window")
 	viper.Set("langchain.memory_window_size", 10)
-	viper.Set("langchain.tools.max_iterations", 10)
+	viper.Set("agent.max_iterations", 10)
 	viper.Set("langchain.tools.max_retries", 3)
 
 	// OLLAMA_HOST environment variable is required for integration tests

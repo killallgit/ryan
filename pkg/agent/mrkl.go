@@ -84,9 +84,9 @@ func NewMRKLAgent(llm llms.Model, continueHistory, skipPermissions bool) (*MRKLA
 	)
 
 	// Configure executor
-	maxIterations := settings.LangChain.Tools.MaxIterations
+	maxIterations := settings.Agent.MaxIterations
 	if maxIterations == 0 {
-		maxIterations = 10 // Default max iterations
+		maxIterations = 15 // Default max iterations
 	}
 
 	executor := agents.NewExecutor(

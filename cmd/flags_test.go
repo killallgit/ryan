@@ -79,6 +79,11 @@ func TestRootCommandFlags(t *testing.T) {
 	loggingPersistFlag := rootCmd.PersistentFlags().Lookup("logging.persist")
 	assert.NotNil(t, loggingPersistFlag)
 	assert.Equal(t, "bool", loggingPersistFlag.Value.Type())
+
+	// Check agent configuration flag
+	maxIterationsFlag := rootCmd.PersistentFlags().Lookup("max-iterations")
+	assert.NotNil(t, maxIterationsFlag)
+	assert.Equal(t, "int", maxIterationsFlag.Value.Type())
 }
 
 // TestFlagDefaults tests default values of CLI flags
@@ -104,6 +109,9 @@ func TestFlagDefaults(t *testing.T) {
 
 	loggingPersistFlag := rootCmd.PersistentFlags().Lookup("logging.persist")
 	assert.Equal(t, "false", loggingPersistFlag.DefValue)
+
+	maxIterationsFlag := rootCmd.PersistentFlags().Lookup("max-iterations")
+	assert.Equal(t, "0", maxIterationsFlag.DefValue)
 }
 
 // TestFlagHelp tests that flags have appropriate usage descriptions
@@ -119,6 +127,9 @@ func TestFlagHelp(t *testing.T) {
 
 	loggingPersistFlag := rootCmd.PersistentFlags().Lookup("logging.persist")
 	assert.Contains(t, loggingPersistFlag.Usage, "persist system logs across sessions")
+
+	maxIterationsFlag := rootCmd.PersistentFlags().Lookup("max-iterations")
+	assert.Contains(t, maxIterationsFlag.Usage, "maximum number of agent iterations")
 }
 
 // TestApplyPromptCustomizations tests the prompt customization logic

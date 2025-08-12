@@ -15,7 +15,7 @@ func TestUnifiedAgentSystem(t *testing.T) {
 	viper.Reset()
 	viper.Set("continue", false)
 	viper.Set("vectorstore.enabled", false)
-	viper.Set("langchain.tools.max_iterations", 5)
+	viper.Set("agent.max_iterations", 5)
 	viper.Set("ollama.default_model", "test-model")
 
 	// Initialize config
@@ -124,7 +124,7 @@ func TestPromptCustomizationFlow(t *testing.T) {
 	viper.Reset()
 	viper.Set("continue", false)
 	viper.Set("vectorstore.enabled", false)
-	viper.Set("langchain.tools.max_iterations", 5)
+	viper.Set("agent.max_iterations", 5)
 	viper.Set("ollama.default_model", "test-model")
 
 	require.NoError(t, config.Init(""))
@@ -178,7 +178,7 @@ func TestAgentMemoryAndTokens(t *testing.T) {
 	viper.Reset()
 	viper.Set("continue", false)
 	viper.Set("vectorstore.enabled", false)
-	viper.Set("langchain.tools.max_iterations", 5)
+	viper.Set("agent.max_iterations", 5)
 	viper.Set("ollama.default_model", "test-model")
 
 	require.NoError(t, config.Init(""))
@@ -237,7 +237,7 @@ func TestAgentResourceCleanup(t *testing.T) {
 	viper.Reset()
 	viper.Set("continue", false)
 	viper.Set("vectorstore.enabled", false)
-	viper.Set("langchain.tools.max_iterations", 5)
+	viper.Set("agent.max_iterations", 5)
 	viper.Set("ollama.default_model", "test-model")
 
 	require.NoError(t, config.Init(""))
