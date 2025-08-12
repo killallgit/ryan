@@ -68,9 +68,9 @@ func (c *Controller) SetPromptBuilder(pb *PromptBuilder) {
 	c.promptBuilder = pb
 }
 
-// SetMode sets the operating mode
-func (c *Controller) SetMode(mode Mode) {
-	c.promptBuilder.SetMode(mode)
+// GetPromptBuilder returns the prompt builder for customization
+func (c *Controller) GetPromptBuilder() *PromptBuilder {
+	return c.promptBuilder
 }
 
 // Execute runs the ReAct loop for the given input

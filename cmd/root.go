@@ -32,6 +32,9 @@ var rootCmd = &cobra.Command{
 		headlessMode, _ := cmd.Flags().GetBool("headless")
 		continueHistory, _ := cmd.Flags().GetBool("continue")
 		skipPermissions, _ := cmd.Flags().GetBool("skip-permissions")
+		customPrompt, _ := cmd.Flags().GetString("system-prompt")
+		appendPrompt, _ := cmd.Flags().GetString("append-system-prompt")
+		planningBias, _ := cmd.Flags().GetBool("planning-bias")
 
 		// Initialize logger
 		if err := logger.Init(); err != nil {
@@ -47,19 +50,15 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Get operating mode from flags (default to ExecuteMode)
-		planMode, _ := cmd.Flags().GetBool("plan")
-		mode := agent.ReactExecuteMode
-		if planMode {
-			mode = agent.ReactPlanMode
-		}
-
-		// Create the ReAct agent with the specified mode
-		reactAgent, err := createReactAgent(llm, mode, continueHistory, skipPermissions)
+		// Create the ReAct agent with unified behavior
+		reactAgent, err := createReactAgent(llm, continueHistory, skipPermissions)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating ReAct agent: %v\n", err)
 			os.Exit(1)
 		}
+
+		// Apply prompt customizations
+		applyPromptCustomizations(reactAgent, customPrompt, appendPrompt, planningBias)
 
 		// Check if running in headless mode
 		if headlessMode {
@@ -89,8 +88,8 @@ func createLLM() (llms.Model, error) {
 	}
 }
 
-// createReactAgent creates a ReAct agent with the given configuration
-func createReactAgent(llm llms.Model, mode agent.ReactMode, continueHistory, skipPermissions bool) (agent.Agent, error) {
+// createReactAgent creates a ReAct agent with unified behavior
+func createReactAgent(llm llms.Model, continueHistory, skipPermissions bool) (agent.Agent, error) {
 	// Create memory if continuing history
 	var mem *memory.Memory
 	if continueHistory {
@@ -112,11 +111,6 @@ func createReactAgent(llm llms.Model, mode agent.ReactMode, continueHistory, ski
 	reactAgent, err := agent.NewReactAgent(llm, tools, mem, reactHandler)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ReAct agent: %w", err)
-	}
-
-	// Set the operating mode
-	if err := reactAgent.SetMode(mode); err != nil {
-		return nil, fmt.Errorf("failed to set mode: %w", err)
 	}
 
 	return reactAgent, nil
@@ -153,6 +147,43 @@ func getStructuredTools(skipPermissions bool) []tools.Tool {
 	}
 
 	return structuredTools
+}
+
+// applyPromptCustomizations applies CLI prompt customizations to the agent
+func applyPromptCustomizations(agentInstance agent.Agent, customPrompt, appendPrompt string, planningBias bool) {
+	// Check if agent supports customization
+	customizable, ok := agentInstance.(agent.CustomizableAgent)
+	if !ok {
+		// Agent doesn't support customization, skip
+		return
+	}
+
+	// Build final prompt
+	finalPrompt := customPrompt
+
+	// Apply append prompt instructions
+	if appendPrompt != "" {
+		if finalPrompt != "" {
+			finalPrompt += "\n\n" + appendPrompt
+		} else {
+			finalPrompt = appendPrompt
+		}
+	}
+
+	// Apply planning bias
+	if planningBias {
+		planBias := "IMPORTANT: For complex or ambiguous tasks, always plan first before executing. Ask for user confirmation before proceeding with multi-step operations."
+		if finalPrompt != "" {
+			finalPrompt += "\n\n" + planBias
+		} else {
+			finalPrompt = planBias
+		}
+	}
+
+	// Apply the final prompt if we have any customizations
+	if finalPrompt != "" {
+		customizable.SetCustomPrompt(finalPrompt)
+	}
 }
 
 func runHeadless(executorAgent agent.Agent, prompt string, continueHistory bool) {
@@ -198,7 +229,11 @@ func init() {
 	rootCmd.PersistentFlags().StringP("prompt", "p", "", "execute a prompt directly without entering TUI")
 	rootCmd.PersistentFlags().BoolP("headless", "H", false, "run without TUI (requires --prompt)")
 	rootCmd.PersistentFlags().Bool("skip-permissions", false, "skip all ACL permission checks for tools")
-	rootCmd.PersistentFlags().Bool("plan", false, "use plan mode instead of execute mode")
+
+	// Claude Code-style prompt control flags
+	rootCmd.PersistentFlags().String("system-prompt", "", "override the default system prompt entirely")
+	rootCmd.PersistentFlags().String("append-system-prompt", "", "append additional instructions to the system prompt")
+	rootCmd.PersistentFlags().Bool("planning-bias", false, "encourage more planning behavior for complex tasks")
 }
 
 func initConfig() {

@@ -26,17 +26,17 @@ type Agent interface {
 	Close() error
 }
 
-// ModeAgent extends Agent with operating mode support
-type ModeAgent interface {
+// CustomizableAgent extends Agent with prompt customization support
+type CustomizableAgent interface {
 	Agent
 
-	// GetMode returns the current operating mode
-	GetMode() OperatingMode
-
-	// SetMode changes the operating mode
-	SetMode(mode OperatingMode) error
+	// SetCustomPrompt sets a custom system prompt
+	SetCustomPrompt(customPrompt string)
 }
 
 // Ensure implementations satisfy interfaces
 var _ Agent = (*ExecutorAgent)(nil)
-var _ ModeAgent = (*MRKLAgent)(nil)
+var _ Agent = (*MRKLAgent)(nil)
+var _ Agent = (*ReactAgent)(nil)
+var _ CustomizableAgent = (*MRKLAgent)(nil)
+var _ CustomizableAgent = (*ReactAgent)(nil)

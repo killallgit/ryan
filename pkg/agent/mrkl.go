@@ -3,8 +3,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -12,49 +10,43 @@ import (
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/memory"
+	"github.com/killallgit/ryan/pkg/prompt"
 	"github.com/killallgit/ryan/pkg/stream/core"
 	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/killallgit/ryan/pkg/tools/registry"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/llms"
 	lcmemory "github.com/tmc/langchaingo/memory"
-	"github.com/tmc/langchaingo/prompts"
 	"github.com/tmc/langchaingo/tools"
 )
 
-// OperatingMode defines the agent's operating mode
-type OperatingMode string
-
-const (
-	// ExecuteMode - Direct execution with ReAct pattern
-	ExecuteMode OperatingMode = "execute-mode"
-	// PlanMode - Planning and strategizing before execution
-	PlanMode OperatingMode = "plan-mode"
-)
-
-// MRKLAgent implements a simplified MRKL agent with configurable operating modes
+// MRKLAgent implements a simplified MRKL agent with unified behavior
 type MRKLAgent struct {
-	llm          llms.Model
-	executor     *agents.Executor
-	memory       *memory.Memory
-	tools        []tools.Tool
-	mode         OperatingMode
-	systemPrompt string
-	tokenCounter *tokens.TokenCounter
-	tokensSent   int
-	tokensRecv   int
-	tokensMu     sync.RWMutex
+	llm            llms.Model
+	executor       *agents.Executor
+	memory         *memory.Memory
+	tools          []tools.Tool
+	promptTemplate *prompt.ReactPromptTemplate
+	customPrompt   string // For --system-prompt override
+	appendPrompt   string // For --append-system-prompt
+	tokenCounter   *tokens.TokenCounter
+	tokensSent     int
+	tokensRecv     int
+	tokensMu       sync.RWMutex
 }
 
-// NewMRKLAgent creates a new MRKL agent with the specified operating mode
-func NewMRKLAgent(llm llms.Model, mode OperatingMode, continueHistory, skipPermissions bool) (*MRKLAgent, error) {
-	logger.Info("Initializing MRKL Agent in %s", mode)
+// NewMRKLAgent creates a new MRKL agent with unified behavior
+func NewMRKLAgent(llm llms.Model, continueHistory, skipPermissions bool) (*MRKLAgent, error) {
+	logger.Info("Initializing unified MRKL Agent")
 
-	// Load system prompt for the operating mode
-	systemPrompt, err := loadSystemPrompt(mode)
+	// Load unified system prompt
+	promptTemplate, err := prompt.LoadReactPrompt("unified")
 	if err != nil {
-		logger.Warn("Failed to load system prompt from file, using default: %v", err)
-		systemPrompt = getDefaultPrompt(mode)
+		logger.Warn("Failed to load unified system prompt from file, using default: %v", err)
+		promptTemplate = prompt.NewReactPromptTemplate(
+			prompt.DefaultUnifiedPrompt(),
+			"unified",
+		)
 	}
 
 	// Generate session ID
@@ -80,22 +72,11 @@ func NewMRKLAgent(llm llms.Model, mode OperatingMode, continueHistory, skipPermi
 	agentTools := registry.Global().GetEnabled(settings, skipPermissions)
 	logger.Info("Loaded %d tools", len(agentTools))
 
-	// Create the appropriate agent based on mode
-	var agent agents.Agent
-	if mode == ExecuteMode {
-		// Use conversational agent for execution mode
-		agent = agents.NewConversationalAgent(
-			llm,
-			agentTools,
-		)
-	} else {
-		// For plan mode, we can use a simpler agent or custom implementation
-		// For now, using conversational agent with different prompting
-		agent = agents.NewConversationalAgent(
-			llm,
-			agentTools,
-		)
-	}
+	// Create the conversational agent
+	agent := agents.NewConversationalAgent(
+		llm,
+		agentTools,
+	)
 
 	// Create LangChain memory wrapper
 	lcMem := lcmemory.NewConversationBuffer(
@@ -105,11 +86,7 @@ func NewMRKLAgent(llm llms.Model, mode OperatingMode, continueHistory, skipPermi
 	// Configure executor
 	maxIterations := settings.LangChain.Tools.MaxIterations
 	if maxIterations == 0 {
-		if mode == ExecuteMode {
-			maxIterations = 10
-		} else {
-			maxIterations = 3 // Fewer iterations for planning
-		}
+		maxIterations = 10 // Default max iterations
 	}
 
 	executor := agents.NewExecutor(
@@ -127,19 +104,18 @@ func NewMRKLAgent(llm llms.Model, mode OperatingMode, continueHistory, skipPermi
 	}
 
 	return &MRKLAgent{
-		llm:          llm,
-		executor:     executor,
-		memory:       mem,
-		tools:        agentTools,
-		mode:         mode,
-		systemPrompt: systemPrompt,
-		tokenCounter: tokenCounter,
+		llm:            llm,
+		executor:       executor,
+		memory:         mem,
+		tools:          agentTools,
+		promptTemplate: promptTemplate,
+		tokenCounter:   tokenCounter,
 	}, nil
 }
 
 // Execute handles a request and returns a response
 func (m *MRKLAgent) Execute(ctx context.Context, prompt string) (string, error) {
-	logger.Debug("MRKL Agent (%s) executing prompt: %s", m.mode, prompt)
+	logger.Debug("MRKL Agent executing prompt: %s", prompt)
 
 	// Track tokens
 	if m.tokenCounter != nil {
@@ -171,12 +147,8 @@ func (m *MRKLAgent) Execute(ctx context.Context, prompt string) (string, error) 
 		m.updateTokensRecv(recvTokens)
 	}
 
-	// Clean output based on mode
-	if m.mode == ExecuteMode {
-		output = m.cleanExecuteModeOutput(output)
-	} else {
-		output = m.cleanPlanModeOutput(output)
-	}
+	// Clean output (unified approach)
+	output = m.cleanOutput(output)
 
 	logger.Debug("MRKL Agent completed execution")
 	return output, nil
@@ -184,7 +156,7 @@ func (m *MRKLAgent) Execute(ctx context.Context, prompt string) (string, error) 
 
 // ExecuteStream handles a request with streaming response
 func (m *MRKLAgent) ExecuteStream(ctx context.Context, prompt string, handler core.Handler) error {
-	logger.Debug("MRKL Agent (%s) executing streaming prompt: %s", m.mode, prompt)
+	logger.Debug("MRKL Agent executing streaming prompt: %s", prompt)
 
 	// Track tokens
 	if m.tokenCounter != nil {
@@ -218,12 +190,8 @@ func (m *MRKLAgent) ExecuteStream(ctx context.Context, prompt string, handler co
 		m.updateTokensRecv(recvTokens)
 	}
 
-	// Clean output based on mode
-	if m.mode == ExecuteMode {
-		output = m.cleanExecuteModeOutput(output)
-	} else {
-		output = m.cleanPlanModeOutput(output)
-	}
+	// Clean output (unified approach)
+	output = m.cleanOutput(output)
 
 	// Send as single chunk
 	if err := handler.OnChunk([]byte(output)); err != nil {
@@ -261,26 +229,29 @@ func (m *MRKLAgent) Close() error {
 	return nil
 }
 
-// GetMode returns the current operating mode
-func (m *MRKLAgent) GetMode() OperatingMode {
-	return m.mode
+// SetCustomPrompt sets a custom system prompt override
+func (m *MRKLAgent) SetCustomPrompt(systemPrompt string) {
+	m.customPrompt = systemPrompt
+	logger.Info("Set custom system prompt")
 }
 
-// SetMode changes the operating mode
-func (m *MRKLAgent) SetMode(mode OperatingMode) error {
-	systemPrompt, err := loadSystemPrompt(mode)
-	if err != nil {
-		logger.Warn("Failed to load system prompt for mode %s, using default", mode)
-		systemPrompt = getDefaultPrompt(mode)
-	}
-	m.mode = mode
-	m.systemPrompt = systemPrompt
-	logger.Info("Switched to %s", mode)
-	return nil
+// SetAppendPrompt sets additional prompt instructions
+func (m *MRKLAgent) SetAppendPrompt(appendPrompt string) {
+	m.appendPrompt = appendPrompt
+	logger.Info("Set append prompt instructions")
 }
 
 // preparePrompt prepares the full prompt with system context
 func (m *MRKLAgent) preparePrompt(userInput string) string {
+	// If custom prompt is set, use it instead
+	if m.customPrompt != "" {
+		basePrompt := m.customPrompt
+		if m.appendPrompt != "" {
+			basePrompt += "\n\n" + m.appendPrompt
+		}
+		return basePrompt + "\n\nUser input: " + userInput
+	}
+
 	// Build tool descriptions
 	var toolDescs []string
 	for _, tool := range m.tools {
@@ -288,80 +259,74 @@ func (m *MRKLAgent) preparePrompt(userInput string) string {
 	}
 	toolDescriptions := strings.Join(toolDescs, "\n")
 
-	// Get conversation history
-	history := "" // Could be populated from memory if needed
+	// Get conversation history from memory if available
+	history := ""
+	if m.memory != nil && m.memory.ChatMessageHistory() != nil {
+		// Get recent messages for context
+		msgs, err := m.memory.ChatMessageHistory().Messages(context.Background())
+		if err == nil && len(msgs) > 0 {
+			var historyLines []string
+			// Take last few messages for context
+			start := 0
+			if len(msgs) > 6 { // Keep last 3 exchanges
+				start = len(msgs) - 6
+			}
+			for _, msg := range msgs[start:] {
+				switch msg.GetType() {
+				case "human":
+					historyLines = append(historyLines, fmt.Sprintf("Human: %s", msg.GetContent()))
+				case "ai":
+					historyLines = append(historyLines, fmt.Sprintf("Assistant: %s", msg.GetContent()))
+				}
+			}
+			if len(historyLines) > 0 {
+				history = strings.Join(historyLines, "\n")
+			}
+		}
+	}
 
-	// Create prompt template
-	tmpl := prompts.NewPromptTemplate(
-		m.systemPrompt,
-		[]string{"tool_descriptions", "history", "input"},
-	)
-
-	// Format the prompt
-	formatted, err := tmpl.Format(map[string]any{
-		"tool_descriptions": toolDescriptions,
-		"history":           history,
-		"input":             userInput,
-	})
+	// Use the loaded prompt template to format the prompt
+	formatted, err := m.promptTemplate.Format(toolDescriptions, history, userInput)
 	if err != nil {
 		logger.Error("Failed to format prompt: %v", err)
 		return userInput
 	}
 
+	// Apply append prompt if set
+	if m.appendPrompt != "" {
+		formatted += "\n\nAdditional Instructions: " + m.appendPrompt
+	}
+
 	return formatted
 }
 
-// cleanExecuteModeOutput cleans the output for execute mode
-func (m *MRKLAgent) cleanExecuteModeOutput(output string) string {
-	// Remove ReAct pattern artifacts
+// cleanOutput cleans the output using unified approach
+func (m *MRKLAgent) cleanOutput(output string) string {
+	// Look for Final Answer first
 	lines := strings.Split(output, "\n")
-	var cleaned []string
-	skipNext := false
-
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-
-		// Skip ReAct pattern lines
-		if strings.HasPrefix(trimmed, "Thought:") ||
-			strings.HasPrefix(trimmed, "Action:") ||
-			strings.HasPrefix(trimmed, "Action Input:") ||
-			strings.HasPrefix(trimmed, "Observation:") {
-			skipNext = true
-			continue
-		}
-
-		// Extract final answer
 		if strings.HasPrefix(trimmed, "Final Answer:") {
 			answer := strings.TrimPrefix(trimmed, "Final Answer:")
 			return strings.TrimSpace(answer)
 		}
-
-		if !skipNext && trimmed != "" {
-			cleaned = append(cleaned, line)
-		}
-		skipNext = false
 	}
 
-	result := strings.Join(cleaned, "\n")
-	return strings.TrimSpace(result)
-}
-
-// cleanPlanModeOutput cleans the output for plan mode
-func (m *MRKLAgent) cleanPlanModeOutput(output string) string {
-	// For plan mode, we want to keep the structured output
-	// but remove any ReAct artifacts that might leak through
-	lines := strings.Split(output, "\n")
+	// If no Final Answer found, clean up ReAct artifacts but preserve content
 	var cleaned []string
-
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Skip pure ReAct pattern lines that aren't part of the plan
-		if strings.HasPrefix(trimmed, "Observation:") {
+		// Skip internal ReAct pattern lines that aren't useful to user
+		if strings.HasPrefix(trimmed, "Observation:") ||
+			(strings.HasPrefix(trimmed, "Thought:") && strings.Contains(trimmed, "I need to")) ||
+			(strings.HasPrefix(trimmed, "Action:") && trimmed != "Action:") {
 			continue
 		}
 
-		cleaned = append(cleaned, line)
+		if trimmed != "" {
+			cleaned = append(cleaned, line)
+		}
 	}
 
 	return strings.TrimSpace(strings.Join(cleaned, "\n"))
@@ -379,46 +344,6 @@ func (m *MRKLAgent) updateTokensRecv(count int) {
 	m.tokensMu.Lock()
 	m.tokensRecv += count
 	m.tokensMu.Unlock()
-}
-
-// loadSystemPrompt loads the system prompt from a markdown file
-func loadSystemPrompt(mode OperatingMode) (string, error) {
-	promptPath := filepath.Join("prompts", string(mode), "SYSTEM_PROMPT.md")
-	content, err := os.ReadFile(promptPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read prompt file: %w", err)
-	}
-	return string(content), nil
-}
-
-// getDefaultPrompt returns a default prompt if file loading fails
-func getDefaultPrompt(mode OperatingMode) string {
-	if mode == ExecuteMode {
-		return `You are a helpful AI assistant. Use the available tools to help answer questions and complete tasks.
-
-Available tools:
-{{.tool_descriptions}}
-
-Previous conversation:
-{{.history}}
-
-User input: {{.input}}
-
-Respond using the ReAct pattern (Thought, Action, Action Input, Observation) when using tools.`
-	}
-
-	// Plan mode default
-	return `You are a helpful AI assistant in planning mode. Analyze tasks and create detailed plans.
-
-Available tools for planning:
-{{.tool_descriptions}}
-
-Previous conversation:
-{{.history}}
-
-Task to plan: {{.input}}
-
-Create a detailed, step-by-step plan for accomplishing this task.`
 }
 
 // Ensure MRKLAgent implements Agent interface

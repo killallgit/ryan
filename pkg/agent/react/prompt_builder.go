@@ -4,29 +4,32 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/killallgit/ryan/pkg/prompt"
+	"github.com/tmc/langchaingo/prompts"
 	"github.com/tmc/langchaingo/tools"
 )
 
 // PromptBuilder constructs ReAct prompts
 type PromptBuilder struct {
-	tools    []tools.Tool
-	template string
-	mode     Mode
+	tools          []tools.Tool
+	promptTemplate *prompt.ReactPromptTemplate
 }
-
-// Mode represents the agent's operating mode
-type Mode string
-
-const (
-	ExecuteMode Mode = "execute"
-	PlanMode    Mode = "plan"
-)
 
 // NewPromptBuilder creates a new prompt builder
 func NewPromptBuilder() *PromptBuilder {
+	// Load unified prompt
+	promptTemplate, err := prompt.LoadReactPrompt("unified")
+	if err != nil {
+		logger.Warn("Failed to load prompt from file, using default: %v", err)
+		promptTemplate = prompt.NewReactPromptTemplate(
+			prompt.DefaultUnifiedPrompt(),
+			"unified",
+		)
+	}
+
 	return &PromptBuilder{
-		mode:     ExecuteMode,
-		template: defaultReActTemplate,
+		promptTemplate: promptTemplate,
 	}
 }
 
@@ -35,77 +38,51 @@ func (pb *PromptBuilder) SetTools(toolList []tools.Tool) {
 	pb.tools = toolList
 }
 
-// SetMode sets the operating mode
-func (pb *PromptBuilder) SetMode(mode Mode) {
-	pb.mode = mode
+// SetCustomPrompt sets a custom prompt template
+func (pb *PromptBuilder) SetCustomPrompt(customTemplate string) {
+	// Create a custom prompt template
+	template := prompts.NewPromptTemplate(
+		customTemplate,
+		[]string{"tool_descriptions", "history", "input"},
+	)
+	pb.promptTemplate = prompt.NewReactPromptTemplate(template, "custom")
 }
 
 // Build constructs a prompt from the current state
 func (pb *PromptBuilder) Build(state *State) string {
-	var prompt strings.Builder
-
-	// Add system instructions based on mode
-	if pb.mode == ExecuteMode {
-		prompt.WriteString(executeInstructions)
-	} else {
-		prompt.WriteString(planInstructions)
-	}
-
-	// Add tool descriptions
-	prompt.WriteString("\n\nAvailable tools:\n")
+	// Build tool descriptions
+	var toolDescs []string
 	for _, tool := range pb.tools {
-		prompt.WriteString(fmt.Sprintf("- %s: %s\n", tool.Name(), tool.Description()))
+		toolDescs = append(toolDescs, fmt.Sprintf("- %s: %s", tool.Name(), tool.Description()))
 	}
+	toolDescriptions := strings.Join(toolDescs, "\n")
 
-	// Add ReAct format instructions
-	prompt.WriteString("\n" + reactFormatInstructions)
-
-	// Add the question
-	prompt.WriteString(fmt.Sprintf("\n\nQuestion: %s\n", state.Input))
-
-	// Add conversation history (previous iterations)
-	if len(state.Iterations) > 0 {
-		prompt.WriteString("\nPrevious steps:\n")
-		for _, iter := range state.Iterations {
-			if iter.Thought != "" {
-				prompt.WriteString(fmt.Sprintf("Thought: %s\n", iter.Thought))
-			}
-			if iter.Action != "" {
-				prompt.WriteString(fmt.Sprintf("Action: %s\n", iter.Action))
-				prompt.WriteString(fmt.Sprintf("Action Input: %s\n", iter.ActionInput))
-			}
-			if iter.Observation != "" {
-				prompt.WriteString(fmt.Sprintf("Observation: %s\n", iter.Observation))
-			}
+	// Build conversation history from iterations
+	var historyLines []string
+	for _, iter := range state.Iterations {
+		if iter.Thought != "" {
+			historyLines = append(historyLines, fmt.Sprintf("Thought: %s", iter.Thought))
 		}
-		prompt.WriteString("\nContinue from here:\n")
+		if iter.Action != "" {
+			historyLines = append(historyLines, fmt.Sprintf("Action: %s", iter.Action))
+			historyLines = append(historyLines, fmt.Sprintf("Action Input: %s", iter.ActionInput))
+		}
+		if iter.Observation != "" {
+			historyLines = append(historyLines, fmt.Sprintf("Observation: %s", iter.Observation))
+		}
+	}
+	history := strings.Join(historyLines, "\n")
+	if len(historyLines) > 0 {
+		history += "\n\nContinue from here:"
 	}
 
-	return prompt.String()
+	// Use the loaded prompt template to format the prompt
+	formatted, err := pb.promptTemplate.Format(toolDescriptions, history, state.Input)
+	if err != nil {
+		logger.Error("Failed to format prompt: %v", err)
+		// Return a basic fallback
+		return fmt.Sprintf("Tools: %s\n\nHistory: %s\n\nInput: %s\n", toolDescriptions, history, state.Input)
+	}
+
+	return formatted
 }
-
-const defaultReActTemplate = `You are a helpful AI assistant with access to tools.`
-
-const executeInstructions = `You are a helpful AI assistant that can use tools to help answer questions and complete tasks.
-Always think step-by-step about what you need to do before taking actions.`
-
-const planInstructions = `You are a helpful AI assistant that creates detailed plans for completing tasks.
-Think step-by-step about what needs to be done, but do not execute any actions.
-Instead, create a comprehensive plan that someone else could follow.`
-
-const reactFormatInstructions = `Use this exact format for your response:
-
-Thought: [Your reasoning about what to do next]
-Action: [The tool name to use, or none if you have the final answer]
-Action Input: [The input for the tool as JSON or simple text]
-Observation: [This will be filled in by the system after tool execution]
-... (repeat Thought/Action/Action Input/Observation as needed)
-Thought: [Final reasoning]
-Final Answer: [Your final response to the user]
-
-Important:
-- Always start with a Thought
-- If you need to use a tool, specify the Action and Action Input
-- Wait for the Observation before continuing
-- When you have enough information, provide a Final Answer
-- Each response should contain ONLY ONE iteration (one Thought/Action pair OR Final Answer)`

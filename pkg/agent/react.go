@@ -11,14 +11,6 @@ import (
 	"github.com/tmc/langchaingo/tools"
 )
 
-// ReactMode defines the ReAct agent's operating mode
-type ReactMode string
-
-const (
-	ReactExecuteMode ReactMode = "execute"
-	ReactPlanMode    ReactMode = "plan"
-)
-
 // ReactAgent implements a ReAct pattern agent with visible reasoning
 type ReactAgent struct {
 	llm        llms.Model
@@ -26,7 +18,6 @@ type ReactAgent struct {
 	controller *react.Controller
 	memory     *memory.Memory
 	stream     stream.Handler
-	mode       ReactMode
 }
 
 // NewReactAgent creates a new ReAct pattern agent
@@ -47,36 +38,16 @@ func NewReactAgent(llm llms.Model, toolList []tools.Tool, memory *memory.Memory,
 		controller: controller,
 		memory:     memory,
 		stream:     stream,
-		mode:       ReactExecuteMode,
-	}
-
-	// Setup the controller with initial mode
-	if err := agent.setupController(); err != nil {
-		return nil, fmt.Errorf("failed to setup controller: %w", err)
 	}
 
 	return agent, nil
 }
 
-// setupController configures the controller with the appropriate mode
-func (a *ReactAgent) setupController() error {
-	// Convert our ReactMode to react.Mode and set on controller
-	if a.mode == ReactExecuteMode {
-		a.controller.SetMode(react.ExecuteMode)
-	} else {
-		a.controller.SetMode(react.PlanMode)
+// SetCustomPrompt sets a custom system prompt
+func (a *ReactAgent) SetCustomPrompt(customPrompt string) {
+	if a.controller != nil && a.controller.GetPromptBuilder() != nil {
+		a.controller.GetPromptBuilder().SetCustomPrompt(customPrompt)
 	}
-
-	return nil
-}
-
-// SetMode changes the operating mode
-func (a *ReactAgent) SetMode(mode ReactMode) error {
-	if a.mode != mode {
-		a.mode = mode
-		return a.setupController()
-	}
-	return nil
 }
 
 // Execute runs the agent with the given input
@@ -131,11 +102,6 @@ func (a *ReactAgent) ClearMemory() error {
 		return a.memory.Clear()
 	}
 	return nil
-}
-
-// GetMode returns the current operating mode
-func (a *ReactAgent) GetMode() ReactMode {
-	return a.mode
 }
 
 // Close cleans up the agent resources
