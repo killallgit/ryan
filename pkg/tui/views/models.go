@@ -5,25 +5,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/killallgit/ryan/pkg/ollama"
 )
-
-// ModelsView displays available Ollama models
-type ModelsView struct {
-	width         int
-	height        int
-	table         table.Model
-	models        []ollama.Model
-	apiClient     *ollama.APIClient
-	loading       bool
-	err           error
-	lastUpdate    time.Time
-	showDetails   bool
-	selectedModel *ollama.Model
-}
 
 // NewModelsView creates a new models view
 func NewModelsView() ModelsView {
@@ -54,17 +42,27 @@ func NewModelsView() ModelsView {
 		Bold(false)
 	t.SetStyles(s)
 
-	return ModelsView{
-		table:     t,
-		apiClient: ollama.NewAPIClient(),
-		loading:   true,
-	}
-}
+	// Create text input for download modal
+	ti := textinput.New()
+	ti.Placeholder = "Enter model name (e.g., llama3.2)"
+	ti.Focus()
+	ti.CharLimit = 100
+	ti.Width = 30
 
-// fetchModelsMsg is sent when models are fetched
-type fetchModelsMsg struct {
-	models []ollama.Model
-	err    error
+	// Create progress bar
+	prog := progress.New(progress.WithDefaultGradient())
+
+	return ModelsView{
+		table:              t,
+		apiClient:          ollama.NewAPIClient(),
+		loading:            true,
+		modalType:          ModalNone,
+		textInput:          ti,
+		progressBar:        prog,
+		spinnerFrame:       0,
+		spinnerChars:       []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
+		autoRefreshEnabled: true,
+	}
 }
 
 // fetchModels returns a command to fetch models
@@ -77,7 +75,8 @@ func (v ModelsView) fetchModels() tea.Cmd {
 
 // Init initializes the models view
 func (v ModelsView) Init() tea.Cmd {
-	return v.fetchModels()
+	// Start both initial model fetch and auto-refresh timer
+	return tea.Batch(v.fetchModels(), autoRefreshTick())
 }
 
 // Update handles messages for the models view
@@ -97,29 +96,23 @@ func (v ModelsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		v.lastUpdate = time.Now()
 
 		if msg.err == nil {
-			// Convert models to table rows with simplified columns
-			rows := make([]table.Row, 0, len(msg.models))
-			for _, model := range msg.models {
-				row := table.Row{
-					model.Name,
-					ollama.FormatSize(model.Size),
-					model.Details.ParameterSize,
-					model.ModifiedAt.Format("2006-01-02 15:04"),
-				}
-				rows = append(rows, row)
-			}
-			v.table.SetRows(rows)
+			v.updateTable()
 		}
 
 	case tea.KeyMsg:
-		if v.showDetails {
+		switch v.modalType {
+		case ModalDetails:
 			// Handle keys in details modal
 			switch msg.String() {
 			case "d", "D", "esc", "enter":
-				v.showDetails = false
+				v.modalType = ModalNone
 				v.selectedModel = nil
 			}
-		} else {
+		case ModalDownload:
+			return v.handleDownloadModalKeys(msg)
+		case ModalDelete:
+			return v.handleDeleteConfirmation(msg)
+		default:
 			// Handle keys in main view
 			switch msg.String() {
 			case "esc":
@@ -127,12 +120,10 @@ func (v ModelsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return v, func() tea.Msg {
 					return SwitchToPreviousViewMsg{}
 				}
-			case "d", "D":
-				// Show details for selected model
-				if len(v.models) > 0 && v.table.Cursor() < len(v.models) {
-					v.selectedModel = &v.models[v.table.Cursor()]
-					v.showDetails = true
-				}
+			case "enter":
+				return v.handleEnterKey()
+			case "ctrl+d":
+				return v.handleDeleteFromList()
 			case "r", "R":
 				// Refresh models
 				v.loading = true
@@ -142,10 +133,34 @@ func (v ModelsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return v, tea.Quit
 			}
 		}
+
+	case pullProgressMsg:
+		return v.handlePullProgress(msg)
+
+	case pullCompleteMsg:
+		return v.handlePullComplete(msg)
+
+	case deleteCompleteMsg:
+		return v.handleDeleteComplete(msg)
+
+	case startPullMsg:
+		return v.handleStartPull(msg)
+
+	case pollMsg:
+		// Continue polling for progress updates
+		if v.downloadActive && (v.progressChan != nil || v.errorChan != nil) {
+			return v, waitForProgress(v.progressChan, v.errorChan)
+		}
+
+	case spinnerTickMsg:
+		return v.handleSpinnerTick()
+
+	case autoRefreshMsg:
+		return v.handleAutoRefresh()
 	}
 
-	// Update the table only if not showing details
-	if !v.showDetails {
+	// Update the table only if not showing modal
+	if v.modalType == ModalNone {
 		v.table, cmd = v.table.Update(msg)
 	}
 	return v, cmd
@@ -153,9 +168,16 @@ func (v ModelsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the models view
 func (v ModelsView) View() string {
-	// Show details modal if active
-	if v.showDetails && v.selectedModel != nil {
-		return v.renderDetailsModal()
+	// Show appropriate modal based on type
+	switch v.modalType {
+	case ModalDetails:
+		if v.selectedModel != nil {
+			return v.renderDetailsModal()
+		}
+	case ModalDownload:
+		return v.renderDownloadModal()
+	case ModalDelete:
+		return v.renderDeleteModal()
 	}
 
 	var b strings.Builder
@@ -199,111 +221,10 @@ func (v ModelsView) View() string {
 	b.WriteString("\n\n")
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241"))
-	footer := "↑/↓: Navigate • d: Details • r: Refresh • Esc: Back • Ctrl+P: Switch view • q: Quit"
+	footer := "↑/↓: Navigate • Enter: Pull/Details • Ctrl+D: Delete • r: Refresh • Esc: Back • q: Quit"
 	b.WriteString(footerStyle.Render(footer))
 
 	return b.String()
-}
-
-// renderDetailsModal renders the details modal for a selected model
-func (v ModelsView) renderDetailsModal() string {
-	// Modal styles
-	modalStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("170")).
-		Padding(1, 2).
-		Width(70).
-		MaxWidth(v.width - 4)
-
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("170")).
-		MarginBottom(1)
-
-	labelStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("86"))
-
-	valueStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252"))
-
-	var content strings.Builder
-
-	// Title
-	content.WriteString(titleStyle.Render(fmt.Sprintf("Model Details: %s", v.selectedModel.Name)))
-	content.WriteString("\n\n")
-
-	// Model details
-	digestValue := v.selectedModel.Digest
-	if len(digestValue) > 12 {
-		digestValue = digestValue[:12] + "..."
-	}
-
-	details := []struct {
-		label string
-		value string
-	}{
-		{"Name", v.selectedModel.Name},
-		{"Size", ollama.FormatSize(v.selectedModel.Size)},
-		{"Digest", digestValue},
-		{"Modified", v.selectedModel.ModifiedAt.Format("2006-01-02 15:04:05")},
-		{"Format", v.selectedModel.Details.Format},
-		{"Family", v.selectedModel.Details.Family},
-		{"Parameter Size", v.selectedModel.Details.ParameterSize},
-		{"Quantization", v.selectedModel.Details.QuantizationLevel},
-	}
-
-	for _, d := range details {
-		content.WriteString(labelStyle.Render(d.label + ": "))
-		content.WriteString(valueStyle.Render(d.value))
-		content.WriteString("\n")
-	}
-
-	// Additional families if present
-	if len(v.selectedModel.Details.Families) > 0 {
-		content.WriteString("\n")
-		content.WriteString(labelStyle.Render("Families: "))
-		content.WriteString(valueStyle.Render(strings.Join(v.selectedModel.Details.Families, ", ")))
-		content.WriteString("\n")
-	}
-
-	// Footer
-	content.WriteString("\n")
-	footerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-	content.WriteString(footerStyle.Render("Press 'd', 'esc', or 'enter' to close"))
-
-	// Center the modal
-	modal := modalStyle.Render(content.String())
-
-	// Calculate vertical padding to center
-	lines := strings.Count(modal, "\n") + 1
-	topPadding := (v.height - lines) / 2
-	if topPadding < 0 {
-		topPadding = 0
-	}
-
-	// Build final view with padding
-	var final strings.Builder
-	for i := 0; i < topPadding; i++ {
-		final.WriteString("\n")
-	}
-
-	// Center horizontally
-	modalWidth := lipgloss.Width(modal)
-	leftPadding := (v.width - modalWidth) / 2
-	if leftPadding < 0 {
-		leftPadding = 0
-	}
-
-	paddedModal := lipgloss.NewStyle().
-		MarginLeft(leftPadding).
-		Render(modal)
-
-	final.WriteString(paddedModal)
-
-	return final.String()
 }
 
 // Name returns the display name for this view

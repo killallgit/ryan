@@ -136,7 +136,7 @@ func setDefaults() {
 	// Logging defaults
 	viper.SetDefault("logging.log_file", "system.log")
 	viper.SetDefault("logging.persist", false)
-	viper.SetDefault("logging.level", "info")
+	viper.SetDefault("logging.level", "debug")
 
 	// LangChain defaults
 	viper.SetDefault("langchain.memory_type", "window")

@@ -22,6 +22,17 @@ type rootModel struct {
 	viewHistory   []int // Stack of view indices for navigation history
 }
 
+const maxViewHistorySize = 10 // Limit history stack size
+
+// pushToHistory adds a view index to the history stack, maintaining size limits
+func (m *rootModel) pushToHistory(viewIndex int) {
+	m.viewHistory = append(m.viewHistory, viewIndex)
+	// Keep only the last maxViewHistorySize items
+	if len(m.viewHistory) > maxViewHistorySize {
+		m.viewHistory = m.viewHistory[len(m.viewHistory)-maxViewHistorySize:]
+	}
+}
+
 func (m rootModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	for _, view := range m.views {
@@ -67,6 +78,8 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Switch to selected view
 				newView := m.switcherModel.SelectedIndex()
 				if newView != m.activeView {
+					// Push current view to history stack
+					m.pushToHistory(m.activeView)
 					m.previousView = m.activeView
 					m.activeView = newView
 				}
@@ -86,18 +99,24 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle custom messages first
 	switch msg := msg.(type) {
 	case views.SwitchToPreviousViewMsg:
-		// Switch back to previous view if it exists and is different
-		if m.previousView >= 0 && m.previousView < len(m.views) && m.previousView != m.activeView {
-			temp := m.activeView
-			m.activeView = m.previousView
-			m.previousView = temp
-			// Initialize the newly selected view
-			return m, m.views[m.activeView].Init()
+		// Pop from history stack to go back
+		if len(m.viewHistory) > 0 {
+			// Get the previous view from the stack
+			previousViewIndex := m.viewHistory[len(m.viewHistory)-1]
+			m.viewHistory = m.viewHistory[:len(m.viewHistory)-1]
+
+			if previousViewIndex >= 0 && previousViewIndex < len(m.views) && previousViewIndex != m.activeView {
+				m.activeView = previousViewIndex
+				// Initialize the newly selected view
+				return m, m.views[m.activeView].Init()
+			}
 		}
 		return m, nil
 	case views.SwitchToViewMsg:
 		// Switch to specific view
 		if msg.Index >= 0 && msg.Index < len(m.views) && msg.Index != m.activeView {
+			// Push current view to history stack
+			m.pushToHistory(m.activeView)
 			m.previousView = m.activeView
 			m.activeView = msg.Index
 			// Initialize the newly selected view
