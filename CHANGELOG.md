@@ -3,6 +3,15 @@
 ## [Unreleased]
 
 ### Added
+- **Models View** - New TUI view for managing Ollama models
+  - Created dedicated models view to display available Ollama models in a table
+  - Implemented Ollama API client for fetching model list from `/api/tags` endpoint
+  - Table shows essential columns: Name, Size, Parameters, and Modified date
+  - Detailed model information available via 'd' key press showing full metadata in modal
+  - Refresh capability with 'r' key to update model list
+  - Proper error handling for connection issues
+  - Navigation with escape key to return to previous view
+  - Replaced placeholder views (History and Settings) with functional Models view
 - **Tool Registry System** - Centralized tool registration and initialization using factory pattern
   - Created `pkg/tools/registry/` package with Registry interface and implementation
   - Factory pattern for tool creation with `ToolFactory` functions
