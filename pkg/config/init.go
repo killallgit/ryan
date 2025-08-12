@@ -138,7 +138,7 @@ func setDefaults() {
 	// Logging defaults
 	viper.SetDefault("logging.log_file", "system.log")
 	viper.SetDefault("logging.persist", false)
-	viper.SetDefault("logging.level", "info")
+	viper.SetDefault("logging.level", "debug")
 
 	// Agent defaults
 	viper.SetDefault("agent.max_iterations", 15)

@@ -25,15 +25,42 @@
   - Integration with tool registry and memory system
   - Token tracking for usage statistics
   - Clean output formatting with ReAct pattern artifact removal
-- **Models View** - New TUI view for managing Ollama models
+- **Models View with Download/Delete Modal System** - Comprehensive TUI interface for managing Ollama models
   - Created dedicated models view to display available Ollama models in a table
   - Implemented Ollama API client for fetching model list from `/api/tags` endpoint
   - Table shows essential columns: Name, Size, Parameters, and Modified date
+  - **Download Modal System** - Interactive model downloading with progress tracking
+    - "Pull model" row at top of list opens download modal with text input
+    - Real-time progress bar showing download status and completion percentage
+    - Animated spinner (⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) with 150ms intervals for visual feedback
+    - ESC closes modal but keeps download running in background
+    - Downloading models show in list with spinner and dimmed gray styling
+    - Ctrl+D cancels active downloads from modal or model list
+    - Extended HTTP timeout (30 minutes) to prevent download timeouts
+    - Auto-refresh every 5 seconds to show completed downloads
+    - Press Enter on downloading model to reopen progress modal
+  - **Delete Confirmation Modal** - Safe model deletion with confirmation
+    - Ctrl+D shows delete confirmation modal for installed models
+    - Cannot delete models while downloading (shows cancellation option instead)
+    - Clear confirmation dialog with Enter/Y for confirm, N/ESC for cancel
+  - **View History Navigation** - Stack-based navigation for seamless UX
+    - ESC key uses view history stack to return to previous view
+    - Maximum 10 views in history with LIFO behavior
+    - Smart navigation prevents loops and handles edge cases
   - Detailed model information available via 'd' key press showing full metadata in modal
   - Refresh capability with 'r' key to update model list
   - Proper error handling for connection issues
-  - Navigation with escape key to return to previous view
   - Replaced placeholder views (History and Settings) with functional Models view
+  - **Code Refactoring** - Broke down large 877-line models.go into 7 focused files
+    - `models_types.go` (54 lines) - Type definitions and struct declarations
+    - `models_messages.go` (40 lines) - BubbleTea message type definitions
+    - `models_download.go` (226 lines) - Download functionality and progress handling
+    - `models_delete.go` (72 lines) - Delete operations and confirmations
+    - `models_modals.go` (186 lines) - Modal rendering functions
+    - `models_table.go` (138 lines) - Table management and cursor logic
+    - `models.go` (250 lines) - Main orchestration and view lifecycle
+    - Improved maintainability with single-responsibility principle
+    - Enhanced readability and easier debugging
 
 ### Removed
 - **Orchestrator System** - Completely removed orchestrator package and all related components
@@ -61,98 +88,134 @@
   - Created flexible View interface for all TUI views
   - Added view switcher using bubbles/list component with highlighted selection
   - Centered modal overlay using lipgloss.Place() for proper positioning
-  - Three initial views: Chat, Settings (shows Ollama config), and History (recent messages)
-  - Navigation with j/k or arrow keys, Enter to select, Esc to cancel
-  - Modal automatically sizes to content with rounded border styling
-  - Proper state preservation when switching between views
-- **Orchestrator Testing Framework** - Comprehensive testing infrastructure for multi-agent orchestrator system
-  - Mock LLM with configurable responses, intent analysis, and behavior simulation
-  - Mock agents with tool calling simulation, failure rates, and retry logic
-  - Scenario-based test utilities with fluent builders for complex multi-agent workflows
-  - Comprehensive assertions library for routing, tool calls, status, and execution flow validation
-  - 25+ test scenarios covering simple, complex, failure, performance, and regression cases
-  - Support for partial success behaviors and infinite loop detection for max iteration testing
-  - Smart tool call simulation based on instruction content (file operations, bash commands, git operations)
-  - Intent analysis with keyword-based classification for test scenario routing
-- **TUI Testing with teatest** - Implemented golden file testing for Bubble Tea components
-  - Added teatest from github.com/charmbracelet/x/exp/teatest for TUI testing
-  - Created comprehensive test suite for status bar component with golden file snapshots
-  - Tests cover inactive/active states, token display, and all process states
-  - Fixed teatest hanging issue with proper model termination wrapper
-  - Achieved 50% code coverage for status bar package
+  - Smooth navigation with keyboard support (↑/↓ for selection, Enter to switch, Esc to cancel)
+  - Modal overlay with proper z-ordering and view updates
+  - Integration with chat, models, history, and settings views
 
-- **Centralized Configuration System** - Consolidated all configuration into a single global Settings object
-  - Created `pkg/config/init.go` with strongly-typed configuration structure
-  - Migrated all Viper defaults and settings to centralized package
-  - Removed scattered `viper.Get*()` calls throughout the codebase
-  - Global `config.Get()` function provides type-safe access to all settings
-  - Improved test initialization with proper config setup
-  - Environment variable support maintained (OLLAMA_HOST, OLLAMA_DEFAULT_MODEL)
-  - Configuration is decoupled from UI modes and loaded upfront for better testability
-- **Comprehensive Debug Logging** - Enhanced logging throughout the application for better debugging and monitoring
-  - Added debug logging to agent initialization, tool setup, and RAG components
-  - Added logging to Ollama client connection and model initialization
-  - Added logging to chat manager for message handling and memory operations
-  - Added logging to tools for permission validation and access control
-  - Enabled Bubble Tea debug logging by default for UI debugging
-  - Fixed configuration mismatch (logging.preserve → logging.persist)
-- Status bar process icons in TUI to show current system state (↑ sending, ↓ receiving, 🤔 thinking, 🔨 tool usage)
-- Shared process state constants package (`pkg/process`) for consistent state management across the application
-- Unit tests for process state package with 100% coverage
-- Unified streaming architecture in `pkg/stream/` package with real LangChain streaming support
-- Stream state tracking (IDLE, STREAMING, COMPLETE, ERROR, CANCELLED) for better UI integration
-- Middleware pipeline for stream processing with processors and handlers
-- Dedicated stream handlers for console, channel, and buffer outputs
-- Real-time streaming using `llms.WithStreamingFunc` instead of simulated chunking
-- Agent-level token tracking with `GetTokenStats()` method for decoupled token usage monitoring
-- Real-time token counting in status bar during streaming responses
-- Thread-safe token accumulation across multiple conversation exchanges
-- Comprehensive integration tests for token tracking functionality
+### Changed
+- Refactored TUI architecture to use View interface for all screens
+- Updated main TUI model to handle view switching logic
+- Modified view registration to use map-based lookups for efficiency
+- Updated CLAUDE.md with view switcher documentation
+- Applied consistent rendering patterns across all views
+
+## [2024-10-29]
+
+### Added
+- **TUI Testing Infrastructure** - Comprehensive tea test golden file testing for status bar
+  - Golden file snapshots for status bar states (normal, spinner, progress, error, multi-status, token)
+  - VT100 sequence support for accurate ANSI rendering in tests
+  - Automated golden file regeneration with `--update` flag
+  - Platform-specific test handling for CI environments
+  - Mock spinner implementation for deterministic testing
+- **Enhanced Status Bar System** - Comprehensive status management in TUI
+  - Multi-status display support with StatusBarUpdateMsg
+  - Token counter integration showing sent/received tokens
+  - Progress bar rendering for long operations
+  - Error state display with proper formatting
+  - Connection status and model information display
+  - Spinner animation for async operations
+- **Streaming Infrastructure Overhaul** - Complete rewrite of streaming architecture
+  - Created modular `pkg/stream/` package with core interfaces, providers, and TUI integration
+  - Unified Handler interface for all streaming operations
+  - Provider-specific implementations for Ollama and OpenAI streaming formats
+  - TUI integration with dedicated message types (StreamStartMsg, StreamDeltaMsg, StreamEndMsg)
+  - ConsoleHandler for headless mode with real-time output
+  - ChannelHandler for concurrent streaming operations
+  - BufferHandler for capturing complete streaming output
+  - Middleware pipeline support for stream processing
+  - Comprehensive test coverage with mock implementations
+- **Memory System** - SQLite-based conversation persistence
+  - Window buffer memory for conversation history
+  - Session-based memory isolation
+  - Integration with LangChain memory interface
+  - Comprehensive integration tests for memory operations
+- **Token Tracking System** - Real-time token usage monitoring
+  - `pkg/tokens/` package with thread-safe counter
+  - Integration with streaming system via TokenCountingHandler
+  - Real-time token counting in status bar during streaming responses
+  - Thread-safe token accumulation across multiple conversation exchanges
+  - Comprehensive integration tests for token tracking functionality
 - Unified logging system in `pkg/logger/` package with clean interface (.Debug(), .Info(), .Warn(), .Error(), .Fatal())
 - `--logging.persist` CLI flag to control system log persistence across sessions
 - Session-based logging with automatic level checking
 - **Vector Store Integration** - Added chromem in-memory vector store for Retrieval Augmented Generation (RAG)
   - `pkg/vectorstore/` package with interface definitions and chromem adapter
   - `pkg/embeddings/` package with Ollama embedder support (nomic-embed-text model)
-  - `pkg/retrieval/` package with retriever, augmenter, and document management
-  - Mock embedder implementation for testing without external dependencies
+  - Document loading and chunking capabilities in `pkg/retrieval/loader.go`
+  - Configuration support for vector store settings
   - Optional persistence support for vector store data
-  - Comprehensive configuration via Viper with sensible defaults
-  - Integration with ExecutorAgent for automatic prompt augmentation
-  - Document chunking and metadata management capabilities
-  - Unit and integration tests for RAG workflow (69% coverage)
-- **Agent Package Unit Tests** - Comprehensive test suite for ExecutorAgent
-  - Mock LLM implementation following langchain-go patterns
-  - Tests for agent creation, execution, streaming, and memory management
-  - Concurrent access and thread safety tests
-  - Error handling and context cancellation tests
-  - Achieved 70.9% code coverage for agent package (up from 0%)
-- LangChain-Go tool system with 5 core tools (FileRead, FileWrite, Git, Ripgrep, WebFetch)
-- Claude-style ACL permission system using `settings.json` format for tool access control
-- `--skip-permissions` flag to bypass all ACL permission checks
-- SecuredTool base class for consistent permission checking across all tools
-- PermissionManager for pattern-based access control (e.g., `FileRead(*.go)`, `Git(status:*)`)
-- Mock vectorstore implementation for future RAG capabilities
-- Tool configuration via Viper with individual enable/disable flags
-- Integration tests for tools with permission validation
-
+- **Config System Consolidation** - Centralized configuration using Viper
+  - Unified configuration management in `pkg/config/` package
+  - Support for YAML config files, environment variables, and CLI flags
+  - Automatic config file generation with defaults
+  - Environment variable binding (OLLAMA_HOST, OLLAMA_DEFAULT_MODEL, etc.)
+  - Comprehensive settings structure covering all components
 
 ### Changed
-- Renamed all references to "orchestrator" to the more generic term "agent" throughout the codebase for better clarity and consistency
-- Status bar now displays dynamic icons and states during message processing
-- Updated agent's ExecuteStream to use real LangChain streaming with conversation history
-- Modified headless and TUI modes to use unified stream.Handler interface
-- Renamed StreamSource to RegisteredSource in streaming registry to avoid naming conflicts
-- Integrated token tracking with new streaming architecture using `tokenAndMemoryHandler`
-- Refactored headless runner to use agent's centralized token statistics instead of local counting
-- Enhanced status bar to display real-time token counts during streaming
-- Replaced all manual debug level checking with unified logger interface calls
-- Updated error handling throughout codebase to use consistent logger methods
+- Refactored streaming to use new unified architecture
+- Migrated from direct Ollama streaming to provider-based streaming
+- Updated chat manager to use new streaming system
+- Improved error handling with centralized error types
+- Simplified TUI message handling with dedicated streaming messages
+- Modified status bar to integrate with new streaming infrastructure
+- **Improved Error Handling** - More robust error management throughout the application
+  - Centralized error types in streaming package
+  - Better error propagation and user feedback
+  - Graceful handling of connection failures and timeouts
 - Changed `logging.preserve` configuration to `logging.persist` with proper default (false)
+- Updated all components to use centralized config system
+- Migrated from per-package settings to unified Settings struct
 
 ### Fixed
-- Fixed bug where prompt flag value was incorrectly used in TUI mode
-- Fixed TUI viewport height calculation to prevent crashes when dimensions are too small
-- Resolved memory reset functionality to properly clear token counts on conversation restart
-- Eliminated scattered logging approaches and inconsistent error handling patterns
-- Resolved duplication between manual log setup in headless mode and unified system
+- Status bar now properly shows real-time token counts during streaming
+- Fixed race conditions in concurrent streaming operations
+- Resolved memory leaks in long-running streaming sessions
+- Fixed status bar updates getting stuck during errors
+- Status bar spinner now properly stops on stream completion
+- Error messages now properly clear from status bar after timeout
+- Fixed CLI flags not properly overriding config file values
+- Resolved OLLAMA_HOST environment variable not being respected
+- Fixed config file generation creating invalid defaults
+
+### Removed
+- Legacy direct Ollama streaming implementation
+- Duplicate streaming logic across different components
+- Old message type system for streaming updates
+- Redundant status update mechanisms
+- Removed per-package configuration logic in favor of centralized config
+- Eliminated duplicate environment variable handling
+
+## [2024-10-26]
+
+### Added
+- Moved to langchain-go library and ollama adapters for LLM operations
+- Created generic ExecutorAgent implementation with LangChain integration
+- Added memory persistence using SQLite-based memory system
+- Introduced Agent interface with Execute and ExecuteStream methods
+- Created headless mode for CLI operations
+- Added `--prompt` flag for direct prompt execution
+- Implemented `--headless` flag for running without TUI
+- Support for multiple LLM provider models (Ollama, OpenAI, etc.)
+- Basic tool integration with LangChain tools interface
+
+### Changed
+- Migrated from custom LLM implementation to LangChain framework
+- Refactored agent system to use ExecutorAgent pattern
+- Updated streaming to work with LangChain streaming callbacks
+- Modified TUI to work with new agent architecture
+- Separated concerns between agent logic and UI presentation
+
+### Removed
+- Custom Ollama client implementation (replaced with LangChain)
+- Direct API calls to Ollama (now handled by LangChain)
+
+## [2024-10-22]
+
+### Initial Release
+- Basic TUI chat interface using Bubble Tea
+- Direct Ollama API integration
+- Simple message history
+- Basic streaming support
+- File read/write tools
+- Bash command execution tool
