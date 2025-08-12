@@ -3,14 +3,31 @@
 ## [Unreleased]
 
 ### Added
-- **Models View** - New TUI view for managing Ollama models
+- **Models View with Download/Delete Modal System** - Comprehensive TUI interface for managing Ollama models
   - Created dedicated models view to display available Ollama models in a table
   - Implemented Ollama API client for fetching model list from `/api/tags` endpoint
   - Table shows essential columns: Name, Size, Parameters, and Modified date
+  - **Download Modal System** - Interactive model downloading with progress tracking
+    - "Pull model" row at top of list opens download modal with text input
+    - Real-time progress bar showing download status and completion percentage
+    - Animated spinner (⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) with 150ms intervals for visual feedback
+    - ESC closes modal but keeps download running in background
+    - Downloading models show in list with spinner and dimmed gray styling
+    - Ctrl+D cancels active downloads from modal or model list
+    - Extended HTTP timeout (30 minutes) to prevent download timeouts
+    - Auto-refresh every 5 seconds to show completed downloads
+    - Press Enter on downloading model to reopen progress modal
+  - **Delete Confirmation Modal** - Safe model deletion with confirmation
+    - Ctrl+D shows delete confirmation modal for installed models
+    - Cannot delete models while downloading (shows cancellation option instead)
+    - Clear confirmation dialog with Enter/Y for confirm, N/ESC for cancel
+  - **View History Navigation** - Stack-based navigation for seamless UX
+    - ESC key uses view history stack to return to previous view
+    - Maximum 10 views in history with LIFO behavior
+    - Smart navigation prevents loops and handles edge cases
   - Detailed model information available via 'd' key press showing full metadata in modal
   - Refresh capability with 'r' key to update model list
   - Proper error handling for connection issues
-  - Navigation with escape key to return to previous view
   - Replaced placeholder views (History and Settings) with functional Models view
 - **Tool Registry System** - Centralized tool registration and initialization using factory pattern
   - Created `pkg/tools/registry/` package with Registry interface and implementation
