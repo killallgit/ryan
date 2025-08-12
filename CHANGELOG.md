@@ -12,6 +12,15 @@
   - Simplified agent initialization from ~45 lines to 3 lines
   - Comprehensive unit tests with 96.1% code coverage
   - Support for dynamic tool loading and extension
+- **View Switcher with Command Palette** - Multi-view TUI navigation system
+  - Implemented command palette modal accessible via `Ctrl+P`
+  - Created flexible View interface for all TUI views
+  - Added view switcher using bubbles/list component with highlighted selection
+  - Centered modal overlay using lipgloss.Place() for proper positioning
+  - Three initial views: Chat, Settings (shows Ollama config), and History (recent messages)
+  - Navigation with j/k or arrow keys, Enter to select, Esc to cancel
+  - Modal automatically sizes to content with rounded border styling
+  - Proper state preservation when switching between views
 - **Orchestrator Testing Framework** - Comprehensive testing infrastructure for multi-agent orchestrator system
   - Mock LLM with configurable responses, intent analysis, and behavior simulation
   - Mock agents with tool calling simulation, failure rates, and retry logic
