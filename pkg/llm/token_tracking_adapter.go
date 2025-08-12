@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/killallgit/ryan/pkg/logger"
+	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/tokens"
 	"github.com/killallgit/ryan/pkg/tui/chat/status"
 )
@@ -61,7 +62,7 @@ func (a *TokenTrackingAdapter) Generate(ctx context.Context, prompt string) (str
 }
 
 // GenerateStream generates a streaming response and tracks tokens
-func (a *TokenTrackingAdapter) GenerateStream(ctx context.Context, prompt string, handler StreamHandler) error {
+func (a *TokenTrackingAdapter) GenerateStream(ctx context.Context, prompt string, handler stream.Handler) error {
 	// Count input tokens
 	if a.tokenCounter != nil && a.program != nil {
 		inputTokens := a.tokenCounter.CountTokens(prompt)
@@ -91,15 +92,15 @@ func (a *TokenTrackingAdapter) GetModel() string {
 
 // tokenTrackingStreamHandler wraps a stream handler to track tokens incrementally
 type tokenTrackingStreamHandler struct {
-	handler    StreamHandler
+	handler    stream.Handler
 	adapter    *TokenTrackingAdapter
 	buffer     string
 	lastTokens int
 }
 
-func (h *tokenTrackingStreamHandler) OnChunk(chunk string) error {
+func (h *tokenTrackingStreamHandler) OnChunk(chunk []byte) error {
 	// Accumulate chunks
-	h.buffer += chunk
+	h.buffer += string(chunk)
 
 	// Count tokens in accumulated buffer
 	if h.adapter.tokenCounter != nil && h.adapter.program != nil {

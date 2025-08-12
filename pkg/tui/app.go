@@ -44,7 +44,10 @@ func RunTUIWithOptions(agent agent.Agent, continueHistory bool) error {
 
 	// Register Ollama provider
 	ollamaClient := ollama.NewClient()
-	registry.Register("ollama-main", "ollama", ollamaClient)
+	if err := registry.Register("ollama-main", "ollama", ollamaClient); err != nil {
+		logger.Error("Failed to register Ollama provider: %v", err)
+		return err
+	}
 
 	// Create chat model with stream manager, chat manager, and injected agent
 	chatModel := chat.NewChatModel(manager, chatManager, agent)

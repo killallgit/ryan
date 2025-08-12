@@ -16,8 +16,8 @@ func NewPipeline(handler Handler, processors ...Processor) *Pipeline {
 }
 
 // OnChunk processes chunk through pipeline before passing to handler
-func (p *Pipeline) OnChunk(chunk string) error {
-	processedChunk := chunk
+func (p *Pipeline) OnChunk(chunk []byte) error {
+	processedChunk := string(chunk)
 	var err error
 
 	// Run through all processors in order
@@ -29,7 +29,7 @@ func (p *Pipeline) OnChunk(chunk string) error {
 	}
 
 	p.buffer += processedChunk
-	return p.handler.OnChunk(processedChunk)
+	return p.handler.OnChunk([]byte(processedChunk))
 }
 
 // OnComplete processes final content through pipeline

@@ -30,7 +30,6 @@ var (
 	ColorCyan    = lipgloss.Color("#61afaf") // Support, regex
 	ColorBlue    = lipgloss.Color("#6b93b5") // Functions, methods
 	ColorPurple  = lipgloss.Color("#976bb5") // Keywords, storage
-	ColorBrown   = lipgloss.Color("#b57f6b") // Deprecated, special
 	ColorDimGrey = lipgloss.Color("#444444")
 
 	// UI specific colors

@@ -97,8 +97,8 @@ type testStreamHandler struct {
 	final  string
 }
 
-func (h *testStreamHandler) OnChunk(chunk string) error {
-	h.chunks = append(h.chunks, chunk)
+func (h *testStreamHandler) OnChunk(chunk []byte) error {
+	h.chunks = append(h.chunks, string(chunk))
 	return nil
 }
 

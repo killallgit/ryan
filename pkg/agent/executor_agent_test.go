@@ -272,8 +272,8 @@ func TestExecutorAgentExecuteStream(t *testing.T) {
 	// Create a test handler to capture streaming output
 	var chunks []string
 	testHandler := &testStreamHandler{
-		onChunk: func(chunk string) error {
-			chunks = append(chunks, chunk)
+		onChunk: func(chunk []byte) error {
+			chunks = append(chunks, string(chunk))
 			return nil
 		},
 		onComplete: func(content string) error {
@@ -292,12 +292,12 @@ func TestExecutorAgentExecuteStream(t *testing.T) {
 
 // testStreamHandler implements stream.Handler for testing
 type testStreamHandler struct {
-	onChunk    func(string) error
+	onChunk    func([]byte) error
 	onComplete func(string) error
 	onError    func(error)
 }
 
-func (h *testStreamHandler) OnChunk(chunk string) error {
+func (h *testStreamHandler) OnChunk(chunk []byte) error {
 	if h.onChunk != nil {
 		return h.onChunk(chunk)
 	}
@@ -493,8 +493,8 @@ func TestTokenAndMemoryHandler(t *testing.T) {
 	// Create a test handler
 	var chunks []string
 	innerHandler := &testStreamHandler{
-		onChunk: func(chunk string) error {
-			chunks = append(chunks, chunk)
+		onChunk: func(chunk []byte) error {
+			chunks = append(chunks, string(chunk))
 			return nil
 		},
 	}
@@ -509,12 +509,12 @@ func TestTokenAndMemoryHandler(t *testing.T) {
 	}
 
 	// Test OnChunk
-	err = handler.OnChunk("chunk1")
+	err = handler.OnChunk([]byte("chunk1"))
 	assert.NoError(t, err)
 	assert.Equal(t, "chunk1", handler.buffer)
 	assert.Contains(t, chunks, "chunk1")
 
-	err = handler.OnChunk("chunk2")
+	err = handler.OnChunk([]byte("chunk2"))
 	assert.NoError(t, err)
 	assert.Equal(t, "chunk1chunk2", handler.buffer)
 

@@ -170,8 +170,8 @@ func NewStatefulHandler(handler Handler, tracker *Tracker, streamID string) *Sta
 }
 
 // OnChunk implements Handler with state tracking
-func (s *StatefulHandler) OnChunk(chunk string) error {
-	s.tracker.AppendBuffer(s.streamID, chunk)
+func (s *StatefulHandler) OnChunk(chunk []byte) error {
+	s.tracker.AppendBuffer(s.streamID, string(chunk))
 	return s.handler.OnChunk(chunk)
 }
 

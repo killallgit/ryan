@@ -8,7 +8,6 @@ import (
 	"github.com/killallgit/ryan/pkg/chat"
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/logger"
-	"github.com/killallgit/ryan/pkg/stream/core"
 	"github.com/killallgit/ryan/pkg/tokens"
 )
 
@@ -113,7 +112,7 @@ func (r *runner) run(ctx context.Context, prompt string) error {
 	}
 
 	// Create a stream handler that prints to console and collects content
-	streamHandler := core.NewConsoleHandler()
+	streamHandler := newHeadlessStreamHandler()
 
 	// Use agent to generate streaming response
 	generateErr := r.agent.ExecuteStream(ctx, prompt, streamHandler)

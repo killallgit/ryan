@@ -5,55 +5,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/killallgit/ryan/pkg/logger"
 )
-
-// ConsoleHandler prints streaming content directly to console
-type ConsoleHandler struct {
-	content strings.Builder
-	mu      sync.Mutex
-}
-
-// NewConsoleHandler creates a handler for console output
-func NewConsoleHandler() *ConsoleHandler {
-	return &ConsoleHandler{}
-}
-
-// OnChunk prints chunk to stdout
-func (c *ConsoleHandler) OnChunk(chunk string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	fmt.Print(chunk)
-	c.content.WriteString(chunk)
-	return nil
-}
-
-// OnComplete handles completion
-func (c *ConsoleHandler) OnComplete(finalContent string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if finalContent != "" && finalContent != c.content.String() {
-		// If final content differs from accumulated content, use final
-		c.content.Reset()
-		c.content.WriteString(finalContent)
-	}
-	return nil
-}
-
-// OnError logs streaming error
-func (c *ConsoleHandler) OnError(err error) {
-	logger.Error("Streaming error: %v", err)
-}
-
-// GetContent returns the accumulated content
-func (c *ConsoleHandler) GetContent() string {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.content.String()
-}
 
 // ChannelHandler sends stream events through a channel
 type ChannelHandler struct {
@@ -72,18 +24,18 @@ func NewChannelHandler(streamID string, channel chan<- Event) *ChannelHandler {
 }
 
 // OnChunk sends chunk event
-func (c *ChannelHandler) OnChunk(chunk string) error {
+func (c *ChannelHandler) OnChunk(chunk []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.buffer.WriteString(chunk)
+	c.buffer.Write(chunk)
 
 	select {
 	case c.channel <- Event{
 		StreamID:  c.streamID,
 		State:     StateStreaming,
 		Timestamp: time.Now(),
-		Data:      chunk,
+		Data:      string(chunk),
 	}:
 		return nil
 	default:
@@ -139,10 +91,10 @@ func NewBufferHandler() *BufferHandler {
 }
 
 // OnChunk adds chunk to buffer
-func (b *BufferHandler) OnChunk(chunk string) error {
+func (b *BufferHandler) OnChunk(chunk []byte) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.buffer.WriteString(chunk)
+	b.buffer.Write(chunk)
 	return nil
 }
 

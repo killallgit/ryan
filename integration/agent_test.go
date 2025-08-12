@@ -181,8 +181,8 @@ type StreamCollector struct {
 	err    error
 }
 
-func (s *StreamCollector) OnChunk(chunk string) error {
-	s.chunks = append(s.chunks, chunk)
+func (s *StreamCollector) OnChunk(chunk []byte) error {
+	s.chunks = append(s.chunks, string(chunk))
 	return nil
 }
 
