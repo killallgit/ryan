@@ -12,7 +12,7 @@ import (
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/killallgit/ryan/pkg/stream/tui"
-	"github.com/killallgit/ryan/pkg/tui/chat"
+	"github.com/killallgit/ryan/pkg/tui/views"
 )
 
 func RunTUI(agent agent.Agent) error {
@@ -49,12 +49,14 @@ func RunTUIWithOptions(agent agent.Agent, continueHistory bool) error {
 		return err
 	}
 
-	// Create chat model with stream manager, chat manager, and injected agent
-	chatModel := chat.NewChatModel(manager, chatManager, agent)
+	// Create views
+	chatView := views.NewChatView(manager, chatManager, agent)
+	settingsView := views.NewSettingsView()
+	historyView := views.NewHistoryView(chatManager)
 
-	// Store the chat model for later reference
-	views := []tea.Model{chatModel}
-	root := NewRootModel(ctx, views...)
+	// Create view list
+	viewList := []views.View{chatView, settingsView, historyView}
+	root := NewRootModel(ctx, viewList)
 
 	// Create the program
 	p := tea.NewProgram(root, tea.WithContext(ctx), tea.WithAltScreen())
