@@ -109,7 +109,7 @@
 - Thread-safe token accumulation across multiple conversation exchanges
 - Comprehensive integration tests for token tracking functionality
 - Unified logging system in `pkg/logger/` package with clean interface (.Debug(), .Info(), .Warn(), .Error(), .Fatal())
-- `--persist` CLI flag to control system log persistence across sessions
+- `--logging.persist` CLI flag to control system log persistence across sessions
 - Session-based logging with automatic level checking
 - **Vector Store Integration** - Added chromem in-memory vector store for Retrieval Augmented Generation (RAG)
   - `pkg/vectorstore/` package with interface definitions and chromem adapter

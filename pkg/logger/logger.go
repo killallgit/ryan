@@ -58,9 +58,9 @@ func Init() error {
 	settings := config.Get()
 	level := parseLevel(settings.Logging.Level)
 	logFile := settings.Logging.LogFile
-	preserve := settings.Logging.Persist
+	persist := settings.Logging.Persist
 
-	logger, err := New(level, logFile, preserve)
+	logger, err := New(level, logFile, persist)
 	if err != nil {
 		return fmt.Errorf("failed to initialize logger: %w", err)
 	}
@@ -70,7 +70,7 @@ func Init() error {
 }
 
 // New creates a new Logger instance
-func New(level LogLevel, logFile string, preserve bool) (*Logger, error) {
+func New(level LogLevel, logFile string, persist bool) (*Logger, error) {
 	// Handle log file path resolution
 	logPath := logFile
 	if !filepath.IsAbs(logPath) {
@@ -85,10 +85,10 @@ func New(level LogLevel, logFile string, preserve bool) (*Logger, error) {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
-	// Handle file clearing/creation based on preserve flag
+	// Handle file clearing/creation based on persist flag
 	var file *os.File
 	var err error
-	if preserve {
+	if persist {
 		// Append to existing file
 		file, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	} else {

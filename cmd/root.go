@@ -221,8 +221,8 @@ func init() {
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level")
 	viper.BindPFlag("logging.level", rootCmd.PersistentFlags().Lookup("log-level"))
 
-	rootCmd.PersistentFlags().Bool("persist", false, "persist system logs across sessions")
-	viper.BindPFlag("logging.persist", rootCmd.PersistentFlags().Lookup("persist"))
+	rootCmd.PersistentFlags().Bool("logging.persist", false, "persist system logs across sessions")
+	viper.BindPFlag("logging.persist", rootCmd.PersistentFlags().Lookup("logging.persist"))
 
 	// CLI-only flags (not stored in configuration)
 	rootCmd.PersistentFlags().Bool("continue", false, "continue from previous chat history instead of starting fresh")

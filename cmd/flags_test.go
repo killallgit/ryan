@@ -74,6 +74,11 @@ func TestRootCommandFlags(t *testing.T) {
 	planFlag := rootCmd.PersistentFlags().Lookup("plan")
 	assert.NotNil(t, planFlag)
 	assert.Equal(t, "bool", planFlag.Value.Type())
+
+	// Check logging flag
+	loggingPersistFlag := rootCmd.PersistentFlags().Lookup("logging.persist")
+	assert.NotNil(t, loggingPersistFlag)
+	assert.Equal(t, "bool", loggingPersistFlag.Value.Type())
 }
 
 // TestFlagDefaults tests default values of CLI flags
@@ -96,6 +101,9 @@ func TestFlagDefaults(t *testing.T) {
 
 	planFlag := rootCmd.PersistentFlags().Lookup("plan")
 	assert.Equal(t, "false", planFlag.DefValue)
+
+	loggingPersistFlag := rootCmd.PersistentFlags().Lookup("logging.persist")
+	assert.Equal(t, "false", loggingPersistFlag.DefValue)
 }
 
 // TestFlagHelp tests that flags have appropriate usage descriptions
@@ -108,6 +116,9 @@ func TestFlagHelp(t *testing.T) {
 
 	planFlag := rootCmd.PersistentFlags().Lookup("plan")
 	assert.Contains(t, planFlag.Usage, "encourage planning behavior for complex tasks")
+
+	loggingPersistFlag := rootCmd.PersistentFlags().Lookup("logging.persist")
+	assert.Contains(t, loggingPersistFlag.Usage, "persist system logs across sessions")
 }
 
 // TestApplyPromptCustomizations tests the prompt customization logic
