@@ -21,15 +21,15 @@ RYAN_OLLAMA_MODEL=test-model ./bin/ryan --append-system-prompt "Always explain y
 echo ""
 echo ""
 
-echo "4. Testing planning bias flag:"
-echo "RYAN_OLLAMA_MODEL=test-model ./bin/ryan --planning-bias --headless --prompt 'Help me refactor this code' --skip-permissions"
-RYAN_OLLAMA_MODEL=test-model ./bin/ryan --planning-bias --headless --prompt "Help me refactor this code" --skip-permissions
+echo "4. Testing plan flag:"
+echo "RYAN_OLLAMA_MODEL=test-model ./bin/ryan --plan --headless --prompt 'Help me refactor this code' --skip-permissions"
+RYAN_OLLAMA_MODEL=test-model ./bin/ryan --plan --headless --prompt "Help me refactor this code" --skip-permissions
 echo ""
 echo ""
 
 echo "5. Testing combined flags:"
-echo "RYAN_OLLAMA_MODEL=test-model ./bin/ryan --system-prompt 'You are a coding assistant.' --append-system-prompt 'Always be thorough.' --planning-bias --headless --prompt 'Write a function' --skip-permissions"
-RYAN_OLLAMA_MODEL=test-model ./bin/ryan --system-prompt "You are a coding assistant." --append-system-prompt "Always be thorough." --planning-bias --headless --prompt "Write a function" --skip-permissions
+echo "RYAN_OLLAMA_MODEL=test-model ./bin/ryan --system-prompt 'You are a coding assistant.' --append-system-prompt 'Always be thorough.' --plan --headless --prompt 'Write a function' --skip-permissions"
+RYAN_OLLAMA_MODEL=test-model ./bin/ryan --system-prompt "You are a coding assistant." --append-system-prompt "Always be thorough." --plan --headless --prompt "Write a function" --skip-permissions
 echo ""
 echo ""
 

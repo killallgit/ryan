@@ -71,9 +71,9 @@ func TestRootCommandFlags(t *testing.T) {
 	assert.NotNil(t, appendSystemPromptFlag)
 	assert.Equal(t, "string", appendSystemPromptFlag.Value.Type())
 
-	planningBiasFlag := rootCmd.PersistentFlags().Lookup("planning-bias")
-	assert.NotNil(t, planningBiasFlag)
-	assert.Equal(t, "bool", planningBiasFlag.Value.Type())
+	planFlag := rootCmd.PersistentFlags().Lookup("plan")
+	assert.NotNil(t, planFlag)
+	assert.Equal(t, "bool", planFlag.Value.Type())
 }
 
 // TestFlagDefaults tests default values of CLI flags
@@ -94,8 +94,8 @@ func TestFlagDefaults(t *testing.T) {
 	appendSystemPromptFlag := rootCmd.PersistentFlags().Lookup("append-system-prompt")
 	assert.Equal(t, "", appendSystemPromptFlag.DefValue)
 
-	planningBiasFlag := rootCmd.PersistentFlags().Lookup("planning-bias")
-	assert.Equal(t, "false", planningBiasFlag.DefValue)
+	planFlag := rootCmd.PersistentFlags().Lookup("plan")
+	assert.Equal(t, "false", planFlag.DefValue)
 }
 
 // TestFlagHelp tests that flags have appropriate usage descriptions
@@ -106,8 +106,8 @@ func TestFlagHelp(t *testing.T) {
 	appendSystemPromptFlag := rootCmd.PersistentFlags().Lookup("append-system-prompt")
 	assert.Contains(t, appendSystemPromptFlag.Usage, "append additional instructions to the system prompt")
 
-	planningBiasFlag := rootCmd.PersistentFlags().Lookup("planning-bias")
-	assert.Contains(t, planningBiasFlag.Usage, "encourage more planning behavior for complex tasks")
+	planFlag := rootCmd.PersistentFlags().Lookup("plan")
+	assert.Contains(t, planFlag.Usage, "encourage planning behavior for complex tasks")
 }
 
 // TestApplyPromptCustomizations tests the prompt customization logic
@@ -134,7 +134,7 @@ func TestApplyPromptCustomizations(t *testing.T) {
 			expectedPrompt: "Always be thorough.",
 		},
 		{
-			name:           "planning_bias_only",
+			name:           "plan_flag_only",
 			customPrompt:   "",
 			appendPrompt:   "",
 			planningBias:   true,

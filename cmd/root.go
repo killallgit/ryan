@@ -34,7 +34,7 @@ var rootCmd = &cobra.Command{
 		skipPermissions, _ := cmd.Flags().GetBool("skip-permissions")
 		customPrompt, _ := cmd.Flags().GetString("system-prompt")
 		appendPrompt, _ := cmd.Flags().GetString("append-system-prompt")
-		planningBias, _ := cmd.Flags().GetBool("planning-bias")
+		planningBias, _ := cmd.Flags().GetBool("plan")
 
 		// Initialize logger
 		if err := logger.Init(); err != nil {
@@ -233,7 +233,7 @@ func init() {
 	// Claude Code-style prompt control flags
 	rootCmd.PersistentFlags().String("system-prompt", "", "override the default system prompt entirely")
 	rootCmd.PersistentFlags().String("append-system-prompt", "", "append additional instructions to the system prompt")
-	rootCmd.PersistentFlags().Bool("planning-bias", false, "encourage more planning behavior for complex tasks")
+	rootCmd.PersistentFlags().Bool("plan", false, "encourage planning behavior for complex tasks before execution")
 }
 
 func initConfig() {

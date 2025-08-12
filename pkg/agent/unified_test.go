@@ -152,7 +152,7 @@ func TestPromptCustomizationFlow(t *testing.T) {
 		}
 
 		if planningBias {
-			planBias := "IMPORTANT: For complex or ambiguous tasks, always plan first before executing."
+			planBias := "IMPORTANT: For complex or ambiguous tasks, always plan first before executing. Ask for user confirmation before proceeding with multi-step operations."
 			if finalPrompt != "" {
 				finalPrompt += "\n\n" + planBias
 			} else {
