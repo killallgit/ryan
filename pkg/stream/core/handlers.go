@@ -5,56 +5,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/killallgit/ryan/pkg/logger"
 )
-
-// BufferedHandler accumulates streaming content in a buffer (renamed from ConsoleHandler)
-// Deprecated: Use BufferHandler instead
-type ConsoleHandler struct {
-	content strings.Builder
-	mu      sync.Mutex
-}
-
-// NewConsoleHandler creates a handler for buffering output
-// Deprecated: Use NewBufferHandler instead
-func NewConsoleHandler() *ConsoleHandler {
-	return &ConsoleHandler{}
-}
-
-// OnChunk adds chunk to buffer
-func (c *ConsoleHandler) OnChunk(chunk []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.content.Write(chunk)
-	return nil
-}
-
-// OnComplete handles completion
-func (c *ConsoleHandler) OnComplete(finalContent string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if finalContent != "" && finalContent != c.content.String() {
-		// If final content differs from accumulated content, use final
-		c.content.Reset()
-		c.content.WriteString(finalContent)
-	}
-	return nil
-}
-
-// OnError logs streaming error
-func (c *ConsoleHandler) OnError(err error) {
-	logger.Error("Streaming error: %v", err)
-}
-
-// GetContent returns the accumulated content
-func (c *ConsoleHandler) GetContent() string {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.content.String()
-}
 
 // ChannelHandler sends stream events through a channel
 type ChannelHandler struct {
