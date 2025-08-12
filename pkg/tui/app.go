@@ -51,11 +51,10 @@ func RunTUIWithOptions(agent agent.Agent, continueHistory bool) error {
 
 	// Create views
 	chatView := views.NewChatView(manager, chatManager, agent)
-	settingsView := views.NewSettingsView()
-	historyView := views.NewHistoryView(chatManager)
+	modelsView := views.NewModelsView()
 
 	// Create view list
-	viewList := []views.View{chatView, settingsView, historyView}
+	viewList := []views.View{chatView, modelsView}
 	root := NewRootModel(ctx, viewList)
 
 	// Create the program

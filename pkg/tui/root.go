@@ -18,7 +18,8 @@ type rootModel struct {
 	height        int
 	showSwitcher  bool
 	switcherModel switcher.Model
-	previousView  int // Remember previous view when opening switcher
+	previousView  int   // Remember previous view for navigation
+	viewHistory   []int // Stack of view indices for navigation history
 }
 
 func (m rootModel) Init() tea.Cmd {
@@ -64,7 +65,11 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "enter":
 				// Switch to selected view
-				m.activeView = m.switcherModel.SelectedIndex()
+				newView := m.switcherModel.SelectedIndex()
+				if newView != m.activeView {
+					m.previousView = m.activeView
+					m.activeView = newView
+				}
 				m.showSwitcher = false
 				// Initialize the newly selected view
 				return m, m.views[m.activeView].Init()
@@ -78,6 +83,29 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	// Handle custom messages first
+	switch msg := msg.(type) {
+	case views.SwitchToPreviousViewMsg:
+		// Switch back to previous view if it exists and is different
+		if m.previousView >= 0 && m.previousView < len(m.views) && m.previousView != m.activeView {
+			temp := m.activeView
+			m.activeView = m.previousView
+			m.previousView = temp
+			// Initialize the newly selected view
+			return m, m.views[m.activeView].Init()
+		}
+		return m, nil
+	case views.SwitchToViewMsg:
+		// Switch to specific view
+		if msg.Index >= 0 && msg.Index < len(m.views) && msg.Index != m.activeView {
+			m.previousView = m.activeView
+			m.activeView = msg.Index
+			// Initialize the newly selected view
+			return m, m.views[m.activeView].Init()
+		}
+		return m, nil
+	}
+
 	// Handle global keys
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -87,7 +115,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.String() == "ctrl+p":
 			// Toggle switcher
 			m.showSwitcher = true
-			m.previousView = m.activeView
+			// Don't update previousView here since we're just opening the switcher
 			// Set the current view as selected in switcher
 			m.switcherModel.SetSelectedIndex(m.activeView)
 			return m, nil
