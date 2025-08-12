@@ -15,7 +15,8 @@ import (
 	"github.com/killallgit/ryan/pkg/stream/core"
 	"github.com/killallgit/ryan/pkg/stream/providers"
 	"github.com/killallgit/ryan/pkg/tokens"
-	ryantools "github.com/killallgit/ryan/pkg/tools"
+	_ "github.com/killallgit/ryan/pkg/tools" // Import for init() registration
+	"github.com/killallgit/ryan/pkg/tools/registry"
 	"github.com/killallgit/ryan/pkg/vectorstore"
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/llms"
@@ -94,54 +95,11 @@ func NewExecutorAgentWithSessionAndOptions(llm llms.Model, sessionID string, ski
 	}
 	logger.Debug("Memory initialized for session: %s", sessionID)
 
-	// Initialize tools with permission checking
-	agentTools := []tools.Tool{}
-
 	// Get configuration settings
 	settings := config.Get()
 
-	// Only add tools if enabled in config
-	if settings.Tools.Enabled {
-		logger.Debug("Tools are enabled, initializing available tools")
-
-		// Add file tools
-		if settings.Tools.File.Read.Enabled {
-			agentTools = append(agentTools, ryantools.NewFileReadToolWithBypass(skipPermissions))
-			logger.Debug("Added FileReadTool")
-		}
-		if settings.Tools.File.Write.Enabled {
-			agentTools = append(agentTools, ryantools.NewFileWriteToolWithBypass(skipPermissions))
-			logger.Debug("Added FileWriteTool")
-		}
-
-		// Add git tool
-		if settings.Tools.Git.Enabled {
-			agentTools = append(agentTools, ryantools.NewGitToolWithBypass(skipPermissions))
-			logger.Debug("Added GitTool")
-		}
-
-		// Add search tool
-		if settings.Tools.Search.Enabled {
-			agentTools = append(agentTools, ryantools.NewRipgrepToolWithBypass(skipPermissions))
-			logger.Debug("Added RipgrepTool")
-		}
-
-		// Add web fetch tool
-		if settings.Tools.Web.Enabled {
-			agentTools = append(agentTools, ryantools.NewWebFetchToolWithBypass(skipPermissions))
-			logger.Debug("Added WebFetchTool")
-		}
-
-		// Add bash tool
-		if settings.Tools.Bash.Enabled {
-			agentTools = append(agentTools, ryantools.NewBashToolWithBypass(skipPermissions))
-			logger.Debug("Added BashTool")
-		}
-
-		logger.Info("Initialized %d tools", len(agentTools))
-	} else {
-		logger.Info("Tools are disabled in configuration")
-	}
+	// Get enabled tools from registry based on configuration
+	agentTools := registry.Global().GetEnabled(settings, skipPermissions)
 
 	// Initialize RAG components if enabled
 	var vectorStore vectorstore.VectorStore
