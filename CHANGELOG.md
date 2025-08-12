@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Added
+- **Orchestrator as Default Mode** - Made orchestrator the default execution mode, removing the need for `--orchestrate` flag
+  - Removed single-agent mode entirely - all queries now go through the orchestrator
+  - Simplified command-line interface by removing `--simple` and `--orchestrate` flags
+  - Added minimal visual feedback showing which agent is currently processing with `[agent_name]` format
+  - Enhanced streaming to show agent responses in real-time
+  - Fixed TUI scrolling with proper viewport key handling and mouse wheel support
+  - Updated viewport API usage to non-deprecated methods (HalfPageUp/HalfPageDown)
 - **Tool Registry System** - Centralized tool registration and initialization using factory pattern
   - Created `pkg/tools/registry/` package with Registry interface and implementation
   - Factory pattern for tool creation with `ToolFactory` functions

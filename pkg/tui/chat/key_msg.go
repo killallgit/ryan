@@ -12,6 +12,25 @@ import (
 )
 
 func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Check if the key should be handled by viewport for scrolling
+	switch msg.Type {
+	case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown, tea.KeyHome, tea.KeyEnd:
+		// If textarea is not focused or is empty, let viewport handle scrolling
+		if !m.textarea.Focused() || m.textarea.Value() == "" {
+			var cmd tea.Cmd
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd
+		}
+	case tea.KeyCtrlU:
+		// Ctrl+U for half page up
+		m.viewport.HalfPageUp()
+		return m, nil
+	case tea.KeyCtrlD:
+		// Ctrl+D for half page down
+		m.viewport.HalfPageDown()
+		return m, nil
+	}
+
 	switch msg.Type {
 	case tea.KeyEscape:
 		m.numEscPress++

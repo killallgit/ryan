@@ -92,7 +92,8 @@ func TestAgentWrapper(t *testing.T) {
 		// Verify streaming occurred
 		assert.NotEmpty(t, mockHandler.chunks)
 		fullContent := mockHandler.GetFullContent()
-		assert.Contains(t, fullContent, "Orchestrator Processing")
+		// We removed the verbose messages, check for agent marker
+		assert.Contains(t, fullContent, "[tool_caller]")
 	})
 
 	t.Run("format response", func(t *testing.T) {

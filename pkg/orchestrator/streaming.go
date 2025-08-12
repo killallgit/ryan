@@ -65,27 +65,17 @@ func (h *StreamingHandler) OnRoutingDecision(decision *RouteDecision) error {
 
 // OnAgentStart notifies when an agent starts processing
 func (h *StreamingHandler) OnAgentStart(agentType AgentType) error {
-	if !h.showRouting {
-		return nil
-	}
+	h.currentAgent = string(agentType)
 
-	info := fmt.Sprintf("\n⚙️ **%s agent processing...**\n", agentType)
+	// Simple agent name display
+	info := fmt.Sprintf("[%s]\n", agentType)
 	return h.inner.OnChunk([]byte(info))
 }
 
 // OnAgentComplete notifies when an agent completes
 func (h *StreamingHandler) OnAgentComplete(agentType AgentType, status string) error {
-	if !h.showRouting {
-		return nil
-	}
-
-	emoji := "✅"
-	if status == "failed" {
-		emoji = "❌"
-	}
-
-	info := fmt.Sprintf("\n%s **%s agent %s**\n\n", emoji, agentType, status)
-	return h.inner.OnChunk([]byte(info))
+	// Don't show completion messages, just the agent name at start is enough
+	return nil
 }
 
 // ExecuteStream executes a task with streaming output
@@ -98,17 +88,8 @@ func (o *Orchestrator) ExecuteStream(ctx context.Context, query string, handler 
 	// Create initial task state
 	state := o.stateManager.CreateState(query)
 
-	// Stream initial status
-	initialMsg := fmt.Sprintf("🤖 **Orchestrator Processing**: %s\n\n", query)
-	if err := handler.OnChunk([]byte(initialMsg)); err != nil {
-		return nil, err
-	}
-
+	// No fancy formatting, just start processing
 	// Analyze intent
-	intentMsg := "🧠 **Analyzing task intent...**\n"
-	if err := handler.OnChunk([]byte(intentMsg)); err != nil {
-		return nil, err
-	}
 
 	intent, err := o.AnalyzeIntent(ctx, query)
 	if err != nil {
@@ -117,12 +98,6 @@ func (o *Orchestrator) ExecuteStream(ctx context.Context, query string, handler 
 	}
 	state.Intent = intent
 
-	// Stream intent result
-	intentResult := fmt.Sprintf("📊 **Intent**: %s (confidence: %.2f)\n", intent.Type, intent.Confidence)
-	if err := handler.OnChunk([]byte(intentResult)); err != nil {
-		return nil, err
-	}
-
 	// Execute with streaming feedback loop
 	result, err := o.streamingFeedbackLoop(ctx, state, streamHandler)
 	if err != nil {
@@ -130,14 +105,8 @@ func (o *Orchestrator) ExecuteStream(ctx context.Context, query string, handler 
 		return nil, err
 	}
 
-	// Stream final summary
-	summary := o.formatStreamingSummary(result)
-	if err := handler.OnChunk([]byte(summary)); err != nil {
-		return nil, err
-	}
-
-	// Complete the stream
-	if err := handler.OnComplete(result.Result); err != nil {
+	// Complete the stream (result already streamed during execution)
+	if err := handler.OnComplete(""); err != nil {
 		return nil, err
 	}
 
@@ -196,6 +165,13 @@ func (o *Orchestrator) streamingFeedbackLoop(ctx context.Context, state *TaskSta
 		if err != nil {
 			handler.OnError(err)
 			return nil, err
+		}
+
+		// Stream the agent's response
+		if response.Response != "" {
+			if err := handler.OnChunk([]byte(response.Response)); err != nil {
+				return nil, err
+			}
 		}
 
 		// Notify agent completion

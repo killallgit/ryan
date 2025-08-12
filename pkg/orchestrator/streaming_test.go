@@ -100,20 +100,16 @@ func TestStreamingHandler(t *testing.T) {
 		// Test agent start
 		err := streamHandler.OnAgentStart(AgentToolCaller)
 		assert.NoError(t, err)
-		assert.Contains(t, mockHandler.GetFullContent(), "tool_caller agent processing")
+		assert.Contains(t, mockHandler.GetFullContent(), "[tool_caller]")
 
-		// Test agent complete - success
+		// Test agent complete - success (no output expected now)
 		err = streamHandler.OnAgentComplete(AgentToolCaller, "success")
 		assert.NoError(t, err)
-		assert.Contains(t, mockHandler.GetFullContent(), "✅")
-		assert.Contains(t, mockHandler.GetFullContent(), "tool_caller agent success")
 
-		// Test agent complete - failure
+		// Test agent complete - failure (no output expected now)
 		mockHandler.chunks = []string{} // Reset
 		err = streamHandler.OnAgentComplete(AgentReasoner, "failed")
 		assert.NoError(t, err)
-		assert.Contains(t, mockHandler.GetFullContent(), "❌")
-		assert.Contains(t, mockHandler.GetFullContent(), "reasoner agent failed")
 	})
 }
 
@@ -148,10 +144,9 @@ func TestOrchestratorExecuteStream(t *testing.T) {
 
 		// Check that streaming output was generated
 		fullContent := mockHandler.GetFullContent()
-		assert.Contains(t, fullContent, "Orchestrator Processing")
-		assert.Contains(t, fullContent, "Analyzing task intent")
-		assert.Contains(t, fullContent, "Intent**: reasoning") // Format includes **
-		assert.Contains(t, fullContent, "Execution Summary")
+		// We removed the verbose messages, so just check for agent output
+		assert.Contains(t, fullContent, "[reasoner]")
+		assert.Contains(t, fullContent, "Mock agent response")
 	})
 
 	t.Run("streaming with agent failure", func(t *testing.T) {

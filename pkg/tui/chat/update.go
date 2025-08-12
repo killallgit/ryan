@@ -35,6 +35,12 @@ func (m chatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// All key handling happens in handleKeyMsg
 		return handleKeyMsg(m, msg)
 
+	case tea.MouseMsg:
+		// Handle mouse scrolling for viewport
+		var cmd tea.Cmd
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
+
 	case errMsg:
 		m.err = msg
 		return m, nil

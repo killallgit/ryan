@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/killallgit/ryan/pkg/agent"
 	"github.com/killallgit/ryan/pkg/config"
-	"github.com/killallgit/ryan/pkg/headless"
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/killallgit/ryan/pkg/ollama"
 	"github.com/killallgit/ryan/pkg/orchestrator"
@@ -30,7 +28,6 @@ var rootCmd = &cobra.Command{
 		headlessMode, _ := cmd.Flags().GetBool("headless")
 		continueHistory, _ := cmd.Flags().GetBool("continue")
 		skipPermissions, _ := cmd.Flags().GetBool("skip-permissions")
-		useOrchestrator, _ := cmd.Flags().GetBool("orchestrate")
 
 		// Initialize logger
 		if err := logger.Init(); err != nil {
@@ -46,26 +43,8 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Choose between orchestrator and simple agent modes
-		if useOrchestrator {
-			runOrchestratorMode(llm, headlessMode, promptValue, continueHistory, skipPermissions)
-		} else {
-			// Create the executor agent once, to be used by both modes
-			// Pass skipPermissions to the agent creation
-			executorAgent, err := createExecutorAgent(llm, continueHistory, skipPermissions)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error creating executor agent: %v\n", err)
-				os.Exit(1)
-			}
-			defer executorAgent.Close()
-
-			// Check if running in headless mode
-			if headlessMode {
-				runHeadless(executorAgent, promptValue, continueHistory)
-			} else {
-				runTUI(executorAgent, continueHistory)
-			}
-		}
+		// Always use orchestrator mode
+		runOrchestratorMode(llm, headlessMode, promptValue, continueHistory, skipPermissions)
 	},
 }
 
@@ -85,31 +64,6 @@ func createLLM() (llms.Model, error) {
 
 	default:
 		return nil, fmt.Errorf("unsupported LLM provider: %s", config.Global.Provider)
-	}
-}
-
-// createExecutorAgent creates an executor agent with the given configuration
-func createExecutorAgent(llm llms.Model, continueHistory, skipPermissions bool) (agent.Agent, error) {
-	return agent.NewExecutorAgentWithOptions(llm, continueHistory, skipPermissions)
-}
-
-func runHeadless(executorAgent agent.Agent, prompt string, continueHistory bool) {
-	// Use provided prompt or default
-	if prompt == "" {
-		prompt = "hello"
-	}
-
-	// Simply run the headless mode - no terminal manipulation needed
-	if err := headless.RunHeadlessWithOptions(executorAgent, prompt, continueHistory); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func runTUI(executorAgent agent.Agent, continueHistory bool) {
-	if err := tui.RunTUIWithOptions(executorAgent, continueHistory); err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
 	}
 }
 
@@ -144,7 +98,6 @@ func runOrchestratorHeadless(orch *orchestrator.Orchestrator, prompt string) {
 	}
 
 	logger.Info("Executing orchestrator query: %s", prompt)
-	fmt.Printf("🎯 Orchestrator Mode: %s\n\n", prompt)
 
 	ctx := context.Background()
 	result, err := orch.Execute(ctx, prompt)
@@ -164,25 +117,7 @@ func runOrchestratorHeadless(orch *orchestrator.Orchestrator, prompt string) {
 		defer historyManager.Close()
 	}
 
-	// Print detailed results with debugging info
-	fmt.Printf("✅ Task completed with status: %s\n", result.Status)
-	fmt.Printf("⏱️  Duration: %v\n", result.Duration)
-	fmt.Printf("🔄 Agent interactions: %d\n\n", len(result.History))
-
-	// Print execution flow
-	fmt.Println("📋 Execution Flow:")
-	for i, response := range result.History {
-		fmt.Printf("  %d. %s: %s\n", i+1, response.AgentType, response.Status)
-		if len(response.ToolsCalled) > 0 {
-			for _, tool := range response.ToolsCalled {
-				fmt.Printf("     🔧 Used tool: %s\n", tool.Name)
-			}
-		}
-	}
-	fmt.Println()
-
-	// Print final result
-	fmt.Println("📄 Final Result:")
+	// Print only the result
 	fmt.Println(result.Result)
 }
 
@@ -226,7 +161,6 @@ func init() {
 	rootCmd.PersistentFlags().StringP("prompt", "p", "", "execute a prompt directly without entering TUI")
 	rootCmd.PersistentFlags().BoolP("headless", "H", false, "run without TUI (requires --prompt)")
 	rootCmd.PersistentFlags().Bool("skip-permissions", false, "skip all ACL permission checks for tools")
-	rootCmd.PersistentFlags().Bool("orchestrate", false, "use multi-agent orchestrator system for complex tasks")
 }
 
 func initConfig() {

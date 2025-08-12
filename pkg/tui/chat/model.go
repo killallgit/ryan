@@ -79,6 +79,8 @@ func NewChatModel(streamManager *tui.Manager, chatManager *chat.Manager, agent a
 	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorGrey))
 
 	vp := viewport.New(80, 30)
+	vp.MouseWheelEnabled = true
+	vp.MouseWheelDelta = 3
 
 	ta.KeyMap.InsertNewline.SetEnabled(true)
 

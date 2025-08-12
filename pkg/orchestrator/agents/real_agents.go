@@ -59,25 +59,33 @@ func (t *ToolCallerAgent) Execute(ctx context.Context, decision *orchestrator.Ro
 
 	// Create prompt for tool usage analysis
 	toolsJson, _ := json.Marshal(t.getToolDescriptions())
-	prompt := fmt.Sprintf(`You are a tool caller agent. Analyze the following instruction and determine which tools to use and how to use them.
+	prompt := fmt.Sprintf(`You are a tool caller agent with access to system tools. Your job is to execute actions using the available tools.
 
 Available tools: %s
 
+Common patterns:
+- To read a file: use "file_read" with {"path": "filename"}
+- To list files: use "bash" with {"command": "ls -la"}
+- To read a random file: first list files with bash, then read one with file_read
+- To check directory contents: use "bash" with {"command": "ls -la <directory>"}
+- To search for code: use "search" with {"pattern": "search_term"}
+- To run commands: use "bash" with {"command": "your_command"}
+
 Instruction: %s
 
-Please provide a structured response with:
-1. Which tools to call and with what arguments
-2. The execution plan
-3. Expected results
+Analyze this instruction and determine:
+1. Which specific tools need to be called
+2. In what order (if multiple tools are needed)
+3. With what specific arguments
 
-Respond in the following JSON format:
+Respond ONLY with valid JSON:
 {
-  "plan": "explanation of what you'll do",
+  "plan": "step-by-step explanation of what you'll do",
   "tool_calls": [
     {
       "tool": "tool_name",
-      "description": "what this call will do",
-      "arguments": {"arg1": "value1"}
+      "description": "what this specific call will do",
+      "arguments": {"arg_name": "arg_value"}
     }
   ]
 }`, toolsJson, decision.Instruction)
@@ -171,24 +179,40 @@ func (t *ToolCallerAgent) executeWithTextAnalysis(ctx context.Context, decision 
 	var toolName string
 	var args map[string]interface{}
 
-	if strings.Contains(instruction, "list") && strings.Contains(instruction, "file") {
+	// Check for various file operation patterns
+	if strings.Contains(instruction, "list") && (strings.Contains(instruction, "file") || strings.Contains(instruction, "directory")) {
 		selectedTool = t.availableTools["bash"]
 		toolName = "bash"
 		args = map[string]interface{}{"command": "ls -la"}
-	} else if strings.Contains(instruction, "read") && strings.Contains(instruction, "file") {
-		selectedTool = t.availableTools["file_read"]
-		toolName = "file_read"
-		// Try to extract filename from instruction
-		args = map[string]interface{}{"path": "."} // Default to current directory
+	} else if strings.Contains(instruction, "read") && (strings.Contains(instruction, "file") || strings.Contains(instruction, "random")) {
+		// For "read a random file", first list then pick one
+		if strings.Contains(instruction, "random") {
+			selectedTool = t.availableTools["bash"]
+			toolName = "bash"
+			args = map[string]interface{}{"command": "ls -la | grep -E '^-' | head -5"}
+		} else {
+			selectedTool = t.availableTools["file_read"]
+			toolName = "file_read"
+			args = map[string]interface{}{"path": "README.md"} // Default to README
+		}
+	} else if strings.Contains(instruction, "check") && strings.Contains(instruction, "directory") {
+		selectedTool = t.availableTools["bash"]
+		toolName = "bash"
+		args = map[string]interface{}{"command": "ls -la"}
 	} else if strings.Contains(instruction, "search") || strings.Contains(instruction, "find") {
 		selectedTool = t.availableTools["search"]
 		toolName = "search"
 		args = map[string]interface{}{"pattern": ".*"} // Default pattern
+	} else if strings.Contains(instruction, "run") || strings.Contains(instruction, "execute") {
+		selectedTool = t.availableTools["bash"]
+		toolName = "bash"
+		// Try to extract command
+		args = map[string]interface{}{"command": "echo 'Command execution requested'"}
 	} else {
 		// Default to bash for general commands
 		selectedTool = t.availableTools["bash"]
 		toolName = "bash"
-		args = map[string]interface{}{"command": "echo 'Tool analysis needed'"}
+		args = map[string]interface{}{"command": "ls -la"}
 	}
 
 	// Execute the selected tool
@@ -244,12 +268,12 @@ func (t *ToolCallerAgent) executeTool(ctx context.Context, tool ToolInterface, a
 // getToolDescriptions returns descriptions of available tools
 func (t *ToolCallerAgent) getToolDescriptions() map[string]string {
 	return map[string]string{
-		"bash":       "Execute shell commands",
-		"file_read":  "Read file contents",
-		"file_write": "Write content to files",
-		"git":        "Git version control operations",
-		"search":     "Search through files and code",
-		"web":        "Fetch content from web URLs",
+		"bash":       "Execute shell commands (ls, pwd, cat, echo, etc.) - Use for listing files, checking directories, running scripts",
+		"file_read":  "Read file contents - Use when you need to read a specific file by path",
+		"file_write": "Write content to files - Use to create or modify files",
+		"git":        "Git version control operations (status, log, diff, etc.)",
+		"search":     "Search through files and code using patterns - Use to find text in files",
+		"web":        "Fetch content from web URLs - Use for HTTP requests and API calls",
 	}
 }
 

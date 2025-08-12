@@ -60,7 +60,10 @@ func (fl *FeedbackLoop) Run(ctx context.Context, state *TaskState) (*TaskResult,
 			return fl.buildResult(state, startTime), nil
 		}
 
-		logger.Info("🎯 Next action: execute with %s agent", decision.TargetAgent)
+		// Visual feedback for agent switching
+		agentName := string(decision.TargetAgent)
+		logger.Info("🎯 Next action: execute with %s agent", agentName)
+		fmt.Printf("[%s]\n", agentName)
 
 		// Execute with selected agent
 		state.CurrentPhase = PhaseExecution

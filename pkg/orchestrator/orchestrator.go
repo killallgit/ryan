@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/killallgit/ryan/pkg/logger"
 	"github.com/tmc/langchaingo/llms"
@@ -90,9 +91,31 @@ func (o *Orchestrator) AnalyzeIntent(ctx context.Context, query string) (*TaskIn
 	logger.Debug("🧠 Analyzing intent for query: %s", query)
 
 	prompt := fmt.Sprintf(`Analyze the following user query and determine the task type and required capabilities.
-Respond ONLY with valid JSON, no other text or formatting.
 
-JSON structure required:
+Available tools that can be used: bash, file_read, file_write, git, search, web
+
+Task Type Guidelines:
+- tool_use: When the user wants to perform actions like:
+  * File operations (read, write, list, delete files)
+  * System commands (run bash commands, check directories)
+  * Git operations (clone, commit, push)
+  * Web fetching or API calls
+  * Searching through code or files
+  Examples: "read a file", "list files", "run npm install", "check git status", "search for function X"
+
+- code_generation: When the user wants new code written or existing code modified
+  Examples: "write a function to...", "create a React component", "implement a sorting algorithm"
+
+- reasoning: When the user wants analysis, explanation, or decision making without actions
+  Examples: "explain how X works", "what's the difference between...", "analyze this algorithm"
+
+- search: When the user wants to find information in code or documentation
+  Examples: "find all usages of...", "where is X defined", "search for pattern Y"
+
+- planning: When the user wants to break down complex tasks or create strategies
+  Examples: "plan a refactoring", "how should I implement...", "create a migration strategy"
+
+Respond ONLY with valid JSON, no other text or formatting:
 {
   "type": "one of: tool_use, code_generation, reasoning, search, planning",
   "confidence": 0.0 to 1.0,
@@ -262,6 +285,12 @@ func (o *Orchestrator) selectAgentForIntent(intent *TaskIntent) AgentType {
 		baseAgent = AgentReasoner // Default
 	}
 
+	// If confidence is low or we got reasoner as default, check for tool keywords
+	if (intent.Confidence < 0.7 || baseAgent == AgentReasoner) && o.shouldUseToolCallerForCapabilities(intent.RequiredCapabilities) {
+		logger.Debug("Low confidence or reasoning default, checking for tool keywords in capabilities: %v", intent.RequiredCapabilities)
+		baseAgent = AgentToolCaller
+	}
+
 	// Check if the selected agent is enabled in config
 	agentName := string(baseAgent)
 	if !o.config.IsAgentEnabled(agentName) {
@@ -284,6 +313,26 @@ func (o *Orchestrator) selectAgentForIntent(intent *TaskIntent) AgentType {
 	}
 
 	return baseAgent
+}
+
+// shouldUseToolCallerForCapabilities checks if capabilities suggest tool usage
+func (o *Orchestrator) shouldUseToolCallerForCapabilities(capabilities []string) bool {
+	toolKeywords := []string{
+		"file", "files", "directory", "folder", "read", "write", "list", "ls",
+		"bash", "command", "execute", "run", "git", "web", "fetch", "api",
+		"system", "filesystem", "disk", "path", "delete", "create", "modify",
+	}
+
+	for _, cap := range capabilities {
+		capLower := strings.ToLower(cap)
+		for _, keyword := range toolKeywords {
+			if strings.Contains(capLower, keyword) {
+				logger.Debug("Found tool keyword '%s' in capability '%s'", keyword, cap)
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // getAvailableTools returns the list of available tools
