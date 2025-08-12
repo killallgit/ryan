@@ -154,24 +154,3 @@ func (r *Registry) Clear() {
 	r.sources = make(map[string]*RegisteredSource)
 	r.defaultID = ""
 }
-
-// GetSource returns the first source (for backward compatibility)
-// Deprecated: Use Get, GetDefault, or GetOrDefault instead
-func (r *Registry) GetSource() *RegisteredSource {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	// Return default if available
-	if r.defaultID != "" {
-		if source, exists := r.sources[r.defaultID]; exists {
-			return source
-		}
-	}
-
-	// Return any source
-	for _, source := range r.sources {
-		return source
-	}
-
-	return nil
-}

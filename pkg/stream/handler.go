@@ -77,25 +77,5 @@ func FromStreamingFunc(fn func(context.Context, []byte) error, ctx context.Conte
 	}
 }
 
-// StringHandler wraps a Handler to work with string chunks for backward compatibility
-type StringHandler struct {
-	Handler Handler
-}
-
-// OnChunk converts string to []byte and forwards to wrapped handler
-func (s *StringHandler) OnChunk(chunk string) error {
-	return s.Handler.OnChunk([]byte(chunk))
-}
-
-// OnComplete forwards to wrapped handler
-func (s *StringHandler) OnComplete(finalContent string) error {
-	return s.Handler.OnComplete(finalContent)
-}
-
-// OnError forwards to wrapped handler
-func (s *StringHandler) OnError(err error) {
-	s.Handler.OnError(err)
-}
-
 // Ensure implementations satisfy the interface
 var _ Handler = HandlerFunc{}

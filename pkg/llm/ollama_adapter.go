@@ -6,6 +6,7 @@ import (
 
 	"github.com/killallgit/ryan/pkg/config"
 	"github.com/killallgit/ryan/pkg/ollama"
+	"github.com/killallgit/ryan/pkg/stream"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -46,7 +47,7 @@ func (a *OllamaAdapter) Generate(ctx context.Context, prompt string) (string, er
 }
 
 // GenerateStream generates a streaming response for the given prompt
-func (a *OllamaAdapter) GenerateStream(ctx context.Context, prompt string, handler StreamHandler) error {
+func (a *OllamaAdapter) GenerateStream(ctx context.Context, prompt string, handler stream.Handler) error {
 	messages := []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeHuman, prompt),
 	}
@@ -112,7 +113,7 @@ func (a *OllamaAdapter) GenerateWithHistory(ctx context.Context, messages []Mess
 }
 
 // GenerateStreamWithHistory generates a streaming response with history
-func (a *OllamaAdapter) GenerateStreamWithHistory(ctx context.Context, messages []Message, handler StreamHandler) error {
+func (a *OllamaAdapter) GenerateStreamWithHistory(ctx context.Context, messages []Message, handler stream.Handler) error {
 	// Convert our messages to langchain messages
 	lcMessages := make([]llms.MessageContent, 0, len(messages))
 

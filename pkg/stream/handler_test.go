@@ -77,25 +77,6 @@ func TestHandler(t *testing.T) {
 		assert.Equal(t, context.Canceled, errorReceived)
 	})
 
-	t.Run("StringHandler", func(t *testing.T) {
-		var receivedChunk []byte
-
-		innerHandler := HandlerFunc{
-			ChunkFunc: func(chunk []byte) error {
-				receivedChunk = chunk
-				return nil
-			},
-		}
-
-		stringHandler := &StringHandler{
-			Handler: innerHandler,
-		}
-
-		// Test string to []byte conversion
-		err := stringHandler.OnChunk("test string")
-		assert.NoError(t, err)
-		assert.Equal(t, []byte("test string"), receivedChunk)
-	})
 }
 
 func TestWriterHandler(t *testing.T) {

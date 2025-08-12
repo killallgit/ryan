@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+
 	"github.com/killallgit/ryan/pkg/stream"
 )
 
@@ -11,7 +12,7 @@ type Provider interface {
 	Generate(ctx context.Context, prompt string) (string, error)
 
 	// GenerateStream generates a streaming response for the given prompt
-	GenerateStream(ctx context.Context, prompt string, handler StreamHandler) error
+	GenerateStream(ctx context.Context, prompt string, handler stream.Handler) error
 
 	// GetName returns the provider name
 	GetName() string
@@ -20,9 +21,7 @@ type Provider interface {
 	GetModel() string
 }
 
-// StreamHandler is deprecated. Use stream.Handler instead.
-// This type alias is provided for backward compatibility during migration.
-// Deprecated: Use github.com/killallgit/ryan/pkg/stream.Handler
+// StreamHandler defines the interface for handling streaming responses
 type StreamHandler = stream.Handler
 
 // TokenCounter provides token counting capabilities
@@ -45,7 +44,7 @@ type ConversationalProvider interface {
 	GenerateWithHistory(ctx context.Context, messages []Message) (string, error)
 
 	// GenerateStreamWithHistory generates a streaming response with history
-	GenerateStreamWithHistory(ctx context.Context, messages []Message, handler StreamHandler) error
+	GenerateStreamWithHistory(ctx context.Context, messages []Message, handler stream.Handler) error
 }
 
 // ProviderConfig contains configuration for an LLM provider
