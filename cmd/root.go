@@ -186,13 +186,21 @@ func runOrchestratorHeadless(orch *orchestrator.Orchestrator, prompt string) {
 	fmt.Println(result.Result)
 }
 
-// runOrchestratorTUI runs orchestrator with TUI (placeholder)
+// runOrchestratorTUI runs orchestrator with TUI
 func runOrchestratorTUI(orch *orchestrator.Orchestrator, continueHistory bool) {
-	// TODO: Implement TUI integration with orchestrator
-	fmt.Println("🚧 Orchestrator TUI mode is not yet implemented.")
-	fmt.Println("Please use --headless mode with --prompt for now:")
-	fmt.Println("  ryan --orchestrate --headless --prompt 'your task here'")
-	os.Exit(0)
+	// Create agent wrapper to make orchestrator compatible with TUI
+	agentWrapper, err := orchestrator.NewAgentWrapper(orch)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating orchestrator wrapper: %v\n", err)
+		os.Exit(1)
+	}
+	defer agentWrapper.Close()
+
+	// Run TUI with the orchestrator wrapper
+	if err := tui.RunTUIWithOptions(agentWrapper, continueHistory); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func Execute() {
