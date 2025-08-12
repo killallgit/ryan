@@ -63,11 +63,10 @@ func (w *AgentWrapper) Execute(ctx context.Context, prompt string) (string, erro
 func (w *AgentWrapper) ExecuteStream(ctx context.Context, prompt string, handler core.Handler) error {
 	logger.Debug("🎯 Orchestrator wrapper executing stream: %s", prompt)
 
-	// For now, we'll execute normally and stream the result
-	// Future enhancement: true streaming from orchestrator
-	result, err := w.orchestrator.Execute(ctx, prompt)
+	// Use the new streaming execution
+	result, err := w.orchestrator.ExecuteStream(ctx, prompt, handler)
 	if err != nil {
-		return fmt.Errorf("orchestrator execution failed: %w", err)
+		return fmt.Errorf("orchestrator streaming execution failed: %w", err)
 	}
 
 	// Save to history
@@ -77,23 +76,11 @@ func (w *AgentWrapper) ExecuteStream(ctx context.Context, prompt string, handler
 		}
 	}
 
-	// Update token stats
+	// Update token stats (approximate)
 	w.tokensSent += len(prompt) / 4
 	w.tokensReceived += len(result.Result) / 4
 
-	// Stream the formatted response
-	response := w.formatResponse(result)
-
-	// Send the response as chunks to simulate streaming
-	// This includes the routing information and result
-	lines := strings.Split(response, "\n")
-	for _, line := range lines {
-		if err := handler.OnChunk(line + "\n"); err != nil {
-			return err
-		}
-	}
-
-	return handler.OnComplete(response)
+	return nil
 }
 
 // formatResponse formats the orchestrator result for display

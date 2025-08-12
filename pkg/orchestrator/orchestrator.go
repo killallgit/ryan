@@ -16,16 +16,25 @@ type Orchestrator struct {
 	stateManager  *StateManager
 	feedbackLoop  *FeedbackLoop
 	maxIterations int
+	config        *Config
 }
 
 // New creates a new orchestrator instance
 func New(llm llms.Model, options ...Option) (*Orchestrator, error) {
-	o := &Orchestrator{
-		llm:           llm,
-		maxIterations: 10,
+	// Load configuration
+	config, err := LoadConfig()
+	if err != nil {
+		logger.Warn("Failed to load orchestrator config, using defaults: %v", err)
+		config = DefaultConfig()
 	}
 
-	// Apply options
+	o := &Orchestrator{
+		llm:           llm,
+		maxIterations: config.MaxIterations,
+		config:        config,
+	}
+
+	// Apply options (can override config)
 	for _, opt := range options {
 		if err := opt(o); err != nil {
 			return nil, fmt.Errorf("failed to apply option: %w", err)
@@ -37,7 +46,8 @@ func New(llm llms.Model, options ...Option) (*Orchestrator, error) {
 	o.stateManager = NewStateManager()
 	o.feedbackLoop = NewFeedbackLoop(o)
 
-	logger.Info("Orchestrator initialized with %d max iterations", o.maxIterations)
+	logger.Info("Orchestrator initialized with %d max iterations, %d agents enabled",
+		o.maxIterations, len(config.EnabledAgents))
 	return o, nil
 }
 
@@ -237,21 +247,43 @@ func (o *Orchestrator) ProcessFeedback(ctx context.Context, feedback *AgentRespo
 
 // selectAgentForIntent determines the best agent type for a given intent
 func (o *Orchestrator) selectAgentForIntent(intent *TaskIntent) AgentType {
-	switch intent.Type {
-	case "tool_use":
-		return AgentToolCaller
-	case "code_generation":
-		return AgentCodeGen
-	case "reasoning":
-		return AgentReasoner
-	case "search":
-		return AgentSearcher
-	case "planning":
-		return AgentPlanner
-	default:
-		// Default to reasoner for unknown types
-		return AgentReasoner
+	// Map intent type to agent type
+	agentTypeMap := map[string]AgentType{
+		"tool_use":        AgentToolCaller,
+		"code_generation": AgentCodeGen,
+		"reasoning":       AgentReasoner,
+		"search":          AgentSearcher,
+		"planning":        AgentPlanner,
 	}
+
+	// Get the base agent type from intent
+	baseAgent, exists := agentTypeMap[intent.Type]
+	if !exists {
+		baseAgent = AgentReasoner // Default
+	}
+
+	// Check if the selected agent is enabled in config
+	agentName := string(baseAgent)
+	if !o.config.IsAgentEnabled(agentName) {
+		logger.Warn("Agent %s is disabled in config, selecting alternative", agentName)
+
+		// Try to find an alternative enabled agent based on capabilities
+		availableAgents := []string{"tool_caller", "reasoner", "code_gen", "searcher", "planner"}
+		alternative, err := o.config.SelectBestAgent(intent.RequiredCapabilities, availableAgents)
+		if err != nil {
+			logger.Error("Failed to find alternative agent: %v", err)
+			return AgentReasoner // Fallback to reasoner
+		}
+
+		// Convert string back to AgentType
+		for agentType, mappedType := range agentTypeMap {
+			if alternative == agentType || alternative == string(mappedType) {
+				return mappedType
+			}
+		}
+	}
+
+	return baseAgent
 }
 
 // getAvailableTools returns the list of available tools
