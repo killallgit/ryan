@@ -1,4 +1,10 @@
+# Agent routing.
+- Add the ability to set "modes"
+- The routing agent (orchestrator)
+- Plan agent type shoudl be of "plan-and-execute" agent. Reference this page for an idea of how these are setup. https://tmc.github.io/langchaingo/docs/modules/agents/ it looks like it's just a `agents.NewPlanAndExecuteAgent` or something along these lines
 - Lets create a simple system for canceling in progress actions. We should be able to leverage something in the langchain-go library already for this. We should do some research to see what the best approach might be here and create a comprehensive plan for adding.
 - Doublecheck our tools are following the way that langchain expects these: https://tmc.github.io/langchaingo/docs/modules/agents/ and for the chains as well
 - Tool registering needs to be moved into its own "toolInit" method so that all these conditional checks can happen in a single location
 - Text processing middleware and markdown styling.
+- text splitters for large text input
+- memory adjustments: https://tmc.github.io/langchaingo/docs/modules/memory/ need to adjust the mode dynamically

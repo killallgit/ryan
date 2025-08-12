@@ -3,6 +3,15 @@
 ## [Unreleased]
 
 ### Added
+- **Tool Registry System** - Centralized tool registration and initialization using factory pattern
+  - Created `pkg/tools/registry/` package with Registry interface and implementation
+  - Factory pattern for tool creation with `ToolFactory` functions
+  - Global registry singleton with thread-safe operations
+  - Auto-registration of tools via `init()` function in `pkg/tools/init.go`
+  - Configuration-based tool enablement with `GetEnabled()` method
+  - Simplified agent initialization from ~45 lines to 3 lines
+  - Comprehensive unit tests with 96.1% code coverage
+  - Support for dynamic tool loading and extension
 - **Orchestrator Testing Framework** - Comprehensive testing infrastructure for multi-agent orchestrator system
   - Mock LLM with configurable responses, intent analysis, and behavior simulation
   - Mock agents with tool calling simulation, failure rates, and retry logic
