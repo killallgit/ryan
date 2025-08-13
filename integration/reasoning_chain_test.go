@@ -53,7 +53,7 @@ func TestAgentReasoningChain(t *testing.T) {
 		ollamaClient := ollama.NewClient()
 
 		// Create executor agent with bash tool enabled (skip permissions for testing)
-		executorAgent, err := agent.NewExecutorAgentWithOptions(ollamaClient.LLM, false, true)
+		executorAgent, err := agent.NewReactAgentWithOptions(ollamaClient.LLM, false, true)
 		require.NoError(t, err, "Should create executor agent")
 		defer executorAgent.Close()
 
@@ -76,7 +76,7 @@ func TestAgentReasoningChain(t *testing.T) {
 	t.Run("Agent uses bash to check current directory", func(t *testing.T) {
 		setupViperWithBashTool(t)
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgentWithOptions(ollamaClient.LLM, false, true)
+		executorAgent, err := agent.NewReactAgentWithOptions(ollamaClient.LLM, false, true)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -111,7 +111,7 @@ func TestAgentReasoningChain(t *testing.T) {
 
 		setupViperWithBashTool(t)
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgentWithOptions(ollamaClient.LLM, false, true)
+		executorAgent, err := agent.NewReactAgentWithOptions(ollamaClient.LLM, false, true)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 

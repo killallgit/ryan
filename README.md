@@ -10,7 +10,7 @@ _warning: expect missing features and breakage_
 ### Roadmap / Claude code pairity
 - [x] Ollama
 - [x] Context embedding and retrieval
-- [x] Multi-agent
+- [x] Single ReAct agent (simplified from multi-agent)
 - [x] Fancy spinner
 - [ ] ACL / security
 - [x] Core tools (Bash, read, write)

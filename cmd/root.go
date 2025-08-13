@@ -42,20 +42,20 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Create the executor agent once, to be used by both modes
+		// Create the ReAct agent to be used by both modes
 		// Pass skipPermissions to the agent creation
-		executorAgent, err := createExecutorAgent(llm, continueHistory, skipPermissions)
+		reactAgent, err := createReactAgent(llm, continueHistory, skipPermissions)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating executor agent: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error creating ReAct agent: %v\n", err)
 			os.Exit(1)
 		}
-		defer executorAgent.Close()
+		defer reactAgent.Close()
 
 		// Check if running in headless mode
 		if headlessMode {
-			runHeadless(executorAgent, promptValue, continueHistory)
+			runHeadless(reactAgent, promptValue, continueHistory)
 		} else {
-			runTUI(executorAgent, continueHistory)
+			runTUI(reactAgent, continueHistory)
 		}
 	},
 }
@@ -79,26 +79,26 @@ func createLLM() (llms.Model, error) {
 	}
 }
 
-// createExecutorAgent creates an executor agent with the given configuration
-func createExecutorAgent(llm llms.Model, continueHistory, skipPermissions bool) (agent.Agent, error) {
-	return agent.NewExecutorAgentWithOptions(llm, continueHistory, skipPermissions)
+// createReactAgent creates a ReAct agent with the given configuration
+func createReactAgent(llm llms.Model, continueHistory, skipPermissions bool) (agent.Agent, error) {
+	return agent.NewReactAgentWithOptions(llm, continueHistory, skipPermissions)
 }
 
-func runHeadless(executorAgent agent.Agent, prompt string, continueHistory bool) {
+func runHeadless(reactAgent agent.Agent, prompt string, continueHistory bool) {
 	// Use provided prompt or default
 	if prompt == "" {
 		prompt = "hello"
 	}
 
 	// Simply run the headless mode - no terminal manipulation needed
-	if err := headless.RunHeadlessWithOptions(executorAgent, prompt, continueHistory); err != nil {
+	if err := headless.RunHeadlessWithOptions(reactAgent, prompt, continueHistory); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func runTUI(executorAgent agent.Agent, continueHistory bool) {
-	if err := tui.RunTUIWithOptions(executorAgent, continueHistory); err != nil {
+func runTUI(reactAgent agent.Agent, continueHistory bool) {
+	if err := tui.RunTUIWithOptions(reactAgent, continueHistory); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}

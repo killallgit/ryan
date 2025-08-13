@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Changed
+- **Major Refactor: Single ReAct Agent Architecture** - Simplified from multi-agent to single agent system
+  - Removed entire orchestrator package with routing and multi-agent coordination
+  - Renamed ExecutorAgent to ReactAgent throughout codebase
+  - Kept LangChain's ConversationalAgent which implements ReAct pattern
+  - Updated agent interface to include GetExecutionState() for observability
+  - Created observable execution state system for real-time tool usage tracking
+  - Added tool execution events and display formatting for TUI
+  - Enhanced TUI theme with tool display styles
+  - Fixed previously skipped memory persistence tests
+  - Updated documentation to reflect simplified architecture
+  - All tests passing with improved coverage
+
 ### Added
 - **Models View with Download/Delete Modal System** - Comprehensive TUI interface for managing Ollama models
   - Created dedicated models view to display available Ollama models in a table

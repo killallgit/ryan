@@ -34,9 +34,10 @@ Ryan is a prototype LLM repl focused on code writing assistance
 ### Core Components
 
 1. **Agent System** (`pkg/agent/`)
-   - `Agent` interface defines core agent operations (Execute, ExecuteStream, ClearMemory)
-   - `ExecutorAgent` implements the main agent using LangChain integration
+   - `Agent` interface defines core agent operations (Execute, ExecuteStream, ClearMemory, GetExecutionState)
+   - `ReactAgent` implements a single ReAct agent using LangChain's ConversationalAgent
    - Supports both blocking and streaming execution modes
+   - Observable execution state for real-time tool usage display
 
 2. **LLM Integration** (`pkg/llm/`)
    - `Provider` interface for LLM providers
@@ -81,11 +82,13 @@ Ryan is a prototype LLM repl focused on code writing assistance
 
 ### Key Patterns
 
-1. **Interface-driven design**: All major components use interfaces for flexibility
-2. **LangChain integration**: Uses `tmc/langchaingo` for LLM orchestration
-3. **Unified streaming**: Consolidated streaming architecture with core/providers/tui separation
-4. **Provider abstraction**: LLM providers are abstracted behind common interfaces
-5. **Memory persistence**: SQLite-based conversation memory with session management
+1. **Single ReAct Agent**: Uses LangChain's ConversationalAgent for ReAct pattern implementation
+2. **Interface-driven design**: All major components use interfaces for flexibility
+3. **LangChain integration**: Uses `tmc/langchaingo` for ReAct agent orchestration
+4. **Unified streaming**: Consolidated streaming architecture with core/providers/tui separation
+5. **Observable state**: Real-time execution state tracking for tool usage visibility
+6. **Provider abstraction**: LLM providers are abstracted behind common interfaces
+7. **Memory persistence**: SQLite-based conversation memory with session management
 
 ## Configuration
 

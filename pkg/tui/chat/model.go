@@ -38,7 +38,7 @@ type chatModel struct {
 	err           error
 	width         int
 	height        int
-	styles        *theme.Styles
+	styles        *theme.StyleSet
 	messageIndex  int
 	numEscPress   int
 	streamManager *tui.Manager

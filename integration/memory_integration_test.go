@@ -42,7 +42,7 @@ func TestMemoryPersistence(t *testing.T) {
 		sessionID := "test-session-persistence"
 
 		// Create first agent instance
-		agent1, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		agent1, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer agent1.Close()
 
@@ -225,7 +225,7 @@ func TestMemoryWithAgent(t *testing.T) {
 		ollamaClient := ollama.NewClient()
 
 		// Create agent
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -332,7 +332,7 @@ func TestMemoryStreaming(t *testing.T) {
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
 
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 

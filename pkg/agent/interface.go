@@ -6,7 +6,7 @@ import (
 	"github.com/killallgit/ryan/pkg/stream/core"
 )
 
-// Agent defines the interface for interacting with agents
+// Agent defines the interface for the ReAct agent
 // This interface is used by both TUI and headless modes
 type Agent interface {
 	// Execute handles a request and returns a response (blocking)
@@ -22,9 +22,12 @@ type Agent interface {
 	// Returns (tokensSent, tokensReceived)
 	GetTokenStats() (int, int)
 
+	// GetExecutionState returns a snapshot of the current execution state
+	GetExecutionState() ExecutionStateSnapshot
+
 	// Close cleans up resources
 	Close() error
 }
 
-// Ensure ExecutorAgent implements Agent interface
-var _ Agent = (*ExecutorAgent)(nil)
+// Compile-time check that ReactAgent implements Agent interface
+var _ Agent = (*ReactAgent)(nil)

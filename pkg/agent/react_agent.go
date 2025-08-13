@@ -24,9 +24,9 @@ import (
 	"github.com/tmc/langchaingo/tools"
 )
 
-// ExecutorAgent is a LangChain executor-based agent implementation
+// ReactAgent is a LangChain ReAct-based agent implementation
 // It wraps LangChain's conversational agent with an executor for handling requests
-type ExecutorAgent struct {
+type ReactAgent struct {
 	llm          llms.Model
 	executor     *agents.Executor
 	memory       *memory.Memory
@@ -35,6 +35,9 @@ type ExecutorAgent struct {
 	tokensSent   int
 	tokensRecv   int
 	tokensMu     sync.RWMutex
+
+	// Observable execution state
+	state *ExecutionState
 
 	// RAG components
 	vectorStore vectorstore.VectorStore
@@ -45,24 +48,24 @@ type ExecutorAgent struct {
 	promptTemplate prompt.Template
 }
 
-// NewExecutorAgent creates a new executor-based agent with an injected LLM
+// NewReactAgent creates a new executor-based agent with an injected LLM
 // By default, creates a new session (no continuation)
-func NewExecutorAgent(llm llms.Model) (*ExecutorAgent, error) {
+func NewReactAgent(llm llms.Model) (*ReactAgent, error) {
 	// Generate a unique session ID for new conversations
 	// This ensures each agent has its own isolated memory
 	sessionID := fmt.Sprintf("session_%d", time.Now().UnixNano())
 	logger.Debug("Created new session ID: %s", sessionID)
 
-	return NewExecutorAgentWithSession(llm, sessionID)
+	return NewReactAgentWithSession(llm, sessionID)
 }
 
-// NewExecutorAgentWithContinue creates a new executor-based agent with continuation support
-func NewExecutorAgentWithContinue(llm llms.Model, continueHistory bool) (*ExecutorAgent, error) {
-	return NewExecutorAgentWithOptions(llm, continueHistory, false)
+// NewReactAgentWithContinue creates a new executor-based agent with continuation support
+func NewReactAgentWithContinue(llm llms.Model, continueHistory bool) (*ReactAgent, error) {
+	return NewReactAgentWithOptions(llm, continueHistory, false)
 }
 
-// NewExecutorAgentWithOptions creates a new executor-based agent with full options
-func NewExecutorAgentWithOptions(llm llms.Model, continueHistory, skipPermissions bool) (*ExecutorAgent, error) {
+// NewReactAgentWithOptions creates a new executor-based agent with full options
+func NewReactAgentWithOptions(llm llms.Model, continueHistory, skipPermissions bool) (*ReactAgent, error) {
 	var sessionID string
 	if continueHistory {
 		// Use a consistent session ID per project to maintain conversation context
@@ -76,17 +79,17 @@ func NewExecutorAgentWithOptions(llm llms.Model, continueHistory, skipPermission
 		logger.Debug("Created new session ID: %s", sessionID)
 	}
 
-	return NewExecutorAgentWithSessionAndOptions(llm, sessionID, skipPermissions)
+	return NewReactAgentWithSessionAndOptions(llm, sessionID, skipPermissions)
 }
 
-// NewExecutorAgentWithSession creates a new executor-based agent with a specific session ID
-func NewExecutorAgentWithSession(llm llms.Model, sessionID string) (*ExecutorAgent, error) {
-	return NewExecutorAgentWithSessionAndOptions(llm, sessionID, false)
+// NewReactAgentWithSession creates a new executor-based agent with a specific session ID
+func NewReactAgentWithSession(llm llms.Model, sessionID string) (*ReactAgent, error) {
+	return NewReactAgentWithSessionAndOptions(llm, sessionID, false)
 }
 
-// NewExecutorAgentWithSessionAndOptions creates a new executor-based agent with a specific session ID and options
-func NewExecutorAgentWithSessionAndOptions(llm llms.Model, sessionID string, skipPermissions bool) (*ExecutorAgent, error) {
-	logger.Info("Initializing ExecutorAgent with session: %s", sessionID)
+// NewReactAgentWithSessionAndOptions creates a new executor-based agent with a specific session ID and options
+func NewReactAgentWithSessionAndOptions(llm llms.Model, sessionID string, skipPermissions bool) (*ReactAgent, error) {
+	logger.Info("Initializing ReactAgent with session: %s", sessionID)
 
 	mem, err := memory.New(sessionID)
 	if err != nil {
@@ -191,7 +194,7 @@ func NewExecutorAgentWithSessionAndOptions(llm llms.Model, sessionID string, ski
 		tokenCounter = nil
 	}
 
-	return &ExecutorAgent{
+	return &ReactAgent{
 		llm:          llm,
 		executor:     executor,
 		memory:       mem,
@@ -199,6 +202,7 @@ func NewExecutorAgentWithSessionAndOptions(llm llms.Model, sessionID string, ski
 		tokenCounter: tokenCounter,
 		tokensSent:   0,
 		tokensRecv:   0,
+		state:        NewExecutionState(),
 		vectorStore:  vectorStore,
 		retriever:    retriever,
 		augmenter:    augmenter,
@@ -206,8 +210,14 @@ func NewExecutorAgentWithSessionAndOptions(llm llms.Model, sessionID string, ski
 }
 
 // Execute handles a request and returns a response
-func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, error) {
+func (e *ReactAgent) Execute(ctx context.Context, prompt string) (string, error) {
 	logger.Debug("Execute called with prompt: %s", prompt)
+
+	// Update state to thinking
+	if e.state != nil {
+		e.state.Reset()
+		e.state.SetPhase(PhaseThinking)
+	}
 
 	// Format prompt using template if configured
 	actualPrompt := prompt
@@ -260,7 +270,7 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 	}
 	logger.Debug("Executor call completed successfully")
 
-	// Manually add to memory since LangChain executor might not be doing it
+	// Manually add to memory since LangChain executor might not be doing it properly
 	// Add user message
 	if err := e.memory.AddUserMessage(actualPrompt); err != nil {
 		// Log but don't fail
@@ -301,8 +311,14 @@ func (e *ExecutorAgent) Execute(ctx context.Context, prompt string) (string, err
 }
 
 // ExecuteStream handles a request with streaming response
-func (e *ExecutorAgent) ExecuteStream(ctx context.Context, prompt string, handler core.Handler) error {
+func (e *ReactAgent) ExecuteStream(ctx context.Context, prompt string, handler core.Handler) error {
 	logger.Debug("ExecuteStream called with prompt: %s", prompt)
+
+	// Update state to thinking
+	if e.state != nil {
+		e.state.Reset()
+		e.state.SetPhase(PhaseThinking)
+	}
 
 	// Format prompt using template if configured
 	actualPrompt := prompt
@@ -387,7 +403,7 @@ type tokenAndMemoryHandler struct {
 	inner      core.Handler
 	memory     *memory.Memory
 	prompt     string
-	agent      *ExecutorAgent
+	agent      *ReactAgent
 	buffer     string
 	lastTokens int
 }
@@ -446,17 +462,17 @@ func (h *tokenAndMemoryHandler) OnError(err error) {
 }
 
 // GetLLM returns the underlying LLM for direct access if needed
-func (e *ExecutorAgent) GetLLM() llms.Model {
+func (e *ReactAgent) GetLLM() llms.Model {
 	return e.llm
 }
 
 // GetMemory returns the memory instance
-func (e *ExecutorAgent) GetMemory() *memory.Memory {
+func (e *ReactAgent) GetMemory() *memory.Memory {
 	return e.memory
 }
 
 // ClearMemory clears the conversation memory and resets token counts
-func (e *ExecutorAgent) ClearMemory() error {
+func (e *ReactAgent) ClearMemory() error {
 	// Reset token counts
 	e.tokensMu.Lock()
 	e.tokensSent = 0
@@ -471,14 +487,14 @@ func (e *ExecutorAgent) ClearMemory() error {
 }
 
 // GetTokenStats returns the cumulative token usage statistics
-func (e *ExecutorAgent) GetTokenStats() (int, int) {
+func (e *ReactAgent) GetTokenStats() (int, int) {
 	e.tokensMu.RLock()
 	defer e.tokensMu.RUnlock()
 	return e.tokensSent, e.tokensRecv
 }
 
 // Close cleans up resources
-func (e *ExecutorAgent) Close() error {
+func (e *ReactAgent) Close() error {
 	var errs []error
 
 	if e.memory != nil {
@@ -500,7 +516,7 @@ func (e *ExecutorAgent) Close() error {
 }
 
 // AddDocuments adds documents to the vector store for retrieval
-func (e *ExecutorAgent) AddDocuments(ctx context.Context, documents []vectorstore.Document) error {
+func (e *ReactAgent) AddDocuments(ctx context.Context, documents []vectorstore.Document) error {
 	if e.vectorStore == nil {
 		return fmt.Errorf("vector store not initialized")
 	}
@@ -508,27 +524,27 @@ func (e *ExecutorAgent) AddDocuments(ctx context.Context, documents []vectorstor
 }
 
 // GetVectorStore returns the vector store instance
-func (e *ExecutorAgent) GetVectorStore() vectorstore.VectorStore {
+func (e *ReactAgent) GetVectorStore() vectorstore.VectorStore {
 	return e.vectorStore
 }
 
 // GetRetriever returns the retriever instance
-func (e *ExecutorAgent) GetRetriever() *retrieval.Retriever {
+func (e *ReactAgent) GetRetriever() *retrieval.Retriever {
 	return e.retriever
 }
 
 // SetPromptTemplate sets a custom prompt template for the agent
-func (e *ExecutorAgent) SetPromptTemplate(template prompt.Template) {
+func (e *ReactAgent) SetPromptTemplate(template prompt.Template) {
 	e.promptTemplate = template
 }
 
 // GetPromptTemplate returns the current prompt template
-func (e *ExecutorAgent) GetPromptTemplate() prompt.Template {
+func (e *ReactAgent) GetPromptTemplate() prompt.Template {
 	return e.promptTemplate
 }
 
 // FormatPrompt formats the input using the configured prompt template
-func (e *ExecutorAgent) FormatPrompt(input string, additionalVars map[string]any) (string, error) {
+func (e *ReactAgent) FormatPrompt(input string, additionalVars map[string]any) (string, error) {
 	if e.promptTemplate == nil {
 		// No template configured, return input as-is
 		return input, nil
@@ -545,4 +561,15 @@ func (e *ExecutorAgent) FormatPrompt(input string, additionalVars map[string]any
 
 	// Format the prompt
 	return e.promptTemplate.Format(vars)
+}
+
+// GetExecutionState returns a snapshot of the current execution state
+func (e *ReactAgent) GetExecutionState() ExecutionStateSnapshot {
+	if e.state == nil {
+		// Return empty state if not initialized
+		return ExecutionStateSnapshot{
+			Phase: PhaseIdle,
+		}
+	}
+	return e.state.GetSnapshot()
 }

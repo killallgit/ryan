@@ -128,8 +128,8 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// TestNewExecutorAgent tests the creation of a new ExecutorAgent
-func TestNewExecutorAgent(t *testing.T) {
+// TestNewReactAgent tests the creation of a new ReactAgent
+func TestNewReactAgent(t *testing.T) {
 	// Set up test configuration
 	viper.Reset()
 	viper.Set("continue", false)
@@ -146,7 +146,7 @@ func TestNewExecutorAgent(t *testing.T) {
 	mockLLM := NewMockLLM([]string{"test response"})
 
 	// Create agent
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	require.NotNil(t, agent)
 
@@ -161,14 +161,14 @@ func TestNewExecutorAgent(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestNewExecutorAgentWithContinue tests agent creation with continue flag
-func TestNewExecutorAgentWithContinue(t *testing.T) {
+// TestNewReactAgentWithContinue tests agent creation with continue flag
+func TestNewReactAgentWithContinue(t *testing.T) {
 	viper.Reset()
 	viper.Set("continue", true)
 	viper.Set("vectorstore.enabled", false)
 
 	mockLLM := NewMockLLM([]string{"test response"})
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	require.NotNil(t, agent)
 
@@ -179,8 +179,8 @@ func TestNewExecutorAgentWithContinue(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestExecutorAgentExecute tests the Execute method
-func TestExecutorAgentExecute(t *testing.T) {
+// TestReactAgentExecute tests the Execute method
+func TestReactAgentExecute(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 
@@ -214,7 +214,7 @@ func TestExecutorAgentExecute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockLLM := NewMockLLM(tt.responses)
-			agent, err := NewExecutorAgent(mockLLM)
+			agent, err := NewReactAgent(mockLLM)
 			require.NoError(t, err)
 			defer agent.Close()
 
@@ -241,15 +241,15 @@ func TestExecutorAgentExecute(t *testing.T) {
 	}
 }
 
-// TestExecutorAgentExecuteWithError tests Execute with LLM errors
-func TestExecutorAgentExecuteWithError(t *testing.T) {
+// TestReactAgentExecuteWithError tests Execute with LLM errors
+func TestReactAgentExecuteWithError(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 
 	mockLLM := NewMockLLM([]string{})
 	mockLLM.SetError(errors.New("LLM service unavailable"))
 
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	defer agent.Close()
 
@@ -259,13 +259,13 @@ func TestExecutorAgentExecuteWithError(t *testing.T) {
 	assert.Contains(t, err.Error(), "agent execution failed")
 }
 
-// TestExecutorAgentExecuteStream tests the ExecuteStream method
-func TestExecutorAgentExecuteStream(t *testing.T) {
+// TestReactAgentExecuteStream tests the ExecuteStream method
+func TestReactAgentExecuteStream(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 
 	mockLLM := NewMockLLM([]string{"Streaming response part 1", "part 2"})
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	defer agent.Close()
 
@@ -317,13 +317,13 @@ func (h *testStreamHandler) OnError(err error) {
 	}
 }
 
-// TestExecutorAgentMemoryManagement tests memory-related methods
-func TestExecutorAgentMemoryManagement(t *testing.T) {
+// TestReactAgentMemoryManagement tests memory-related methods
+func TestReactAgentMemoryManagement(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 
 	mockLLM := NewMockLLM([]string{"response 1", "response 2"})
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	defer agent.Close()
 
@@ -346,14 +346,14 @@ func TestExecutorAgentMemoryManagement(t *testing.T) {
 	assert.Equal(t, 0, recv)
 }
 
-// TestExecutorAgentTokenTracking tests token counting functionality
-func TestExecutorAgentTokenTracking(t *testing.T) {
+// TestReactAgentTokenTracking tests token counting functionality
+func TestReactAgentTokenTracking(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 	viper.Set("ollama.default_model", "gpt-4") // Use a model that has token counting
 
 	mockLLM := NewMockLLM([]string{"This is a test response with several tokens"})
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	defer agent.Close()
 
@@ -368,8 +368,8 @@ func TestExecutorAgentTokenTracking(t *testing.T) {
 	// Recv might be 0 if execution failed before response
 }
 
-// TestExecutorAgentWithRAG tests RAG integration when enabled
-func TestExecutorAgentWithRAG(t *testing.T) {
+// TestReactAgentWithRAG tests RAG integration when enabled
+func TestReactAgentWithRAG(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", true)
 	viper.Set("vectorstore.embedding.provider", "ollama")
@@ -387,7 +387,7 @@ func TestExecutorAgentWithRAG(t *testing.T) {
 
 	// Note: This will attempt to create real embeddings/vector store
 	// In a real test, we'd want to mock these components
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 
 	// The agent creation should succeed even if Ollama isn't running
 	// It will just print a warning and continue without RAG
@@ -398,13 +398,13 @@ func TestExecutorAgentWithRAG(t *testing.T) {
 	// This is expected behavior - the agent should work without RAG
 }
 
-// TestExecutorAgentClose tests resource cleanup
-func TestExecutorAgentClose(t *testing.T) {
+// TestReactAgentClose tests resource cleanup
+func TestReactAgentClose(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 
 	mockLLM := NewMockLLM([]string{"test"})
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 
 	// Close should not error
@@ -416,8 +416,8 @@ func TestExecutorAgentClose(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestExecutorAgentConcurrency tests concurrent access to agent
-func TestExecutorAgentConcurrency(t *testing.T) {
+// TestReactAgentConcurrency tests concurrent access to agent
+func TestReactAgentConcurrency(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 
@@ -427,7 +427,7 @@ func TestExecutorAgentConcurrency(t *testing.T) {
 	}
 	mockLLM := NewMockLLM(responses)
 
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	defer agent.Close()
 
@@ -458,13 +458,13 @@ func TestExecutorAgentConcurrency(t *testing.T) {
 	wg.Wait()
 }
 
-// TestExecutorAgentContextCancellation tests context cancellation handling
-func TestExecutorAgentContextCancellation(t *testing.T) {
+// TestReactAgentContextCancellation tests context cancellation handling
+func TestReactAgentContextCancellation(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 
 	mockLLM := NewMockLLM([]string{"response"})
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	defer agent.Close()
 
@@ -486,7 +486,7 @@ func TestTokenAndMemoryHandler(t *testing.T) {
 	viper.Set("ollama.default_model", "gpt-4")
 
 	mockLLM := NewMockLLM([]string{"test"})
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	defer agent.Close()
 
@@ -526,8 +526,8 @@ func TestTokenAndMemoryHandler(t *testing.T) {
 	handler.OnError(errors.New("test error"))
 }
 
-// BenchmarkExecutorAgentExecute benchmarks the Execute method
-func BenchmarkExecutorAgentExecute(b *testing.B) {
+// BenchmarkReactAgentExecute benchmarks the Execute method
+func BenchmarkReactAgentExecute(b *testing.B) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 
@@ -537,7 +537,7 @@ func BenchmarkExecutorAgentExecute(b *testing.B) {
 	}
 	mockLLM := NewMockLLM(responses)
 
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -554,8 +554,8 @@ func BenchmarkExecutorAgentExecute(b *testing.B) {
 	}
 }
 
-// TestExecutorAgentMemoryIntegration tests memory integration more thoroughly
-func TestExecutorAgentMemoryIntegration(t *testing.T) {
+// TestReactAgentMemoryIntegration tests memory integration more thoroughly
+func TestReactAgentMemoryIntegration(t *testing.T) {
 	viper.Reset()
 	viper.Set("vectorstore.enabled", false)
 
@@ -563,7 +563,7 @@ func TestExecutorAgentMemoryIntegration(t *testing.T) {
 	// For now, we test with the real memory integration
 
 	mockLLM := NewMockLLM([]string{"response 1", "response 2"})
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	require.NoError(t, err)
 	defer agent.Close()
 
@@ -584,8 +584,8 @@ func TestExecutorAgentMemoryIntegration(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestExecutorAgentWithInvalidConfig tests agent creation with invalid configuration
-func TestExecutorAgentWithInvalidConfig(t *testing.T) {
+// TestReactAgentWithInvalidConfig tests agent creation with invalid configuration
+func TestReactAgentWithInvalidConfig(t *testing.T) {
 	viper.Reset()
 
 	// Test with invalid vector store config
@@ -595,7 +595,7 @@ func TestExecutorAgentWithInvalidConfig(t *testing.T) {
 	mockLLM := NewMockLLM([]string{"test"})
 
 	// Should still create agent but without vector store
-	agent, err := NewExecutorAgent(mockLLM)
+	agent, err := NewReactAgent(mockLLM)
 	assert.NoError(t, err) // Should not fail, just skip vector store
 	if agent != nil {
 		defer agent.Close()

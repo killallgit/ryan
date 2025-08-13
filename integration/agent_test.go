@@ -72,7 +72,7 @@ func TestAgentInterface(t *testing.T) {
 		ollamaClient := ollama.NewClient()
 
 		// Create executor agent with injected LLM
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err, "Should create executor agent")
 		defer executorAgent.Close()
 
@@ -98,7 +98,7 @@ func TestAgentInterface(t *testing.T) {
 
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -115,7 +115,8 @@ func TestAgentInterface(t *testing.T) {
 
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		// Use NewReactAgentWithOptions to skip permissions for testing
+		executorAgent, err := agent.NewReactAgentWithOptions(ollamaClient.LLM, false, true)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -150,7 +151,7 @@ func TestAgentInterface(t *testing.T) {
 
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -209,7 +210,7 @@ func TestAgentStreaming(t *testing.T) {
 
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 

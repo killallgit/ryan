@@ -22,7 +22,7 @@ func TestDefaultAgentResponses(t *testing.T) {
 
 		// Create LLM and executorAgent
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -48,7 +48,7 @@ func TestDefaultAgentResponses(t *testing.T) {
 	t.Run("It outputs response for math questions", func(t *testing.T) {
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -65,7 +65,7 @@ func TestDefaultAgentResponses(t *testing.T) {
 	t.Run("It handles multi-line prompts", func(t *testing.T) {
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 
@@ -100,7 +100,8 @@ Complete the list with one more color`
 
 		setupViperForTest(t)
 		ollamaClient := ollama.NewClient()
-		executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+		// Use NewReactAgentWithOptions to skip permissions for testing
+		executorAgent, err := agent.NewReactAgentWithOptions(ollamaClient.LLM, false, true)
 		require.NoError(t, err)
 		defer executorAgent.Close()
 

@@ -50,8 +50,8 @@ var (
 	MarginNormal  = lipgloss.NewStyle().Margin(1)
 )
 
-// Styles defines the Lipgloss styles for the TUI components
-type Styles struct {
+// StyleSet defines the Lipgloss styles for the TUI components
+type StyleSet struct {
 	// Layout styles
 	ChatBody   lipgloss.Style
 	ChatEvents lipgloss.Style
@@ -80,11 +80,21 @@ type Styles struct {
 
 	PaddingNormal lipgloss.Style
 	MarginNormal  lipgloss.Style
+
+	// Tool display styles
+	ToolIndicator    lipgloss.Style
+	ToolName         lipgloss.Style
+	ToolOutputPrefix lipgloss.Style
+	ToolSuccess      lipgloss.Style
+	ToolError        lipgloss.Style
 }
 
+// Styles is the global style instance
+var Styles = DefaultStyles()
+
 // DefaultStyles returns the default Lipgloss styles
-func DefaultStyles() *Styles {
-	return &Styles{
+func DefaultStyles() *StyleSet {
+	return &StyleSet{
 		ChatBody: lipgloss.NewStyle().
 			Background(ColorSelection).
 			Foreground(ColorBase05).
@@ -162,5 +172,22 @@ func DefaultStyles() *Styles {
 
 		PaddingNormal: PaddingNormal,
 		MarginNormal:  MarginNormal,
+
+		// Tool display styles
+		ToolIndicator: lipgloss.NewStyle().
+			Foreground(ColorBlue).
+			Bold(true),
+
+		ToolName: lipgloss.NewStyle().
+			Foreground(ColorCyan),
+
+		ToolOutputPrefix: lipgloss.NewStyle().
+			Foreground(ColorBase04),
+
+		ToolSuccess: lipgloss.NewStyle().
+			Foreground(ColorGreen),
+
+		ToolError: lipgloss.NewStyle().
+			Foreground(ColorError),
 	}
 }
