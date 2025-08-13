@@ -4,20 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ryan is an open-source Claude Code alternative that provides chat functionality with LLM models, specifically designed to work with Ollama and other providers through a LangChain integration.
+Ryan is a prototype LLM repl focused on code writing assistance
 
 ## Development Commands
 
 ### Build and Run
 - **Build**: `task build` or `go build -o bin/ryan main.go`
-- **Run**: `task run` or `./bin/ryan`
-- **Run with arguments**: `task run -- [args]` or `./bin/ryan [args]`
+- **Run the TUI**: `task run` or `./bin/ryan`
+- **Run headless**: `task build && ./bin/ryan --headless --prompt <prompt>`
 
 ### Testing
 - **Unit tests**: `task test` or `go test ./pkg/... ./cmd/...`
 - **Integration tests**: `task test:integration` (requires Ollama with qwen3:latest model)
-- **Run specific test**: `go test -v ./integration/... -run TestName`
-- **Test with coverage**: Tests automatically generate coverage reports in `coverage/`
+- **All tests**: `task test:all`
 
 ### Code Quality
 - **Full check**: `task check` (runs tidy, verify, fmt, vet, and lint)
@@ -27,7 +26,7 @@ Ryan is an open-source Claude Code alternative that provides chat functionality 
 
 ### Development Tools
 - Uses Taskfile for task automation (Task version 3)
-- Devbox configuration available with Go and Task pre-installed
+- Devbox configuration available with Go and Task pre-installed. IMPORTANT NOTE: When system packages are required, they must be installed in a devbox shell.
 - Pre-commit hooks configured via `uvx pre-commit`
 
 ## Architecture
@@ -35,9 +34,10 @@ Ryan is an open-source Claude Code alternative that provides chat functionality 
 ### Core Components
 
 1. **Agent System** (`pkg/agent/`)
-   - `Agent` interface defines core agent operations (Execute, ExecuteStream, ClearMemory)
-   - `ExecutorAgent` implements the main agent using LangChain integration
+   - `Agent` interface defines core agent operations (Execute, ExecuteStream, ClearMemory, GetExecutionState)
+   - `ReactAgent` implements a single ReAct agent using LangChain's ConversationalAgent
    - Supports both blocking and streaming execution modes
+   - Observable execution state for real-time tool usage display
 
 2. **LLM Integration** (`pkg/llm/`)
    - `Provider` interface for LLM providers
@@ -82,11 +82,13 @@ Ryan is an open-source Claude Code alternative that provides chat functionality 
 
 ### Key Patterns
 
-1. **Interface-driven design**: All major components use interfaces for flexibility
-2. **LangChain integration**: Uses `tmc/langchaingo` for LLM orchestration
-3. **Unified streaming**: Consolidated streaming architecture with core/providers/tui separation
-4. **Provider abstraction**: LLM providers are abstracted behind common interfaces
-5. **Memory persistence**: SQLite-based conversation memory with session management
+1. **Single ReAct Agent**: Uses LangChain's ConversationalAgent for ReAct pattern implementation
+2. **Interface-driven design**: All major components use interfaces for flexibility
+3. **LangChain integration**: Uses `tmc/langchaingo` for ReAct agent orchestration
+4. **Unified streaming**: Consolidated streaming architecture with core/providers/tui separation
+5. **Observable state**: Real-time execution state tracking for tool usage visibility
+6. **Provider abstraction**: LLM providers are abstracted behind common interfaces
+7. **Memory persistence**: SQLite-based conversation memory with session management
 
 ## Configuration
 
@@ -102,3 +104,9 @@ Ryan is an open-source Claude Code alternative that provides chat functionality 
 - **CLI**: Cobra for commands, Viper for configuration
 - **Testing**: Testify for assertions
 - **Database**: SQLite for memory storage
+
+## Helpful documentation
+
+- **Bubbletea**: https://pkg.go.dev/github.com/charmbracelet/bubbletea
+- **viper**: https://github.com/spf13/viper
+- **Langchain-go**: https://pkg.go.dev/github.com/tmc/langchaingo@v0.1.13

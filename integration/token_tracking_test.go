@@ -22,7 +22,7 @@ func TestTokenTracking(t *testing.T) {
 	ollamaClient := ollama.NewClient()
 
 	// Create executor agent
-	executorAgent, err := agent.NewExecutorAgent(ollamaClient.LLM)
+	executorAgent, err := agent.NewReactAgent(ollamaClient.LLM)
 	require.NoError(t, err)
 	defer executorAgent.Close()
 

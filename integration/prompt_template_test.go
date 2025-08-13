@@ -126,7 +126,7 @@ func TestPromptTemplatesWithLangChain(t *testing.T) {
 	})
 }
 
-// TestPromptTemplatesWithAgent tests prompt templates integrated with our ExecutorAgent
+// TestPromptTemplatesWithAgent tests prompt templates integrated with our ReactAgent
 func TestPromptTemplatesWithAgent(t *testing.T) {
 	// Skip if no Ollama available
 	if !isOllamaAvailable() {
@@ -148,7 +148,7 @@ func TestPromptTemplatesWithAgent(t *testing.T) {
 		require.NotNil(t, ollamaClient)
 
 		// Create agent
-		testAgent, err := agent.NewExecutorAgent(ollamaClient)
+		testAgent, err := agent.NewReactAgent(ollamaClient)
 		require.NoError(t, err)
 		require.NotNil(t, testAgent)
 		defer testAgent.Close()
@@ -188,7 +188,7 @@ Response:`,
 		require.NotNil(t, ollamaClient)
 
 		// Create agent
-		testAgent, err := agent.NewExecutorAgent(ollamaClient)
+		testAgent, err := agent.NewReactAgent(ollamaClient)
 		require.NoError(t, err)
 		defer testAgent.Close()
 
