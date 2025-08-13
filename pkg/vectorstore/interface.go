@@ -60,6 +60,9 @@ type RetrieverConfig struct {
 	// Minimum similarity score threshold (0-1)
 	ScoreThreshold float32
 
+	// Maximum context length for augmentation
+	MaxContextLength int
+
 	// Metadata filters
 	Filters map[string]interface{}
 }

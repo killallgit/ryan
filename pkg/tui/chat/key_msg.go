@@ -58,7 +58,7 @@ func handleKeyMsg(m chatModel, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Start streaming from registered provider
 			return m, tui.StreamFromProvider(
 				m.streamManager,
-				"",          // Empty to use router
+				"",          // Empty to use default provider
 				userInput,   // Prompt
 				"assistant", // Node type for response
 			)

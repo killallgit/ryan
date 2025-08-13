@@ -74,8 +74,9 @@ type Settings struct {
 			APIKey   string
 		}
 		Retrieval struct {
-			K              int
-			ScoreThreshold float32
+			K                int
+			ScoreThreshold   float32
+			MaxContextLength int
 		}
 	}
 
@@ -164,6 +165,7 @@ func setDefaults() {
 	viper.SetDefault("vectorstore.embedding.model", "nomic-embed-text")
 	viper.SetDefault("vectorstore.retrieval.k", 4)
 	viper.SetDefault("vectorstore.retrieval.score_threshold", 0.0)
+	viper.SetDefault("vectorstore.retrieval.max_context_length", 4000)
 }
 
 // Load loads configuration from viper into the Settings struct
@@ -210,6 +212,7 @@ func Load() error {
 	Global.VectorStore.Embedding.APIKey = viper.GetString("vectorstore.embedding.api_key")
 	Global.VectorStore.Retrieval.K = viper.GetInt("vectorstore.retrieval.k")
 	Global.VectorStore.Retrieval.ScoreThreshold = float32(viper.GetFloat64("vectorstore.retrieval.score_threshold"))
+	Global.VectorStore.Retrieval.MaxContextLength = viper.GetInt("vectorstore.retrieval.max_context_length")
 
 	return nil
 }

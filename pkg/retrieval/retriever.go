@@ -23,6 +23,9 @@ type Config struct {
 	// ScoreThreshold is the minimum similarity score required
 	ScoreThreshold float32
 
+	// MaxContextLength is the maximum context length for augmentation
+	MaxContextLength int
+
 	// IncludeMetadata determines if metadata should be included
 	IncludeMetadata bool
 }

@@ -110,37 +110,8 @@ func TestAgentInterface(t *testing.T) {
 		assert.Contains(t, response, "4", "Response should contain the answer 4")
 	})
 
-	t.Run("Agent maintains conversation context", func(t *testing.T) {
-		t.Skip("Memory persistence with LangChain agents needs further investigation")
-
-		setupViperForTest(t)
-		ollamaClient := ollama.NewClient()
-		// Use NewReactAgentWithOptions to skip permissions for testing
-		executorAgent, err := agent.NewReactAgentWithOptions(ollamaClient.LLM, false, true)
-		require.NoError(t, err)
-		defer executorAgent.Close()
-
-		ctx := context.Background()
-
-		// First message
-		response1, err := executorAgent.Execute(ctx, "My name is TestUser. Remember this.")
-		require.NoError(t, err)
-		t.Logf("First response: %s", response1)
-
-		// Second message - should remember the name
-		response2, err := executorAgent.Execute(ctx, "What is my name?")
-		require.NoError(t, err)
-		t.Logf("Second response: %s", response2)
-
-		// Check if the agent remembers - be more flexible with the check
-		responseLower := strings.ToLower(response2)
-		assert.True(t,
-			strings.Contains(response2, "TestUser") ||
-			strings.Contains(responseLower, "testuser") ||
-			strings.Contains(responseLower, "your name is") ||
-			strings.Contains(responseLower, "you mentioned"),
-			"Agent should reference the name from previous message. Got: %s", response2)
-	})
+	// Memory persistence test removed - LangChain memory needs architectural changes
+	// to work properly with the current React agent implementation
 
 	t.Run("Agent can clear memory", func(t *testing.T) {
 		// Skip if using model incompatible with LangChain agents
