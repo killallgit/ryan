@@ -140,16 +140,21 @@ func NewReactAgentWithSessionAndOptions(llm llms.Model, sessionID string, skipPe
 				logger.Info("Vector store initialized successfully")
 				// Create retriever
 				retriever = retrieval.NewRetriever(vectorStore, retrieval.Config{
-					MaxDocuments:   vsConfig.Retrieval.K,
-					ScoreThreshold: vsConfig.Retrieval.ScoreThreshold,
+					MaxDocuments:     vsConfig.Retrieval.K,
+					ScoreThreshold:   vsConfig.Retrieval.ScoreThreshold,
+					MaxContextLength: vsConfig.Retrieval.MaxContextLength,
 				})
 				logger.Debug("Retriever created with K=%d, threshold=%f", vsConfig.Retrieval.K, vsConfig.Retrieval.ScoreThreshold)
 
 				// Create augmenter
+				maxContextLength := vsConfig.Retrieval.MaxContextLength
+				if maxContextLength == 0 {
+					maxContextLength = 4000 // Default fallback
+				}
 				augmenter = retrieval.NewAugmenter(retriever, retrieval.AugmenterConfig{
-					MaxContextLength: 4000, // TODO: Add to settings if needed
+					MaxContextLength: maxContextLength,
 				})
-				logger.Debug("Augmenter created with max context length: %d", 4000)
+				logger.Debug("Augmenter created with max context length: %d", maxContextLength)
 
 				// Add retriever as a LangChain tool if available
 				if retriever != nil {

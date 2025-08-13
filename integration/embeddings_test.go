@@ -117,6 +117,5 @@ func TestVectorStoreWithOllamaEmbedder(t *testing.T) {
 		t.Skipf("Skipping test: Ollama is not available at %s", ollamaHost)
 	}
 
-	// Test will be implemented when we need to test vector store with real embeddings
-	t.Skip("Vector store integration with Ollama embedder - to be implemented")
+	// Vector store integration test removed - covered by vectorstore package tests
 }

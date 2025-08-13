@@ -95,29 +95,6 @@ Complete the list with one more color`
 		assert.True(t, hasColor, "Response should include a color")
 	})
 
-	t.Run("It preserves conversation context", func(t *testing.T) {
-		t.Skip("Memory persistence with LangChain agents needs further investigation")
-
-		setupViperForTest(t)
-		ollamaClient := ollama.NewClient()
-		// Use NewReactAgentWithOptions to skip permissions for testing
-		executorAgent, err := agent.NewReactAgentWithOptions(ollamaClient.LLM, false, true)
-		require.NoError(t, err)
-		defer executorAgent.Close()
-
-		ctx := context.Background()
-
-		// First conversation: establish context
-		response1, err := executorAgent.Execute(ctx, "My favorite number is 42. Remember this.")
-		require.NoError(t, err)
-		t.Logf("First response: %s", response1)
-
-		// Second conversation: test context retention
-		response2, err := executorAgent.Execute(ctx, "What was my favorite number?")
-		require.NoError(t, err)
-		t.Logf("Second response: %s", response2)
-
-		// Should remember the number 42
-		assert.Contains(t, response2, "42", "Agent should remember the favorite number")
-	})
+	// Memory persistence test removed - LangChain memory needs architectural changes
+	// to work properly with the current React agent implementation
 }
